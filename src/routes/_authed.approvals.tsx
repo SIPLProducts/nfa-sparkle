@@ -51,7 +51,37 @@ function ApprovalsInbox() {
         }
       />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      {/* Mobile card list */}
+      <div className="space-y-2.5 md:hidden">
+        {loading && <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Loading…</div>}
+        {!loading && rows.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
+            <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-500/70" />
+            <div className="text-sm font-medium">You're all caught up</div>
+            <div className="text-xs text-muted-foreground">No items are currently waiting on your decision.</div>
+          </div>
+        )}
+        {rows.map(({ nfa, ap }) => (
+          <Link key={ap.id} to="/nfa/$id" params={{ id: nfa.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[11px] font-semibold text-accent">{nfa.enfa_number}</span>
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">Level {ap.level}</span>
+            </div>
+            <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{nfa.subject}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {nfaTypeName(nfa.nfa_type)} · {nfa.plant ?? "—"}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
+              <span>From <span className="text-foreground">{nameFor(profiles, nfa.initiator_id)}</span></span>
+              <span>{new Date(nfa.created_at).toLocaleDateString()}</span>
+            </div>
+            <div className="mt-2"><Button size="sm" className="w-full">Review</Button></div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
