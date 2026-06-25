@@ -51,6 +51,7 @@ function NfaDetail() {
   const [fLevel, setFLevel] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>("");
   const [fTo, setFTo] = useState<string>("");
+  const [fSort, setFSort] = useState<"newest" | "oldest">("newest");
 
   const load = useCallback(async () => {
     const { data: n } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
@@ -80,8 +81,11 @@ function NfaDetail() {
       if (fromMs !== null && t < fromMs) return false;
       if (toMs !== null && t > toMs) return false;
       return true;
+    }).slice().sort((a, b) => {
+      const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
+      return fSort === "newest" ? -diff : diff;
     });
-  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, profiles]);
+  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
 
   if (!nfa) return <div className="p-4 text-slate-500">Loading…</div>;
 
@@ -299,13 +303,13 @@ function NfaDetail() {
       <Card className="border-slate-300 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
-          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo) && (
-            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); }}>
+          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
               Clear filters
             </Button>
           )}
         </div>
-        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-5">
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-6">
           <div>
             <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Action</Label>
             <Select value={fAction} onValueChange={setFAction}>
@@ -342,6 +346,16 @@ function NfaDetail() {
           <div>
             <Label className="text-[11px] uppercase text-slate-500">To</Label>
             <Input type="date" className="h-8" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">Sort</Label>
+            <Select value={fSort} onValueChange={(v) => setFSort(v as "newest" | "oldest")}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="overflow-x-auto">
