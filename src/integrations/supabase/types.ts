@@ -301,16 +301,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_nfa_approver: {
-        Args: { _nfa_id: string; _user_id: string }
-        Returns: boolean
+      get_profiles_basic: {
+        Args: { _ids: string[] }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
       }
       nfa_act: {
         Args: { _action: string; _comment?: string; _nfa_id: string }
@@ -319,6 +315,13 @@ export type Database = {
       nfa_resubmit: {
         Args: { _comment?: string; _nfa_id: string }
         Returns: undefined
+      }
+      resolve_users_by_email: {
+        Args: { _emails: string[] }
+        Returns: {
+          email: string
+          id: string
+        }[]
       }
     }
     Enums: {
