@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Paperclip, Upload, ArrowLeft, FileEdit } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit } from "lucide-react";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
@@ -28,7 +28,6 @@ function NfaDetail() {
   const nav = useNavigate();
   const [nfa, setNfa] = useState<NfaRow | null>(null);
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
-  const [files, setFiles] = useState<Attachment[]>([]);
   const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
@@ -40,8 +39,6 @@ function NfaDetail() {
     setNfa((n as NfaRow) ?? null);
     const { data: a } = await supabase.from("nfa_approver").select("*").eq("nfa_id", id).order("level");
     setApprovers((a as ApproverRow[]) ?? []);
-    const { data: f } = await supabase.from("nfa_attachment").select("*").eq("nfa_id", id).order("uploaded_at", { ascending: false });
-    setFiles((f as Attachment[]) ?? []);
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
     const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
