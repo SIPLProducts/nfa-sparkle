@@ -115,9 +115,8 @@ function AuditLogs() {
   return (
     <AppShell title="Audit Logs" subtitle="System-wide activity across all NFAs you can access">
       <PageHeader
-        icon={<History className="h-5 w-5" />}
         title="Audit Logs"
-        description="Track creations, changes, approvals, rejections, clarifications and resubmissions."
+        subtitle="Track creations, changes, approvals, rejections, clarifications and resubmissions."
       />
 
       <Card className="mb-4 p-4">
