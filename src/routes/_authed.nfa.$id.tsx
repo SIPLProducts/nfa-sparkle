@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
@@ -43,6 +43,7 @@ function NfaDetail() {
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
   const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,6 +63,7 @@ function NfaDetail() {
     setApprovers((a as ApproverRow[]) ?? []);
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
+    setAuditLoading(false);
     const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
     setProfiles(await fetchProfilesMap(ids));
   }, [id]);
@@ -403,8 +405,45 @@ function NfaDetail() {
                   </tr>
                 );
               })}
-              {pagedAudit.length === 0 && (
-                <tr><td colSpan={6} className="p-3 text-center text-slate-500">{audit.length === 0 ? "No audit entries yet." : "No entries match the current filters."}</td></tr>
+              {auditLoading && (
+                <tr>
+                  <td colSpan={6} className="p-6">
+                    <div className="flex items-center justify-center gap-2 text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading audit log…</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!auditLoading && pagedAudit.length === 0 && audit.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center text-slate-500">
+                      <Inbox className="h-8 w-8 text-slate-300" />
+                      <div className="text-sm font-medium text-slate-700">No audit entries yet</div>
+                      <div className="text-xs">Approval and action history will appear here once activity begins on this NFA.</div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!auditLoading && pagedAudit.length === 0 && audit.length > 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center text-slate-500">
+                      <SearchX className="h-8 w-8 text-slate-300" />
+                      <div className="text-sm font-medium text-slate-700">No entries match your filters</div>
+                      <div className="text-xs">Try adjusting the action, approver, level, or date range.</div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                      >
+                        <RotateCcw className="mr-1 h-3 w-3" /> Clear filters
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
