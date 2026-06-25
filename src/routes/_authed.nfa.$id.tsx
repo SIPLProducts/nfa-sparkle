@@ -74,6 +74,9 @@ function NfaDetail() {
     const q = fApprover.trim().toLowerCase();
     const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
     const toMs = fTo ? new Date(fTo + "T23:59:59").getTime() : null;
+    // If the range is invalid (From after To), ignore the date filter
+    // entirely so the table behaves predictably while the user fixes it.
+    const rangeInvalid = fromMs !== null && toMs !== null && fromMs > toMs;
     return audit.filter((a) => {
       if (fAction !== "all" && a.action_kind !== fAction) return false;
       if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
@@ -81,15 +84,26 @@ function NfaDetail() {
         const name = (a.approver_name || nameFor(profiles, a.actor_id ?? undefined) || "").toLowerCase();
         if (!name.includes(q)) return false;
       }
-      const t = new Date(a.at).getTime();
-      if (fromMs !== null && t < fromMs) return false;
-      if (toMs !== null && t > toMs) return false;
+      if (!rangeInvalid) {
+        const t = new Date(a.at).getTime();
+        if (fromMs !== null && t < fromMs) return false;
+        if (toMs !== null && t > toMs) return false;
+      }
       return true;
     }).slice().sort((a, b) => {
       const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
       return fSort === "newest" ? -diff : diff;
     });
   }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+
+  const dateRangeError = useMemo(() => {
+    if (!fFrom || !fTo) return null;
+    const f = new Date(fFrom + "T00:00:00").getTime();
+    const t = new Date(fTo + "T23:59:59").getTime();
+    if (Number.isNaN(f) || Number.isNaN(t)) return "Enter valid From and To dates.";
+    if (f > t) return "From date must be on or before To date.";
+    return null;
+  }, [fFrom, fTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
   useEffect(() => { setPage(1); }, [fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
