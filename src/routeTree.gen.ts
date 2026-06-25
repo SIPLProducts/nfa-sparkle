@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
   id: '/nfa/new',
@@ -49,6 +55,7 @@ const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/approvals': typeof AuthedApprovalsRoute
   '/nfa/$id': typeof AuthedNfaIdRoute
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
@@ -56,6 +63,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/approvals': typeof AuthedApprovalsRoute
   '/nfa/$id': typeof AuthedNfaIdRoute
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
@@ -65,20 +73,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/nfa/$id': typeof AuthedNfaIdRoute
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
+  fullPaths: '/' | '/auth' | '/approvals' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
+  to: '/' | '/auth' | '/approvals' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/auth'
+    | '/_authed/approvals'
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
@@ -113,6 +123,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/approvals': {
+      id: '/_authed/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthedApprovalsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/nfa/new': {
       id: '/_authed/nfa/new'
       path: '/nfa/new'
@@ -138,12 +155,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedApprovalsRoute: typeof AuthedApprovalsRoute
   AuthedNfaIdRoute: typeof AuthedNfaIdRoute
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedApprovalsRoute: AuthedApprovalsRoute,
   AuthedNfaIdRoute: AuthedNfaIdRoute,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
