@@ -59,6 +59,7 @@ function NfaDetail() {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [tlFilter, setTlFilter] = useState<"all" | "actions" | "documents">("all");
+  const [tlSearch, setTlSearch] = useState<string>("");
   const [fAction, setFAction] = useState<string>("all");
   const [fType, setFType] = useState<string>("all");
   const [fApprover, setFApprover] = useState<string>("");
