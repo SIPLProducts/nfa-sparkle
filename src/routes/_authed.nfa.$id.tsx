@@ -84,22 +84,22 @@ function NfaDetail() {
     const { error } = await supabase.rpc("nfa_act", {
       _nfa_id: nfa!.id, _action: kind, _comment: comment || undefined,
     });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Action recorded");
+    if (error) { setBusy(false); return toast.error(error.message); }
     setComment("");
-    load();
+    await load();
+    setBusy(false);
+    toast.success("Action recorded");
   }
 
   async function resubmit() {
     if (!user) return;
     setBusy(true);
     const { error } = await supabase.rpc("nfa_resubmit", { _nfa_id: nfa!.id, _comment: comment || undefined });
-    setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { setBusy(false); return toast.error(error.message); }
     setComment("");
+    await load();
+    setBusy(false);
     toast.success("Resubmitted");
-    load();
   }
 
   return (
