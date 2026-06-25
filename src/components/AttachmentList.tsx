@@ -61,6 +61,17 @@ export function AttachmentList({ nfaId, refreshKey = 0, title = "Supporting Atta
       .from("nfa-attachments")
       .createSignedUrl(att.storage_path, 300, download ? { download: att.filename } : undefined);
     if (error || !data) return toast.error(error?.message ?? "Cannot open file");
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) {
+        await supabase.from("nfa_attachment_view").insert({
+          nfa_id: att.nfa_id,
+          attachment_id: att.id,
+          viewer_id: u.user.id,
+          action: download ? "download" : "view",
+        });
+      }
+    } catch { /* best-effort */ }
     if (download) {
       window.open(data.signedUrl, "_blank");
       return;
