@@ -260,3 +260,12 @@ function ReadField({ label, value, className }: { label: string; value: string; 
     </div>
   );
 }
+
+function stepDot(status: ApproverRow["status"], isCurrent: boolean) {
+  if (status === "approved") return { Icon: Check, bg: "bg-emerald-500", fg: "text-white" };
+  if (status === "rejected") return { Icon: X, bg: "bg-rose-500", fg: "text-white" };
+  if (status === "sent_back") return { Icon: Undo2, bg: "bg-amber-500", fg: "text-white" };
+  if (status === "clarification") return { Icon: HelpCircle, bg: "bg-amber-500", fg: "text-white" };
+  if (isCurrent) return { Icon: Clock, bg: "bg-blue-500", fg: "text-white" };
+  return { Icon: Clock, bg: "bg-slate-200", fg: "text-slate-500" };
+}
