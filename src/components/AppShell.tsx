@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { StatusLegend } from "@/components/StatusLegend";
 import {
   FileText,
   Inbox,
@@ -123,6 +124,7 @@ export function AppShell({
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                 <Bell className="h-4 w-4" />
               </Button>
+              <StatusLegend compact />
               <div className="hidden items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 sm:flex">
                 <div className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                   {(user?.email ?? "U").slice(0, 1).toUpperCase()}
