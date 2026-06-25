@@ -503,6 +503,9 @@ function NfaDetail() {
           return (
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-[11px] uppercase tracking-wide text-slate-500">Active filters</span>
+              <span className="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">
+                {filteredAudit.length} {filteredAudit.length === 1 ? "match" : "matches"}
+              </span>
               {chips.map((c) => (
                 <span key={c.key} className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs text-slate-700 shadow-sm">
                   {c.label}
@@ -590,7 +593,7 @@ function NfaDetail() {
                     <div className="flex flex-col items-center justify-center gap-2 text-center text-slate-500">
                       <SearchX className="h-8 w-8 text-slate-300" />
                       <div className="text-sm font-medium text-slate-700">No entries match your filters</div>
-                      <div className="text-xs">Try adjusting the action, approver, level, or date range.</div>
+                      <div className="text-xs">0 of {audit.length} entries match the current filters. Try adjusting the action, approver, level, or date range.</div>
                       <Button
                         size="sm"
                         variant="outline"
