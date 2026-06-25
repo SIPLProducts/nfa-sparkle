@@ -8,6 +8,7 @@ import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { Inbox, CheckCircle2 } from "lucide-react";
+import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
@@ -37,6 +38,9 @@ function ApprovalsInbox() {
     })();
   }, [user]);
 
+  const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
+  const visible = rows.slice(0, visibleCount);
+
   return (
     <div>
       <PageHeader
@@ -61,7 +65,7 @@ function ApprovalsInbox() {
             <div className="text-xs text-muted-foreground">No items are currently waiting on your decision.</div>
           </div>
         )}
-        {rows.map(({ nfa, ap }) => (
+        {visible.map(({ nfa, ap }) => (
           <Link key={ap.id} to="/nfa/$id" params={{ id: nfa.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[11px] font-semibold text-accent">{nfa.enfa_number}</span>
@@ -78,6 +82,14 @@ function ApprovalsInbox() {
             <div className="mt-2"><Button size="sm" className="w-full">Review</Button></div>
           </Link>
         ))}
+        {hasMore && (
+          <div ref={setSentinel} className="py-3 text-center text-[11px] text-muted-foreground">
+            Loading more… <span className="text-foreground/60">({visibleCount} of {rows.length})</span>
+          </div>
+        )}
+        {!loading && rows.length > 10 && !hasMore && (
+          <div className="py-3 text-center text-[11px] text-muted-foreground">All {rows.length} loaded</div>
+        )}
       </div>
 
       {/* Desktop table */}
