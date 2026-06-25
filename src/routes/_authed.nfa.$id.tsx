@@ -385,18 +385,18 @@ function NfaDetail() {
         </ol>
       </Card>
 
-      <Card className="border-slate-300 p-5">
-        <div className="mb-4 flex items-center justify-between">
+      <Card className="border-slate-300 p-3 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-display text-base font-bold text-slate-800">Approval Activity Timeline</h3>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={tlSearch}
                 onChange={(e) => setTlSearch(e.target.value)}
                 placeholder="Search approver, action, file…"
-                className="h-7 w-56 rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-slate-500"
+                className="h-7 w-full rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-slate-500 sm:w-56"
               />
             </div>
             <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-xs">
