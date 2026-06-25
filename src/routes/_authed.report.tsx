@@ -120,16 +120,18 @@ function Report() {
           <div className="space-y-1.5"><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="space-y-1.5"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-border pt-3">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
-          <label className="flex items-center gap-2 text-sm"><Checkbox checked={inProcess} onCheckedChange={(v) => setInProc(!!v)} /> In Process</label>
-          <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} onCheckedChange={(v) => setCompleted(!!v)} /> Completed</label>
-          <label className="flex items-center gap-2 text-sm"><Checkbox checked={rejected} onCheckedChange={(v) => setRejected(!!v)} /> Rejected</label>
-          <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setPlant(""); setType(""); setFunc(""); setEnfa(""); setFrom(""); setTo(""); }}>
+        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={inProcess} onCheckedChange={(v) => setInProc(!!v)} /> In Process</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} onCheckedChange={(v) => setCompleted(!!v)} /> Completed</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={rejected} onCheckedChange={(v) => setRejected(!!v)} /> Rejected</label>
+          </div>
+          <div className="flex gap-2 sm:ml-auto">
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setPlant(""); setType(""); setFunc(""); setEnfa(""); setFrom(""); setTo(""); }}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
-            <Button onClick={run} disabled={busy} className="gap-1.5"><Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}</Button>
+            <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none"><Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}</Button>
           </div>
         </div>
       </div>
@@ -138,7 +140,29 @@ function Report() {
         <div className="text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
       </div>
 
-      <div className="mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      {/* Mobile card list */}
+      <div className="mt-2 space-y-2.5 md:hidden">
+        {rows.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+            Run the report to see results.
+          </div>
+        )}
+        {rows.map((r) => (
+          <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
+              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span>
+            </div>
+            <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.subject}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {nfaTypeName(r.nfa_type)} · {r.plant ?? "—"} · {nameFor(profiles, r.initiator_id)} · {new Date(r.created_at).toLocaleDateString()}
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="mt-2 hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
