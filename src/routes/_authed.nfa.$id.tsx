@@ -17,6 +17,7 @@ import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
+import { Eye, Download as DownloadIcon, Check as CheckIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
@@ -35,6 +36,14 @@ interface AuditRow {
   action_kind: string | null;
 }
 
+interface ViewRow {
+  id: string;
+  attachment_id: string;
+  viewer_id: string;
+  action: "view" | "download";
+  viewed_at: string;
+}
+
 function NfaDetail() {
   const { id } = Route.useParams();
   const { user } = useAuth();
@@ -44,6 +53,8 @@ function NfaDetail() {
   const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+  const [views, setViews] = useState<ViewRow[]>([]);
+  const [attachmentNames, setAttachmentNames] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,7 +77,16 @@ function NfaDetail() {
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
     setAuditLoading(false);
-    const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
+    const { data: vw } = await supabase.from("nfa_attachment_view").select("*").eq("nfa_id", id).order("viewed_at", { ascending: false });
+    setViews((vw as ViewRow[]) ?? []);
+    const { data: atts } = await supabase.from("nfa_attachment").select("id,filename").eq("nfa_id", id);
+    setAttachmentNames(Object.fromEntries(((atts ?? []) as { id: string; filename: string }[]).map((x) => [x.id, x.filename])));
+    const ids = [
+      n?.initiator_id,
+      ...((a ?? []).map((r) => r.approver_id)),
+      ...((au ?? []).map((r) => r.actor_id)),
+      ...((vw ?? []).map((r) => r.viewer_id)),
+    ].filter((x): x is string => Boolean(x));
     setProfiles(await fetchProfilesMap(ids));
   }, [id]);
 
