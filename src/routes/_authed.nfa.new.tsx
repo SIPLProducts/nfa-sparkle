@@ -112,8 +112,10 @@ function NewNfaPage() {
       if (validApprovers.length) {
         // Resolve approver emails to user ids via profiles
         const emails = validApprovers.map((a) => a.email.trim().toLowerCase());
-        const { data: profs } = await supabase.from("profiles").select("id,email").in("email", emails);
-        const map = new Map((profs ?? []).map((p) => [p.email?.toLowerCase(), p.id]));
+        const { data: profs } = await supabase.rpc("resolve_users_by_email", { _emails: emails });
+        const map = new Map(
+          ((profs ?? []) as Array<{ id: string; email: string | null }>).map((p) => [p.email?.toLowerCase(), p.id]),
+        );
         const missing = emails.filter((e) => !map.get(e));
         if (missing.length) {
           toast.error(`Approver(s) not found / never signed in: ${missing.join(", ")}`);
