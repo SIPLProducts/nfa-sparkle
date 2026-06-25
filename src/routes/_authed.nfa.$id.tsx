@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Paperclip, Upload, Eye, Download, ArrowLeft } from "lucide-react";
+import { Paperclip, Upload, Eye, Download, ArrowLeft, FileEdit } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
@@ -113,6 +113,11 @@ function NfaDetail() {
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => nav({ to: "/nfa/my" })}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button>
         <div className="flex items-center gap-2 text-sm">
+          {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && (
+            <Link to="/nfa/$id/change" params={{ id: nfa.id }}>
+              <Button size="sm" variant="outline" className="gap-1.5"><FileEdit className="h-4 w-4" /> Request Change</Button>
+            </Link>
+          )}
           <span className="text-slate-600">ENFA</span>
           <span className="font-bold text-slate-800">{nfa.enfa_number}</span>
           <Badge variant="outline">{STATUS_LABEL[nfa.status]}</Badge>
