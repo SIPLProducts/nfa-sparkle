@@ -365,11 +365,25 @@ function NfaDetail() {
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">From</Label>
-            <Input type="date" className="h-8" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+            <Input
+              type="date"
+              className={`h-8 ${dateRangeError ? "border-rose-400 focus-visible:ring-rose-300" : ""}`}
+              value={fFrom}
+              max={fTo || undefined}
+              aria-invalid={!!dateRangeError}
+              onChange={(e) => setFFrom(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">To</Label>
-            <Input type="date" className="h-8" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+            <Input
+              type="date"
+              className={`h-8 ${dateRangeError ? "border-rose-400 focus-visible:ring-rose-300" : ""}`}
+              value={fTo}
+              min={fFrom || undefined}
+              aria-invalid={!!dateRangeError}
+              onChange={(e) => setFTo(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">Sort</Label>
@@ -382,6 +396,21 @@ function NfaDetail() {
             </Select>
           </div>
         </div>
+        {dateRangeError && (
+          <div
+            role="alert"
+            className="mb-3 flex items-center justify-between gap-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+          >
+            <span>{dateRangeError} The date range is ignored until this is fixed.</span>
+            <button
+              type="button"
+              onClick={() => { setFFrom(""); setFTo(""); }}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              Clear dates
+            </button>
+          </div>
+        )}
         {(() => {
           const ACTION_LABEL: Record<string, string> = { approve: "Approve", reject: "Reject", clarify: "Clarification", back: "Back to Initiator" };
           const chips: { key: string; label: string; onClear: () => void }[] = [];
