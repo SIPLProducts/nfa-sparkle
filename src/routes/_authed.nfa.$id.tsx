@@ -17,7 +17,7 @@ import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
-import { Eye, Download as DownloadIcon, Check as CheckIcon } from "lucide-react";
+import { Eye, Download as DownloadIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
