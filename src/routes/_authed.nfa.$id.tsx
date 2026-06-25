@@ -364,21 +364,49 @@ function NfaDetail() {
       <Card className="border-slate-300 p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-display text-base font-bold text-slate-800">Approval Activity Timeline</h3>
-          <span className="text-xs text-muted-foreground">
-            {audit.length} action{audit.length === 1 ? "" : "s"} · {views.length} document view{views.length === 1 ? "" : "s"}
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-xs">
+              {([
+                { k: "all", label: "All" },
+                { k: "actions", label: "Actions" },
+                { k: "documents", label: "Documents" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.k}
+                  type="button"
+                  onClick={() => setTlFilter(opt.k)}
+                  className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                    tlFilter === opt.k ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {audit.length} action{audit.length === 1 ? "" : "s"} · {views.length} document view{views.length === 1 ? "" : "s"}
+            </span>
+          </div>
         </div>
         {(() => {
           type TLEvent =
             | { kind: "audit"; at: string; row: AuditRow }
             | { kind: "view"; at: string; row: ViewRow };
           const events: TLEvent[] = [
-            ...audit.map((r) => ({ kind: "audit" as const, at: r.at, row: r })),
-            ...views.map((r) => ({ kind: "view" as const, at: r.viewed_at, row: r })),
+            ...(tlFilter === "documents" ? [] : audit.map((r) => ({ kind: "audit" as const, at: r.at, row: r }))),
+            ...(tlFilter === "actions" ? [] : views.map((r) => ({ kind: "view" as const, at: r.viewed_at, row: r }))),
           ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
 
           if (events.length === 0) {
-            return <p className="text-sm text-muted-foreground">No activity yet.</p>;
+            return (
+              <p className="text-sm text-muted-foreground">
+                {tlFilter === "all"
+                  ? "No activity yet."
+                  : tlFilter === "actions"
+                  ? "No approval actions yet."
+                  : "No document views or downloads yet."}
+              </p>
+            );
           }
 
           return (
