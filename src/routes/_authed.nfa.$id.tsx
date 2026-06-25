@@ -48,6 +48,7 @@ function NfaDetail() {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [fAction, setFAction] = useState<string>("all");
+  const [fType, setFType] = useState<string>("all");
   const [fApprover, setFApprover] = useState<string>("");
   const [fLevel, setFLevel] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>("");
