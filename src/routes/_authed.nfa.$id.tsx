@@ -48,6 +48,7 @@ function NfaDetail() {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [fAction, setFAction] = useState<string>("all");
+  const [fType, setFType] = useState<string>("all");
   const [fApprover, setFApprover] = useState<string>("");
   const [fLevel, setFLevel] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>("");
@@ -70,6 +71,18 @@ function NfaDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Classify each audit row into a broad event type for the Type filter.
+  // Approver actions populate action_kind; other events are derived from action text.
+  const classifyEvent = (a: AuditRow): "creation" | "change" | "approval" | "attachment" | "resubmit" | "other" => {
+    if (a.action_kind && ["approve", "reject", "back", "clarify"].includes(a.action_kind)) return "approval";
+    const t = (a.action || "").toLowerCase();
+    if (t.startsWith("created") || t.startsWith("submitted for approval")) return "creation";
+    if (t.startsWith("change request")) return "change";
+    if (t.startsWith("uploaded attachment")) return "attachment";
+    if (t.startsWith("re-submitted")) return "resubmit";
+    return "other";
+  };
+
   const filteredAudit = useMemo(() => {
     const q = fApprover.trim().toLowerCase();
     const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
@@ -78,6 +91,7 @@ function NfaDetail() {
     // entirely so the table behaves predictably while the user fixes it.
     const rangeInvalid = fromMs !== null && toMs !== null && fromMs > toMs;
     return audit.filter((a) => {
+      if (fType !== "all" && classifyEvent(a) !== fType) return false;
       if (fAction !== "all" && a.action_kind !== fAction) return false;
       if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
       if (q) {
@@ -94,7 +108,7 @@ function NfaDetail() {
       const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
       return fSort === "newest" ? -diff : diff;
     });
-  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+  }, [audit, fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
 
   const dateRangeError = useMemo(() => {
     if (!fFrom || !fTo) return null;
@@ -106,7 +120,7 @@ function NfaDetail() {
   }, [fFrom, fTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
-  useEffect(() => { setPage(1); }, [fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
+  useEffect(() => { setPage(1); }, [fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const pageStart = (page - 1) * pageSize;
   const pagedAudit = filteredAudit.slice(pageStart, pageStart + pageSize);
@@ -327,13 +341,28 @@ function NfaDetail() {
       <Card className="border-slate-300 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
-          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
-            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
+          {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
               Clear filters
             </Button>
           )}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-6">
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Type</Label>
+            <Select value={fType} onValueChange={setFType}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="creation">Creation</SelectItem>
+                <SelectItem value="change">Change Request</SelectItem>
+                <SelectItem value="approval">Approval Action</SelectItem>
+                <SelectItem value="resubmit">Re-submission</SelectItem>
+                <SelectItem value="attachment">Attachment</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Action</Label>
             <Select value={fAction} onValueChange={setFAction}>
@@ -461,7 +490,9 @@ function NfaDetail() {
         )}
         {(() => {
           const ACTION_LABEL: Record<string, string> = { approve: "Approve", reject: "Reject", clarify: "Clarification", back: "Back to Initiator" };
+          const TYPE_LABEL: Record<string, string> = { creation: "Creation", change: "Change Request", approval: "Approval Action", resubmit: "Re-submission", attachment: "Attachment", other: "Other" };
           const chips: { key: string; label: string; onClear: () => void }[] = [];
+          if (fType !== "all") chips.push({ key: "type", label: `Type: ${TYPE_LABEL[fType] ?? fType}`, onClear: () => setFType("all") });
           if (fAction !== "all") chips.push({ key: "action", label: `Action: ${ACTION_LABEL[fAction] ?? fAction}`, onClear: () => setFAction("all") });
           if (fApprover) chips.push({ key: "approver", label: `Approver: ${fApprover}`, onClear: () => setFApprover("") });
           if (fLevel !== "all") chips.push({ key: "level", label: `Level ${fLevel}`, onClear: () => setFLevel("all") });
@@ -487,7 +518,7 @@ function NfaDetail() {
               ))}
               <button
                 type="button"
-                onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
                 className="text-xs font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
               >
                 Clear all
@@ -564,7 +595,7 @@ function NfaDetail() {
                         size="sm"
                         variant="outline"
                         className="mt-2"
-                        onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                        onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
                       >
                         <RotateCcw className="mr-1 h-3 w-3" /> Clear filters
                       </Button>
