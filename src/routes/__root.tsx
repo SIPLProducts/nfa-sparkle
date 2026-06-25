@@ -79,14 +79,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "ENFA" },
+      { name: "description", content: "NFA Approval Hub streamlines the No Further Action (NFA) approval process, integrating with SAP for efficient management." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "ENFA" },
+      { property: "og:description", content: "NFA Approval Hub streamlines the No Further Action (NFA) approval process, integrating with SAP for efficient management." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "ENFA" },
+      { name: "twitter:description", content: "NFA Approval Hub streamlines the No Further Action (NFA) approval process, integrating with SAP for efficient management." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/PpdT1XZXEGV2SRBS6gbcaypIwE52/social-images/social-1782411728451-sharvi-logo.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/PpdT1XZXEGV2SRBS6gbcaypIwE52/social-images/social-1782411728451-sharvi-logo.webp" },
     ],
     links: [
       {
