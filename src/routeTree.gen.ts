@@ -17,6 +17,7 @@ import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
+import { Route as AuthedNfaIdChangeRouteImport } from './routes/_authed.nfa.$id.change'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -57,24 +58,31 @@ const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
   path: '/nfa/$id',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedNfaIdChangeRoute = AuthedNfaIdChangeRouteImport.update({
+  id: '/change',
+  path: '/change',
+  getParentRoute: () => AuthedNfaIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
-  '/nfa/$id': typeof AuthedNfaIdRoute
+  '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
-  '/nfa/$id': typeof AuthedNfaIdRoute
+  '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,9 +91,10 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
-  '/_authed/nfa/$id': typeof AuthedNfaIdRoute
+  '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
+  '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/nfa/$id/change'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/nfa/$id/change'
   id:
     | '__root__'
     | '/'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
+    | '/_authed/nfa/$id/change'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,13 +194,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedNfaIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/nfa/$id/change': {
+      id: '/_authed/nfa/$id/change'
+      path: '/change'
+      fullPath: '/nfa/$id/change'
+      preLoaderRoute: typeof AuthedNfaIdChangeRouteImport
+      parentRoute: typeof AuthedNfaIdRoute
+    }
   }
 }
+
+interface AuthedNfaIdRouteChildren {
+  AuthedNfaIdChangeRoute: typeof AuthedNfaIdChangeRoute
+}
+
+const AuthedNfaIdRouteChildren: AuthedNfaIdRouteChildren = {
+  AuthedNfaIdChangeRoute: AuthedNfaIdChangeRoute,
+}
+
+const AuthedNfaIdRouteWithChildren = AuthedNfaIdRoute._addFileChildren(
+  AuthedNfaIdRouteChildren,
+)
 
 interface AuthedRouteChildren {
   AuthedApprovalsRoute: typeof AuthedApprovalsRoute
   AuthedReportRoute: typeof AuthedReportRoute
-  AuthedNfaIdRoute: typeof AuthedNfaIdRoute
+  AuthedNfaIdRoute: typeof AuthedNfaIdRouteWithChildren
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
 }
@@ -196,7 +227,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedApprovalsRoute: AuthedApprovalsRoute,
   AuthedReportRoute: AuthedReportRoute,
-  AuthedNfaIdRoute: AuthedNfaIdRoute,
+  AuthedNfaIdRoute: AuthedNfaIdRouteWithChildren,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
 }
