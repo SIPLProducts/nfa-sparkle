@@ -80,6 +80,9 @@ function Report() {
     URL.revokeObjectURL(url);
   }
 
+  const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
+  const visibleRows = rows.slice(0, visibleCount);
+
   return (
     <div>
       <PageHeader
@@ -148,7 +151,7 @@ function Report() {
             Run the report to see results.
           </div>
         )}
-        {rows.map((r) => (
+        {visibleRows.map((r) => (
           <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
@@ -160,6 +163,14 @@ function Report() {
             </div>
           </Link>
         ))}
+        {hasMore && (
+          <div ref={setSentinel} className="py-3 text-center text-[11px] text-muted-foreground">
+            Loading more… <span className="text-foreground/60">({visibleCount} of {rows.length})</span>
+          </div>
+        )}
+        {rows.length > 10 && !hasMore && (
+          <div className="py-3 text-center text-[11px] text-muted-foreground">All {rows.length} loaded</div>
+        )}
       </div>
 
       {/* Desktop table */}
