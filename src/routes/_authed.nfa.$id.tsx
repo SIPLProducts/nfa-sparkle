@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
@@ -53,7 +53,8 @@ function NfaDetail() {
   const [fLevel, setFLevel] = useState<string>("all");
   const [fFrom, setFFrom] = useState<string>("");
   const [fTo, setFTo] = useState<string>("");
-  const [fSort, setFSort] = useState<"newest" | "oldest">("newest");
+  const [sortKey, setSortKey] = useState<"at" | "action" | "actor">("at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
 
@@ -105,10 +106,19 @@ function NfaDetail() {
       }
       return true;
     }).slice().sort((a, b) => {
-      const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
-      return fSort === "newest" ? -diff : diff;
+      let cmp = 0;
+      if (sortKey === "at") {
+        cmp = new Date(a.at).getTime() - new Date(b.at).getTime();
+      } else if (sortKey === "action") {
+        cmp = (a.action || "").localeCompare(b.action || "");
+      } else {
+        const an = a.approver_name || nameFor(profiles, a.actor_id ?? undefined) || "";
+        const bn = b.approver_name || nameFor(profiles, b.actor_id ?? undefined) || "";
+        cmp = an.localeCompare(bn);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [audit, fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+  }, [audit, fType, fAction, fApprover, fLevel, fFrom, fTo, sortKey, sortDir, profiles]);
 
   const dateRangeError = useMemo(() => {
     if (!fFrom || !fTo) return null;
@@ -120,7 +130,7 @@ function NfaDetail() {
   }, [fFrom, fTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
-  useEffect(() => { setPage(1); }, [fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
+  useEffect(() => { setPage(1); }, [fType, fAction, fApprover, fLevel, fFrom, fTo, sortKey, sortDir, pageSize]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const pageStart = (page - 1) * pageSize;
   const pagedAudit = filteredAudit.slice(pageStart, pageStart + pageSize);
