@@ -53,16 +53,51 @@ function MyNfas() {
         subtitle="NFAs you have initiated — track status across the approver chain."
         actions={
           <>
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ENFA #, subject…" className="h-9 w-64 pl-9" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ENFA #, subject…" className="h-9 w-full pl-9 sm:w-64" />
             </div>
-            <Link to="/nfa/new"><Button size="sm" className="gap-1.5"><PlusCircle className="h-4 w-4" /> New NFA</Button></Link>
+            <Link to="/nfa/new" className="shrink-0"><Button size="sm" className="gap-1.5"><PlusCircle className="h-4 w-4" /> New NFA</Button></Link>
           </>
         }
       />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      {/* Mobile card list */}
+      <div className="space-y-2.5 md:hidden">
+        {loading && <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Loading…</div>}
+        {!loading && filtered.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
+            <FileText className="mx-auto mb-2 h-7 w-7 text-muted-foreground/50" />
+            <div className="text-sm font-medium">No NFAs found</div>
+            <div className="text-xs text-muted-foreground">{q ? "Try a different search." : "Create your first NFA to get started."}</div>
+          </div>
+        )}
+        {filtered.map((r) => {
+          const chain = appr[r.id] ?? [];
+          const current = chain.find((c) => c.level === r.current_level);
+          return (
+            <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
+                <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span>
+              </div>
+              <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.subject}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {nfaTypeName(r.nfa_type)} · {r.plant ?? "—"} · {new Date(r.created_at).toLocaleDateString()}
+              </div>
+              {current && (
+                <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2 text-[11px]">
+                  <span className="text-muted-foreground">L{current.level} · <span className="text-foreground">{nameFor(profiles, current.approver_id)}</span></span>
+                  <span className={"inline-flex w-fit items-center rounded-full px-1.5 py-px text-[10px] font-medium " + APPROVER_TONE[current.status]}>{current.status}</span>
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
