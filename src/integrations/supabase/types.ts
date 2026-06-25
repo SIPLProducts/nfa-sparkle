@@ -255,6 +255,14 @@ export type Database = {
         Args: { _nfa_id: string; _user_id: string }
         Returns: boolean
       }
+      nfa_act: {
+        Args: { _action: string; _comment?: string; _nfa_id: string }
+        Returns: undefined
+      }
+      nfa_resubmit: {
+        Args: { _comment?: string; _nfa_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "initiator" | "approver" | "admin" | "viewer"
