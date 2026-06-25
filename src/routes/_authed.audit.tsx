@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
-import { History, Search, Filter, Loader2, Inbox, ExternalLink, RotateCcw } from "lucide-react";
+import { Search, Filter, Loader2, Inbox, ExternalLink, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/audit")({
   component: AuditLogs,
