@@ -21,7 +21,18 @@ export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
 });
 
-interface AuditRow { id: string; action: string; comment: string | null; actor_id: string | null; at: string }
+interface AuditRow {
+  id: string;
+  action: string;
+  comment: string | null;
+  actor_id: string | null;
+  at: string;
+  level: number | null;
+  old_status: string | null;
+  new_status: string | null;
+  approver_name: string | null;
+  action_kind: string | null;
+}
 
 function NfaDetail() {
   const { id } = Route.useParams();
@@ -262,16 +273,50 @@ function NfaDetail() {
       )}
 
       <Card className="border-slate-300 p-4">
-        <h3 className="mb-3 font-semibold text-slate-700">History</h3>
-        <ul className="space-y-1 text-sm">
-          {audit.map((a) => (
-            <li key={a.id} className="flex gap-3">
-              <span className="w-44 text-slate-500">{new Date(a.at).toLocaleString()}</span>
-              <span className="w-40 text-slate-700">{nameFor(profiles, a.actor_id ?? undefined)}</span>
-              <span className="flex-1"><b>{a.action}</b>{a.comment ? ` — ${a.comment}` : ""}</span>
-            </li>
-          ))}
-        </ul>
+        <h3 className="mb-3 font-semibold text-slate-700">Audit Log</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
+              <tr>
+                <th className="p-2">Timestamp</th>
+                <th className="p-2">Action</th>
+                <th className="p-2">Level</th>
+                <th className="p-2">Approver / Actor</th>
+                <th className="p-2">Status Change</th>
+                <th className="p-2">Comment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {audit.map((a) => {
+                const actor = a.approver_name || nameFor(profiles, a.actor_id ?? undefined);
+                const hasChange = a.old_status && a.new_status && a.old_status !== a.new_status;
+                return (
+                  <tr key={a.id} className="align-top">
+                    <td className="p-2 text-slate-500 whitespace-nowrap">{new Date(a.at).toLocaleString()}</td>
+                    <td className="p-2 font-medium text-slate-800">{a.action}</td>
+                    <td className="p-2 text-slate-600">{a.level ?? ""}</td>
+                    <td className="p-2 text-slate-700">{actor}</td>
+                    <td className="p-2 text-xs">
+                      {hasChange ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Badge variant="outline" className="font-normal">{STATUS_LABEL[a.old_status as keyof typeof STATUS_LABEL] ?? a.old_status}</Badge>
+                          <span className="text-slate-400">→</span>
+                          <Badge variant="outline" className="font-normal">{STATUS_LABEL[a.new_status as keyof typeof STATUS_LABEL] ?? a.new_status}</Badge>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="p-2 italic text-slate-600">{a.comment ?? ""}</td>
+                  </tr>
+                );
+              })}
+              {audit.length === 0 && (
+                <tr><td colSpan={6} className="p-3 text-center text-slate-500">No audit entries yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
