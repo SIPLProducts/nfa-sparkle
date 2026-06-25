@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
 import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
+import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/report")({
   component: Report,
