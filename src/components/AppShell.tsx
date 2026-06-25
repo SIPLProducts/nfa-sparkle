@@ -7,6 +7,7 @@ import {
   FileText,
   Inbox,
   BarChart3,
+  History,
   PlusCircle,
   Users,
   LogOut,
@@ -24,6 +25,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: s
   { to: "/nfa/my", label: "My NFAs", icon: FileText, section: "Workspace" },
   { to: "/approvals", label: "Approvals", icon: Inbox, section: "Workspace" },
   { to: "/report", label: "E-NFA Report", icon: BarChart3, section: "Insights" },
+  { to: "/audit", label: "Audit Logs", icon: History, section: "Insights" },
 ];
 
 export function AppShell({
