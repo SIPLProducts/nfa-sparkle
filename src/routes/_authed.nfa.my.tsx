@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { PlusCircle, Search, FileText } from "lucide-react";
+import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
@@ -45,6 +46,9 @@ function MyNfas() {
     return rows.filter((r) => r.enfa_number.toLowerCase().includes(s) || r.subject.toLowerCase().includes(s));
   }, [q, rows]);
 
+  const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filtered.length, 10, 10);
+  const visible = filtered.slice(0, visibleCount);
+
   return (
     <div>
       <PageHeader
@@ -72,7 +76,7 @@ function MyNfas() {
             <div className="text-xs text-muted-foreground">{q ? "Try a different search." : "Create your first NFA to get started."}</div>
           </div>
         )}
-        {filtered.map((r) => {
+        {visible.map((r) => {
           const chain = appr[r.id] ?? [];
           const current = chain.find((c) => c.level === r.current_level);
           return (
@@ -94,6 +98,14 @@ function MyNfas() {
             </Link>
           );
         })}
+        {hasMore && (
+          <div ref={setSentinel} className="py-3 text-center text-[11px] text-muted-foreground">
+            Loading more… <span className="text-foreground/60">({visibleCount} of {filtered.length})</span>
+          </div>
+        )}
+        {!loading && filtered.length > 0 && !hasMore && filtered.length > 10 && (
+          <div className="py-3 text-center text-[11px] text-muted-foreground">All {filtered.length} loaded</div>
+        )}
       </div>
 
       {/* Desktop table */}
