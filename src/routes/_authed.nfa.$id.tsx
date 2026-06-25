@@ -199,13 +199,25 @@ function NfaDetail() {
                   </p>
                 )}
                 {isCurrent && myApprover && myApprover.id === a.id && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
-                      <Check className="h-3.5 w-3.5" /> Approve
-                    </Button>
-                    <Button size="sm" onClick={() => act("reject")} disabled={busy} variant="destructive" className="gap-1">
-                      <X className="h-3.5 w-3.5" /> Reject
-                    </Button>
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                        <Check className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => act("reject")}
+                        disabled={busy || !comment.trim()}
+                        variant="destructive"
+                        className="gap-1"
+                        title={!comment.trim() ? "Enter a comment in Your Action below to reject" : undefined}
+                      >
+                        <X className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                    </div>
+                    {!comment.trim() && (
+                      <p className="text-[11px] text-rose-600">A comment is required to reject — fill the Your Action comment below.</p>
+                    )}
                   </div>
                 )}
               </li>
