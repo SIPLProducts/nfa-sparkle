@@ -162,6 +162,48 @@ export type Database = {
           },
         ]
       }
+      nfa_attachment_view: {
+        Row: {
+          action: string
+          attachment_id: string
+          id: string
+          nfa_id: string
+          viewed_at: string
+          viewer_id: string
+        }
+        Insert: {
+          action: string
+          attachment_id: string
+          id?: string
+          nfa_id: string
+          viewed_at?: string
+          viewer_id: string
+        }
+        Update: {
+          action?: string
+          attachment_id?: string
+          id?: string
+          nfa_id?: string
+          viewed_at?: string
+          viewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfa_attachment_view_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "nfa_attachment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfa_attachment_view_nfa_id_fkey"
+            columns: ["nfa_id"]
+            isOneToOne: false
+            referencedRelation: "nfa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nfa_audit: {
         Row: {
           action: string

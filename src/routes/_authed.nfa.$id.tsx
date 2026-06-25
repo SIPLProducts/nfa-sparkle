@@ -17,6 +17,7 @@ import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
+import { Eye, Download as DownloadIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
@@ -35,6 +36,14 @@ interface AuditRow {
   action_kind: string | null;
 }
 
+interface ViewRow {
+  id: string;
+  attachment_id: string;
+  viewer_id: string;
+  action: "view" | "download";
+  viewed_at: string;
+}
+
 function NfaDetail() {
   const { id } = Route.useParams();
   const { user } = useAuth();
@@ -44,6 +53,8 @@ function NfaDetail() {
   const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+  const [views, setViews] = useState<ViewRow[]>([]);
+  const [attachmentNames, setAttachmentNames] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,7 +77,16 @@ function NfaDetail() {
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
     setAuditLoading(false);
-    const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
+    const { data: vw } = await supabase.from("nfa_attachment_view").select("*").eq("nfa_id", id).order("viewed_at", { ascending: false });
+    setViews((vw as ViewRow[]) ?? []);
+    const { data: atts } = await supabase.from("nfa_attachment").select("id,filename").eq("nfa_id", id);
+    setAttachmentNames(Object.fromEntries(((atts ?? []) as { id: string; filename: string }[]).map((x) => [x.id, x.filename])));
+    const ids = [
+      n?.initiator_id,
+      ...((a ?? []).map((r) => r.approver_id)),
+      ...((au ?? []).map((r) => r.actor_id)),
+      ...((vw ?? []).map((r) => r.viewer_id)),
+    ].filter((x): x is string => Boolean(x));
     setProfiles(await fetchProfilesMap(ids));
   }, [id]);
 
@@ -338,6 +358,88 @@ function NfaDetail() {
             <li className="pl-6 text-sm text-slate-500">No approvers configured.</li>
           )}
         </ol>
+      </Card>
+
+      <Card className="border-slate-300 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-display text-base font-bold text-slate-800">Approval Activity Timeline</h3>
+          <span className="text-xs text-muted-foreground">
+            {audit.length} action{audit.length === 1 ? "" : "s"} · {views.length} document view{views.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {(() => {
+          type TLEvent =
+            | { kind: "audit"; at: string; row: AuditRow }
+            | { kind: "view"; at: string; row: ViewRow };
+          const events: TLEvent[] = [
+            ...audit.map((r) => ({ kind: "audit" as const, at: r.at, row: r })),
+            ...views.map((r) => ({ kind: "view" as const, at: r.viewed_at, row: r })),
+          ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
+
+          if (events.length === 0) {
+            return <p className="text-sm text-muted-foreground">No activity yet.</p>;
+          }
+
+          return (
+            <ol className="relative ml-3 space-y-4 border-l-2 border-slate-200">
+              {events.map((ev) => {
+                if (ev.kind === "audit") {
+                  const r = ev.row;
+                  const kind = r.action_kind;
+                  const tone =
+                    kind === "approve" ? { bg: "bg-emerald-100", fg: "text-emerald-700", Icon: Check, label: "Approved" } :
+                    kind === "reject" ? { bg: "bg-rose-100", fg: "text-rose-700", Icon: X, label: "Rejected" } :
+                    kind === "back" ? { bg: "bg-sky-100", fg: "text-sky-700", Icon: Undo2, label: "Sent Back" } :
+                    kind === "clarify" ? { bg: "bg-amber-100", fg: "text-amber-700", Icon: HelpCircle, label: "Clarification" } :
+                    { bg: "bg-slate-100", fg: "text-slate-700", Icon: FileEdit, label: r.action };
+                  return (
+                    <li key={"a-" + r.id} className="relative pl-6">
+                      <span className={`absolute -left-[13px] grid h-6 w-6 place-items-center rounded-full ring-4 ring-background ${tone.bg}`}>
+                        <tone.Icon className={`h-3.5 w-3.5 ${tone.fg}`} />
+                      </span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <span className="font-medium text-slate-800">{r.action}</span>
+                        {r.level != null && <span className="text-xs text-slate-500">Level {r.level}</span>}
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                          <User className="h-3.5 w-3.5" />{r.approver_name || nameFor(profiles, r.actor_id)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                          <Clock className="h-3.5 w-3.5" />{new Date(r.at).toLocaleString()}
+                        </span>
+                      </div>
+                      {r.comment && (
+                        <p className="mt-1.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs italic text-slate-700">"{r.comment}"</p>
+                      )}
+                    </li>
+                  );
+                }
+                const v = ev.row;
+                const Icn = v.action === "download" ? DownloadIcon : Eye;
+                return (
+                  <li key={"v-" + v.id} className="relative pl-6">
+                    <span className="absolute -left-[13px] grid h-6 w-6 place-items-center rounded-full bg-indigo-100 ring-4 ring-background">
+                      <Icn className="h-3.5 w-3.5 text-indigo-700" />
+                    </span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="font-medium text-slate-800">
+                        {v.action === "download" ? "Downloaded" : "Viewed"} document
+                      </span>
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+                        {attachmentNames[v.attachment_id] ?? "(removed file)"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                        <User className="h-3.5 w-3.5" />{nameFor(profiles, v.viewer_id)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                        <Clock className="h-3.5 w-3.5" />{new Date(v.viewed_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          );
+        })()}
       </Card>
 
       {myApprover && (
