@@ -13,8 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User } from "lucide-react";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
+import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
@@ -157,6 +158,53 @@ function NfaDetail() {
             ))}
           </tbody>
         </table>
+      </Card>
+
+      <Card className="border-slate-300 p-5">
+        <h3 className="mb-4 font-display text-base font-bold text-slate-800">Approvals Timeline</h3>
+        <ol className="relative ml-3 border-l-2 border-slate-200">
+          {approvers.map((a) => {
+            const isCurrent = a.level === nfa.current_level && nfa.status === "in_process";
+            const dot = stepDot(a.status, isCurrent);
+            return (
+              <li key={a.id} className="relative mb-6 pl-6 last:mb-0">
+                <span className={`absolute -left-[13px] grid h-6 w-6 place-items-center rounded-full ring-4 ring-background ${dot.bg}`}>
+                  <dot.Icon className={`h-3.5 w-3.5 ${dot.fg}`} />
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Level {a.level}</span>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${APPROVER_TONE[a.status]}`}>
+                    {APPROVER_STATUS_LABEL[a.status]}
+                  </span>
+                  {isCurrent && (
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-blue-200">
+                      Awaiting action
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-slate-800">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    {nameFor(profiles, a.approver_id)}
+                  </span>
+                  {a.designation && <span className="text-xs text-slate-500">{a.designation}</span>}
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                    <Clock className="h-3.5 w-3.5" />
+                    {a.acted_at ? new Date(a.acted_at).toLocaleString() : "—"}
+                  </span>
+                </div>
+                {a.comment && (
+                  <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm italic text-slate-700">
+                    “{a.comment}”
+                  </p>
+                )}
+              </li>
+            );
+          })}
+          {approvers.length === 0 && (
+            <li className="pl-6 text-sm text-slate-500">No approvers configured.</li>
+          )}
+        </ol>
       </Card>
 
       <div className="flex items-center justify-end">
