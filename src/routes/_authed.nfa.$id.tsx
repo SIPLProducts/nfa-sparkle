@@ -74,6 +74,9 @@ function NfaDetail() {
     const q = fApprover.trim().toLowerCase();
     const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
     const toMs = fTo ? new Date(fTo + "T23:59:59").getTime() : null;
+    // If the range is invalid (From after To), ignore the date filter
+    // entirely so the table behaves predictably while the user fixes it.
+    const rangeInvalid = fromMs !== null && toMs !== null && fromMs > toMs;
     return audit.filter((a) => {
       if (fAction !== "all" && a.action_kind !== fAction) return false;
       if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
@@ -81,15 +84,26 @@ function NfaDetail() {
         const name = (a.approver_name || nameFor(profiles, a.actor_id ?? undefined) || "").toLowerCase();
         if (!name.includes(q)) return false;
       }
-      const t = new Date(a.at).getTime();
-      if (fromMs !== null && t < fromMs) return false;
-      if (toMs !== null && t > toMs) return false;
+      if (!rangeInvalid) {
+        const t = new Date(a.at).getTime();
+        if (fromMs !== null && t < fromMs) return false;
+        if (toMs !== null && t > toMs) return false;
+      }
       return true;
     }).slice().sort((a, b) => {
       const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
       return fSort === "newest" ? -diff : diff;
     });
   }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+
+  const dateRangeError = useMemo(() => {
+    if (!fFrom || !fTo) return null;
+    const f = new Date(fFrom + "T00:00:00").getTime();
+    const t = new Date(fTo + "T23:59:59").getTime();
+    if (Number.isNaN(f) || Number.isNaN(t)) return "Enter valid From and To dates.";
+    if (f > t) return "From date must be on or before To date.";
+    return null;
+  }, [fFrom, fTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
   useEffect(() => { setPage(1); }, [fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
@@ -351,11 +365,25 @@ function NfaDetail() {
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">From</Label>
-            <Input type="date" className="h-8" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+            <Input
+              type="date"
+              className={`h-8 ${dateRangeError ? "border-rose-400 focus-visible:ring-rose-300" : ""}`}
+              value={fFrom}
+              max={fTo || undefined}
+              aria-invalid={!!dateRangeError}
+              onChange={(e) => setFFrom(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">To</Label>
-            <Input type="date" className="h-8" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+            <Input
+              type="date"
+              className={`h-8 ${dateRangeError ? "border-rose-400 focus-visible:ring-rose-300" : ""}`}
+              value={fTo}
+              min={fFrom || undefined}
+              aria-invalid={!!dateRangeError}
+              onChange={(e) => setFTo(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">Sort</Label>
@@ -368,6 +396,21 @@ function NfaDetail() {
             </Select>
           </div>
         </div>
+        {dateRangeError && (
+          <div
+            role="alert"
+            className="mb-3 flex items-center justify-between gap-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+          >
+            <span>{dateRangeError} The date range is ignored until this is fixed.</span>
+            <button
+              type="button"
+              onClick={() => { setFFrom(""); setFTo(""); }}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              Clear dates
+            </button>
+          </div>
+        )}
         {(() => {
           const ACTION_LABEL: Record<string, string> = { approve: "Approve", reject: "Reject", clarify: "Clarification", back: "Back to Initiator" };
           const chips: { key: string; label: string; onClear: () => void }[] = [];
