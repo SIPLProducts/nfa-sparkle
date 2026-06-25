@@ -368,6 +368,42 @@ function NfaDetail() {
             </Select>
           </div>
         </div>
+        {(() => {
+          const ACTION_LABEL: Record<string, string> = { approve: "Approve", reject: "Reject", clarify: "Clarification", back: "Back to Initiator" };
+          const chips: { key: string; label: string; onClear: () => void }[] = [];
+          if (fAction !== "all") chips.push({ key: "action", label: `Action: ${ACTION_LABEL[fAction] ?? fAction}`, onClear: () => setFAction("all") });
+          if (fApprover) chips.push({ key: "approver", label: `Approver: ${fApprover}`, onClear: () => setFApprover("") });
+          if (fLevel !== "all") chips.push({ key: "level", label: `Level ${fLevel}`, onClear: () => setFLevel("all") });
+          if (fFrom) chips.push({ key: "from", label: `From: ${fFrom}`, onClear: () => setFFrom("") });
+          if (fTo) chips.push({ key: "to", label: `To: ${fTo}`, onClear: () => setFTo("") });
+          if (fSort !== "newest") chips.push({ key: "sort", label: "Sort: Oldest first", onClear: () => setFSort("newest") });
+          if (chips.length === 0) return null;
+          return (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] uppercase tracking-wide text-slate-500">Active filters</span>
+              {chips.map((c) => (
+                <span key={c.key} className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs text-slate-700 shadow-sm">
+                  {c.label}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${c.label}`}
+                    onClick={c.onClear}
+                    className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                className="text-xs font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
