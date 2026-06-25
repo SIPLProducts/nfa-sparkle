@@ -52,6 +52,8 @@ function NfaDetail() {
   const [fFrom, setFFrom] = useState<string>("");
   const [fTo, setFTo] = useState<string>("");
   const [fSort, setFSort] = useState<"newest" | "oldest">("newest");
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
 
   const load = useCallback(async () => {
     const { data: n } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
@@ -86,6 +88,12 @@ function NfaDetail() {
       return fSort === "newest" ? -diff : diff;
     });
   }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
+  useEffect(() => { setPage(1); }, [fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const pageStart = (page - 1) * pageSize;
+  const pagedAudit = filteredAudit.slice(pageStart, pageStart + pageSize);
 
   if (!nfa) return <div className="p-4 text-slate-500">Loading…</div>;
 
@@ -371,7 +379,7 @@ function NfaDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredAudit.map((a) => {
+              {pagedAudit.map((a) => {
                 const actor = a.approver_name || nameFor(profiles, a.actor_id ?? undefined);
                 const hasChange = a.old_status && a.new_status && a.old_status !== a.new_status;
                 return (
@@ -395,12 +403,31 @@ function NfaDetail() {
                   </tr>
                 );
               })}
-              {filteredAudit.length === 0 && (
+              {pagedAudit.length === 0 && (
                 <tr><td colSpan={6} className="p-3 text-center text-slate-500">{audit.length === 0 ? "No audit entries yet." : "No entries match the current filters."}</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        {filteredAudit.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+            <div>
+              Showing {pageStart + 1}–{Math.min(pageStart + pageSize, filteredAudit.length)} of {filteredAudit.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-[11px] uppercase text-slate-500">Rows</Label>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                <SelectTrigger className="h-7 w-[72px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 25, 50].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+              <span>Page {page} of {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
