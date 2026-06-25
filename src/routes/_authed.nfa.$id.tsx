@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw, ArrowUp, ArrowDown, ArrowUpDown, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
