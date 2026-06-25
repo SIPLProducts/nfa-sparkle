@@ -58,6 +58,7 @@ function NfaDetail() {
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tlFilter, setTlFilter] = useState<"all" | "actions" | "documents">("all");
   const [fAction, setFAction] = useState<string>("all");
   const [fType, setFType] = useState<string>("all");
   const [fApprover, setFApprover] = useState<string>("");
