@@ -54,10 +54,13 @@ function NewNfaPage() {
         "Alternatives considered:\n1. Hire on monthly rental — higher 3-year TCO (~1.6x).\n2. Upgrade existing set — OEM has declared end-of-life.\n\n" +
         "Recommendation: Approve CAPEX of INR 42.5 Lakhs; vendor finalisation via 3-bid process; delivery & commissioning within 60 days.",
     );
+    // Use the signed-in user for every level so the sample is end-to-end actionable
+    // without provisioning additional approver accounts. Replace with real approvers later.
+    const selfEmail = user?.email ?? "demo@nfa.local";
     setApprovers([
-      { level: 1, email: "projects.lead@nfa.local", designation: "Projects Lead" },
-      { level: 2, email: "finance.head@nfa.local", designation: "Head — Finance" },
-      { level: 3, email: "cfo@nfa.local", designation: "Chief Financial Officer" },
+      { level: 1, email: selfEmail, designation: "Projects Lead" },
+      { level: 2, email: selfEmail, designation: "Head — Finance" },
+      { level: 3, email: selfEmail, designation: "Chief Financial Officer" },
     ]);
     toast.success("Sample NFA loaded — review and submit");
   }
