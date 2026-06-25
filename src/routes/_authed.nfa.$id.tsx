@@ -83,43 +83,29 @@ function NfaDetail() {
 
   async function act(kind: "approve" | "reject" | "back" | "clarify") {
     if (!myApprover || !user) return;
-    if ((kind === "reject" || kind === "back" || kind === "clarify") && !comment.trim()) return toast.error("Comment required");
+    if ((kind === "reject" || kind === "back" || kind === "clarify") && !comment.trim()) {
+      return toast.error("A comment is required for Reject / Back / Clarification");
+    }
     setBusy(true);
-    try {
-      const status = kind === "approve" ? "approved" : kind === "reject" ? "rejected" : kind === "back" ? "sent_back" : "clarification";
-      await supabase.from("nfa_approver").update({ status, comment: comment || null, acted_at: new Date().toISOString() }).eq("id", myApprover.id);
-
-      let nextStatus = nfa!.status;
-      let nextLevel = nfa!.current_level;
-      if (kind === "approve") {
-        const max = Math.max(...approvers.map((a) => a.level));
-        if (myApprover.level >= max) { nextStatus = "completed"; }
-        else { nextLevel = myApprover.level + 1; }
-      } else if (kind === "reject") { nextStatus = "rejected"; }
-      else if (kind === "back") { nextStatus = "with_initiator"; nextLevel = 0; }
-      else if (kind === "clarify") { nextStatus = "clarification"; }
-      await supabase.from("nfa").update({ status: nextStatus, current_level: nextLevel }).eq("id", nfa!.id);
-      await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: `Level ${myApprover.level}: ${status}`, comment: comment || null });
-      toast.success("Action recorded");
-      setComment("");
-      load();
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); }
+    const { error } = await supabase.rpc("nfa_act", {
+      _nfa_id: nfa!.id, _action: kind, _comment: comment || undefined,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Action recorded");
+    setComment("");
+    load();
   }
 
   async function resubmit() {
     if (!user) return;
     setBusy(true);
-    try {
-      // reset approver chain to pending and move to level 1
-      await supabase.from("nfa_approver").update({ status: "pending", comment: null, acted_at: null }).eq("nfa_id", nfa!.id);
-      await supabase.from("nfa").update({ status: "in_process", current_level: 1 }).eq("id", nfa!.id);
-      await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: "Re-submitted for approval", comment: comment || null });
-      setComment("");
-      toast.success("Resubmitted");
-      load();
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); }
+    const { error } = await supabase.rpc("nfa_resubmit", { _nfa_id: nfa!.id, _comment: comment || undefined });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setComment("");
+    toast.success("Resubmitted");
+    load();
   }
 
   return (
