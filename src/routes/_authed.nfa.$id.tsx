@@ -279,7 +279,53 @@ function NfaDetail() {
       )}
 
       <Card className="border-slate-300 p-4">
-        <h3 className="mb-3 font-semibold text-slate-700">Audit Log</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold text-slate-700">Audit Log</h3>
+          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); }}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-5">
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Action</Label>
+            <Select value={fAction} onValueChange={setFAction}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All actions</SelectItem>
+                <SelectItem value="approve">Approve</SelectItem>
+                <SelectItem value="reject">Reject</SelectItem>
+                <SelectItem value="clarify">Clarification</SelectItem>
+                <SelectItem value="back">Back to Initiator</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">Approver / Actor</Label>
+            <Input className="h-8" placeholder="Name…" value={fApprover} onChange={(e) => setFApprover(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">Level</Label>
+            <Select value={fLevel} onValueChange={setFLevel}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All levels</SelectItem>
+                {Array.from(new Set(approvers.map((a) => a.level))).sort((a, b) => a - b).map((lv) => (
+                  <SelectItem key={lv} value={String(lv)}>Level {lv}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">From</Label>
+            <Input type="date" className="h-8" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">To</Label>
+            <Input type="date" className="h-8" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
@@ -293,7 +339,7 @@ function NfaDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {audit.map((a) => {
+              {filteredAudit.map((a) => {
                 const actor = a.approver_name || nameFor(profiles, a.actor_id ?? undefined);
                 const hasChange = a.old_status && a.new_status && a.old_status !== a.new_status;
                 return (
@@ -317,8 +363,8 @@ function NfaDetail() {
                   </tr>
                 );
               })}
-              {audit.length === 0 && (
-                <tr><td colSpan={6} className="p-3 text-center text-slate-500">No audit entries yet.</td></tr>
+              {filteredAudit.length === 0 && (
+                <tr><td colSpan={6} className="p-3 text-center text-slate-500">{audit.length === 0 ? "No audit entries yet." : "No entries match the current filters."}</td></tr>
               )}
             </tbody>
           </table>
