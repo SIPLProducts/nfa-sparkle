@@ -213,9 +213,9 @@ function NfaDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => nav({ to: "/nfa/my" })}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && (
             <Link to="/nfa/$id/change" params={{ id: nfa.id }}>
               <Button size="sm" variant="outline" className="gap-1.5"><FileEdit className="h-4 w-4" /> Request Change</Button>
@@ -231,7 +231,7 @@ function NfaDetail() {
 
       <Card className="border-slate-300">
         <div className="border-b border-slate-300 bg-slate-100 px-4 py-2 text-center text-base font-bold italic text-slate-800">NOTE FOR APPROVAL</div>
-        <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 text-sm">
+        <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2 text-sm">
           <ReadField label="Company" value={nfa.company} />
           <ReadField label="Plant" value={`${nfa.plant ?? ""} ${plantName(nfa.plant) ? "– " + plantName(nfa.plant) : ""}`} />
           <ReadField label="NFA Type" value={nfaTypeName(nfa.nfa_type)} />
@@ -268,32 +268,55 @@ function NfaDetail() {
         <p className="text-right text-xs text-slate-500">Attachments are locked while this NFA is {nfa.status === "in_process" ? "under approval" : "completed"}.</p>
       )}
 
-      <Card className="border-slate-300 p-4">
+      <Card className="border-slate-300 p-3 sm:p-4">
         <h3 className="mb-3 font-semibold text-slate-700">Approval Chain</h3>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
-            <tr><th className="p-2">Level</th><th className="p-2">Approver</th><th className="p-2">Designation</th><th className="p-2">Status</th><th className="p-2">Acted</th><th className="p-2">Comment</th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {approvers.map((a) => (
-              <tr key={a.id} className={a.level === nfa.current_level && nfa.status === "in_process" ? "bg-sky-50" : ""}>
-                <td className="p-2">{a.level}</td>
-                <td className="p-2">{nameFor(profiles, a.approver_id)}</td>
-                <td className="p-2">{a.designation ?? ""}</td>
-                <td className="p-2">
+        {/* Mobile: stacked card list */}
+        <ul className="space-y-2 md:hidden">
+          {approvers.map((a) => {
+            const isCurrent = a.level === nfa.current_level && nfa.status === "in_process";
+            return (
+              <li key={a.id} className={`rounded-md border p-3 text-sm ${isCurrent ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-white"}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Level {a.level}</span>
                   <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + APPROVER_TONE[a.status]}>
                     {APPROVER_STATUS_LABEL[a.status]}
                   </span>
-                </td>
-                <td className="p-2">{a.acted_at ? new Date(a.acted_at).toLocaleString() : ""}</td>
-                <td className="p-2 text-slate-600">{a.comment ?? ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                <div className="mt-1 font-medium text-slate-800">{nameFor(profiles, a.approver_id)}</div>
+                {a.designation && <div className="text-xs text-slate-500">{a.designation}</div>}
+                {a.acted_at && <div className="mt-1 text-xs text-slate-500">{new Date(a.acted_at).toLocaleString()}</div>}
+                {a.comment && <p className="mt-1.5 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs italic text-slate-600">"{a.comment}"</p>}
+              </li>
+            );
+          })}
+        </ul>
+        {/* Tablet/Desktop: table with horizontal scroll fallback */}
+        <div className="-mx-3 hidden overflow-x-auto md:mx-0 md:block">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
+              <tr><th className="p-2">Level</th><th className="p-2">Approver</th><th className="p-2">Designation</th><th className="p-2">Status</th><th className="p-2">Acted</th><th className="p-2">Comment</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {approvers.map((a) => (
+                <tr key={a.id} className={a.level === nfa.current_level && nfa.status === "in_process" ? "bg-sky-50" : ""}>
+                  <td className="p-2">{a.level}</td>
+                  <td className="p-2">{nameFor(profiles, a.approver_id)}</td>
+                  <td className="p-2">{a.designation ?? ""}</td>
+                  <td className="p-2">
+                    <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + APPROVER_TONE[a.status]}>
+                      {APPROVER_STATUS_LABEL[a.status]}
+                    </span>
+                  </td>
+                  <td className="p-2 whitespace-nowrap">{a.acted_at ? new Date(a.acted_at).toLocaleString() : ""}</td>
+                  <td className="p-2 text-slate-600">{a.comment ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
-      <Card className="border-slate-300 p-5">
+      <Card className="border-slate-300 p-3 sm:p-5">
         <h3 className="mb-4 font-display text-base font-bold text-slate-800">Approvals Timeline</h3>
         <ol className="relative ml-3 border-l-2 border-slate-200">
           {approvers.map((a) => {
@@ -362,18 +385,18 @@ function NfaDetail() {
         </ol>
       </Card>
 
-      <Card className="border-slate-300 p-5">
-        <div className="mb-4 flex items-center justify-between">
+      <Card className="border-slate-300 p-3 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-display text-base font-bold text-slate-800">Approval Activity Timeline</h3>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={tlSearch}
                 onChange={(e) => setTlSearch(e.target.value)}
                 placeholder="Search approver, action, file…"
-                className="h-7 w-56 rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-slate-500"
+                className="h-7 w-full rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-slate-500 sm:w-56"
               />
             </div>
             <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-xs">
@@ -529,7 +552,7 @@ function NfaDetail() {
         </Card>
       )}
 
-      <Card className="border-slate-300 p-4">
+      <Card className="border-slate-300 p-3 sm:p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
           {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || sortKey !== "at" || sortDir !== "desc") && (
@@ -538,7 +561,7 @@ function NfaDetail() {
             </Button>
           )}
         </div>
-        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-6">
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           <div>
             <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Type</Label>
             <Select value={fType} onValueChange={setFType}>
@@ -732,8 +755,8 @@ function NfaDetail() {
             </div>
           );
         })()}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="-mx-3 overflow-x-auto sm:mx-0">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
               <tr>
                 {(() => {
@@ -777,10 +800,10 @@ function NfaDetail() {
                 return (
                   <tr key={a.id} className="align-top">
                     <td className="p-2 text-slate-500 whitespace-nowrap">{new Date(a.at).toLocaleString()}</td>
-                    <td className="p-2 font-medium text-slate-800">{a.action}</td>
+                    <td className="p-2 font-medium text-slate-800 whitespace-nowrap">{a.action}</td>
                     <td className="p-2 text-slate-600">{a.level ?? ""}</td>
                     <td className="p-2 text-slate-700">{actor}</td>
-                    <td className="p-2 text-xs">
+                    <td className="p-2 text-xs whitespace-nowrap">
                       {hasChange ? (
                         <span className="inline-flex items-center gap-1">
                           <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + (STATUS_TONE[a.old_status as keyof typeof STATUS_TONE] ?? "bg-slate-100 text-slate-700 ring-1 ring-slate-200")}>
