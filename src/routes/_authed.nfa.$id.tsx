@@ -595,7 +595,7 @@ function NfaDetail() {
                         size="sm"
                         variant="outline"
                         className="mt-2"
-                        onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                        onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
                       >
                         <RotateCcw className="mr-1 h-3 w-3" /> Clear filters
                       </Button>
