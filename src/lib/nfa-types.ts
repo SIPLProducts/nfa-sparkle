@@ -48,3 +48,19 @@ export const APPROVER_STATUS_LABEL: Record<ApproverStatus, string> = {
   sent_back: "Sent Back",
   clarification: "Clarification",
 };
+
+export const STATUS_TONE: Record<NfaStatus, string> = {
+  with_initiator: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+  in_process: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
+  clarification: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  completed: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  rejected: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+};
+
+export const APPROVER_TONE: Record<ApproverStatus, string> = {
+  pending: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+  approved: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  rejected: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+  sent_back: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  clarification: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+};
