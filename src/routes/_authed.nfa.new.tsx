@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Trash2, Plus, Save, Send, FileText, Building2, Users, Pencil, Sparkles } from "lucide-react";
+import { Trash2, Plus, Save, Send, FileText, Building2, Users, Pencil, Sparkles, Paperclip, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -34,6 +34,7 @@ function NewNfaPage() {
   const [desc, setDesc] = useState("");
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<File[]>([]);
 
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
 
@@ -68,6 +69,20 @@ function NewNfaPage() {
   function removeLvl(i: number) {
     const next = approvers.filter((_, idx) => idx !== i).map((a, idx) => ({ ...a, level: idx + 1 }));
     setApprovers(next.length ? next : [{ level: 1, email: "", designation: "" }]);
+  }
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const MAX = 20 * 1024 * 1024;
+    const accepted: File[] = [];
+    for (const f of Array.from(list)) {
+      if (f.size > MAX) { toast.error(`${f.name} exceeds 20 MB and was skipped`); continue; }
+      accepted.push(f);
+    }
+    if (accepted.length) setPending((prev) => [...prev, ...accepted]);
+  }
+  function removeFile(idx: number) {
+    setPending((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function submit(asDraft: boolean) {
@@ -117,6 +132,29 @@ function NewNfaPage() {
         nfa_id: created.id, actor_id: user.id,
         action: asDraft ? "Created (draft)" : "Submitted for approval",
       });
+
+      // Upload staged attachments (best-effort: failures are surfaced but don't roll back the NFA).
+      if (pending.length) {
+        const uploaded: string[] = [];
+        for (const file of pending) {
+          const path = `${created.id}/${Date.now()}-${file.name}`;
+          const { error: se } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
+          if (se) { toast.error(`Upload failed for ${file.name}: ${se.message}`); continue; }
+          const { error: ie } = await supabase.from("nfa_attachment").insert({
+            nfa_id: created.id, storage_path: path, filename: file.name,
+            mime: file.type || null, size: file.size, uploaded_by: user.id,
+          });
+          if (ie) { toast.error(`Record failed for ${file.name}: ${ie.message}`); continue; }
+          uploaded.push(file.name);
+        }
+        if (uploaded.length) {
+          await supabase.from("nfa_audit").insert({
+            nfa_id: created.id, actor_id: user.id,
+            action: `Attached ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}`,
+            comment: uploaded.join(", "),
+          });
+        }
+      }
 
       toast.success(asDraft ? "Draft saved" : `Submitted: ${created.enfa_number}`);
       nav({ to: "/nfa/$id", params: { id: created.id } });
@@ -221,6 +259,7 @@ function NewNfaPage() {
         </div>
 
         <div className="lg:col-span-1">
+         <div className="space-y-4">
           <Section icon={<Users className="h-4 w-4" />} title="Approver Chain" desc="Sequential approval — up to 6 levels.">
             <div className="space-y-3">
               {approvers.map((a, i) => (
@@ -264,6 +303,43 @@ function NewNfaPage() {
               </p>
             </div>
           </Section>
+
+          <Section icon={<Paperclip className="h-4 w-4" />} title="Document Attachments" desc="Upload supporting documents — quotes, drawings, BOMs, photos.">
+            <div className="space-y-3">
+              <label className={"flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 text-center text-xs text-muted-foreground transition " + (busy ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/50 hover:border-primary/40")}>
+                <Upload className="h-5 w-5 text-muted-foreground" />
+                <div className="font-medium text-foreground">Click to upload or drop files</div>
+                <div className="text-[11px]">PDF, images, Office docs · up to 20 MB each</div>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  disabled={busy}
+                  onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }}
+                />
+              </label>
+              {pending.length === 0 ? (
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  No files staged. Attachments upload when you Save Draft or Submit, and appear in the audit trail.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {pending.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-foreground">{f.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{f.type || "file"} · {(f.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => removeFile(i)} disabled={busy}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Section>
+         </div>
         </div>
       </div>
     </div>
