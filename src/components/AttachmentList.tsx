@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Eye, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export interface Attachment {
   id: string;
@@ -27,6 +28,7 @@ interface Props {
 export function AttachmentList({ nfaId, refreshKey = 0, title = "Supporting Attachments", emptyText = "No attachments uploaded yet.", className }: Props) {
   const [files, setFiles] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<{ att: Attachment; url: string; kind: "pdf" | "image" } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,12 +48,29 @@ export function AttachmentList({ nfaId, refreshKey = 0, title = "Supporting Atta
     return () => { cancelled = true; };
   }, [nfaId, refreshKey]);
 
+  function previewKind(att: Attachment): "pdf" | "image" | null {
+    const mime = (att.mime || "").toLowerCase();
+    const name = att.filename.toLowerCase();
+    if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+    if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|bmp)$/.test(name)) return "image";
+    return null;
+  }
+
   async function open(att: Attachment, download = false) {
     const { data, error } = await supabase.storage
       .from("nfa-attachments")
       .createSignedUrl(att.storage_path, 300, download ? { download: att.filename } : undefined);
     if (error || !data) return toast.error(error?.message ?? "Cannot open file");
-    window.open(data.signedUrl, "_blank");
+    if (download) {
+      window.open(data.signedUrl, "_blank");
+      return;
+    }
+    const kind = previewKind(att);
+    if (kind) {
+      setPreview({ att, url: data.signedUrl, kind });
+    } else {
+      window.open(data.signedUrl, "_blank");
+    }
   }
 
   return (
@@ -97,6 +116,29 @@ export function AttachmentList({ nfaId, refreshKey = 0, title = "Supporting Atta
           </ul>
         )}
       </div>
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-5xl p-0">
+          <DialogHeader className="border-b border-border px-5 py-3">
+            <DialogTitle className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate font-display">{preview?.att.filename}</span>
+              {preview ? (
+                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => open(preview.att, true)}>
+                  <Download className="h-3.5 w-3.5" /> Download
+                </Button>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="h-[75vh] w-full bg-muted/30">
+            {preview?.kind === "pdf" ? (
+              <iframe src={preview.url} title={preview.att.filename} className="h-full w-full" />
+            ) : preview?.kind === "image" ? (
+              <div className="flex h-full w-full items-center justify-center overflow-auto p-4">
+                <img src={preview.url} alt={preview.att.filename} className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
