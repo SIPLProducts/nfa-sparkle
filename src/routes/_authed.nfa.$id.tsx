@@ -385,6 +385,54 @@ function NfaDetail() {
               onChange={(e) => setFTo(e.target.value)}
             />
           </div>
+          <div className="md:col-span-2">
+            <Label className="text-[11px] uppercase text-slate-500">Quick range</Label>
+            <div className="flex flex-wrap gap-1">
+              {(() => {
+                const fmt = (d: Date) => {
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const day = String(d.getDate()).padStart(2, "0");
+                  return `${y}-${m}-${day}`;
+                };
+                const apply = (days: number) => {
+                  const to = new Date();
+                  const from = new Date();
+                  if (days > 1) from.setDate(from.getDate() - (days - 1));
+                  setFFrom(fmt(from));
+                  setFTo(fmt(to));
+                };
+                const today = new Date();
+                const todayStr = fmt(today);
+                const last7From = new Date(); last7From.setDate(last7From.getDate() - 6);
+                const last30From = new Date(); last30From.setDate(last30From.getDate() - 29);
+                const isToday = fFrom === todayStr && fTo === todayStr;
+                const isLast7 = fFrom === fmt(last7From) && fTo === todayStr;
+                const isLast30 = fFrom === fmt(last30From) && fTo === todayStr;
+                const btn = (label: string, active: boolean, onClick: () => void) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={onClick}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
+                      active
+                        ? "border-slate-800 bg-slate-900 text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+                return (
+                  <>
+                    {btn("Today", isToday, () => apply(1))}
+                    {btn("Last 7 days", isLast7, () => apply(7))}
+                    {btn("Last 30 days", isLast30, () => apply(30))}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">Sort</Label>
             <Select value={fSort} onValueChange={(v) => setFSort(v as "newest" | "oldest")}>
