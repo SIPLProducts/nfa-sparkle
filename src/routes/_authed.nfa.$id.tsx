@@ -341,13 +341,28 @@ function NfaDetail() {
       <Card className="border-slate-300 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
-          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
-            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
+          {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
               Clear filters
             </Button>
           )}
         </div>
         <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-6">
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Type</Label>
+            <Select value={fType} onValueChange={setFType}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="creation">Creation</SelectItem>
+                <SelectItem value="change">Change Request</SelectItem>
+                <SelectItem value="approval">Approval Action</SelectItem>
+                <SelectItem value="resubmit">Re-submission</SelectItem>
+                <SelectItem value="attachment">Attachment</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Action</Label>
             <Select value={fAction} onValueChange={setFAction}>
