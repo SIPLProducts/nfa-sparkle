@@ -177,17 +177,17 @@ function NewNfaPage() {
         title="Create Note For Approval"
         subtitle="Provide context, scope and impact — then route to the appropriate approver chain."
         actions={
-          <>
+          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2">
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
-              <Sparkles className="h-4 w-4" /> Load Sample
+              <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
             </Button>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => submit(true)} disabled={busy}>
-              <Save className="h-4 w-4" /> Save Draft
+              <Save className="h-4 w-4" /> <span className="hidden sm:inline">Save </span>Draft
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
-              <Send className="h-4 w-4" /> Submit for Approval
+              <Send className="h-4 w-4" /> Submit<span className="hidden sm:inline"> for Approval</span>
             </Button>
-          </>
+          </div>
         }
       />
 
