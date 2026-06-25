@@ -298,20 +298,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_directory: {
+        Row: {
+          full_name: string | null
+          id: string | null
+        }
+        Insert: {
+          full_name?: string | null
+          id?: string | null
+        }
+        Update: {
+          full_name?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_nfa_approver: {
-        Args: { _nfa_id: string; _user_id: string }
-        Returns: boolean
-      }
       nfa_act: {
         Args: { _action: string; _comment?: string; _nfa_id: string }
         Returns: undefined
@@ -319,6 +322,13 @@ export type Database = {
       nfa_resubmit: {
         Args: { _comment?: string; _nfa_id: string }
         Returns: undefined
+      }
+      resolve_users_by_email: {
+        Args: { _emails: string[] }
+        Returns: {
+          email: string
+          id: string
+        }[]
       }
     }
     Enums: {
