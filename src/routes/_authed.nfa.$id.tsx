@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
@@ -43,6 +43,7 @@ function NfaDetail() {
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
   const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,6 +63,7 @@ function NfaDetail() {
     setApprovers((a as ApproverRow[]) ?? []);
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
+    setAuditLoading(false);
     const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
     setProfiles(await fetchProfilesMap(ids));
   }, [id]);
