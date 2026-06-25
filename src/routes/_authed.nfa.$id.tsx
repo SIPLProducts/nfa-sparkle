@@ -13,13 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Paperclip, Upload, Eye, Download, ArrowLeft, FileEdit } from "lucide-react";
+import { Paperclip, Upload, ArrowLeft, FileEdit } from "lucide-react";
+import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 
 export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
 });
 
-interface Attachment { id: string; nfa_id: string; storage_path: string; filename: string; mime: string | null; size: number | null; uploaded_at: string; uploaded_by: string }
 interface AuditRow { id: string; action: string; comment: string | null; actor_id: string | null; at: string }
 
 function NfaDetail() {
@@ -29,6 +29,7 @@ function NfaDetail() {
   const [nfa, setNfa] = useState<NfaRow | null>(null);
   const [approvers, setApprovers] = useState<ApproverRow[]>([]);
   const [files, setFiles] = useState<Attachment[]>([]);
+  const [attachmentsKey, setAttachmentsKey] = useState(0);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
@@ -71,14 +72,9 @@ function NfaDetail() {
       await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: "Uploaded attachment(s)" });
       toast.success("Uploaded");
       load();
+      setAttachmentsKey((k) => k + 1);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
-  }
-
-  async function openFile(att: Attachment, dl = false) {
-    const { data, error } = await supabase.storage.from("nfa-attachments").createSignedUrl(att.storage_path, 300, dl ? { download: att.filename } : undefined);
-    if (error || !data) return toast.error(error?.message ?? "Cannot preview");
-    window.open(data.signedUrl, "_blank");
   }
 
   async function act(kind: "approve" | "reject" | "back" | "clarify") {
@@ -166,28 +162,13 @@ function NfaDetail() {
         </table>
       </Card>
 
-      <Card className="border-slate-300 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-700 flex items-center gap-2"><Paperclip className="h-4 w-4" /> Attachments</h3>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded bg-sky-600 px-3 py-1.5 text-sm text-white hover:bg-sky-700">
-            <Upload className="h-4 w-4" /> Upload
-            <input type="file" multiple className="hidden" onChange={(e) => uploadFiles(e.target.files)} disabled={busy} />
-          </label>
-        </div>
-        {files.length === 0 && <p className="text-sm text-slate-500">No attachments yet.</p>}
-        <ul className="divide-y divide-slate-200">
-          {files.map((f) => (
-            <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-              <div><div className="font-medium text-slate-700">{f.filename}</div>
-                <div className="text-xs text-slate-500">{f.mime ?? ""} • {f.size ? (f.size / 1024).toFixed(1) + " KB" : ""} • by {nameFor(profiles, f.uploaded_by)}</div></div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => openFile(f, false)}><Eye className="mr-1 h-4 w-4" />Preview</Button>
-                <Button size="sm" variant="outline" onClick={() => openFile(f, true)}><Download className="mr-1 h-4 w-4" />Download</Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <div className="flex items-center justify-end">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-muted">
+          <Upload className="h-4 w-4" /> Upload Attachment
+          <input type="file" multiple className="hidden" onChange={(e) => { uploadFiles(e.target.files); e.currentTarget.value = ""; }} disabled={busy} />
+        </label>
+      </div>
+      <AttachmentList nfaId={nfa.id} refreshKey={attachmentsKey} />
 
       {myApprover && (
         <Card className="border-amber-300 bg-amber-50 p-4">
