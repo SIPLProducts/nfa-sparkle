@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, FileEdit, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id/change")({
   component: ChangeRequestPage,
@@ -46,6 +46,7 @@ function ChangeRequestPage() {
   const [func, setFunc] = useState("");
   const [desc, setDesc] = useState("");
   const [reason, setReason] = useState("");
+  const [pending, setPending] = useState<File[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -99,7 +100,9 @@ function ChangeRequestPage() {
   async function save(submit: boolean) {
     if (!user || !nfa) return;
     if (!canEdit) return toast.error("Changes are only allowed while the NFA is with the initiator.");
-    if (diffs.length === 0 && !reason.trim()) return toast.error("Make at least one change or add a change reason.");
+    if (diffs.length === 0 && !reason.trim() && pending.length === 0) {
+      return toast.error("Make at least one change, attach a file, or add a change reason.");
+    }
     if (submit && !reason.trim()) return toast.error("A change reason is required when resubmitting.");
 
     setBusy(true);
@@ -116,9 +119,24 @@ function ChangeRequestPage() {
       const { error: ue } = await supabase.from("nfa").update(patch).eq("id", nfa.id);
       if (ue) throw ue;
 
-      const summary = diffs.length
-        ? "Change Request: " + diffs.map((d) => FIELD_LABEL[d.key]).join(", ")
-        : "Change Request (no field changes)";
+      // Upload any staged attachments and capture filenames for the audit trail.
+      const uploadedNames: string[] = [];
+      for (const file of pending) {
+        const path = `${nfa.id}/${Date.now()}-${file.name}`;
+        const { error: se } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
+        if (se) throw se;
+        const { error: ie } = await supabase.from("nfa_attachment").insert({
+          nfa_id: nfa.id, storage_path: path, filename: file.name,
+          mime: file.type || null, size: file.size, uploaded_by: user.id,
+        });
+        if (ie) throw ie;
+        uploadedNames.push(file.name);
+      }
+
+      const parts: string[] = [];
+      if (diffs.length) parts.push("fields: " + diffs.map((d) => FIELD_LABEL[d.key]).join(", "));
+      if (uploadedNames.length) parts.push(`attachments: ${uploadedNames.join(", ")}`);
+      const summary = parts.length ? "Change Request — " + parts.join(" · ") : "Change Request (no field changes)";
       await supabase.from("nfa_audit").insert({
         nfa_id: nfa.id, actor_id: user.id,
         action: summary, comment: reason || null,
@@ -137,6 +155,14 @@ function ChangeRequestPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    setPending((prev) => [...prev, ...Array.from(list)]);
+  }
+  function removeFile(idx: number) {
+    setPending((prev) => prev.filter((_, i) => i !== idx));
   }
 
   return (
@@ -226,6 +252,40 @@ function ChangeRequestPage() {
                 disabled={!canEdit}
               />
             </Field>
+            <div className="md:col-span-2">
+              <Label className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" /> Supporting Attachments</span>
+                <label className={"inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium normal-case tracking-normal text-foreground shadow-sm " + (canEdit ? "cursor-pointer hover:bg-muted" : "cursor-not-allowed opacity-50")}>
+                  <Upload className="h-3.5 w-3.5" /> Add files
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    disabled={!canEdit}
+                    onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }}
+                  />
+                </label>
+              </Label>
+              {pending.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+                  No files staged. New attachments will upload when you save or submit, and their filenames will appear in the audit trail.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {pending.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-foreground">{f.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{f.type || "file"} · {(f.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => removeFile(i)} disabled={busy}>
+                        <X className="h-3.5 w-3.5" /> Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
 
@@ -253,6 +313,12 @@ function ChangeRequestPage() {
             <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
               Submitting will reset the approval chain to Level 1 and notify approvers that this is a revised NFA.
             </p>
+            {pending.length > 0 && (
+              <div className="mt-3 rounded-md border border-border bg-muted/30 p-2 text-[11px] text-muted-foreground">
+                <div className="font-medium text-foreground">{pending.length} attachment{pending.length === 1 ? "" : "s"} staged</div>
+                <div className="mt-0.5">Filenames will be recorded in the audit history.</div>
+              </div>
+            )}
           </div>
         </aside>
       </div>
