@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { STATUS_LABEL, type ApproverRow, type NfaRow } from "@/lib/nfa-types";
@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User } from "lucide-react";
+import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
 
@@ -45,6 +46,11 @@ function NfaDetail() {
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fAction, setFAction] = useState<string>("all");
+  const [fApprover, setFApprover] = useState<string>("");
+  const [fLevel, setFLevel] = useState<string>("all");
+  const [fFrom, setFFrom] = useState<string>("");
+  const [fTo, setFTo] = useState<string>("");
 
   const load = useCallback(async () => {
     const { data: n } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
@@ -58,6 +64,24 @@ function NfaDetail() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const filteredAudit = useMemo(() => {
+    const q = fApprover.trim().toLowerCase();
+    const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
+    const toMs = fTo ? new Date(fTo + "T23:59:59").getTime() : null;
+    return audit.filter((a) => {
+      if (fAction !== "all" && a.action_kind !== fAction) return false;
+      if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
+      if (q) {
+        const name = (a.approver_name || nameFor(profiles, a.actor_id ?? undefined) || "").toLowerCase();
+        if (!name.includes(q)) return false;
+      }
+      const t = new Date(a.at).getTime();
+      if (fromMs !== null && t < fromMs) return false;
+      if (toMs !== null && t > toMs) return false;
+      return true;
+    });
+  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, profiles]);
 
   if (!nfa) return <div className="p-4 text-slate-500">Loading…</div>;
 
@@ -273,7 +297,53 @@ function NfaDetail() {
       )}
 
       <Card className="border-slate-300 p-4">
-        <h3 className="mb-3 font-semibold text-slate-700">Audit Log</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold text-slate-700">Audit Log</h3>
+          {(fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); }}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-5">
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Action</Label>
+            <Select value={fAction} onValueChange={setFAction}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All actions</SelectItem>
+                <SelectItem value="approve">Approve</SelectItem>
+                <SelectItem value="reject">Reject</SelectItem>
+                <SelectItem value="clarify">Clarification</SelectItem>
+                <SelectItem value="back">Back to Initiator</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">Approver / Actor</Label>
+            <Input className="h-8" placeholder="Name…" value={fApprover} onChange={(e) => setFApprover(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">Level</Label>
+            <Select value={fLevel} onValueChange={setFLevel}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All levels</SelectItem>
+                {Array.from(new Set(approvers.map((a) => a.level))).sort((a, b) => a - b).map((lv) => (
+                  <SelectItem key={lv} value={String(lv)}>Level {lv}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">From</Label>
+            <Input type="date" className="h-8" value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px] uppercase text-slate-500">To</Label>
+            <Input type="date" className="h-8" value={fTo} onChange={(e) => setFTo(e.target.value)} />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
@@ -287,7 +357,7 @@ function NfaDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {audit.map((a) => {
+              {filteredAudit.map((a) => {
                 const actor = a.approver_name || nameFor(profiles, a.actor_id ?? undefined);
                 const hasChange = a.old_status && a.new_status && a.old_status !== a.new_status;
                 return (
@@ -311,8 +381,8 @@ function NfaDetail() {
                   </tr>
                 );
               })}
-              {audit.length === 0 && (
-                <tr><td colSpan={6} className="p-3 text-center text-slate-500">No audit entries yet.</td></tr>
+              {filteredAudit.length === 0 && (
+                <tr><td colSpan={6} className="p-3 text-center text-slate-500">{audit.length === 0 ? "No audit entries yet." : "No entries match the current filters."}</td></tr>
               )}
             </tbody>
           </table>
