@@ -6,8 +6,8 @@ import { type ApproverRow, type NfaRow } from "@/lib/nfa-types";
 import { nfaTypeName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
+import { Inbox, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
@@ -39,31 +39,66 @@ function ApprovalsInbox() {
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold text-slate-700">Pending Approvals</h2>
-      <Card className="overflow-x-auto border-slate-300 p-0">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-200 text-left text-xs uppercase text-slate-700">
-            <tr><th className="p-2">ENFA No</th><th className="p-2">Plant</th><th className="p-2">Plant Name</th><th className="p-2">NFA Type</th><th className="p-2">Date</th><th className="p-2">Subject</th><th className="p-2">Initiator</th><th className="p-2">Level</th><th className="p-2"></th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {loading && <tr><td colSpan={9} className="p-3 text-slate-500">Loading…</td></tr>}
-            {!loading && rows.length === 0 && <tr><td colSpan={9} className="p-3 text-slate-500">Nothing waiting on you.</td></tr>}
-            {rows.map(({ nfa, ap }) => (
-              <tr key={ap.id} className="hover:bg-sky-50">
-                <td className="p-2 font-medium text-sky-700"><Link to="/nfa/$id" params={{ id: nfa.id }}>{nfa.enfa_number}</Link></td>
-                <td className="p-2">{nfa.plant}</td>
-                <td className="p-2">{nfa.plant_name}</td>
-                <td className="p-2">{nfaTypeName(nfa.nfa_type)}</td>
-                <td className="p-2">{new Date(nfa.created_at).toLocaleDateString()}</td>
-                <td className="p-2">{nfa.subject}</td>
-                <td className="p-2">{nameFor(profiles, nfa.initiator_id)}</td>
-                <td className="p-2"><Badge variant="outline">L{ap.level}</Badge></td>
-                <td className="p-2"><Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" className="bg-yellow-300 text-slate-900 hover:bg-yellow-400">Open</Button></Link></td>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Approvals Inbox"
+        subtitle="Items currently waiting for your decision."
+        actions={
+          <div className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium">
+            <Inbox className="h-3.5 w-3.5" />
+            {rows.length} item{rows.length === 1 ? "" : "s"}
+          </div>
+        }
+      />
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2.5 font-medium">ENFA #</th>
+                <th className="px-3 py-2.5 font-medium">Subject</th>
+                <th className="px-3 py-2.5 font-medium">Plant</th>
+                <th className="px-3 py-2.5 font-medium">NFA Type</th>
+                <th className="px-3 py-2.5 font-medium">Initiator</th>
+                <th className="px-3 py-2.5 font-medium">Submitted</th>
+                <th className="px-3 py-2.5 font-medium">Level</th>
+                <th className="px-3 py-2.5 font-medium"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading && <tr><td colSpan={8} className="px-4 py-6 text-muted-foreground">Loading…</td></tr>}
+              {!loading && rows.length === 0 && (
+                <tr><td colSpan={8} className="px-4 py-16 text-center">
+                  <CheckCircle2 className="mx-auto mb-2 h-10 w-10 text-emerald-500/70" />
+                  <div className="text-sm font-medium">You're all caught up</div>
+                  <div className="text-xs text-muted-foreground">No items are currently waiting on your decision.</div>
+                </td></tr>
+              )}
+              {rows.map(({ nfa, ap }) => (
+                <tr key={ap.id} className="hover:bg-muted/40">
+                  <td className="px-3 py-2.5 font-mono text-xs font-medium text-accent">
+                    <Link to="/nfa/$id" params={{ id: nfa.id }} className="hover:underline">{nfa.enfa_number}</Link>
+                  </td>
+                  <td className="max-w-[320px] truncate px-3 py-2.5">{nfa.subject}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{nfa.plant ? `${nfa.plant} · ${nfa.plant_name ?? ""}` : "—"}</td>
+                  <td className="px-3 py-2.5">{nfaTypeName(nfa.nfa_type)}</td>
+                  <td className="px-3 py-2.5">{nameFor(profiles, nfa.initiator_id)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{new Date(nfa.created_at).toLocaleDateString()}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200">
+                      Level {ap.level}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm">Review</Button></Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
