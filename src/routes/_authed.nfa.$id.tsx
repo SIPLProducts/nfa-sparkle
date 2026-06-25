@@ -405,8 +405,45 @@ function NfaDetail() {
                   </tr>
                 );
               })}
-              {pagedAudit.length === 0 && (
-                <tr><td colSpan={6} className="p-3 text-center text-slate-500">{audit.length === 0 ? "No audit entries yet." : "No entries match the current filters."}</td></tr>
+              {auditLoading && (
+                <tr>
+                  <td colSpan={6} className="p-6">
+                    <div className="flex items-center justify-center gap-2 text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading audit log…</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!auditLoading && pagedAudit.length === 0 && audit.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center text-slate-500">
+                      <Inbox className="h-8 w-8 text-slate-300" />
+                      <div className="text-sm font-medium text-slate-700">No audit entries yet</div>
+                      <div className="text-xs">Approval and action history will appear here once activity begins on this NFA.</div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {!auditLoading && pagedAudit.length === 0 && audit.length > 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8">
+                    <div className="flex flex-col items-center justify-center gap-2 text-center text-slate-500">
+                      <SearchX className="h-8 w-8 text-slate-300" />
+                      <div className="text-sm font-medium text-slate-700">No entries match your filters</div>
+                      <div className="text-xs">Try adjusting the action, approver, level, or date range.</div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                      >
+                        <RotateCcw className="mr-1 h-3 w-3" /> Clear filters
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
