@@ -181,12 +181,12 @@ export function AppShell({
             </div>
           </div>
           {(title || actions) && (
-            <div className="flex items-center justify-between border-t border-border/60 bg-card px-4 py-3 sm:px-6 md:hidden">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border/60 bg-card px-4 py-3 sm:px-6 md:hidden">
               <div className="min-w-0">
                 {title && <h1 className="font-display truncate text-base font-bold">{title}</h1>}
                 {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
               </div>
-              {actions}
+              {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
             </div>
           )}
           {actions && (
