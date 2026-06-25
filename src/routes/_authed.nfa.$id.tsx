@@ -1,0 +1,245 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { STATUS_LABEL, type ApproverRow, type NfaRow } from "@/lib/nfa-types";
+import { nfaTypeName, plantName } from "@/lib/sap/master";
+import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Paperclip, Upload, Eye, Download, ArrowLeft } from "lucide-react";
+
+export const Route = createFileRoute("/_authed/nfa/$id")({
+  component: NfaDetail,
+});
+
+interface Attachment { id: string; nfa_id: string; storage_path: string; filename: string; mime: string | null; size: number | null; uploaded_at: string; uploaded_by: string }
+interface AuditRow { id: string; action: string; comment: string | null; actor_id: string | null; at: string }
+
+function NfaDetail() {
+  const { id } = Route.useParams();
+  const { user } = useAuth();
+  const nav = useNavigate();
+  const [nfa, setNfa] = useState<NfaRow | null>(null);
+  const [approvers, setApprovers] = useState<ApproverRow[]>([]);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data: n } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
+    setNfa((n as NfaRow) ?? null);
+    const { data: a } = await supabase.from("nfa_approver").select("*").eq("nfa_id", id).order("level");
+    setApprovers((a as ApproverRow[]) ?? []);
+    const { data: f } = await supabase.from("nfa_attachment").select("*").eq("nfa_id", id).order("uploaded_at", { ascending: false });
+    setFiles((f as Attachment[]) ?? []);
+    const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
+    setAudit((au as AuditRow[]) ?? []);
+    const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
+    setProfiles(await fetchProfilesMap(ids));
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!nfa) return <div className="p-4 text-slate-500">Loading…</div>;
+
+  const isInitiator = user?.id === nfa.initiator_id;
+  const myApprover = approvers.find((a) => a.approver_id === user?.id && a.level === nfa.current_level && a.status === "pending" && nfa.status === "in_process");
+
+  async function uploadFiles(list: FileList | null) {
+    if (!list || !user) return;
+    setBusy(true);
+    try {
+      for (const file of Array.from(list)) {
+        const path = `${nfa!.id}/${Date.now()}-${file.name}`;
+        const { error: ue } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
+        if (ue) throw ue;
+        const { error: ie } = await supabase.from("nfa_attachment").insert({
+          nfa_id: nfa!.id, storage_path: path, filename: file.name,
+          mime: file.type || null, size: file.size, uploaded_by: user.id,
+        });
+        if (ie) throw ie;
+      }
+      await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: "Uploaded attachment(s)" });
+      toast.success("Uploaded");
+      load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function openFile(att: Attachment, dl = false) {
+    const { data, error } = await supabase.storage.from("nfa-attachments").createSignedUrl(att.storage_path, 300, dl ? { download: att.filename } : undefined);
+    if (error || !data) return toast.error(error?.message ?? "Cannot preview");
+    window.open(data.signedUrl, "_blank");
+  }
+
+  async function act(kind: "approve" | "reject" | "back" | "clarify") {
+    if (!myApprover || !user) return;
+    if ((kind === "reject" || kind === "back" || kind === "clarify") && !comment.trim()) return toast.error("Comment required");
+    setBusy(true);
+    try {
+      const status = kind === "approve" ? "approved" : kind === "reject" ? "rejected" : kind === "back" ? "sent_back" : "clarification";
+      await supabase.from("nfa_approver").update({ status, comment: comment || null, acted_at: new Date().toISOString() }).eq("id", myApprover.id);
+
+      let nextStatus = nfa!.status;
+      let nextLevel = nfa!.current_level;
+      if (kind === "approve") {
+        const max = Math.max(...approvers.map((a) => a.level));
+        if (myApprover.level >= max) { nextStatus = "completed"; }
+        else { nextLevel = myApprover.level + 1; }
+      } else if (kind === "reject") { nextStatus = "rejected"; }
+      else if (kind === "back") { nextStatus = "with_initiator"; nextLevel = 0; }
+      else if (kind === "clarify") { nextStatus = "clarification"; }
+      await supabase.from("nfa").update({ status: nextStatus, current_level: nextLevel }).eq("id", nfa!.id);
+      await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: `Level ${myApprover.level}: ${status}`, comment: comment || null });
+      toast.success("Action recorded");
+      setComment("");
+      load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function resubmit() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      // reset approver chain to pending and move to level 1
+      await supabase.from("nfa_approver").update({ status: "pending", comment: null, acted_at: null }).eq("nfa_id", nfa!.id);
+      await supabase.from("nfa").update({ status: "in_process", current_level: 1 }).eq("id", nfa!.id);
+      await supabase.from("nfa_audit").insert({ nfa_id: nfa!.id, actor_id: user.id, action: "Re-submitted for approval", comment: comment || null });
+      setComment("");
+      toast.success("Resubmitted");
+      load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => nav({ to: "/nfa/my" })}><ArrowLeft className="mr-1 h-4 w-4" /> Back</Button>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-slate-600">ENFA</span>
+          <span className="font-bold text-slate-800">{nfa.enfa_number}</span>
+          <Badge variant="outline">{STATUS_LABEL[nfa.status]}</Badge>
+        </div>
+      </div>
+
+      <Card className="border-slate-300">
+        <div className="border-b border-slate-300 bg-slate-100 px-4 py-2 text-center text-base font-bold italic text-slate-800">NOTE FOR APPROVAL</div>
+        <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 text-sm">
+          <ReadField label="Company" value={nfa.company} />
+          <ReadField label="Plant" value={`${nfa.plant ?? ""} ${plantName(nfa.plant) ? "– " + plantName(nfa.plant) : ""}`} />
+          <ReadField label="NFA Type" value={nfaTypeName(nfa.nfa_type)} />
+          <ReadField label="Function" value={nfa.function ?? ""} />
+          <ReadField label="Subject" value={nfa.subject} className="md:col-span-2" />
+          <ReadField label="Scope Impact" value={nfa.scope_impact ?? ""} className="md:col-span-2" />
+          <ReadField label="Budget (Lakhs)" value={nfa.budget_impact?.toString() ?? ""} />
+          <ReadField label="Timeline (Days)" value={nfa.timeline_days?.toString() ?? ""} />
+          <ReadField label="Initiator" value={nameFor(profiles, nfa.initiator_id)} />
+          <ReadField label="Created" value={new Date(nfa.created_at).toLocaleString()} />
+          {nfa.detailed_description && (
+            <div className="md:col-span-2"><Label className="text-xs text-slate-500">Detailed Description</Label>
+              <div className="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3">{nfa.detailed_description}</div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="border-slate-300 p-4">
+        <h3 className="mb-3 font-semibold text-slate-700">Approval Chain</h3>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
+            <tr><th className="p-2">Level</th><th className="p-2">Approver</th><th className="p-2">Designation</th><th className="p-2">Status</th><th className="p-2">Acted</th><th className="p-2">Comment</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {approvers.map((a) => (
+              <tr key={a.id} className={a.level === nfa.current_level && nfa.status === "in_process" ? "bg-sky-50" : ""}>
+                <td className="p-2">{a.level}</td>
+                <td className="p-2">{nameFor(profiles, a.approver_id)}</td>
+                <td className="p-2">{a.designation ?? ""}</td>
+                <td className="p-2"><Badge variant="outline">{a.status}</Badge></td>
+                <td className="p-2">{a.acted_at ? new Date(a.acted_at).toLocaleString() : ""}</td>
+                <td className="p-2 text-slate-600">{a.comment ?? ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card className="border-slate-300 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold text-slate-700 flex items-center gap-2"><Paperclip className="h-4 w-4" /> Attachments</h3>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded bg-sky-600 px-3 py-1.5 text-sm text-white hover:bg-sky-700">
+            <Upload className="h-4 w-4" /> Upload
+            <input type="file" multiple className="hidden" onChange={(e) => uploadFiles(e.target.files)} disabled={busy} />
+          </label>
+        </div>
+        {files.length === 0 && <p className="text-sm text-slate-500">No attachments yet.</p>}
+        <ul className="divide-y divide-slate-200">
+          {files.map((f) => (
+            <li key={f.id} className="flex items-center justify-between py-2 text-sm">
+              <div><div className="font-medium text-slate-700">{f.filename}</div>
+                <div className="text-xs text-slate-500">{f.mime ?? ""} • {f.size ? (f.size / 1024).toFixed(1) + " KB" : ""} • by {nameFor(profiles, f.uploaded_by)}</div></div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => openFile(f, false)}><Eye className="mr-1 h-4 w-4" />Preview</Button>
+                <Button size="sm" variant="outline" onClick={() => openFile(f, true)}><Download className="mr-1 h-4 w-4" />Download</Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      {myApprover && (
+        <Card className="border-amber-300 bg-amber-50 p-4">
+          <h3 className="mb-2 font-semibold text-slate-800">Your Action (Level {myApprover.level})</h3>
+          <Textarea placeholder="Comment (required for Reject / Send Back / Clarification)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button onClick={() => act("approve")} disabled={busy} className="bg-green-600 hover:bg-green-700">Approve</Button>
+            <Button onClick={() => act("reject")} disabled={busy} variant="destructive">Reject</Button>
+            <Button onClick={() => act("back")} disabled={busy} variant="outline">Back To Initiator</Button>
+            <Button onClick={() => act("clarify")} disabled={busy} variant="outline">Request Clarification</Button>
+          </div>
+        </Card>
+      )}
+
+      {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && approvers.length > 0 && (
+        <Card className="border-sky-300 bg-sky-50 p-4">
+          <h3 className="mb-2 font-semibold text-slate-800">Initiator Action</h3>
+          <Textarea placeholder="Add a note for approvers (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          <div className="mt-3"><Button onClick={resubmit} disabled={busy} className="bg-yellow-300 text-slate-900 hover:bg-yellow-400">Resubmit for Approval</Button></div>
+        </Card>
+      )}
+
+      <Card className="border-slate-300 p-4">
+        <h3 className="mb-3 font-semibold text-slate-700">History</h3>
+        <ul className="space-y-1 text-sm">
+          {audit.map((a) => (
+            <li key={a.id} className="flex gap-3">
+              <span className="w-44 text-slate-500">{new Date(a.at).toLocaleString()}</span>
+              <span className="w-40 text-slate-700">{nameFor(profiles, a.actor_id ?? undefined)}</span>
+              <span className="flex-1"><b>{a.action}</b>{a.comment ? ` — ${a.comment}` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
+  );
+}
+
+function ReadField({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={className}>
+      <Label className="text-xs text-slate-500">{label}</Label>
+      <div className="mt-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-slate-800">{value || <span className="text-slate-400">—</span>}</div>
+    </div>
+  );
+}

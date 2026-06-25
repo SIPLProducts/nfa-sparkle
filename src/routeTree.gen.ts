@@ -9,38 +9,137 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedReportRouteImport } from './routes/_authed.report'
+import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
+import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
+import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
+import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedReportRoute = AuthedReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
+  id: '/nfa/new',
+  path: '/nfa/new',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedNfaMyRoute = AuthedNfaMyRouteImport.update({
+  id: '/nfa/my',
+  path: '/nfa/my',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
+  id: '/nfa/$id',
+  path: '/nfa/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/approvals': typeof AuthedApprovalsRoute
+  '/report': typeof AuthedReportRoute
+  '/nfa/$id': typeof AuthedNfaIdRoute
+  '/nfa/my': typeof AuthedNfaMyRoute
+  '/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/approvals': typeof AuthedApprovalsRoute
+  '/report': typeof AuthedReportRoute
+  '/nfa/$id': typeof AuthedNfaIdRoute
+  '/nfa/my': typeof AuthedNfaMyRoute
+  '/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authed/approvals': typeof AuthedApprovalsRoute
+  '/_authed/report': typeof AuthedReportRoute
+  '/_authed/nfa/$id': typeof AuthedNfaIdRoute
+  '/_authed/nfa/my': typeof AuthedNfaMyRoute
+  '/_authed/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/approvals'
+    | '/report'
+    | '/nfa/$id'
+    | '/nfa/my'
+    | '/nfa/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/approvals'
+    | '/report'
+    | '/nfa/$id'
+    | '/nfa/my'
+    | '/nfa/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authed'
+    | '/auth'
+    | '/_authed/approvals'
+    | '/_authed/report'
+    | '/_authed/nfa/$id'
+    | '/_authed/nfa/my'
+    | '/_authed/nfa/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +147,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/report': {
+      id: '/_authed/report'
+      path: '/report'
+      fullPath: '/report'
+      preLoaderRoute: typeof AuthedReportRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/approvals': {
+      id: '/_authed/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthedApprovalsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/nfa/new': {
+      id: '/_authed/nfa/new'
+      path: '/nfa/new'
+      fullPath: '/nfa/new'
+      preLoaderRoute: typeof AuthedNfaNewRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/nfa/my': {
+      id: '/_authed/nfa/my'
+      path: '/nfa/my'
+      fullPath: '/nfa/my'
+      preLoaderRoute: typeof AuthedNfaMyRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/nfa/$id': {
+      id: '/_authed/nfa/$id'
+      path: '/nfa/$id'
+      fullPath: '/nfa/$id'
+      preLoaderRoute: typeof AuthedNfaIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedApprovalsRoute: typeof AuthedApprovalsRoute
+  AuthedReportRoute: typeof AuthedReportRoute
+  AuthedNfaIdRoute: typeof AuthedNfaIdRoute
+  AuthedNfaMyRoute: typeof AuthedNfaMyRoute
+  AuthedNfaNewRoute: typeof AuthedNfaNewRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedApprovalsRoute: AuthedApprovalsRoute,
+  AuthedReportRoute: AuthedReportRoute,
+  AuthedNfaIdRoute: AuthedNfaIdRoute,
+  AuthedNfaMyRoute: AuthedNfaMyRoute,
+  AuthedNfaNewRoute: AuthedNfaNewRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
