@@ -83,10 +83,34 @@ function Index() {
     >
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi icon={<Inbox className="h-4 w-4" />} label="Awaiting your action" value={pending.length} accent="text-blue-700 bg-blue-50 ring-blue-200" />
-        <Kpi icon={<Clock className="h-4 w-4" />} label="My NFAs in process" value={inProcessCount} accent="text-indigo-700 bg-indigo-50 ring-indigo-200" />
-        <Kpi icon={<AlertCircle className="h-4 w-4" />} label="Needs clarification" value={clarificationCount} accent="text-amber-800 bg-amber-50 ring-amber-200" />
-        <Kpi icon={<CheckCircle2 className="h-4 w-4" />} label="Completed (recent)" value={completedCount} accent="text-emerald-700 bg-emerald-50 ring-emerald-200" />
+        <Kpi
+          icon={<Inbox className="h-5 w-5" />}
+          label="Awaiting your action"
+          value={pending.length}
+          tile="from-sky-500 to-blue-700"
+          chip="bg-white/20 text-white ring-white/30"
+        />
+        <Kpi
+          icon={<Clock className="h-5 w-5" />}
+          label="My NFAs in process"
+          value={inProcessCount}
+          tile="from-indigo-500 to-violet-700"
+          chip="bg-white/20 text-white ring-white/30"
+        />
+        <Kpi
+          icon={<AlertCircle className="h-5 w-5" />}
+          label="Needs clarification"
+          value={clarificationCount}
+          tile="from-amber-400 to-orange-600"
+          chip="bg-white/25 text-white ring-white/30"
+        />
+        <Kpi
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="Completed (recent)"
+          value={completedCount}
+          tile="from-emerald-500 to-teal-700"
+          chip="bg-white/20 text-white ring-white/30"
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -180,15 +204,37 @@ function Index() {
   );
 }
 
-function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent: string }) {
+function Kpi({
+  icon,
+  label,
+  value,
+  tile,
+  chip,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tile: string;
+  chip: string;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div
+      className={
+        "relative overflow-hidden rounded-lg p-4 text-white shadow-md ring-1 ring-white/10 bg-gradient-to-br " +
+        tile
+      }
+    >
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className="font-display mt-1 text-2xl font-bold">{value}</div>
+          <div className="truncate text-[11px] font-medium uppercase tracking-wider text-white/80">
+            {label}
+          </div>
+          <div className="font-display mt-1 text-3xl font-bold leading-none">{value}</div>
         </div>
-        <div className={"grid h-9 w-9 shrink-0 place-items-center rounded-md ring-1 " + accent}>{icon}</div>
+        <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-md ring-1 " + chip}>
+          {icon}
+        </div>
       </div>
     </div>
   );
