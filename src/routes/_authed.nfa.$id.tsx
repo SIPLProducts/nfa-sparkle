@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { STATUS_LABEL, type ApproverRow, type NfaRow } from "@/lib/nfa-types";
+import { STATUS_LABEL, STATUS_TONE, type ApproverRow, type NfaRow } from "@/lib/nfa-types";
 import { nfaTypeName, plantName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
@@ -201,7 +201,9 @@ function NfaDetail() {
           )}
           <span className="text-slate-600">ENFA</span>
           <span className="font-bold text-slate-800">{nfa.enfa_number}</span>
-          <Badge variant="outline">{STATUS_LABEL[nfa.status]}</Badge>
+          <span className={"inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + STATUS_TONE[nfa.status]}>
+            {STATUS_LABEL[nfa.status]}
+          </span>
         </div>
       </div>
 
@@ -238,7 +240,11 @@ function NfaDetail() {
                 <td className="p-2">{a.level}</td>
                 <td className="p-2">{nameFor(profiles, a.approver_id)}</td>
                 <td className="p-2">{a.designation ?? ""}</td>
-                <td className="p-2"><Badge variant="outline">{a.status}</Badge></td>
+                <td className="p-2">
+                  <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + APPROVER_TONE[a.status]}>
+                    {APPROVER_STATUS_LABEL[a.status]}
+                  </span>
+                </td>
                 <td className="p-2">{a.acted_at ? new Date(a.acted_at).toLocaleString() : ""}</td>
                 <td className="p-2 text-slate-600">{a.comment ?? ""}</td>
               </tr>
@@ -602,9 +608,13 @@ function NfaDetail() {
                     <td className="p-2 text-xs">
                       {hasChange ? (
                         <span className="inline-flex items-center gap-1">
-                          <Badge variant="outline" className="font-normal">{STATUS_LABEL[a.old_status as keyof typeof STATUS_LABEL] ?? a.old_status}</Badge>
+                          <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + (STATUS_TONE[a.old_status as keyof typeof STATUS_TONE] ?? "bg-slate-100 text-slate-700 ring-1 ring-slate-200")}>
+                            {STATUS_LABEL[a.old_status as keyof typeof STATUS_LABEL] ?? a.old_status}
+                          </span>
                           <span className="text-slate-400">→</span>
-                          <Badge variant="outline" className="font-normal">{STATUS_LABEL[a.new_status as keyof typeof STATUS_LABEL] ?? a.new_status}</Badge>
+                          <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + (STATUS_TONE[a.new_status as keyof typeof STATUS_TONE] ?? "bg-slate-100 text-slate-700 ring-1 ring-slate-200")}>
+                            {STATUS_LABEL[a.new_status as keyof typeof STATUS_LABEL] ?? a.new_status}
+                          </span>
                         </span>
                       ) : (
                         <span className="text-slate-400">—</span>
