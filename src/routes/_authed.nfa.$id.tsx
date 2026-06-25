@@ -351,8 +351,8 @@ function NfaDetail() {
       <Card className="border-slate-300 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
-          {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || fSort !== "newest") && (
-            <Button size="sm" variant="ghost" onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}>
+          {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || sortKey !== "at" || sortDir !== "desc") && (
+            <Button size="sm" variant="ghost" onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setSortKey("at"); setSortDir("desc"); }}>
               Clear filters
             </Button>
           )}
@@ -474,13 +474,21 @@ function NfaDetail() {
           </div>
           <div>
             <Label className="text-[11px] uppercase text-slate-500">Sort</Label>
-            <Select value={fSort} onValueChange={(v) => setFSort(v as "newest" | "oldest")}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600">
+              <ArrowUpDown className="h-3 w-3 text-slate-400" />
+              <span className="font-medium text-slate-800">
+                {sortKey === "at" ? "Timestamp" : sortKey === "action" ? "Action" : "Approver"}
+              </span>
+              <span className="text-slate-400">·</span>
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                className="font-medium text-slate-700 underline-offset-2 hover:underline"
+              >
+                {sortDir === "asc" ? "Ascending" : "Descending"}
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">Click column headers to sort.</p>
           </div>
         </div>
         {dateRangeError && (
@@ -508,7 +516,11 @@ function NfaDetail() {
           if (fLevel !== "all") chips.push({ key: "level", label: `Level ${fLevel}`, onClear: () => setFLevel("all") });
           if (fFrom) chips.push({ key: "from", label: `From: ${fFrom}`, onClear: () => setFFrom("") });
           if (fTo) chips.push({ key: "to", label: `To: ${fTo}`, onClear: () => setFTo("") });
-          if (fSort !== "newest") chips.push({ key: "sort", label: "Sort: Oldest first", onClear: () => setFSort("newest") });
+          if (sortKey !== "at" || sortDir !== "desc") {
+            const colLabel = sortKey === "at" ? "Timestamp" : sortKey === "action" ? "Action" : "Approver";
+            const dirLabel = sortDir === "asc" ? "Ascending" : "Descending";
+            chips.push({ key: "sort", label: `Sort: ${colLabel} (${dirLabel})`, onClear: () => { setSortKey("at"); setSortDir("desc"); } });
+          }
           if (chips.length === 0) return null;
           return (
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -531,7 +543,7 @@ function NfaDetail() {
               ))}
               <button
                 type="button"
-                onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setSortKey("at"); setSortDir("desc"); }}
                 className="text-xs font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
               >
                 Clear all
@@ -543,12 +555,38 @@ function NfaDetail() {
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
               <tr>
-                <th className="p-2">Timestamp</th>
-                <th className="p-2">Action</th>
-                <th className="p-2">Level</th>
-                <th className="p-2">Approver / Actor</th>
-                <th className="p-2">Status Change</th>
-                <th className="p-2">Comment</th>
+                {(() => {
+                  const SortableTh = ({ k, label }: { k: "at" | "action" | "actor"; label: string }) => {
+                    const active = sortKey === k;
+                    const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+                    return (
+                      <th className="p-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (active) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                            else { setSortKey(k); setSortDir(k === "at" ? "desc" : "asc"); }
+                          }}
+                          className={`inline-flex items-center gap-1 uppercase ${active ? "text-slate-900" : "text-slate-700 hover:text-slate-900"}`}
+                          aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+                        >
+                          {label}
+                          <Icon className={`h-3 w-3 ${active ? "text-slate-700" : "text-slate-400"}`} />
+                        </button>
+                      </th>
+                    );
+                  };
+                  return (
+                    <>
+                      <SortableTh k="at" label="Timestamp" />
+                      <SortableTh k="action" label="Action" />
+                      <th className="p-2">Level</th>
+                      <SortableTh k="actor" label="Approver / Actor" />
+                      <th className="p-2">Status Change</th>
+                      <th className="p-2">Comment</th>
+                    </>
+                  );
+                })()}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -608,7 +646,7 @@ function NfaDetail() {
                         size="sm"
                         variant="outline"
                         className="mt-2"
-                        onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                        onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setSortKey("at"); setSortDir("desc"); }}
                       >
                         <RotateCcw className="mr-1 h-3 w-3" /> Clear filters
                       </Button>
