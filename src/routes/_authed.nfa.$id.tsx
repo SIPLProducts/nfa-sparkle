@@ -612,7 +612,10 @@ function NfaDetail() {
         {filteredAudit.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
             <div>
-              Showing {pageStart + 1}–{Math.min(pageStart + pageSize, filteredAudit.length)} of {filteredAudit.length}
+              Showing <span className="font-medium text-slate-800">{pageStart + 1}–{Math.min(pageStart + pageSize, filteredAudit.length)}</span> of <span className="font-medium text-slate-800">{filteredAudit.length}</span> matching {filteredAudit.length === 1 ? "entry" : "entries"}
+              {filteredAudit.length !== audit.length && (
+                <span className="text-slate-400"> (of {audit.length} total)</span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-[11px] uppercase text-slate-500">Rows</Label>
