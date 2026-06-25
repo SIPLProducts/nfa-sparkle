@@ -165,27 +165,42 @@ export type Database = {
       nfa_audit: {
         Row: {
           action: string
+          action_kind: string | null
           actor_id: string | null
+          approver_name: string | null
           at: string
           comment: string | null
           id: string
+          level: number | null
+          new_status: string | null
           nfa_id: string
+          old_status: string | null
         }
         Insert: {
           action: string
+          action_kind?: string | null
           actor_id?: string | null
+          approver_name?: string | null
           at?: string
           comment?: string | null
           id?: string
+          level?: number | null
+          new_status?: string | null
           nfa_id: string
+          old_status?: string | null
         }
         Update: {
           action?: string
+          action_kind?: string | null
           actor_id?: string | null
+          approver_name?: string | null
           at?: string
           comment?: string | null
           id?: string
+          level?: number | null
+          new_status?: string | null
           nfa_id?: string
+          old_status?: string | null
         }
         Relationships: [
           {
