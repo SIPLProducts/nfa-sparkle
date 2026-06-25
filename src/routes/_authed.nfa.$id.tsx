@@ -199,13 +199,25 @@ function NfaDetail() {
                   </p>
                 )}
                 {isCurrent && myApprover && myApprover.id === a.id && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
-                      <Check className="h-3.5 w-3.5" /> Approve
-                    </Button>
-                    <Button size="sm" onClick={() => act("reject")} disabled={busy} variant="destructive" className="gap-1">
-                      <X className="h-3.5 w-3.5" /> Reject
-                    </Button>
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                        <Check className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => act("reject")}
+                        disabled={busy || !comment.trim()}
+                        variant="destructive"
+                        className="gap-1"
+                        title={!comment.trim() ? "Enter a comment in Your Action below to reject" : undefined}
+                      >
+                        <X className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                    </div>
+                    {!comment.trim() && (
+                      <p className="text-[11px] text-rose-600">A comment is required to reject — fill the Your Action comment below.</p>
+                    )}
                   </div>
                 )}
               </li>
@@ -231,10 +243,13 @@ function NfaDetail() {
           <Textarea placeholder="Comment (required for Reject / Send Back / Clarification)" value={comment} onChange={(e) => setComment(e.target.value)} />
           <div className="mt-3 flex flex-wrap gap-2">
             <Button onClick={() => act("approve")} disabled={busy} className="bg-green-600 hover:bg-green-700">Approve</Button>
-            <Button onClick={() => act("reject")} disabled={busy} variant="destructive">Reject</Button>
-            <Button onClick={() => act("back")} disabled={busy} variant="outline">Back To Initiator</Button>
-            <Button onClick={() => act("clarify")} disabled={busy} variant="outline">Request Clarification</Button>
+            <Button onClick={() => act("reject")} disabled={busy || !comment.trim()} variant="destructive" title={!comment.trim() ? "Enter a comment to reject" : undefined}>Reject</Button>
+            <Button onClick={() => act("back")} disabled={busy || !comment.trim()} variant="outline" title={!comment.trim() ? "Enter a comment to send back" : undefined}>Back To Initiator</Button>
+            <Button onClick={() => act("clarify")} disabled={busy || !comment.trim()} variant="outline" title={!comment.trim() ? "Enter a comment to request clarification" : undefined}>Request Clarification</Button>
           </div>
+          {!comment.trim() && (
+            <p className="mt-2 text-xs text-rose-600">A comment is required for Reject, Back, and Clarification.</p>
+          )}
         </Card>
       )}
 
