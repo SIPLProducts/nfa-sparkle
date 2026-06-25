@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Trash2, Plus, Save, Send, FileText, Building2, Users, Pencil } from "lucide-react";
+import { Trash2, Plus, Save, Send, FileText, Building2, Users, Pencil, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -36,6 +36,30 @@ function NewNfaPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
+
+  function loadSample() {
+    setCompany("REFL");
+    setPlant("9064");
+    setProject("P002");
+    setNfaType("CAPEX");
+    setFunc("PROJECTS");
+    setSubject("Procurement of 250 KVA DG Set for Varthur Phase 2");
+    setScope("Civil, Electrical and Project Operations at Varthur site");
+    setBudget("42.5");
+    setTimeline("60");
+    setDesc(
+      "Background: Existing 160 KVA DG set is undersized for Phase 2 load (estimated 210 KVA continuous).\n\n" +
+        "Proposal: Procure a new 250 KVA Cummins DG set with AMF panel, acoustic enclosure and 990L fuel tank.\n\n" +
+        "Alternatives considered:\n1. Hire on monthly rental — higher 3-year TCO (~1.6x).\n2. Upgrade existing set — OEM has declared end-of-life.\n\n" +
+        "Recommendation: Approve CAPEX of INR 42.5 Lakhs; vendor finalisation via 3-bid process; delivery & commissioning within 60 days.",
+    );
+    setApprovers([
+      { level: 1, email: "projects.lead@nfa.local", designation: "Projects Lead" },
+      { level: 2, email: "finance.head@nfa.local", designation: "Head — Finance" },
+      { level: 3, email: "cfo@nfa.local", designation: "Chief Financial Officer" },
+    ]);
+    toast.success("Sample NFA loaded — review and submit");
+  }
 
   function addLvl() {
     if (approvers.length >= 6) return;
@@ -111,6 +135,9 @@ function NewNfaPage() {
         subtitle="Provide context, scope and impact — then route to the appropriate approver chain."
         actions={
           <>
+            <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
+              <Sparkles className="h-4 w-4" /> Load Sample
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => submit(true)} disabled={busy}>
               <Save className="h-4 w-4" /> Save Draft
             </Button>
