@@ -96,8 +96,8 @@ function AuthPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="signin-email">Work email</Label>
-                    <Input id="signin-email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" />
+                    <Label htmlFor="signin-email">User ID</Label>
+                    <Input id="signin-email" placeholder="Enter your User ID" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
