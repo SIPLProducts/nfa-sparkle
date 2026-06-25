@@ -490,7 +490,9 @@ function NfaDetail() {
         )}
         {(() => {
           const ACTION_LABEL: Record<string, string> = { approve: "Approve", reject: "Reject", clarify: "Clarification", back: "Back to Initiator" };
+          const TYPE_LABEL: Record<string, string> = { creation: "Creation", change: "Change Request", approval: "Approval Action", resubmit: "Re-submission", attachment: "Attachment", other: "Other" };
           const chips: { key: string; label: string; onClear: () => void }[] = [];
+          if (fType !== "all") chips.push({ key: "type", label: `Type: ${TYPE_LABEL[fType] ?? fType}`, onClear: () => setFType("all") });
           if (fAction !== "all") chips.push({ key: "action", label: `Action: ${ACTION_LABEL[fAction] ?? fAction}`, onClear: () => setFAction("all") });
           if (fApprover) chips.push({ key: "approver", label: `Approver: ${fApprover}`, onClear: () => setFApprover("") });
           if (fLevel !== "all") chips.push({ key: "level", label: `Level ${fLevel}`, onClear: () => setFLevel("all") });
@@ -516,7 +518,7 @@ function NfaDetail() {
               ))}
               <button
                 type="button"
-                onClick={() => { setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
+                onClick={() => { setFType("all"); setFAction("all"); setFApprover(""); setFLevel("all"); setFFrom(""); setFTo(""); setFSort("newest"); }}
                 className="text-xs font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
               >
                 Clear all
