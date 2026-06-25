@@ -65,6 +65,24 @@ function NfaDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  const filteredAudit = useMemo(() => {
+    const q = fApprover.trim().toLowerCase();
+    const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
+    const toMs = fTo ? new Date(fTo + "T23:59:59").getTime() : null;
+    return audit.filter((a) => {
+      if (fAction !== "all" && a.action_kind !== fAction) return false;
+      if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
+      if (q) {
+        const name = (a.approver_name || nameFor(profiles, a.actor_id ?? undefined) || "").toLowerCase();
+        if (!name.includes(q)) return false;
+      }
+      const t = new Date(a.at).getTime();
+      if (fromMs !== null && t < fromMs) return false;
+      if (toMs !== null && t > toMs) return false;
+      return true;
+    });
+  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, profiles]);
+
   if (!nfa) return <div className="p-4 text-slate-500">Loading…</div>;
 
   const isInitiator = user?.id === nfa.initiator_id;
