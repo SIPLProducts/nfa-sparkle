@@ -234,13 +234,16 @@ function NfaDetail() {
         title={myApprover ? "Documents Attached by Initiator — please review before action" : "Supporting Documents"}
         emptyText={myApprover ? "No documents were attached to this NFA." : "No attachments uploaded yet."}
       />
-      {isInitiator && (
+      {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && (
         <div className="flex items-center justify-end">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-muted">
             <Upload className="h-4 w-4" /> Upload Attachment
             <input type="file" multiple className="hidden" onChange={(e) => { uploadFiles(e.target.files); e.currentTarget.value = ""; }} disabled={busy} />
           </label>
         </div>
+      )}
+      {isInitiator && (nfa.status === "in_process" || nfa.status === "completed") && (
+        <p className="text-right text-xs text-slate-500">Attachments are locked while this NFA is {nfa.status === "in_process" ? "under approval" : "completed"}.</p>
       )}
 
       <Card className="border-slate-300 p-4">
