@@ -71,6 +71,18 @@ function NfaDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Classify each audit row into a broad event type for the Type filter.
+  // Approver actions populate action_kind; other events are derived from action text.
+  const classifyEvent = (a: AuditRow): "creation" | "change" | "approval" | "attachment" | "resubmit" | "other" => {
+    if (a.action_kind && ["approve", "reject", "back", "clarify"].includes(a.action_kind)) return "approval";
+    const t = (a.action || "").toLowerCase();
+    if (t.startsWith("created") || t.startsWith("submitted for approval")) return "creation";
+    if (t.startsWith("change request")) return "change";
+    if (t.startsWith("uploaded attachment")) return "attachment";
+    if (t.startsWith("re-submitted")) return "resubmit";
+    return "other";
+  };
+
   const filteredAudit = useMemo(() => {
     const q = fApprover.trim().toLowerCase();
     const fromMs = fFrom ? new Date(fFrom + "T00:00:00").getTime() : null;
@@ -79,6 +91,7 @@ function NfaDetail() {
     // entirely so the table behaves predictably while the user fixes it.
     const rangeInvalid = fromMs !== null && toMs !== null && fromMs > toMs;
     return audit.filter((a) => {
+      if (fType !== "all" && classifyEvent(a) !== fType) return false;
       if (fAction !== "all" && a.action_kind !== fAction) return false;
       if (fLevel !== "all" && String(a.level ?? "") !== fLevel) return false;
       if (q) {
@@ -95,7 +108,7 @@ function NfaDetail() {
       const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
       return fSort === "newest" ? -diff : diff;
     });
-  }, [audit, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
+  }, [audit, fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, profiles]);
 
   const dateRangeError = useMemo(() => {
     if (!fFrom || !fTo) return null;
@@ -107,7 +120,7 @@ function NfaDetail() {
   }, [fFrom, fTo]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAudit.length / pageSize));
-  useEffect(() => { setPage(1); }, [fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
+  useEffect(() => { setPage(1); }, [fType, fAction, fApprover, fLevel, fFrom, fTo, fSort, pageSize]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const pageStart = (page - 1) * pageSize;
   const pagedAudit = filteredAudit.slice(pageStart, pageStart + pageSize);
