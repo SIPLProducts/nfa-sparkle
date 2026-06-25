@@ -298,23 +298,16 @@ export type Database = {
       }
     }
     Views: {
-      profiles_directory: {
-        Row: {
-          full_name: string | null
-          id: string | null
-        }
-        Insert: {
-          full_name?: string | null
-          id?: string | null
-        }
-        Update: {
-          full_name?: string | null
-          id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_profiles_basic: {
+        Args: { _ids: string[] }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       nfa_act: {
         Args: { _action: string; _comment?: string; _nfa_id: string }
         Returns: undefined
