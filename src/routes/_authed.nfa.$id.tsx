@@ -19,8 +19,8 @@ export const Route = createFileRoute("/_authed/nfa/$id")({
   component: NfaDetail,
 });
 
-interface Attachment { id: string; nfa_id: string; storage_path: string; file_name: string; mime_type: string | null; size_bytes: number | null; uploaded_at: string; uploaded_by: string }
-interface AuditRow { id: string; action: string; comment: string | null; actor_id: string; created_at: string }
+interface Attachment { id: string; nfa_id: string; storage_path: string; filename: string; mime: string | null; size: number | null; uploaded_at: string; uploaded_by: string }
+interface AuditRow { id: string; action: string; comment: string | null; actor_id: string | null; at: string }
 
 function NfaDetail() {
   const { id } = Route.useParams();
@@ -41,9 +41,9 @@ function NfaDetail() {
     setApprovers((a as ApproverRow[]) ?? []);
     const { data: f } = await supabase.from("nfa_attachment").select("*").eq("nfa_id", id).order("uploaded_at", { ascending: false });
     setFiles((f as Attachment[]) ?? []);
-    const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("created_at", { ascending: false });
+    const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
     setAudit((au as AuditRow[]) ?? []);
-    const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter(Boolean) as string[];
+    const ids = [n?.initiator_id, ...((a ?? []).map((r) => r.approver_id)), ...((au ?? []).map((r) => r.actor_id))].filter((x): x is string => Boolean(x));
     setProfiles(await fetchProfilesMap(ids));
   }, [id]);
 
@@ -63,8 +63,8 @@ function NfaDetail() {
         const { error: ue } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
         if (ue) throw ue;
         const { error: ie } = await supabase.from("nfa_attachment").insert({
-          nfa_id: nfa!.id, storage_path: path, file_name: file.name,
-          mime_type: file.type || null, size_bytes: file.size, uploaded_by: user.id,
+          nfa_id: nfa!.id, storage_path: path, filename: file.name,
+          mime: file.type || null, size: file.size, uploaded_by: user.id,
         });
         if (ie) throw ie;
       }
@@ -76,7 +76,7 @@ function NfaDetail() {
   }
 
   async function openFile(att: Attachment, dl = false) {
-    const { data, error } = await supabase.storage.from("nfa-attachments").createSignedUrl(att.storage_path, 300, dl ? { download: att.file_name } : undefined);
+    const { data, error } = await supabase.storage.from("nfa-attachments").createSignedUrl(att.storage_path, 300, dl ? { download: att.filename } : undefined);
     if (error || !data) return toast.error(error?.message ?? "Cannot preview");
     window.open(data.signedUrl, "_blank");
   }
@@ -187,8 +187,8 @@ function NfaDetail() {
         <ul className="divide-y divide-slate-200">
           {files.map((f) => (
             <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-              <div><div className="font-medium text-slate-700">{f.file_name}</div>
-                <div className="text-xs text-slate-500">{f.mime_type ?? ""} • {f.size_bytes ? (f.size_bytes / 1024).toFixed(1) + " KB" : ""} • by {nameFor(profiles, f.uploaded_by)}</div></div>
+              <div><div className="font-medium text-slate-700">{f.filename}</div>
+                <div className="text-xs text-slate-500">{f.mime ?? ""} • {f.size ? (f.size / 1024).toFixed(1) + " KB" : ""} • by {nameFor(profiles, f.uploaded_by)}</div></div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => openFile(f, false)}><Eye className="mr-1 h-4 w-4" />Preview</Button>
                 <Button size="sm" variant="outline" onClick={() => openFile(f, true)}><Download className="mr-1 h-4 w-4" />Download</Button>
@@ -224,8 +224,8 @@ function NfaDetail() {
         <ul className="space-y-1 text-sm">
           {audit.map((a) => (
             <li key={a.id} className="flex gap-3">
-              <span className="w-44 text-slate-500">{new Date(a.created_at).toLocaleString()}</span>
-              <span className="w-40 text-slate-700">{nameFor(profiles, a.actor_id)}</span>
+              <span className="w-44 text-slate-500">{new Date(a.at).toLocaleString()}</span>
+              <span className="w-40 text-slate-700">{nameFor(profiles, a.actor_id ?? undefined)}</span>
               <span className="flex-1"><b>{a.action}</b>{a.comment ? ` — ${a.comment}` : ""}</span>
             </li>
           ))}
