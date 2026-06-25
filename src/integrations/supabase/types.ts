@@ -14,16 +14,262 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      nfa: {
+        Row: {
+          budget_impact: number | null
+          company: string
+          created_at: string
+          current_level: number
+          detailed_description: string | null
+          enfa_number: string
+          function: string | null
+          id: string
+          initiator_id: string
+          nfa_type: string
+          plant: string | null
+          plant_name: string | null
+          project: string | null
+          scope_impact: string | null
+          status: Database["public"]["Enums"]["nfa_status"]
+          subject: string
+          timeline_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          budget_impact?: number | null
+          company: string
+          created_at?: string
+          current_level?: number
+          detailed_description?: string | null
+          enfa_number?: string
+          function?: string | null
+          id?: string
+          initiator_id: string
+          nfa_type: string
+          plant?: string | null
+          plant_name?: string | null
+          project?: string | null
+          scope_impact?: string | null
+          status?: Database["public"]["Enums"]["nfa_status"]
+          subject: string
+          timeline_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          budget_impact?: number | null
+          company?: string
+          created_at?: string
+          current_level?: number
+          detailed_description?: string | null
+          enfa_number?: string
+          function?: string | null
+          id?: string
+          initiator_id?: string
+          nfa_type?: string
+          plant?: string | null
+          plant_name?: string | null
+          project?: string | null
+          scope_impact?: string | null
+          status?: Database["public"]["Enums"]["nfa_status"]
+          subject?: string
+          timeline_days?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nfa_approver: {
+        Row: {
+          acted_at: string | null
+          approver_id: string
+          comment: string | null
+          created_at: string
+          designation: string | null
+          id: string
+          level: number
+          nfa_id: string
+          status: Database["public"]["Enums"]["approver_status"]
+        }
+        Insert: {
+          acted_at?: string | null
+          approver_id: string
+          comment?: string | null
+          created_at?: string
+          designation?: string | null
+          id?: string
+          level: number
+          nfa_id: string
+          status?: Database["public"]["Enums"]["approver_status"]
+        }
+        Update: {
+          acted_at?: string | null
+          approver_id?: string
+          comment?: string | null
+          created_at?: string
+          designation?: string | null
+          id?: string
+          level?: number
+          nfa_id?: string
+          status?: Database["public"]["Enums"]["approver_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfa_approver_nfa_id_fkey"
+            columns: ["nfa_id"]
+            isOneToOne: false
+            referencedRelation: "nfa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfa_attachment: {
+        Row: {
+          filename: string
+          id: string
+          mime: string | null
+          nfa_id: string
+          size: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          filename: string
+          id?: string
+          mime?: string | null
+          nfa_id: string
+          size?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          filename?: string
+          id?: string
+          mime?: string | null
+          nfa_id?: string
+          size?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfa_attachment_nfa_id_fkey"
+            columns: ["nfa_id"]
+            isOneToOne: false
+            referencedRelation: "nfa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfa_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          at: string
+          comment: string | null
+          id: string
+          nfa_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          at?: string
+          comment?: string | null
+          id?: string
+          nfa_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          at?: string
+          comment?: string | null
+          id?: string
+          nfa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfa_audit_nfa_id_fkey"
+            columns: ["nfa_id"]
+            isOneToOne: false
+            referencedRelation: "nfa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_nfa_approver: {
+        Args: { _nfa_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "initiator" | "approver" | "admin" | "viewer"
+      approver_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "sent_back"
+        | "clarification"
+      nfa_status:
+        | "with_initiator"
+        | "in_process"
+        | "clarification"
+        | "completed"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +396,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["initiator", "approver", "admin", "viewer"],
+      approver_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "sent_back",
+        "clarification",
+      ],
+      nfa_status: [
+        "with_initiator",
+        "in_process",
+        "clarification",
+        "completed",
+        "rejected",
+      ],
+    },
   },
 } as const
