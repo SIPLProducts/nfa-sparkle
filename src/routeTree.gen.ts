@@ -14,6 +14,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
+import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -39,16 +40,23 @@ const AuthedNfaMyRoute = AuthedNfaMyRouteImport.update({
   path: '/nfa/my',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
+  id: '/nfa/$id',
+  path: '/nfa/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/nfa/$id': typeof AuthedNfaIdRoute
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/nfa/$id': typeof AuthedNfaIdRoute
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authed/nfa/$id': typeof AuthedNfaIdRoute
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/nfa/my' | '/nfa/new'
+  fullPaths: '/' | '/auth' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/nfa/my' | '/nfa/new'
+  to: '/' | '/auth' | '/nfa/$id' | '/nfa/my' | '/nfa/new'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/auth'
+    | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
   fileRoutesById: FileRoutesById
@@ -117,15 +127,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedNfaMyRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/nfa/$id': {
+      id: '/_authed/nfa/$id'
+      path: '/nfa/$id'
+      fullPath: '/nfa/$id'
+      preLoaderRoute: typeof AuthedNfaIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
+  AuthedNfaIdRoute: typeof AuthedNfaIdRoute
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedNfaIdRoute: AuthedNfaIdRoute,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
 }
