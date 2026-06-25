@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { type ApproverRow, type NfaRow, STATUS_LABEL } from "@/lib/nfa-types";
+import { type ApproverRow, type NfaRow, STATUS_LABEL, STATUS_TONE, APPROVER_TONE } from "@/lib/nfa-types";
 import { NFA_TYPES, PLANTS, FUNCTIONS, nfaTypeName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
+import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/report")({
   component: Report,
@@ -79,79 +80,114 @@ function Report() {
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="border-slate-300 p-4">
-        <h2 className="mb-3 text-lg font-bold italic text-slate-700">E-NFA Report</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div><Label>Plant</Label>
-            <Select value={plant} onValueChange={(v) => setPlant(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All</SelectItem>{PLANTS.map((p) => <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label>ENFA Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All</SelectItem>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label>Function</Label>
-            <Select value={func} onValueChange={(v) => setFunc(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All</SelectItem>{FUNCTIONS.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label>ENFA No (contains)</Label><Input value={enfa} onChange={(e) => setEnfa(e.target.value)} /></div>
-          <div><Label>From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-          <div><Label>To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+    <div>
+      <PageHeader
+        eyebrow="Insights"
+        title="E-NFA Report"
+        subtitle="Filter, analyse and export Notes For Approval across the organisation."
+        actions={
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        }
+      />
+
+      <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-accent" />
+          <h2 className="text-sm font-semibold tracking-wide text-foreground">Filters</h2>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="space-y-1.5"><Label className="text-xs">Plant</Label>
+            <Select value={plant} onValueChange={(v) => setPlant(v === "_all" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="All plants" /></SelectTrigger>
+              <SelectContent><SelectItem value="_all">All plants</SelectItem>{PLANTS.map((p) => <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label className="text-xs">ENFA Type</Label>
+            <Select value={type} onValueChange={(v) => setType(v === "_all" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="All types" /></SelectTrigger>
+              <SelectContent><SelectItem value="_all">All types</SelectItem>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label className="text-xs">Function</Label>
+            <Select value={func} onValueChange={(v) => setFunc(v === "_all" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="All functions" /></SelectTrigger>
+              <SelectContent><SelectItem value="_all">All functions</SelectItem>{FUNCTIONS.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label className="text-xs">ENFA Number (contains)</Label><Input value={enfa} onChange={(e) => setEnfa(e.target.value)} placeholder="e.g. ENFA-00001" /></div>
+          <div className="space-y-1.5"><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-border pt-3">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={inProcess} onCheckedChange={(v) => setInProc(!!v)} /> In Process</label>
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} onCheckedChange={(v) => setCompleted(!!v)} /> Completed</label>
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={rejected} onCheckedChange={(v) => setRejected(!!v)} /> Rejected</label>
           <div className="ml-auto flex gap-2">
-            <Button onClick={run} disabled={busy}>Execute</Button>
-            <Button onClick={exportCsv} variant="outline" disabled={rows.length === 0}>Export CSV</Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setPlant(""); setType(""); setFunc(""); setEnfa(""); setFrom(""); setTo(""); }}>
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+            <Button onClick={run} disabled={busy} className="gap-1.5"><Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}</Button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <Card className="overflow-x-auto border-slate-300 p-0">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-200 text-left text-xs uppercase text-slate-700">
-            <tr>
-              <th className="p-2">ENFA Number</th><th className="p-2">Status</th><th className="p-2">Plant</th><th className="p-2">Plant Name</th>
-              <th className="p-2">NFA Type</th><th className="p-2">Function</th><th className="p-2">Subject</th><th className="p-2">Initiator</th><th className="p-2">Date</th>
-              {[1,2,3,4,5,6].map((l) => (<><th key={`d${l}`} className="p-2">Desig{l}</th><th key={`a${l}`} className="p-2">Approver{l}</th><th key={`s${l}`} className="p-2">Status{l}</th></>))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {rows.length === 0 && <tr><td colSpan={27} className="p-3 text-slate-500">Run the report to see results.</td></tr>}
-            {rows.map((r) => {
-              const chain = approvers[r.id] ?? [];
-              return (
-                <tr key={r.id} className="hover:bg-sky-50">
-                  <td className="p-2 font-medium text-sky-700"><Link to="/nfa/$id" params={{ id: r.id }}>{r.enfa_number}</Link></td>
-                  <td className="p-2">{STATUS_LABEL[r.status]}</td>
-                  <td className="p-2">{r.plant}</td><td className="p-2">{r.plant_name}</td>
-                  <td className="p-2">{nfaTypeName(r.nfa_type)}</td><td className="p-2">{r.function}</td>
-                  <td className="p-2">{r.subject}</td>
-                  <td className="p-2">{nameFor(profiles, r.initiator_id)}</td>
-                  <td className="p-2">{new Date(r.created_at).toLocaleDateString()}</td>
-                  {[1,2,3,4,5,6].map((l) => {
-                    const a = chain.find((c) => c.level === l);
-                    return (<>
-                      <td key={`d${l}`} className="p-2">{a?.designation ?? ""}</td>
-                      <td key={`a${l}`} className="p-2">{a ? nameFor(profiles, a.approver_id) : ""}</td>
-                      <td key={`s${l}`} className="p-2">{a?.status ?? ""}</td>
-                    </>);
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
+      </div>
+
+      <div className="mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2.5 font-medium">ENFA Number</th>
+                <th className="px-3 py-2.5 font-medium">Status</th>
+                <th className="px-3 py-2.5 font-medium">Plant</th>
+                <th className="px-3 py-2.5 font-medium">Type</th>
+                <th className="px-3 py-2.5 font-medium">Subject</th>
+                <th className="px-3 py-2.5 font-medium">Initiator</th>
+                <th className="px-3 py-2.5 font-medium">Date</th>
+                {[1,2,3,4,5,6].map((l) => <th key={`s${l}`} className="px-3 py-2.5 font-medium">L{l}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.length === 0 && <tr><td colSpan={13} className="px-4 py-12 text-center text-sm text-muted-foreground">Run the report to see results.</td></tr>}
+              {rows.map((r) => {
+                const chain = approvers[r.id] ?? [];
+                return (
+                  <tr key={r.id} className="hover:bg-muted/40">
+                    <td className="px-3 py-2.5 font-mono text-xs font-medium text-accent">
+                      <Link to="/nfa/$id" params={{ id: r.id }} className="hover:underline">{r.enfa_number}</Link>
+                    </td>
+                    <td className="px-3 py-2.5"><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span></td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{r.plant ? `${r.plant} · ${r.plant_name ?? ""}` : "—"}</td>
+                    <td className="px-3 py-2.5">{nfaTypeName(r.nfa_type)}</td>
+                    <td className="max-w-[260px] truncate px-3 py-2.5">{r.subject}</td>
+                    <td className="px-3 py-2.5">{nameFor(profiles, r.initiator_id)}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                    {[1,2,3,4,5,6].map((l) => {
+                      const a = chain.find((c) => c.level === l);
+                      return (
+                        <td key={`s${l}`} className="px-3 py-2.5">
+                          {a ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="truncate text-xs">{nameFor(profiles, a.approver_id)}</span>
+                              <span className={"inline-flex w-fit items-center rounded-full px-1.5 py-px text-[10px] font-medium " + APPROVER_TONE[a.status]}>{a.status}</span>
+                            </div>
+                          ) : <span className="text-muted-foreground/40">—</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
