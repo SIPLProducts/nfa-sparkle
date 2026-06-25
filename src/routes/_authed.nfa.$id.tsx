@@ -228,6 +228,21 @@ function NfaDetail() {
         </div>
       </Card>
 
+      <AttachmentList
+        nfaId={nfa.id}
+        refreshKey={attachmentsKey}
+        title={myApprover ? "Documents Attached by Initiator — please review before action" : "Supporting Documents"}
+        emptyText={myApprover ? "No documents were attached to this NFA." : "No attachments uploaded yet."}
+      />
+      {isInitiator && (
+        <div className="flex items-center justify-end">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-muted">
+            <Upload className="h-4 w-4" /> Upload Attachment
+            <input type="file" multiple className="hidden" onChange={(e) => { uploadFiles(e.target.files); e.currentTarget.value = ""; }} disabled={busy} />
+          </label>
+        </div>
+      )}
+
       <Card className="border-slate-300 p-4">
         <h3 className="mb-3 font-semibold text-slate-700">Approval Chain</h3>
         <table className="w-full text-sm">
@@ -321,14 +336,6 @@ function NfaDetail() {
           )}
         </ol>
       </Card>
-
-      <div className="flex items-center justify-end">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-muted">
-          <Upload className="h-4 w-4" /> Upload Attachment
-          <input type="file" multiple className="hidden" onChange={(e) => { uploadFiles(e.target.files); e.currentTarget.value = ""; }} disabled={busy} />
-        </label>
-      </div>
-      <AttachmentList nfaId={nfa.id} refreshKey={attachmentsKey} />
 
       {myApprover && (
         <Card className="border-amber-300 bg-amber-50 p-4">
