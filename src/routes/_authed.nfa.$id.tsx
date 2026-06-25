@@ -198,6 +198,16 @@ function NfaDetail() {
                     “{a.comment}”
                   </p>
                 )}
+                {isCurrent && myApprover && myApprover.id === a.id && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                      <Check className="h-3.5 w-3.5" /> Approve
+                    </Button>
+                    <Button size="sm" onClick={() => act("reject")} disabled={busy} variant="destructive" className="gap-1">
+                      <X className="h-3.5 w-3.5" /> Reject
+                    </Button>
+                  </div>
+                )}
               </li>
             );
           })}
