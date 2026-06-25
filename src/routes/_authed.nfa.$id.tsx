@@ -243,10 +243,13 @@ function NfaDetail() {
           <Textarea placeholder="Comment (required for Reject / Send Back / Clarification)" value={comment} onChange={(e) => setComment(e.target.value)} />
           <div className="mt-3 flex flex-wrap gap-2">
             <Button onClick={() => act("approve")} disabled={busy} className="bg-green-600 hover:bg-green-700">Approve</Button>
-            <Button onClick={() => act("reject")} disabled={busy} variant="destructive">Reject</Button>
-            <Button onClick={() => act("back")} disabled={busy} variant="outline">Back To Initiator</Button>
-            <Button onClick={() => act("clarify")} disabled={busy} variant="outline">Request Clarification</Button>
+            <Button onClick={() => act("reject")} disabled={busy || !comment.trim()} variant="destructive" title={!comment.trim() ? "Enter a comment to reject" : undefined}>Reject</Button>
+            <Button onClick={() => act("back")} disabled={busy || !comment.trim()} variant="outline" title={!comment.trim() ? "Enter a comment to send back" : undefined}>Back To Initiator</Button>
+            <Button onClick={() => act("clarify")} disabled={busy || !comment.trim()} variant="outline" title={!comment.trim() ? "Enter a comment to request clarification" : undefined}>Request Clarification</Button>
           </div>
+          {!comment.trim() && (
+            <p className="mt-2 text-xs text-rose-600">A comment is required for Reject, Back, and Clarification.</p>
+          )}
         </Card>
       )}
 
