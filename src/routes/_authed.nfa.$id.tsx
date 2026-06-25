@@ -366,6 +366,16 @@ function NfaDetail() {
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-display text-base font-bold text-slate-800">Approval Activity Timeline</h3>
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={tlSearch}
+                onChange={(e) => setTlSearch(e.target.value)}
+                placeholder="Search approver, action, file…"
+                className="h-7 w-56 rounded-md border border-slate-300 bg-white pl-7 pr-2 text-xs text-slate-700 outline-none focus:border-slate-500"
+              />
+            </div>
             <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 text-xs">
               {([
                 { k: "all", label: "All" },
@@ -393,15 +403,38 @@ function NfaDetail() {
           type TLEvent =
             | { kind: "audit"; at: string; row: AuditRow }
             | { kind: "view"; at: string; row: ViewRow };
-          const events: TLEvent[] = [
+          const q = tlSearch.trim().toLowerCase();
+          const allEvents: TLEvent[] = [
             ...(tlFilter === "documents" ? [] : audit.map((r) => ({ kind: "audit" as const, at: r.at, row: r }))),
             ...(tlFilter === "actions" ? [] : views.map((r) => ({ kind: "view" as const, at: r.viewed_at, row: r }))),
-          ].sort((a, b) => +new Date(b.at) - +new Date(a.at));
+          ];
+          const events = (q
+            ? allEvents.filter((ev) => {
+                if (ev.kind === "audit") {
+                  const r = ev.row;
+                  const who = (r.approver_name || nameFor(profiles, r.actor_id) || "").toLowerCase();
+                  return (
+                    who.includes(q) ||
+                    (r.action || "").toLowerCase().includes(q) ||
+                    (r.action_kind || "").toLowerCase().includes(q) ||
+                    (r.comment || "").toLowerCase().includes(q)
+                  );
+                }
+                const v = ev.row;
+                const who = (nameFor(profiles, v.viewer_id) || "").toLowerCase();
+                const file = (attachmentNames[v.attachment_id] || "").toLowerCase();
+                const act = v.action === "download" ? "downloaded download" : "viewed view";
+                return who.includes(q) || file.includes(q) || act.includes(q);
+              })
+            : allEvents
+          ).sort((a, b) => +new Date(b.at) - +new Date(a.at));
 
           if (events.length === 0) {
             return (
               <p className="text-sm text-muted-foreground">
-                {tlFilter === "all"
+                {q
+                  ? `No activity matches "${tlSearch}".`
+                  : tlFilter === "all"
                   ? "No activity yet."
                   : tlFilter === "actions"
                   ? "No approval actions yet."
