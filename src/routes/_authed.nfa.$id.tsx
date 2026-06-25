@@ -552,7 +552,7 @@ function NfaDetail() {
         </Card>
       )}
 
-      <Card className="border-slate-300 p-4">
+      <Card className="border-slate-300 p-3 sm:p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Audit Log</h3>
           {(fType !== "all" || fAction !== "all" || fApprover || fLevel !== "all" || fFrom || fTo || sortKey !== "at" || sortDir !== "desc") && (
@@ -561,7 +561,7 @@ function NfaDetail() {
             </Button>
           )}
         </div>
-        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-6">
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           <div>
             <Label className="text-[11px] uppercase text-slate-500"><Filter className="mr-1 inline h-3 w-3" />Type</Label>
             <Select value={fType} onValueChange={setFType}>
@@ -755,8 +755,8 @@ function NfaDetail() {
             </div>
           );
         })()}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="-mx-3 overflow-x-auto sm:mx-0">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-700">
               <tr>
                 {(() => {
@@ -800,10 +800,10 @@ function NfaDetail() {
                 return (
                   <tr key={a.id} className="align-top">
                     <td className="p-2 text-slate-500 whitespace-nowrap">{new Date(a.at).toLocaleString()}</td>
-                    <td className="p-2 font-medium text-slate-800">{a.action}</td>
+                    <td className="p-2 font-medium text-slate-800 whitespace-nowrap">{a.action}</td>
                     <td className="p-2 text-slate-600">{a.level ?? ""}</td>
                     <td className="p-2 text-slate-700">{actor}</td>
-                    <td className="p-2 text-xs">
+                    <td className="p-2 text-xs whitespace-nowrap">
                       {hasChange ? (
                         <span className="inline-flex items-center gap-1">
                           <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + (STATUS_TONE[a.old_status as keyof typeof STATUS_TONE] ?? "bg-slate-100 text-slate-700 ring-1 ring-slate-200")}>
