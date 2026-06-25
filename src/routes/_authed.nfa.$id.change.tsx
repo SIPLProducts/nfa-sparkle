@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { AttachmentList } from "@/components/AttachmentList";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
 
@@ -47,6 +48,7 @@ function ChangeRequestPage() {
   const [desc, setDesc] = useState("");
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<File[]>([]);
+  const [attachmentsKey, setAttachmentsKey] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -149,7 +151,10 @@ function ChangeRequestPage() {
       } else {
         toast.success("Changes saved");
       }
-      nav({ to: "/nfa/$id", params: { id: nfa.id } });
+      // Refresh attachment list inline; navigate away only on submit.
+      setPending([]);
+      setAttachmentsKey((k) => k + 1);
+      if (submit) nav({ to: "/nfa/$id", params: { id: nfa.id } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -321,6 +326,15 @@ function ChangeRequestPage() {
             )}
           </div>
         </aside>
+      </div>
+
+      <div className="mt-4">
+        <AttachmentList
+          nfaId={nfa.id}
+          refreshKey={attachmentsKey}
+          title="Existing Attachments"
+          emptyText="No attachments uploaded yet. Use the section above to add files."
+        />
       </div>
     </div>
   );
