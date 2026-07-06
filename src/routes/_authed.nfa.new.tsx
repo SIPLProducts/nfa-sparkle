@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Trash2, Plus, Save, Send, FileText, Building2, Users, Pencil, Sparkles, Paperclip, Upload, X } from "lucide-react";
+import { Trash2, Plus, Save, Send, FileText, Building2, Users, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -244,20 +244,38 @@ function NewNfaPage() {
               </Field>
 
               <Field label="Detailed Description" className="md:col-span-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <Pencil className="h-4 w-4" />
-                      {desc ? `Edit description (${desc.length} chars)` : "Add detailed description"}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
-                    <Textarea rows={12} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Provide a complete rationale, background, alternatives considered, and recommendation." />
-                    <DialogFooter><Button>Done</Button></DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                {desc && <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{desc}</p>}
+                <Textarea
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Provide a complete rationale, background, alternatives considered, and recommendation. Free-form — supports long, multi-paragraph notes (2000+ words)."
+                  className="min-h-[240px] resize-y font-normal leading-relaxed"
+                />
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span>
+                    {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                  </span>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs">
+                        <Maximize2 className="h-3.5 w-3.5" /> Expand editor
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
+                      <Textarea
+                        rows={22}
+                        value={desc}
+                        onChange={(e) => setDesc(e.target.value)}
+                        className="min-h-[420px] resize-y leading-relaxed"
+                        placeholder="Write freely — no length limit."
+                      />
+                      <div className="text-[11px] text-muted-foreground">
+                        {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                      </div>
+                      <DialogFooter><Button>Done</Button></DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </Field>
             </div>
           </Section>
