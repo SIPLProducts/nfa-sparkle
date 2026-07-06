@@ -7,23 +7,32 @@ export interface PlantOption extends Option { company: string }
 export interface ProjectOption extends Option { plant: string }
 
 export const COMPANIES: Option[] = [
-  { code: "REFL", name: "REFL - Reliance" },
-  { code: "ACME", name: "ACME Corp" },
-  { code: "TATA", name: "TATA Industries" },
+  { code: "RIL", name: "Ramky Infrastructure Limited" },
+  { code: "REEL", name: "Ramky Enviro Engineers Limited" },
+  { code: "REFL", name: "Ramky Estates and Farms Limited" },
+  { code: "RPCL", name: "Ramky Pharma City (India) Limited" },
+  { code: "RCPL", name: "Ramky Cleantech Services Pvt Ltd" },
+  { code: "RESPL", name: "Ramky Enviro Services Pvt Ltd" },
 ];
 
 export const PLANTS: PlantOption[] = [
-  { code: "9000", name: "REFL - Head Office", company: "REFL" },
-  { code: "9064", name: "REFL - Varthur Project", company: "REFL" },
-  { code: "9001", name: "ACME - Plant 1", company: "ACME" },
-  { code: "9200", name: "TATA - Jamshedpur", company: "TATA" },
+  { code: "9000", name: "Ramky Infra - Head Office", company: "RIL" },
+  { code: "9064", name: "Ramky Infra - Varthur Project", company: "RIL" },
+  { code: "9101", name: "Ramky Enviro - Hyderabad TSDF", company: "REEL" },
+  { code: "9102", name: "Ramky Enviro - Chennai Plant", company: "REEL" },
+  { code: "9200", name: "Ramky Estates - Bengaluru", company: "REFL" },
+  { code: "9300", name: "Ramky Pharma City - Visakhapatnam", company: "RPCL" },
+  { code: "9400", name: "Ramky Cleantech - Delhi Ops", company: "RCPL" },
+  { code: "9500", name: "Ramky Enviro Services - Mumbai", company: "RESPL" },
 ];
 
 export const PROJECTS: ProjectOption[] = [
   { code: "P001", name: "Head Office Renovation", plant: "9000" },
   { code: "P002", name: "Varthur Phase 2", plant: "9064" },
-  { code: "P003", name: "ACME Expansion", plant: "9001" },
-  { code: "P004", name: "Jamshedpur Upgrade", plant: "9200" },
+  { code: "P003", name: "Hyderabad TSDF Expansion", plant: "9101" },
+  { code: "P004", name: "Chennai Plant Upgrade", plant: "9102" },
+  { code: "P005", name: "Bengaluru Estates Dev", plant: "9200" },
+  { code: "P006", name: "Pharma City Phase 3", plant: "9300" },
 ];
 
 export const NFA_TYPES: Option[] = [
