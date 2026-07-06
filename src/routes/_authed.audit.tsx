@@ -10,7 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
-import { Search, Filter, Loader2, Inbox, ExternalLink, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Search, Filter, Loader2, Inbox, ExternalLink, RotateCcw,
+  Download, ChevronDown, ChevronUp, X, Copy,
+  CheckCircle2, XCircle, MessageCircle, Undo2, Activity,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authed/audit")({
   component: AuditLogs,
@@ -115,6 +120,60 @@ function AuditLogs() {
 
   const reset = () => { setQ(""); setFKind("all"); setFLevel("all"); setFFrom(""); setFTo(""); setFNfa(""); setFCorr(""); setPage(1); };
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const stats = useMemo(() => {
+    const s = { total: rows.length, approve: 0, reject: 0, clarify: 0, back: 0 };
+    for (const r of rows) {
+      if (r.action_kind === "approve") s.approve++;
+      else if (r.action_kind === "reject") s.reject++;
+      else if (r.action_kind === "clarify") s.clarify++;
+      else if (r.action_kind === "back") s.back++;
+    }
+    return s;
+  }, [rows]);
+
+  const activeChips: Array<{ key: string; label: string; onClear: () => void }> = [];
+  if (q) activeChips.push({ key: "q", label: `Search: “${q}”`, onClear: () => setQ("") });
+  if (fKind !== "all") activeChips.push({ key: "k", label: `Action: ${fKind}`, onClear: () => setFKind("all") });
+  if (fLevel !== "all") activeChips.push({ key: "l", label: `Level: L${fLevel}`, onClear: () => setFLevel("all") });
+  if (fFrom) activeChips.push({ key: "f", label: `From ${fFrom}`, onClear: () => setFFrom("") });
+  if (fTo) activeChips.push({ key: "t", label: `To ${fTo}`, onClear: () => setFTo("") });
+  if (fNfa) activeChips.push({ key: "n", label: `NFA: ${fNfa}`, onClear: () => setFNfa("") });
+  if (fCorr) activeChips.push({ key: "c", label: `Corr: ${fCorr}`, onClear: () => setFCorr("") });
+
+  const exportCsv = () => {
+    const header = ["When","NFA","Subject","Action","Level","Actor","OldStatus","NewStatus","Comment","CorrelationId"];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [header.join(",")];
+    for (const r of filtered) {
+      const n = nfas[r.nfa_id];
+      lines.push([
+        new Date(r.at).toISOString(),
+        n?.enfa_number ?? r.nfa_id,
+        n?.subject ?? "",
+        r.action_kind ?? r.action,
+        r.level ?? "",
+        r.approver_name || nameFor(profiles, r.actor_id) || "",
+        r.old_status ?? "",
+        r.new_status ?? "",
+        r.comment ?? "",
+        r.id,
+      ].map(esc).join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copyCorr = (id: string) => {
+    navigator.clipboard.writeText(id).then(() => toast.success("Correlation ID copied"));
+  };
+
   const kindTone = (k: string | null) => {
     switch (k) {
       case "approve": return "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -130,71 +189,135 @@ function AuditLogs() {
       <PageHeader
         title="Audit Logs"
         subtitle="Track creations, changes, approvals, rejections, clarifications and resubmissions."
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
+          </Button>
+        }
       />
 
-      <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="lg:col-span-2">
-            <Label className="text-xs">Search</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} className="pl-8" placeholder="NFA #, subject, action, comment, actor…" />
+      {/* Stats */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          { key: "all", label: "Total", value: stats.total, icon: Activity, tone: "text-slate-700 bg-slate-50 border-slate-200" },
+          { key: "approve", label: "Approvals", value: stats.approve, icon: CheckCircle2, tone: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+          { key: "reject", label: "Rejections", value: stats.reject, icon: XCircle, tone: "text-rose-700 bg-rose-50 border-rose-200" },
+          { key: "clarify", label: "Clarifications", value: stats.clarify, icon: MessageCircle, tone: "text-amber-700 bg-amber-50 border-amber-200" },
+          { key: "back", label: "Sent Back", value: stats.back, icon: Undo2, tone: "text-sky-700 bg-sky-50 border-sky-200" },
+        ].map((s) => {
+          const Icon = s.icon;
+          const active = fKind === s.key;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => { setFKind(s.key); setPage(1); }}
+              className={`group flex items-center justify-between rounded-xl border p-3 text-left transition hover:shadow-sm ${s.tone} ${active ? "ring-2 ring-primary ring-offset-1" : ""}`}
+            >
+              <div className="min-w-0">
+                <div className="text-[11px] font-medium uppercase tracking-wider opacity-80">{s.label}</div>
+                <div className="text-xl font-semibold tabular-nums">{s.value}</div>
+              </div>
+              <Icon className="h-5 w-5 shrink-0 opacity-70" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-4 p-3 sm:p-4">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              className="pl-8"
+              placeholder="Search NFA #, subject, action, comment, actor…"
+            />
+          </div>
+          <Select value={fKind} onValueChange={(v) => { setFKind(v); setPage(1); }}>
+            <SelectTrigger className="md:w-40"><SelectValue placeholder="Action" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All actions</SelectItem>
+              <SelectItem value="approve">Approve</SelectItem>
+              <SelectItem value="reject">Reject</SelectItem>
+              <SelectItem value="clarify">Clarification</SelectItem>
+              <SelectItem value="back">Back</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="justify-center"
+          >
+            <Filter className="mr-1.5 h-3.5 w-3.5" />
+            Advanced
+            {showAdvanced ? <ChevronUp className="ml-1 h-3.5 w-3.5" /> : <ChevronDown className="ml-1 h-3.5 w-3.5" />}
+          </Button>
+        </div>
+
+        {showAdvanced && (
+          <div className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <Label className="text-xs">Level</Label>
+              <Select value={fLevel} onValueChange={(v) => { setFLevel(v); setPage(1); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All levels</SelectItem>
+                  {[1,2,3,4,5,6].map((l) => <SelectItem key={l} value={String(l)}>L{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">From</Label>
+              <Input type="date" value={fFrom} onChange={(e) => { setFFrom(e.target.value); setPage(1); }} />
+            </div>
+            <div>
+              <Label className="text-xs">To</Label>
+              <Input type="date" value={fTo} onChange={(e) => { setFTo(e.target.value); setPage(1); }} />
+            </div>
+            <div>
+              <Label className="text-xs">NFA ID</Label>
+              <Input value={fNfa} onChange={(e) => { setFNfa(e.target.value); setPage(1); }} placeholder="eNFA # or UUID" />
+            </div>
+            <div>
+              <Label className="text-xs">Correlation ID</Label>
+              <Input value={fCorr} onChange={(e) => { setFCorr(e.target.value); setPage(1); }} placeholder="Audit entry ID" />
             </div>
           </div>
-          <div>
-            <Label className="text-xs">Action</Label>
-            <Select value={fKind} onValueChange={(v) => { setFKind(v); setPage(1); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="approve">Approve</SelectItem>
-                <SelectItem value="reject">Reject</SelectItem>
-                <SelectItem value="clarify">Clarification</SelectItem>
-                <SelectItem value="back">Back</SelectItem>
-              </SelectContent>
-            </Select>
+        )}
+
+        {(activeChips.length > 0 || filtered.length !== rows.length) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <span className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{filtered.length}</span> of {rows.length}
+            </span>
+            {activeChips.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => { c.onClear(); setPage(1); }}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs hover:bg-muted"
+              >
+                {c.label} <X className="h-3 w-3" />
+              </button>
+            ))}
+            {activeChips.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={reset} className="ml-auto h-7 px-2 text-xs">
+                <RotateCcw className="mr-1 h-3 w-3" /> Reset all
+              </Button>
+            )}
           </div>
-          <div>
-            <Label className="text-xs">Level</Label>
-            <Select value={fLevel} onValueChange={(v) => { setFLevel(v); setPage(1); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {[1,2,3,4,5,6].map((l) => <SelectItem key={l} value={String(l)}>L{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">From</Label>
-            <Input type="date" value={fFrom} onChange={(e) => { setFFrom(e.target.value); setPage(1); }} />
-          </div>
-          <div>
-            <Label className="text-xs">To</Label>
-            <Input type="date" value={fTo} onChange={(e) => { setFTo(e.target.value); setPage(1); }} />
-          </div>
-          <div>
-            <Label className="text-xs">NFA ID</Label>
-            <Input value={fNfa} onChange={(e) => { setFNfa(e.target.value); setPage(1); }} placeholder="eNFA # or UUID" />
-          </div>
-          <div>
-            <Label className="text-xs">Correlation ID</Label>
-            <Input value={fCorr} onChange={(e) => { setFCorr(e.target.value); setPage(1); }} placeholder="Audit entry ID" />
-          </div>
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Filter className="h-3.5 w-3.5" />
-            {filtered.length} of {rows.length} entries
-          </div>
-          <Button variant="ghost" size="sm" onClick={reset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reset</Button>
-        </div>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
         {/* Desktop table */}
-        <div className="hidden md:block">
+        <div className="hidden md:block max-h-[calc(100vh-24rem)] overflow-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-muted/80 text-xs uppercase tracking-wider text-muted-foreground backdrop-blur">
               <tr>
                 <th className="px-3 py-2 text-left">When</th>
                 <th className="px-3 py-2 text-left">NFA</th>
@@ -210,8 +333,11 @@ function AuditLogs() {
               {paged.map((r) => {
                 const n = nfas[r.nfa_id];
                 return (
-                  <tr key={r.id} className="border-t border-border align-top hover:bg-muted/30">
-                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">{new Date(r.at).toLocaleString()}</td>
+                  <tr key={r.id} className="border-t border-border align-top odd:bg-background even:bg-muted/20 hover:bg-muted/40">
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                      <div>{new Date(r.at).toLocaleDateString()}</div>
+                      <div className="text-[11px] opacity-70">{new Date(r.at).toLocaleTimeString()}</div>
+                    </td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{n?.enfa_number ?? r.nfa_id.slice(0, 8)}</div>
                       <div className="max-w-[260px] truncate text-xs text-muted-foreground">{n?.subject ?? ""}</div>
@@ -222,11 +348,23 @@ function AuditLogs() {
                     <td className="px-3 py-2 text-xs">{r.level ? `L${r.level}` : "—"}</td>
                     <td className="px-3 py-2 text-xs">{r.approver_name || nameFor(profiles, r.actor_id) || "—"}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{r.old_status ?? "—"} → {r.new_status ?? "—"}</td>
-                    <td className="px-3 py-2 text-xs">{r.comment || <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2">
-                      <Link to="/nfa/$id" params={{ id: r.nfa_id }} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                        Open <ExternalLink className="h-3 w-3" />
-                      </Link>
+                    <td className="px-3 py-2 text-xs max-w-[280px]">
+                      <div className="line-clamp-2">{r.comment || <span className="text-muted-foreground">—</span>}</div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copyCorr(r.id)}
+                          title="Copy correlation ID"
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <Link to="/nfa/$id" params={{ id: r.nfa_id }} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          Open <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );
