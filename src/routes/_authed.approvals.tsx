@@ -220,7 +220,7 @@ function ApprovalsInbox() {
                       <Button size="sm" variant="destructive" className="gap-1" onClick={() => openAction("reject", nfa, ap)}>
                         <X className="h-3.5 w-3.5" /> Reject
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => openAction("clarify", nfa, ap)}>
+                      <Button size="sm" variant="outline" title="Request Clarification" aria-label="Request Clarification" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => openAction("clarify", nfa, ap)}>
                         <HelpCircle className="h-3.5 w-3.5" /> Clarify
                       </Button>
                       <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Review</Button></Link>
