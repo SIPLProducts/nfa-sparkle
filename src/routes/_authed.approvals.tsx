@@ -7,7 +7,7 @@ import { nfaTypeName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { Inbox, CheckCircle2, Check, X, Paperclip, Trash2 } from "lucide-react";
+import { Inbox, CheckCircle2, Check, X, Paperclip, Trash2, HelpCircle } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +23,7 @@ function ApprovalsInbox() {
   const [levelMap, setLevelMap] = useState<Record<string, number>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<null | { kind: "approve" | "reject"; nfa: NfaRow; ap: ApproverRow }>(null);
+  const [action, setAction] = useState<null | { kind: "approve" | "reject" | "clarify"; nfa: NfaRow; ap: ApproverRow }>(null);
   const [remark, setRemark] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -54,7 +54,7 @@ function ApprovalsInbox() {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
 
-  function openAction(kind: "approve" | "reject", nfa: NfaRow, ap: ApproverRow) {
+  function openAction(kind: "approve" | "reject" | "clarify", nfa: NfaRow, ap: ApproverRow) {
     setAction({ kind, nfa, ap });
     setRemark("");
     setFiles([]);
@@ -89,7 +89,11 @@ function ApprovalsInbox() {
         _nfa_id: action.nfa.id, _action: action.kind, _comment: remark,
       });
       if (error) throw error;
-      toast.success(action.kind === "approve" ? "Approved" : "Rejected");
+      toast.success(
+        action.kind === "approve" ? "Approved" :
+        action.kind === "reject" ? "Rejected" :
+        "Clarification requested"
+      );
       setAction(null);
       await load();
     } catch (e: any) {
@@ -142,14 +146,17 @@ function ApprovalsInbox() {
               <span>From <span className="text-foreground">{nameFor(profiles, nfa.initiator_id)}</span></span>
               <span>{new Date(nfa.created_at).toLocaleDateString()}</span>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5" onClick={(e) => e.preventDefault()}>
+            <div className="mt-2 grid grid-cols-2 gap-1.5" onClick={(e) => e.preventDefault()}>
               <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("approve", nfa, ap); }}>
                 <Check className="h-3.5 w-3.5" /> Approve
               </Button>
               <Button size="sm" variant="destructive" className="gap-1" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("reject", nfa, ap); }}>
                 <X className="h-3.5 w-3.5" /> Reject
               </Button>
-              <Link to="/nfa/$id" params={{ id: nfa.id }} onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="outline" className="col-span-2 gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("clarify", nfa, ap); }}>
+                <HelpCircle className="h-3.5 w-3.5" /> Request Clarification
+              </Button>
+              <Link to="/nfa/$id" params={{ id: nfa.id }} onClick={(e) => e.stopPropagation()} className="col-span-2">
                 <Button size="sm" variant="outline" className="w-full">Review</Button>
               </Link>
             </div>
@@ -213,6 +220,9 @@ function ApprovalsInbox() {
                       <Button size="sm" variant="destructive" className="gap-1" onClick={() => openAction("reject", nfa, ap)}>
                         <X className="h-3.5 w-3.5" /> Reject
                       </Button>
+                      <Button size="sm" variant="outline" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => openAction("clarify", nfa, ap)}>
+                        <HelpCircle className="h-3.5 w-3.5" /> Clarify
+                      </Button>
                       <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Review</Button></Link>
                     </div>
                   </td>
@@ -227,11 +237,9 @@ function ApprovalsInbox() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {action?.kind === "approve" ? (
-                <><Check className="h-4 w-4 text-emerald-600" /> Approve NFA</>
-              ) : (
-                <><X className="h-4 w-4 text-rose-600" /> Reject NFA</>
-              )}
+              {action?.kind === "approve" && (<><Check className="h-4 w-4 text-emerald-600" /> Approve NFA</>)}
+              {action?.kind === "reject" && (<><X className="h-4 w-4 text-rose-600" /> Reject NFA</>)}
+              {action?.kind === "clarify" && (<><HelpCircle className="h-4 w-4 text-amber-600" /> Request Clarification</>)}
             </DialogTitle>
             {action && (
               <DialogDescription>
@@ -248,7 +256,11 @@ function ApprovalsInbox() {
                 Remark <span className="text-rose-600">*</span>
               </label>
               <Textarea
-                placeholder={action?.kind === "approve" ? "Enter your remark for approval" : "Enter reason for rejection"}
+                placeholder={
+                  action?.kind === "approve" ? "Enter your remark for approval" :
+                  action?.kind === "reject" ? "Enter reason for rejection" :
+                  "Describe what clarification you need from the initiator"
+                }
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
                 className="min-h-[96px]"
@@ -292,11 +304,20 @@ function ApprovalsInbox() {
             <Button
               onClick={submitAction}
               disabled={busy || !remark.trim()}
-              className={action?.kind === "approve" ? "gap-1 bg-emerald-600 hover:bg-emerald-700" : "gap-1"}
+              className={
+                action?.kind === "approve" ? "gap-1 bg-emerald-600 hover:bg-emerald-700" :
+                action?.kind === "clarify" ? "gap-1 bg-amber-500 hover:bg-amber-600 text-white" :
+                "gap-1"
+              }
               variant={action?.kind === "reject" ? "destructive" : "default"}
             >
-              {action?.kind === "approve" ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              {busy ? "Submitting…" : action?.kind === "approve" ? "Confirm Approve" : "Confirm Reject"}
+              {action?.kind === "approve" && <Check className="h-4 w-4" />}
+              {action?.kind === "reject" && <X className="h-4 w-4" />}
+              {action?.kind === "clarify" && <HelpCircle className="h-4 w-4" />}
+              {busy ? "Submitting…" :
+                action?.kind === "approve" ? "Confirm Approve" :
+                action?.kind === "reject" ? "Confirm Reject" :
+                "Send Clarification Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
