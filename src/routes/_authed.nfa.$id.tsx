@@ -213,44 +213,44 @@ function NfaDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
         <button
           onClick={() => nav({ to: "/nfa/my" })}
-          className="group inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold uppercase tracking-tight text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900"
+          className="group inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-tight text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 sm:px-3.5 sm:text-sm"
         >
-          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
           Back
         </button>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && (
-            <Link to="/nfa/$id/change" params={{ id: nfa.id }}>
-              <Button size="sm" variant="outline" className="gap-1.5"><FileEdit className="h-4 w-4" /> Request Change</Button>
-            </Link>
-          )}
+        {isInitiator && (nfa.status === "with_initiator" || nfa.status === "clarification" || nfa.status === "rejected") && (
+          <Link to="/nfa/$id/change" params={{ id: nfa.id }} className="justify-self-end sm:order-2">
+            <Button size="sm" variant="outline" className="gap-1.5"><FileEdit className="h-4 w-4" /> Request Change</Button>
+          </Link>
+        )}
 
-          <div className="flex items-center divide-x divide-slate-300 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <span className="pr-3 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">ENFA</span>
-            <span className="pl-3 text-sm font-bold tracking-tight text-slate-800 tabular-nums">{nfa.enfa_number}</span>
+        <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:order-3 sm:justify-end sm:gap-3">
+          <div className="flex min-w-0 items-center divide-x divide-slate-300 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <span className="shrink-0 pr-3 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">ENFA</span>
+            <span className="min-w-0 truncate pl-3 text-sm font-bold tracking-tight text-slate-800 tabular-nums">{nfa.enfa_number}</span>
           </div>
 
-          <span className={"inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide shadow-sm " + STATUS_TONE[nfa.status]}>
-            <span className="relative flex h-2 w-2">
+          <span className={"inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide shadow-sm " + STATUS_TONE[nfa.status]}>
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
             </span>
-            {STATUS_LABEL[nfa.status]}
+            <span className="truncate">{STATUS_LABEL[nfa.status]}</span>
           </span>
         </div>
       </div>
 
       <Card className="border-slate-300">
-        <div className="relative flex items-center justify-center border-b border-slate-300 bg-gradient-to-b from-slate-50 to-slate-100/60 px-4 py-4">
-          <span className="absolute left-6 hidden h-px w-16 bg-gradient-to-r from-transparent to-slate-300 sm:block" />
-          <h2 className="font-display text-lg font-bold uppercase tracking-[0.35em] text-slate-800">
+        <div className="relative flex items-center justify-center border-b border-slate-300 bg-gradient-to-b from-slate-50 to-slate-100/60 px-4 py-3 sm:py-4">
+          <span className="absolute left-6 hidden h-px w-16 bg-gradient-to-r from-transparent to-slate-300 md:block" />
+          <h2 className="text-center font-display text-sm font-bold uppercase tracking-[0.25em] text-slate-800 sm:text-base sm:tracking-[0.3em] md:text-lg md:tracking-[0.35em]">
             Note <span className="text-slate-400">for</span> Approval
           </h2>
-          <span className="absolute right-6 hidden h-px w-16 bg-gradient-to-l from-transparent to-slate-300 sm:block" />
+          <span className="absolute right-6 hidden h-px w-16 bg-gradient-to-l from-transparent to-slate-300 md:block" />
         </div>
         <div className="grid grid-cols-1 gap-3 p-4 sm:gap-4 sm:p-6 md:grid-cols-2 text-sm">
           <ReadField label="Company" value={nfa.company} />
