@@ -334,12 +334,12 @@ function Kpi({
       <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-[11px] font-medium uppercase tracking-wider text-white/80">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-white/80 leading-tight">
             {label}
           </div>
-          <div className="font-display mt-1 text-3xl font-bold leading-none">{value}</div>
+          <div className="font-display mt-1 text-2xl sm:text-3xl font-bold leading-none">{value}</div>
         </div>
-        <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-md ring-1 " + chip}>
+        <div className={"grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-md ring-1 " + chip}>
           {icon}
         </div>
       </div>
