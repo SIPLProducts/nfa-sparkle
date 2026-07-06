@@ -21,6 +21,7 @@ import {
   Send,
   Search,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -44,6 +45,7 @@ function Index() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -114,6 +116,13 @@ function Index() {
 
   const filtersActive =
     search.trim() !== "" || deptFilter !== "all" || statusFilter !== "all" || dateFrom !== "" || dateTo !== "";
+  const advancedActive =
+    deptFilter !== "all" || statusFilter !== "all" || dateFrom !== "" || dateTo !== "";
+  const advancedCount =
+    (deptFilter !== "all" ? 1 : 0) +
+    (statusFilter !== "all" ? 1 : 0) +
+    (dateFrom !== "" ? 1 : 0) +
+    (dateTo !== "" ? 1 : 0);
   const clearFilters = () => {
     setSearch("");
     setDeptFilter("all");
@@ -230,58 +239,115 @@ function Index() {
             <EmptyRow text="No NFAs yet — create your first one." />
           ) : (
             <Tabs value={tab} onValueChange={(v) => setTab(v as "ongoing" | "completed")}>
-              {/* Filters */}
-              <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                <div className="relative sm:col-span-2 lg:col-span-2">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search subject, eNFA #, plant…"
-                    className="h-9 pl-8"
-                  />
-                </div>
-                <Select value={deptFilter} onValueChange={setDeptFilter}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Department" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All departments</SelectItem>
-                    {departments.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    {statusOptionsFor(tab).map((s) => (
-                      <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="h-9"
-                  aria-label="From date"
-                />
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="h-9"
-                  aria-label="To date"
-                />
-              </div>
-              {filtersActive && (
-                <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Showing filtered results</span>
-                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 gap-1 px-2 text-xs">
-                    <X className="h-3 w-3" /> Clear filters
+              {/* Filters — sticky on mobile so they stay accessible while scrolling the table */}
+              <div className="sticky top-0 z-20 -mx-5 mb-3 border-b border-border bg-card/95 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:static md:z-auto md:mx-0 md:mb-3 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
+                {/* Mobile compact bar */}
+                <div className="flex items-center gap-2 md:hidden">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search NFAs…"
+                      className="h-9 pl-8"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFiltersOpen((v) => !v)}
+                    className="h-9 shrink-0 gap-1.5 px-2.5"
+                    aria-expanded={filtersOpen}
+                    aria-label="Toggle filters"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span className="text-xs">Filters</span>
+                    {advancedCount > 0 && (
+                      <span className="ml-0.5 rounded-full bg-accent px-1.5 text-[10px] font-semibold text-accent-foreground">
+                        {advancedCount}
+                      </span>
+                    )}
                   </Button>
+                  {filtersActive && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 shrink-0 px-2 text-muted-foreground"
+                      aria-label="Clear filters"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-              )}
+                {/* Mobile expanded panel */}
+                {filtersOpen && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 md:hidden">
+                    <Select value={deptFilter} onValueChange={setDeptFilter}>
+                      <SelectTrigger className="h-9 col-span-2"><SelectValue placeholder="Department" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All departments</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-9 col-span-2"><SelectValue placeholder="Status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        {statusOptionsFor(tab).map((s) => (
+                          <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" aria-label="From date" />
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" aria-label="To date" />
+                  </div>
+                )}
+                {/* Desktop full row */}
+                <div className="hidden md:grid grid-cols-2 gap-2 lg:grid-cols-6">
+                  <div className="relative sm:col-span-2 lg:col-span-2">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search subject, eNFA #, plant…"
+                      className="h-9 pl-8"
+                    />
+                  </div>
+                  <Select value={deptFilter} onValueChange={setDeptFilter}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Department" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All departments</SelectItem>
+                      {departments.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {statusOptionsFor(tab).map((s) => (
+                        <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" aria-label="From date" />
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" aria-label="To date" />
+                </div>
+                {filtersActive && (
+                  <div className="mt-2 hidden md:flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Showing filtered results</span>
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 gap-1 px-2 text-xs">
+                      <X className="h-3 w-3" /> Clear filters
+                    </Button>
+                  </div>
+                )}
+              </div>
               <TabsList className="mb-3">
                 <TabsTrigger value="ongoing" className="gap-1.5">
                   <Clock className="h-3.5 w-3.5" /> Ongoing
