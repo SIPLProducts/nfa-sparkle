@@ -22,6 +22,8 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -414,8 +416,17 @@ function Kpi({
 }
 
 function StatusReportTable({ rows, emptyText }: { rows: NfaRow[]; emptyText: string }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [rows.length, pageSize]);
   if (rows.length === 0) return <EmptyRow text={emptyText} />;
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * pageSize;
+  const end = Math.min(start + pageSize, rows.length);
+  const pageRows = rows.slice(start, end);
   return (
+    <div className="space-y-2">
     <div className="overflow-x-auto rounded-md border border-border">
       <table className="min-w-full text-sm">
         <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -429,9 +440,9 @@ function StatusReportTable({ rows, emptyText }: { rows: NfaRow[]; emptyText: str
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {rows.map((r, i) => (
+          {pageRows.map((r, i) => (
             <tr key={r.id} className="hover:bg-muted/40">
-              <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
+              <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{start + i + 1}</td>
               <td className="px-3 py-2.5">{r.function ?? "—"}</td>
               <td className="max-w-[360px] truncate px-3 py-2.5">
                 <Link to="/nfa/$id" params={{ id: r.id }} className="text-accent hover:underline">
@@ -453,6 +464,46 @@ function StatusReportTable({ rows, emptyText }: { rows: NfaRow[]; emptyText: str
           ))}
         </tbody>
       </table>
+    </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="tabular-nums">
+          {start + 1}–{end} of {rows.length}
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="hidden sm:inline">Rows</label>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+            aria-label="Rows per page"
+          >
+            {[5, 10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={current <= 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="tabular-nums">{current} / {totalPages}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={current >= totalPages}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
