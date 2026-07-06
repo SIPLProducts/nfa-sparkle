@@ -570,3 +570,41 @@ function QuickAction({ to, icon, title, desc }: { to: string; icon: React.ReactN
 function EmptyRow({ text }: { text: string }) {
   return <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">{text}</div>;
 }
+
+function StatusReportSkeleton() {
+  return (
+    <div className="space-y-3">
+      {/* Filter bar skeleton */}
+      <div className="hidden md:grid grid-cols-6 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className={"h-9 animate-pulse rounded-md bg-muted " + (i === 0 ? "col-span-2" : "")} />
+        ))}
+      </div>
+      <div className="flex items-center gap-2 md:hidden">
+        <div className="h-9 flex-1 animate-pulse rounded-md bg-muted" />
+        <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
+      </div>
+      {/* Tab skeleton */}
+      <div className="flex gap-2">
+        <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+        <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+      </div>
+      {/* Table skeleton */}
+      <div className="overflow-hidden rounded-md border border-border">
+        <div className="h-9 border-b border-border bg-muted/50" />
+        <div className="divide-y divide-border">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-3">
+              <div className="h-4 w-6 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+              <div className="hidden sm:block h-5 w-16 animate-pulse rounded-full bg-muted" />
+              <div className="hidden sm:block h-4 w-16 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
