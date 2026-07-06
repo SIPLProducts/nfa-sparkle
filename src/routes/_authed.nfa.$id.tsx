@@ -355,9 +355,26 @@ function NfaDetail() {
                   </p>
                 )}
                 {isCurrent && myApprover && myApprover.id === a.id && (
-                  <div className="mt-3 space-y-1.5">
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-700">
+                        Remark <span className="text-rose-600">*</span>
+                      </label>
+                      <Textarea
+                        placeholder="Enter your remark for approval or rejection"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        className="min-h-[72px] text-sm"
+                      />
+                    </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => act("approve")} disabled={busy} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                      <Button
+                        size="sm"
+                        onClick={() => act("approve")}
+                        disabled={busy || !comment.trim()}
+                        className="gap-1 bg-emerald-600 hover:bg-emerald-700"
+                        title={!comment.trim() ? "A remark is required" : undefined}
+                      >
                         <Check className="h-3.5 w-3.5" /> Approve
                       </Button>
                       <Button
@@ -366,13 +383,13 @@ function NfaDetail() {
                         disabled={busy || !comment.trim()}
                         variant="destructive"
                         className="gap-1"
-                        title={!comment.trim() ? "Enter a comment in Your Action below to reject" : undefined}
+                        title={!comment.trim() ? "A remark is required" : undefined}
                       >
                         <X className="h-3.5 w-3.5" /> Reject
                       </Button>
                     </div>
                     {!comment.trim() && (
-                      <p className="text-[11px] text-rose-600">A comment is required to reject — fill the Your Action comment below.</p>
+                      <p className="text-[11px] text-rose-600">A remark is required for both Approve and Reject.</p>
                     )}
                   </div>
                 )}
