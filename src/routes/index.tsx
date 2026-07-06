@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { STATUS_LABEL, STATUS_TONE, type NfaRow, type ApproverRow } from "@/lib/nfa-types";
-import { nfaTypeName } from "@/lib/sap/master";
+import { STATUS_LABEL, STATUS_TONE, type NfaRow, type NfaStatus, type ApproverRow } from "@/lib/nfa-types";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   FileText,
   Inbox,
@@ -15,6 +15,8 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
+  XCircle,
+  Send,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -32,6 +34,7 @@ function Index() {
   const nav = useNavigate();
   const [mine, setMine] = useState<NfaRow[]>([]);
   const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
+  const [tab, setTab] = useState<"ongoing" | "completed">("ongoing");
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -44,8 +47,7 @@ function Index() {
         .from("nfa")
         .select("*")
         .eq("initiator_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .order("created_at", { ascending: false });
       setMine(((mineRows as NfaRow[]) ?? []));
 
       const { data: aps } = await supabase.from("nfa_approver").select("*").eq("approver_id", user.id).eq("status", "pending");
@@ -56,8 +58,7 @@ function Index() {
         setPending(
           list
             .map((ap) => ({ ap, nfa: map.get(ap.nfa_id)! }))
-            .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level)
-            .slice(0, 5),
+            .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level),
         );
       }
     })();
@@ -67,9 +68,15 @@ function Index() {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;
   }
 
-  const inProcessCount = mine.filter((r) => r.status === "in_process").length;
-  const completedCount = mine.filter((r) => r.status === "completed").length;
-  const clarificationCount = mine.filter((r) => r.status === "clarification" || r.status === "with_initiator").length;
+  const submittedCount = mine.length;
+  const underReviewCount = mine.filter((r) => r.status === "in_process").length;
+  const approvedCount = mine.filter((r) => r.status === "completed").length;
+  const rejectedCount = mine.filter((r) => r.status === "rejected").length;
+
+  const ONGOING: NfaStatus[] = ["with_initiator", "in_process", "clarification"];
+  const COMPLETED: NfaStatus[] = ["completed", "rejected"];
+  const ongoingRows = mine.filter((r) => ONGOING.includes(r.status));
+  const completedRows = mine.filter((r) => COMPLETED.includes(r.status));
 
   return (
     <AppShell
@@ -82,33 +89,42 @@ function Index() {
       }
     >
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Kpi
+          to="/approvals"
           icon={<Inbox className="h-5 w-5" />}
-          label="Awaiting your action"
+          label="Pending With Me"
           value={pending.length}
           tile="from-sky-500 to-blue-700"
           chip="bg-white/20 text-white ring-white/30"
         />
         <Kpi
-          icon={<Clock className="h-5 w-5" />}
-          label="My NFAs in process"
-          value={inProcessCount}
+          to="/nfa/my"
+          icon={<Send className="h-5 w-5" />}
+          label="My Submitted NFAs"
+          value={submittedCount}
           tile="from-indigo-500 to-violet-700"
           chip="bg-white/20 text-white ring-white/30"
         />
         <Kpi
-          icon={<AlertCircle className="h-5 w-5" />}
-          label="Needs clarification"
-          value={clarificationCount}
+          icon={<Clock className="h-5 w-5" />}
+          label="NFAs Under Review"
+          value={underReviewCount}
           tile="from-amber-400 to-orange-600"
           chip="bg-white/25 text-white ring-white/30"
         />
         <Kpi
           icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Completed (recent)"
-          value={completedCount}
+          label="Approved NFAs"
+          value={approvedCount}
           tile="from-emerald-500 to-teal-700"
+          chip="bg-white/20 text-white ring-white/30"
+        />
+        <Kpi
+          icon={<XCircle className="h-5 w-5" />}
+          label="Rejected NFAs"
+          value={rejectedCount}
+          tile="from-rose-500 to-red-700"
           chip="bg-white/20 text-white ring-white/30"
         />
       </div>
@@ -132,7 +148,7 @@ function Index() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-display text-base font-bold">Pending your approval</h2>
-              <p className="text-xs text-muted-foreground">Top 5 items waiting on you</p>
+              <p className="text-xs text-muted-foreground">Items waiting on your decision ({pending.length})</p>
             </div>
             <Link to="/approvals" className="text-xs font-medium text-accent hover:underline">View inbox <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
           </div>
@@ -140,13 +156,13 @@ function Index() {
             <EmptyRow text="You're all caught up." />
           ) : (
             <ul className="divide-y divide-border">
-              {pending.map(({ nfa, ap }) => (
+              {pending.slice(0, 5).map(({ nfa, ap }) => (
                 <li key={ap.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <Link to="/nfa/$id" params={{ id: nfa.id }} className="block truncate text-sm font-medium text-accent hover:underline">
                       {nfa.enfa_number} — {nfa.subject}
                     </Link>
-                    <div className="truncate text-xs text-muted-foreground">{nfaTypeName(nfa.nfa_type)} · {nfa.plant ?? "—"} · L{ap.level}</div>
+                    <div className="truncate text-xs text-muted-foreground">{nfa.function ?? "—"} · {nfa.plant ?? "—"} · L{ap.level}</div>
                   </div>
                   <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Open</Button></Link>
                 </li>
@@ -155,48 +171,38 @@ function Index() {
           )}
         </section>
 
-        {/* Recent NFAs */}
+        {/* NFA Status Report */}
         <section className="rounded-lg border border-border bg-card p-5 lg:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-base font-bold">My recent NFAs</h2>
-              <p className="text-xs text-muted-foreground">Latest 5 NFAs you initiated</p>
+              <h2 className="font-display text-base font-bold">NFA Status Report</h2>
+              <p className="text-xs text-muted-foreground">
+                Ongoing ({ongoingRows.length}) &middot; Completed ({completedRows.length})
+              </p>
             </div>
-            <Link to="/nfa/my" className="text-xs font-medium text-accent hover:underline">View all <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
+            <Link to="/report" className="text-xs font-medium text-accent hover:underline">Full report <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
           </div>
           {mine.length === 0 ? (
             <EmptyRow text="No NFAs yet — create your first one." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">ENFA Number</th>
-                    <th className="py-2 pr-3 font-medium">Subject</th>
-                    <th className="py-2 pr-3 font-medium">Type</th>
-                    <th className="py-2 pr-3 font-medium">Status</th>
-                    <th className="py-2 pr-3 font-medium">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {mine.map((r) => (
-                    <tr key={r.id} className="hover:bg-muted/40">
-                      <td className="py-2.5 pr-3 font-mono text-xs text-accent">
-                        <Link to="/nfa/$id" params={{ id: r.id }} className="hover:underline">{r.enfa_number}</Link>
-                      </td>
-                      <td className="py-2.5 pr-3">{r.subject}</td>
-                      <td className="py-2.5 pr-3 text-muted-foreground">{nfaTypeName(r.nfa_type)}</td>
-                      <td className="py-2.5 pr-3">
-                        <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + STATUS_TONE[r.status]}>
-                          {STATUS_LABEL[r.status]}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "ongoing" | "completed")}>
+              <TabsList className="mb-3">
+                <TabsTrigger value="ongoing" className="gap-1.5">
+                  <Clock className="h-3.5 w-3.5" /> Ongoing
+                  <span className="ml-1 rounded-full bg-sky-100 px-1.5 text-[10px] font-semibold text-sky-700">{ongoingRows.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+                  <span className="ml-1 rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-700">{completedRows.length}</span>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="ongoing" className="mt-0">
+                <StatusReportTable rows={ongoingRows} emptyText="No ongoing NFAs." />
+              </TabsContent>
+              <TabsContent value="completed" className="mt-0">
+                <StatusReportTable rows={completedRows} emptyText="No completed NFAs yet." />
+              </TabsContent>
+            </Tabs>
           )}
         </section>
       </div>
@@ -210,17 +216,22 @@ function Kpi({
   value,
   tile,
   chip,
+  to,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   tile: string;
   chip: string;
+  to?: string;
 }) {
+  const Wrap: any = to ? Link : "div";
+  const wrapProps: any = to ? { to } : {};
   return (
-    <div
+    <Wrap
+      {...wrapProps}
       className={
-        "relative overflow-hidden rounded-lg p-4 text-white shadow-md ring-1 ring-white/10 bg-gradient-to-br " +
+        "relative block overflow-hidden rounded-lg p-4 text-white shadow-md ring-1 ring-white/10 bg-gradient-to-br transition hover:-translate-y-0.5 hover:shadow-lg " +
         tile
       }
     >
@@ -236,6 +247,50 @@ function Kpi({
           {icon}
         </div>
       </div>
+    </Wrap>
+  );
+}
+
+function StatusReportTable({ rows, emptyText }: { rows: NfaRow[]; emptyText: string }) {
+  if (rows.length === 0) return <EmptyRow text={emptyText} />;
+  return (
+    <div className="overflow-x-auto rounded-md border border-border">
+      <table className="min-w-full text-sm">
+        <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Sl. No.</th>
+            <th className="px-3 py-2 font-medium">Department</th>
+            <th className="px-3 py-2 font-medium">Subject</th>
+            <th className="px-3 py-2 font-medium text-right">Financial Impact</th>
+            <th className="px-3 py-2 font-medium">Status</th>
+            <th className="px-3 py-2 font-medium">NFA Date</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r, i) => (
+            <tr key={r.id} className="hover:bg-muted/40">
+              <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
+              <td className="px-3 py-2.5">{r.function ?? "—"}</td>
+              <td className="max-w-[360px] truncate px-3 py-2.5">
+                <Link to="/nfa/$id" params={{ id: r.id }} className="text-accent hover:underline">
+                  {r.enfa_number} — {r.subject}
+                </Link>
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {r.budget_impact != null
+                  ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(r.budget_impact))
+                  : "—"}
+              </td>
+              <td className="px-3 py-2.5">
+                <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + STATUS_TONE[r.status]}>
+                  {STATUS_LABEL[r.status]}
+                </span>
+              </td>
+              <td className="px-3 py-2.5 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
