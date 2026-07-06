@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { STATUS_LABEL, STATUS_TONE, type NfaRow, type NfaStatus, type ApproverRow } from "@/lib/nfa-types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileText,
   Inbox,
@@ -17,6 +19,8 @@ import {
   ArrowRight,
   XCircle,
   Send,
+  Search,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -35,6 +39,11 @@ function Index() {
   const [mine, setMine] = useState<NfaRow[]>([]);
   const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
   const [tab, setTab] = useState<"ongoing" | "completed">("ongoing");
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -75,8 +84,43 @@ function Index() {
 
   const ONGOING: NfaStatus[] = ["with_initiator", "in_process", "clarification"];
   const COMPLETED: NfaStatus[] = ["completed", "rejected"];
-  const ongoingRows = mine.filter((r) => ONGOING.includes(r.status));
-  const completedRows = mine.filter((r) => COMPLETED.includes(r.status));
+
+  const departments = Array.from(new Set(mine.map((r) => r.function).filter(Boolean))) as string[];
+  const statusOptionsFor = (scope: "ongoing" | "completed") =>
+    scope === "ongoing" ? ONGOING : COMPLETED;
+
+  const applyFilters = (rows: NfaRow[]) => {
+    const q = search.trim().toLowerCase();
+    const from = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
+    const to = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
+    return rows.filter((r) => {
+      if (deptFilter !== "all" && (r.function ?? "") !== deptFilter) return false;
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (from || to) {
+        const t = new Date(r.created_at).getTime();
+        if (from && t < from) return false;
+        if (to && t > to) return false;
+      }
+      if (q) {
+        const hay = `${r.enfa_number ?? ""} ${r.subject ?? ""} ${r.function ?? ""} ${r.plant ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  };
+
+  const ongoingRows = applyFilters(mine.filter((r) => ONGOING.includes(r.status)));
+  const completedRows = applyFilters(mine.filter((r) => COMPLETED.includes(r.status)));
+
+  const filtersActive =
+    search.trim() !== "" || deptFilter !== "all" || statusFilter !== "all" || dateFrom !== "" || dateTo !== "";
+  const clearFilters = () => {
+    setSearch("");
+    setDeptFilter("all");
+    setStatusFilter("all");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   return (
     <AppShell
@@ -186,6 +230,58 @@ function Index() {
             <EmptyRow text="No NFAs yet — create your first one." />
           ) : (
             <Tabs value={tab} onValueChange={(v) => setTab(v as "ongoing" | "completed")}>
+              {/* Filters */}
+              <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+                <div className="relative sm:col-span-2 lg:col-span-2">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search subject, eNFA #, plant…"
+                    className="h-9 pl-8"
+                  />
+                </div>
+                <Select value={deptFilter} onValueChange={setDeptFilter}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All departments</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {statusOptionsFor(tab).map((s) => (
+                      <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-9"
+                  aria-label="From date"
+                />
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-9"
+                  aria-label="To date"
+                />
+              </div>
+              {filtersActive && (
+                <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Showing filtered results</span>
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 gap-1 px-2 text-xs">
+                    <X className="h-3 w-3" /> Clear filters
+                  </Button>
+                </div>
+              )}
               <TabsList className="mb-3">
                 <TabsTrigger value="ongoing" className="gap-1.5">
                   <Clock className="h-3.5 w-3.5" /> Ongoing
