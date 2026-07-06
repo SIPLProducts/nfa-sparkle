@@ -237,11 +237,9 @@ function ApprovalsInbox() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {action?.kind === "approve" ? (
-                <><Check className="h-4 w-4 text-emerald-600" /> Approve NFA</>
-              ) : (
-                <><X className="h-4 w-4 text-rose-600" /> Reject NFA</>
-              )}
+              {action?.kind === "approve" && (<><Check className="h-4 w-4 text-emerald-600" /> Approve NFA</>)}
+              {action?.kind === "reject" && (<><X className="h-4 w-4 text-rose-600" /> Reject NFA</>)}
+              {action?.kind === "clarify" && (<><HelpCircle className="h-4 w-4 text-amber-600" /> Request Clarification</>)}
             </DialogTitle>
             {action && (
               <DialogDescription>
@@ -258,7 +256,11 @@ function ApprovalsInbox() {
                 Remark <span className="text-rose-600">*</span>
               </label>
               <Textarea
-                placeholder={action?.kind === "approve" ? "Enter your remark for approval" : "Enter reason for rejection"}
+                placeholder={
+                  action?.kind === "approve" ? "Enter your remark for approval" :
+                  action?.kind === "reject" ? "Enter reason for rejection" :
+                  "Describe what clarification you need from the initiator"
+                }
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
                 className="min-h-[96px]"
@@ -302,11 +304,20 @@ function ApprovalsInbox() {
             <Button
               onClick={submitAction}
               disabled={busy || !remark.trim()}
-              className={action?.kind === "approve" ? "gap-1 bg-emerald-600 hover:bg-emerald-700" : "gap-1"}
+              className={
+                action?.kind === "approve" ? "gap-1 bg-emerald-600 hover:bg-emerald-700" :
+                action?.kind === "clarify" ? "gap-1 bg-amber-500 hover:bg-amber-600 text-white" :
+                "gap-1"
+              }
               variant={action?.kind === "reject" ? "destructive" : "default"}
             >
-              {action?.kind === "approve" ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-              {busy ? "Submitting…" : action?.kind === "approve" ? "Confirm Approve" : "Confirm Reject"}
+              {action?.kind === "approve" && <Check className="h-4 w-4" />}
+              {action?.kind === "reject" && <X className="h-4 w-4" />}
+              {action?.kind === "clarify" && <HelpCircle className="h-4 w-4" />}
+              {busy ? "Submitting…" :
+                action?.kind === "approve" ? "Confirm Approve" :
+                action?.kind === "reject" ? "Confirm Reject" :
+                "Send Clarification Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
