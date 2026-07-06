@@ -146,14 +146,17 @@ function ApprovalsInbox() {
               <span>From <span className="text-foreground">{nameFor(profiles, nfa.initiator_id)}</span></span>
               <span>{new Date(nfa.created_at).toLocaleDateString()}</span>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5" onClick={(e) => e.preventDefault()}>
+            <div className="mt-2 grid grid-cols-2 gap-1.5" onClick={(e) => e.preventDefault()}>
               <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("approve", nfa, ap); }}>
                 <Check className="h-3.5 w-3.5" /> Approve
               </Button>
               <Button size="sm" variant="destructive" className="gap-1" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("reject", nfa, ap); }}>
                 <X className="h-3.5 w-3.5" /> Reject
               </Button>
-              <Link to="/nfa/$id" params={{ id: nfa.id }} onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="outline" className="col-span-2 gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("clarify", nfa, ap); }}>
+                <HelpCircle className="h-3.5 w-3.5" /> Request Clarification
+              </Button>
+              <Link to="/nfa/$id" params={{ id: nfa.id }} onClick={(e) => e.stopPropagation()} className="col-span-2">
                 <Button size="sm" variant="outline" className="w-full">Review</Button>
               </Link>
             </div>
@@ -216,6 +219,9 @@ function ApprovalsInbox() {
                       </Button>
                       <Button size="sm" variant="destructive" className="gap-1" onClick={() => openAction("reject", nfa, ap)}>
                         <X className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => openAction("clarify", nfa, ap)}>
+                        <HelpCircle className="h-3.5 w-3.5" /> Clarify
                       </Button>
                       <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Review</Button></Link>
                     </div>
