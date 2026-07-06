@@ -43,6 +43,8 @@ function AuditLogs() {
   const [fLevel, setFLevel] = useState<string>("all");
   const [fFrom, setFFrom] = useState("");
   const [fTo, setFTo] = useState("");
+  const [fNfa, setFNfa] = useState("");
+  const [fCorr, setFCorr] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 25;
 
@@ -78,6 +80,17 @@ function AuditLogs() {
       if (fLevel !== "all" && String(r.level ?? "") !== fLevel) return false;
       if (fFrom && new Date(r.at) < new Date(fFrom)) return false;
       if (fTo && new Date(r.at) > new Date(fTo + "T23:59:59")) return false;
+      if (fNfa) {
+        const needle = fNfa.trim().toLowerCase();
+        const hay = [r.nfa_id, nfas[r.nfa_id]?.enfa_number]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (fCorr) {
+        if (!r.id.toLowerCase().includes(fCorr.trim().toLowerCase())) return false;
+      }
       if (q) {
         const hay = [
           r.action,
@@ -94,13 +107,13 @@ function AuditLogs() {
       }
       return true;
     });
-  }, [rows, q, fKind, fLevel, fFrom, fTo, nfas, profiles]);
+  }, [rows, q, fKind, fLevel, fFrom, fTo, fNfa, fCorr, nfas, profiles]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  const reset = () => { setQ(""); setFKind("all"); setFLevel("all"); setFFrom(""); setFTo(""); setPage(1); };
+  const reset = () => { setQ(""); setFKind("all"); setFLevel("all"); setFFrom(""); setFTo(""); setFNfa(""); setFCorr(""); setPage(1); };
 
   const kindTone = (k: string | null) => {
     switch (k) {
@@ -158,6 +171,14 @@ function AuditLogs() {
           <div>
             <Label className="text-xs">To</Label>
             <Input type="date" value={fTo} onChange={(e) => { setFTo(e.target.value); setPage(1); }} />
+          </div>
+          <div>
+            <Label className="text-xs">NFA ID</Label>
+            <Input value={fNfa} onChange={(e) => { setFNfa(e.target.value); setPage(1); }} placeholder="eNFA # or UUID" />
+          </div>
+          <div>
+            <Label className="text-xs">Correlation ID</Label>
+            <Input value={fCorr} onChange={(e) => { setFCorr(e.target.value); setPage(1); }} placeholder="Audit entry ID" />
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between">
