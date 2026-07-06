@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { type ApproverRow, type NfaRow } from "@/lib/nfa-types";
@@ -7,8 +7,11 @@ import { nfaTypeName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { Inbox, CheckCircle2 } from "lucide-react";
+import { Inbox, CheckCircle2, Check, X, Paperclip, Trash2 } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
@@ -19,24 +22,75 @@ function ApprovalsInbox() {
   const [rows, setRows] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
+  const [action, setAction] = useState<null | { kind: "approve" | "reject"; nfa: NfaRow; ap: ApproverRow }>(null);
+  const [remark, setRemark] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
+  const load = async () => {
     if (!user) return;
-    (async () => {
-      const { data: aps } = await supabase.from("nfa_approver").select("*").eq("approver_id", user.id);
-      const list = (aps as ApproverRow[]) ?? [];
-      if (!list.length) { setRows([]); setLoading(false); return; }
-      const nfaIds = list.map((l) => l.nfa_id);
-      const { data: nfas } = await supabase.from("nfa").select("*").in("id", nfaIds);
-      const nMap = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
-      const joined = list
-        .map((ap) => ({ ap, nfa: nMap.get(ap.nfa_id)! }))
-        .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level && r.ap.status === "pending");
-      setRows(joined);
-      setProfiles(await fetchProfilesMap(joined.map((r) => r.nfa.initiator_id)));
-      setLoading(false);
-    })();
-  }, [user]);
+    setLoading(true);
+    const { data: aps } = await supabase.from("nfa_approver").select("*").eq("approver_id", user.id);
+    const list = (aps as ApproverRow[]) ?? [];
+    if (!list.length) { setRows([]); setLoading(false); return; }
+    const nfaIds = list.map((l) => l.nfa_id);
+    const { data: nfas } = await supabase.from("nfa").select("*").in("id", nfaIds);
+    const nMap = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
+    const joined = list
+      .map((ap) => ({ ap, nfa: nMap.get(ap.nfa_id)! }))
+      .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level && r.ap.status === "pending");
+    setRows(joined);
+    setProfiles(await fetchProfilesMap(joined.map((r) => r.nfa.initiator_id)));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
+
+  function openAction(kind: "approve" | "reject", nfa: NfaRow, ap: ApproverRow) {
+    setAction({ kind, nfa, ap });
+    setRemark("");
+    setFiles([]);
+  }
+
+  async function submitAction() {
+    if (!action || !user) return;
+    if (!remark.trim()) return toast.error("A remark is required");
+    setBusy(true);
+    try {
+      // Upload attachments first (best-effort)
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const path = `${action.nfa.id}/${Date.now()}-${file.name}`;
+        const { error: se } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
+        if (se) { toast.error(`Upload failed for ${file.name}: ${se.message}`); continue; }
+        const { error: ie } = await supabase.from("nfa_attachment").insert({
+          nfa_id: action.nfa.id, storage_path: path, filename: file.name,
+          mime: file.type || null, size: file.size, uploaded_by: user.id,
+        });
+        if (ie) { toast.error(`Record failed for ${file.name}: ${ie.message}`); continue; }
+        uploaded.push(file.name);
+      }
+      if (uploaded.length) {
+        await supabase.from("nfa_audit").insert({
+          nfa_id: action.nfa.id, actor_id: user.id,
+          action: `Attached ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}`,
+          comment: uploaded.join(", "),
+        });
+      }
+      const { error } = await supabase.rpc("nfa_act", {
+        _nfa_id: action.nfa.id, _action: action.kind, _comment: remark,
+      });
+      if (error) throw error;
+      toast.success(action.kind === "approve" ? "Approved" : "Rejected");
+      setAction(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
   const visible = rows.slice(0, visibleCount);
@@ -79,7 +133,17 @@ function ApprovalsInbox() {
               <span>From <span className="text-foreground">{nameFor(profiles, nfa.initiator_id)}</span></span>
               <span>{new Date(nfa.created_at).toLocaleDateString()}</span>
             </div>
-            <div className="mt-2"><Button size="sm" className="w-full">Review</Button></div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5" onClick={(e) => e.preventDefault()}>
+              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("approve", nfa, ap); }}>
+                <Check className="h-3.5 w-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="destructive" className="gap-1" onClick={(e) => { e.stopPropagation(); e.preventDefault(); openAction("reject", nfa, ap); }}>
+                <X className="h-3.5 w-3.5" /> Reject
+              </Button>
+              <Link to="/nfa/$id" params={{ id: nfa.id }} onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="outline" className="w-full">Review</Button>
+              </Link>
+            </div>
           </Link>
         ))}
         {hasMore && (
@@ -133,7 +197,15 @@ function ApprovalsInbox() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm">Review</Button></Link>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => openAction("approve", nfa, ap)}>
+                        <Check className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => openAction("reject", nfa, ap)}>
+                        <X className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                      <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Review</Button></Link>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -141,6 +213,85 @@ function ApprovalsInbox() {
           </table>
         </div>
       </div>
+
+      <Dialog open={!!action} onOpenChange={(o) => !o && !busy && setAction(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {action?.kind === "approve" ? (
+                <><Check className="h-4 w-4 text-emerald-600" /> Approve NFA</>
+              ) : (
+                <><X className="h-4 w-4 text-rose-600" /> Reject NFA</>
+              )}
+            </DialogTitle>
+            {action && (
+              <DialogDescription>
+                <span className="font-mono text-xs font-semibold text-accent">{action.nfa.enfa_number}</span>
+                <span className="ml-2 text-xs">Level {action.ap.level}</span>
+                <div className="mt-1 line-clamp-2 text-sm text-foreground">{action.nfa.subject}</div>
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Remark <span className="text-rose-600">*</span>
+              </label>
+              <Textarea
+                placeholder={action?.kind === "approve" ? "Enter your remark for approval" : "Enter reason for rejection"}
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                className="min-h-[96px]"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Attachments (optional)</label>
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const list = Array.from(e.target.files ?? []);
+                  if (list.length) setFiles((prev) => [...prev, ...list]);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="gap-1.5">
+                <Paperclip className="h-3.5 w-3.5" /> Add files
+              </Button>
+              {files.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {files.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                      <span className="min-w-0 truncate">{f.name} <span className="text-slate-400">({Math.ceil(f.size / 1024)} KB)</span></span>
+                      <button type="button" className="ml-2 text-slate-500 hover:text-rose-600" onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAction(null)} disabled={busy}>Cancel</Button>
+            <Button
+              onClick={submitAction}
+              disabled={busy || !remark.trim()}
+              className={action?.kind === "approve" ? "gap-1 bg-emerald-600 hover:bg-emerald-700" : "gap-1"}
+              variant={action?.kind === "reject" ? "destructive" : "default"}
+            >
+              {action?.kind === "approve" ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {busy ? "Submitting…" : action?.kind === "approve" ? "Confirm Approve" : "Confirm Reject"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
