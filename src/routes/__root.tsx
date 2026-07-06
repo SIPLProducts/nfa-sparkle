@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth-context";
 import { Toaster } from "../components/ui/sonner";
+import { InstallPrompt } from "../components/InstallPrompt";
 
 function NotFoundComponent() {
   return (
@@ -81,6 +82,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "ENFA" },
       { name: "description", content: "NFA Approval Hub streamlines the No Further Action (NFA) approval process, integrating with SAP for efficient management." },
+      { name: "theme-color", content: "#1e3a8a" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "eNFA" },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "ENFA" },
       { property: "og:description", content: "NFA Approval Hub streamlines the No Further Action (NFA) approval process, integrating with SAP for efficient management." },
@@ -97,6 +103,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icons/icon-512.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -134,6 +144,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster richColors position="top-right" />
+        <InstallPrompt />
       </AuthProvider>
     </QueryClientProvider>
   );
