@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authed/approvals")({
 function ApprovalsInbox() {
   const { user } = useAuth();
   const [rows, setRows] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
+  const [levelMap, setLevelMap] = useState<Record<string, number>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<null | { kind: "approve" | "reject"; nfa: NfaRow; ap: ApproverRow }>(null);
@@ -37,6 +38,12 @@ function ApprovalsInbox() {
     const nfaIds = list.map((l) => l.nfa_id);
     const { data: nfas } = await supabase.from("nfa").select("*").in("id", nfaIds);
     const nMap = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
+    const { data: allAps } = await supabase.from("nfa_approver").select("nfa_id,level").in("nfa_id", nfaIds);
+    const lm: Record<string, number> = {};
+    for (const r of (allAps as { nfa_id: string; level: number }[]) ?? []) {
+      lm[r.nfa_id] = Math.max(lm[r.nfa_id] ?? 0, r.level);
+    }
+    setLevelMap(lm);
     const joined = list
       .map((ap) => ({ ap, nfa: nMap.get(ap.nfa_id)! }))
       .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level && r.ap.status === "pending");
