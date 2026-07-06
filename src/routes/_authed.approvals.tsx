@@ -7,7 +7,7 @@ import { nfaTypeName } from "@/lib/sap/master";
 import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { Inbox, CheckCircle2, Check, X, Paperclip, Trash2 } from "lucide-react";
+import { Inbox, CheckCircle2, Check, X, Paperclip, Trash2, HelpCircle } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +23,7 @@ function ApprovalsInbox() {
   const [levelMap, setLevelMap] = useState<Record<string, number>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<null | { kind: "approve" | "reject"; nfa: NfaRow; ap: ApproverRow }>(null);
+  const [action, setAction] = useState<null | { kind: "approve" | "reject" | "clarify"; nfa: NfaRow; ap: ApproverRow }>(null);
   const [remark, setRemark] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -54,7 +54,7 @@ function ApprovalsInbox() {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
 
-  function openAction(kind: "approve" | "reject", nfa: NfaRow, ap: ApproverRow) {
+  function openAction(kind: "approve" | "reject" | "clarify", nfa: NfaRow, ap: ApproverRow) {
     setAction({ kind, nfa, ap });
     setRemark("");
     setFiles([]);
@@ -89,7 +89,11 @@ function ApprovalsInbox() {
         _nfa_id: action.nfa.id, _action: action.kind, _comment: remark,
       });
       if (error) throw error;
-      toast.success(action.kind === "approve" ? "Approved" : "Rejected");
+      toast.success(
+        action.kind === "approve" ? "Approved" :
+        action.kind === "reject" ? "Rejected" :
+        "Clarification requested"
+      );
       setAction(null);
       await load();
     } catch (e: any) {
