@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authed/approvals")({
 function ApprovalsInbox() {
   const { user } = useAuth();
   const [rows, setRows] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
+  const [levelMap, setLevelMap] = useState<Record<string, number>>({});
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<null | { kind: "approve" | "reject"; nfa: NfaRow; ap: ApproverRow }>(null);
@@ -37,6 +38,12 @@ function ApprovalsInbox() {
     const nfaIds = list.map((l) => l.nfa_id);
     const { data: nfas } = await supabase.from("nfa").select("*").in("id", nfaIds);
     const nMap = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
+    const { data: allAps } = await supabase.from("nfa_approver").select("nfa_id,level").in("nfa_id", nfaIds);
+    const lm: Record<string, number> = {};
+    for (const r of (allAps as { nfa_id: string; level: number }[]) ?? []) {
+      lm[r.nfa_id] = Math.max(lm[r.nfa_id] ?? 0, r.level);
+    }
+    setLevelMap(lm);
     const joined = list
       .map((ap) => ({ ap, nfa: nMap.get(ap.nfa_id)! }))
       .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level && r.ap.status === "pending");
@@ -123,7 +130,9 @@ function ApprovalsInbox() {
           <Link key={ap.id} to="/nfa/$id" params={{ id: nfa.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[11px] font-semibold text-accent">{nfa.enfa_number}</span>
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">Level {ap.level}</span>
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-200">
+                Level {ap.level} <span className="mx-1 text-blue-400">/</span> {levelMap[nfa.id] ?? ap.level}
+              </span>
             </div>
             <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{nfa.subject}</div>
             <div className="mt-1 text-[11px] text-muted-foreground">
@@ -193,7 +202,7 @@ function ApprovalsInbox() {
                   <td className="px-3 py-2.5 text-muted-foreground">{new Date(nfa.created_at).toLocaleDateString()}</td>
                   <td className="px-3 py-2.5">
                     <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200">
-                      Level {ap.level}
+                      Level {ap.level} <span className="mx-1 text-blue-400">/</span> {levelMap[nfa.id] ?? ap.level}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
