@@ -186,8 +186,8 @@ function NfaDetail() {
 
   async function act(kind: "approve" | "reject" | "back" | "clarify") {
     if (!myApprover || !user) return;
-    if ((kind === "reject" || kind === "back" || kind === "clarify") && !comment.trim()) {
-      return toast.error("A comment is required for Reject / Back / Clarification");
+    if (!comment.trim()) {
+      return toast.error("A remark is required");
     }
     setBusy(true);
     const { error } = await supabase.rpc("nfa_act", {
