@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
+  FilterX,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -48,6 +49,7 @@ function Index() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -56,6 +58,7 @@ function Index() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setDataLoading(true);
       const { data: mineRows } = await supabase
         .from("nfa")
         .select("*")
@@ -74,6 +77,7 @@ function Index() {
             .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level),
         );
       }
+      setDataLoading(false);
     })();
   }, [user]);
 
@@ -237,7 +241,9 @@ function Index() {
             </div>
             <Link to="/report" className="text-xs font-medium text-accent hover:underline">Full report <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
           </div>
-          {mine.length === 0 ? (
+          {dataLoading ? (
+            <StatusReportSkeleton />
+          ) : mine.length === 0 ? (
             <EmptyRow text="No NFAs yet — create your first one." />
           ) : (
             <Tabs value={tab} onValueChange={(v) => setTab(v as "ongoing" | "completed")}>
@@ -361,10 +367,20 @@ function Index() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="ongoing" className="mt-0">
-                <StatusReportTable rows={ongoingRows} emptyText="No ongoing NFAs." />
+                <StatusReportTable
+                  rows={ongoingRows}
+                  emptyText="No ongoing NFAs."
+                  filtersActive={filtersActive}
+                  onClearFilters={clearFilters}
+                />
               </TabsContent>
               <TabsContent value="completed" className="mt-0">
-                <StatusReportTable rows={completedRows} emptyText="No completed NFAs yet." />
+                <StatusReportTable
+                  rows={completedRows}
+                  emptyText="No completed NFAs yet."
+                  filtersActive={filtersActive}
+                  onClearFilters={clearFilters}
+                />
               </TabsContent>
             </Tabs>
           )}
@@ -415,11 +431,41 @@ function Kpi({
   );
 }
 
-function StatusReportTable({ rows, emptyText }: { rows: NfaRow[]; emptyText: string }) {
+function StatusReportTable({
+  rows,
+  emptyText,
+  filtersActive,
+  onClearFilters,
+}: {
+  rows: NfaRow[];
+  emptyText: string;
+  filtersActive?: boolean;
+  onClearFilters?: () => void;
+}) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   useEffect(() => { setPage(1); }, [rows.length, pageSize]);
-  if (rows.length === 0) return <EmptyRow text={emptyText} />;
+  if (rows.length === 0) {
+    if (filtersActive) {
+      return (
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-border bg-muted/30 px-4 py-10 text-center">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-background text-muted-foreground ring-1 ring-border">
+            <FilterX className="h-5 w-5" />
+          </div>
+          <div className="mt-3 text-sm font-medium">No NFAs match your filters</div>
+          <div className="mt-1 max-w-sm text-xs text-muted-foreground">
+            Try broadening the date range, changing the department, or clearing status.
+          </div>
+          {onClearFilters && (
+            <Button variant="outline" size="sm" onClick={onClearFilters} className="mt-3 h-8 gap-1 text-xs">
+              <X className="h-3.5 w-3.5" /> Clear all filters
+            </Button>
+          )}
+        </div>
+      );
+    }
+    return <EmptyRow text={emptyText} />;
+  }
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, totalPages);
   const start = (current - 1) * pageSize;
