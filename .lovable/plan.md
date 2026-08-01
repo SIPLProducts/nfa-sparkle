@@ -1,99 +1,50 @@
+Build a phase-wise project plan workbook for the **ENFA (Note For Approval) Portal**, styled after the DMR_GRN_Project_Plan_v2.xlsx reference, using the phase durations from the attached PNG, scheduled from kickoff **Thu 30-Jul-2026**, plus a server sizing section for deployment.
 
-# Note For Approval (NFA) — Web Application
+Deliverable: `ENFA_Project_Plan_v1.xlsx` in your documents (downloadable), matching the reference workbook's structure and formatting conventions.
 
-Build the full UI and workflow front-end now. All NFA data and master data (Company, Project, NFA Type, Function, Approvers) will come from SAP via APIs you'll provide later. We'll wire a thin server adapter layer with mock data behind it so screens are fully usable today and switch to SAP by swapping one module when the APIs are ready.
-
-## Scope (v1)
-
-Four modules matching your screenshots:
-1. **NFA Creation** — Note For Approval form
-2. **NFA Changes** — Worklist of own NFAs (With Initiator / Clarification) + edit
-3. **NFA Approval** — Approver inbox with Approve / Reject / Back To Initiator / Clarification
-4. **E-NFA Report** — Filter screen + results grid
-
-Plus: Login, role-based navigation, attachments, preview, audit trail.
-
-## Pages & Navigation
+## Derived schedule (from PNG durations, working days)
 
 ```text
-/auth                       Login / Sign-up
-/                           Dashboard (tiles: Create, My NFAs, Approvals, Report)
-/nfa/new                    NFA Creation form
-/nfa/my                     My NFAs (worklist – "NFA Changes")
-/nfa/:id/edit               Edit NFA (only while With Initiator / Clarification)
-/nfa/:id                    Preview / detail (read-only)
-/approvals                  Approver inbox
-/approvals/:id              Approve detail with action bar
-/report                     E-NFA Report (filters + grid)
-/admin/users                Admin: assign roles
+Sl  Phase                      Duration   Start         End
+1   Initiation & Planning      —          Thu 30-Jul    Thu 30-Jul-2026
+2   Requirement Gathering      1 Day      Fri 31-Jul    Fri 31-Jul-2026
+3   Design & Architecture      2 Days     Mon 03-Aug    Tue 04-Aug-2026
+4   Core Development           4 Weeks    Wed 05-Aug    Tue 01-Sep-2026
+5   Testing & UAT              1 Week     Wed 02-Sep    Tue 08-Sep-2026
+6   Deployment & Training      1 Week     Wed 09-Sep    Tue 15-Sep-2026
+7   Go-Live & Hypercare        —          Wed 16-Sep-2026 → 16-Dec-2026 (3 months)
 ```
 
-## NFA Creation form (matches screenshot 1)
+## Workbook sheets
 
-Fields: Company (dropdown), Project (search + code/name), NFA Type (dropdown), Function (search), Subject, Scope Impact, Budget Impact (Lakhs, number), Timeline Impact (Days, number), Detailed Description (rich textarea modal), Attachments (multi-file).
-Actions: Save Draft, Submit for Approval.
+**1. Cover** — Client, Implementation Partner, Scope (NFA Creation · NFA Changes · NFA Approval · NFA Report · SAP integration), Streams (Web Portal + SAP APIs), Kickoff, Go-Live, Duration, Hypercare, Prepared By, Version/Date. Same two-column layout as the reference.
 
-## Worklists & Detail
+**2. Phase Plan** — the PNG table expanded: Sl. No., Phase, Duration, Start, End, Key Activities, Deliverable, Owner. ENFA-specific activities:
+- Initiation: kickoff, stakeholder alignment, resource plan, environment access
+- Requirement Gathering: NFA types, approval matrix (6 levels), company/plant/project masters, report fields
+- Design: screen design, DB schema, SAP API contracts, RBAC & security design
+- Core Development: NFA Creation, NFA Changes, Approval workflow (Approve/Reject/Clarification), Attachments, Dashboard & NFA Status Report, SAP master-data + posting integration, mobile/PWA
+- Testing & UAT: unit, integration, SIT, UAT with business users, security & performance pass
+- Deployment & Training: production rollout, user/admin training, cutover
+- Go-Live & Hypercare: stabilization support
 
-- **My NFAs** grid columns: ENFA Number, Status, Plant, Plant Name, NFA Type, Creation Date, Approver1..6 + Status1..6. Toolbar: Edit, Upload File, Attached Docs, Preview. Filter/sort/export to Excel.
-- **Approvals inbox** columns: ENFA No, Plant, Plant Name, NFA Type, Date, Subject. Toolbar: Preview, Attached Docs, Approve, Reject, Back To Initiator, Clarification (with comment dialog), User Manual link.
-- **Preview**: read-only printable view of the NFA + approval trail timeline.
+**3. Weekly Plan** — W0–W7 rows with Week, Start (Mon), End (Fri), Phase, Stream, Focus, Key Deliverable — mirroring the reference sheet's columns.
 
-## E-NFA Report (matches screenshot 4 & 5)
+**4. Gantt** — Phase / Workstream / Activity rows with colour-filled week columns (W0…W7 + hypercare), ★ marking Go-Live, plus the same legend row as the reference.
 
-Filters: Plant from/to, ENFA Type, ENFA No, Function, Date Range, Approver IDs, status checkboxes (In Process / Completed / Rejected). Run → grid with all columns from screenshot 5 (ENFA Status, Designation1..6 / Approver1..6 / Status1..6). Export to Excel.
+**5. Server Specification** — sizing tables for deployment, presented **both on-premise VM and cloud IaaS side by side**:
+- Environments: Dev/QA, UAT, Production (+ optional DR)
+- Per-tier sizing: App/Web server, Database server, Reverse proxy / load balancer, File-storage for NFA attachments
+- Columns: Component, On-Prem VM (vCPU / RAM / OS disk / Data disk), Cloud equivalent (Azure & AWS instance types), Notes
+- Baseline assumption stated on the sheet: ~1,000 named users / ~100 concurrent (adjustable — tell me your actual numbers and I'll re-size)
+- Software stack: OS (Ubuntu LTS / RHEL), Node.js runtime, PostgreSQL, Nginx, SSL/TLS
+- Network & security: ports, SAP connectivity/whitelisting, VPN, firewall, SSO
+- Backup & DR: backup frequency, retention, RPO/RTO
+- Non-functional: HA, monitoring, log retention
 
-## Roles
+**6. Assumptions & Dependencies** — SAP API availability, master data readiness, UAT user availability, sign-off SLAs, holiday calendar.
 
-- **Initiator** — create/edit own NFAs while With Initiator/Clarification, submit, upload docs.
-- **Approver** — see assigned items in inbox, Approve/Reject/Back/Clarification.
-- **Admin** — assign roles to users.
-- **Viewer** — read-only Report.
-
-Roles stored in a separate `user_roles` table with a `has_role` security-definer function (best practice). Login via email/password + Google.
-
-## SAP Integration Strategy (UI-first, swap later)
-
-Create a single server module `src/lib/sap/` exposing a typed interface:
-
-```text
-listCompanies(), listProjects(q), listNfaTypes(), listFunctions(q),
-listApprovers(nfaId)
-listMyNfas(filters), listApproverInbox(userId), getNfa(id), createNfa(payload),
-updateNfa(id, payload), submitNfa(id), actOnNfa(id, action, comment),
-runReport(filters), uploadAttachment(id, file), listAttachments(id)
-```
-
-Two implementations behind the same interface:
-- `mock.ts` — used now. Seeds dropdowns and a few sample NFAs so every screen works end-to-end.
-- `sap.ts` — stub with TODOs for each SAP endpoint. When you share the SAP base URL, auth (OAuth/OData/Basic), and per-call paths, we plug them in here and flip an env flag `SAP_MODE=live`. No screen code changes.
-
-All SAP calls go through TanStack Start server functions (keeps SAP creds server-side, avoids CORS).
-
-## Attachments
-
-Stored in Lovable Cloud Storage (private bucket `nfa-attachments`) keyed by NFA id, until SAP DMS endpoints are provided. Upload, list, download, inline PDF/image preview.
-
-## Data Model (Lovable Cloud, used until SAP cuts over)
-
-- `nfa` — id, enfa_number, company, plant, plant_name, project, nfa_type, function, subject, scope_impact, budget_impact, timeline_days, detailed_description, status (`with_initiator|in_process|clarification|completed|rejected`), initiator_id, created_at, updated_at.
-- `nfa_approver` — nfa_id, level (1–6), approver_id, designation, status (`pending|approved|rejected|sent_back`), acted_at, comment.
-- `nfa_attachment` — nfa_id, path, filename, size, uploaded_by, uploaded_at.
-- `nfa_audit` — nfa_id, actor_id, action, comment, at.
-- `user_roles` — (user_id, role enum: initiator/approver/admin/viewer).
-
-All tables: explicit `GRANT` + RLS so users see only their own NFAs, approvers see only those assigned to them, admins/viewers as appropriate.
-
-## Design
-
-Clean enterprise look (matches the SAP-style screenshots): light blue-grey background, dense data tables, clear action toolbars, accessible focus states, responsive down to tablet. Not the generic purple-gradient AI aesthetic.
-
-## Out of Scope (v1)
-
-- Live SAP calls (stubs only — turned on when you share APIs/creds).
-- Mobile-native app.
-- Email/SMS notifications (can add once SMTP/SAP notifier is decided).
-
-## Next step from you (when ready)
-
-Share SAP API docs / sample endpoints / auth method for: master data dropdowns, NFA CRUD + submit, approver actions, report, and attachments. I'll wire `sap.ts` to them.
+## Technical notes
+- Generated with a Python/openpyxl script (Arial, colour-coded phase fills matching the reference's Discover/Build/Test/Deploy/Hypercare palette, frozen headers, column widths, date formatting as `DD-Mmm-YYYY`).
+- Every slide/sheet rendered and visually QA'd (converted to images and inspected) before delivery.
+- No app code changes — this is a document deliverable only.
