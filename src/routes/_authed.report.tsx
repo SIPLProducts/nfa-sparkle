@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Download, Play, BarChart3, RotateCcw, ChevronDown, ChevronRight, Code2 } from "lucide-react";
+import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/report")({
@@ -109,12 +109,9 @@ function Report() {
   const runReport = useServerFn(runSapEnfaReport);
   const [f, setF] = useState<SapReportFilters>(EMPTY);
   const [rows, setRows] = useState<SapReportRow[]>([]);
-  const [meta, setMeta] = useState<{ status: number | null; latencyMs: number; raw: string; payload: SapReportFilters } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [ran, setRan] = useState(false);
-  const [showPayload, setShowPayload] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
@@ -124,7 +121,8 @@ function Report() {
     setError(null);
     try {
       const res = await runReport({ data: f });
-      setMeta({ status: res.status, latencyMs: res.latencyMs, raw: res.raw, payload: res.payload });
+      console.log("[eNFA Report] request payload", res.payload);
+      console.log("[eNFA Report] response", { status: res.status, latencyMs: res.latencyMs, rows: res.rows, raw: res.raw });
       setRows(res.rows);
       setRan(true);
       if (!res.ok) {
@@ -172,7 +170,6 @@ function Report() {
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
   const visibleRows = rows.slice(0, visibleCount);
-  const preview = JSON.stringify(meta?.payload ?? f, null, 2);
 
   return (
     <div>
@@ -217,35 +214,7 @@ function Report() {
             </Button>
           </div>
         </div>
-
-        <div className="mt-3 border-t border-border pt-3">
-          <button type="button" onClick={() => setShowPayload((v) => !v)} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {showPayload ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Code2 className="h-3.5 w-3.5" /> Request payload
-          </button>
-          {showPayload && (
-            <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{preview}</pre>
-          )}
-        </div>
       </div>
-
-      {meta && (
-        <div className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span className={"inline-flex items-center rounded-full px-2 py-0.5 font-medium " + (error ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")}>
-              {error ? "Failed" : "Success"}
-            </span>
-            <span className="text-muted-foreground">Status: <span className="font-mono text-foreground">{meta.status ?? "—"}</span></span>
-            <span className="text-muted-foreground">Latency: <span className="font-mono text-foreground">{meta.latencyMs} ms</span></span>
-            <span className="text-muted-foreground">Records: <span className="font-mono text-foreground">{rows.length}</span></span>
-            <button type="button" onClick={() => setShowRaw((v) => !v)} className="ml-auto font-medium text-muted-foreground hover:text-foreground">
-              {showRaw ? "Hide" : "Show"} raw response
-            </button>
-          </div>
-          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-          {showRaw && <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{meta.raw || "(empty)"}</pre>}
-        </div>
-      )}
 
       <div className="mt-4 text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
 
@@ -253,7 +222,7 @@ function Report() {
       <div className="mt-2 space-y-2.5 md:hidden">
         {rows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
+            {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
           </div>
         )}
         {visibleRows.map((r, i) => (
@@ -314,7 +283,7 @@ function Report() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
+                    {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
                   </td>
                 </tr>
               )}
