@@ -10,7 +10,7 @@ import {
   BarChart3,
   History,
   PlusCircle,
-  Users,
+
   LogOut,
   LayoutDashboard,
   Building2,
