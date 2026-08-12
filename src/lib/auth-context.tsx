@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-type Role = "initiator" | "approver" | "admin" | "viewer";
+import type { Role, ScreenKey } from "@/lib/screens";
 
 interface AuthCtx {
   user: User | null;
@@ -10,6 +9,7 @@ interface AuthCtx {
   loading: boolean;
   roles: Role[];
   hasRole: (r: Role) => boolean;
+  canAccess: (s: ScreenKey) => boolean;
   signOut: () => Promise<void>;
 }
 
@@ -20,6 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [perms, setPerms] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    supabase
+      .from("role_permission")
+      .select("role, screen, allowed")
+      .then(({ data }) => {
+        const m: Record<string, boolean> = {};
+        for (const r of (data ?? []) as { role: string; screen: string; allowed: boolean }[]) {
+          m[`${r.role}:${r.screen}`] = r.allowed;
+        }
+        setPerms(m);
+      });
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -58,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     roles,
     hasRole: (r) => roles.includes(r),
+    canAccess: (s) => {
+      if (roles.length === 0) return false;
+      if (Object.keys(perms).length === 0) return roles.includes("admin");
+      return roles.some((r) => perms[`${r}:${s}`]);
+    },
     signOut: async () => {
       await supabase.auth.signOut();
     },
