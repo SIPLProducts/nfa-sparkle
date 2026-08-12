@@ -138,6 +138,7 @@ function EndpointDetail() {
             api_type: ep!.api_type,
             active: ep!.active,
             username: ep!.username,
+            system_id: ep!.system_id || null,
             request_headers: fromKV(headers),
             request_query: fromKV(query),
             request_body: ep!.request_body,
@@ -254,9 +255,28 @@ function EndpointDetail() {
               <Label htmlFor="d-path">Endpoint Path or URL</Label>
               <Input id="d-path" value={ep.path_or_url} onChange={(e) => set({ path_or_url: e.target.value })} />
               <p className="text-xs text-muted-foreground">
-                Use a relative path (starting with /) to inherit the SAP Base URL from SAP Connection. A full
-                https:// URL is also accepted.
+                Use a relative path (starting with /) to inherit the host from the selected SAP system — the SAP
+                client is appended automatically. A full http(s):// URL is also accepted.
               </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>SAP system</Label>
+              <Select
+                value={ep.system_id || "__active"}
+                onValueChange={(v) => set({ system_id: v === "__active" ? null : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__active">Use active system</SelectItem>
+                  {(systems ?? []).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label || s.key} ({s.environment})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
