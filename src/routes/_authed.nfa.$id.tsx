@@ -265,7 +265,7 @@ function NfaDetail() {
           <ReadField label="Created" value={new Date(nfa.created_at).toLocaleString()} />
           {nfa.detailed_description && (
             <div className="md:col-span-2"><Label className="text-xs text-slate-500">Detailed Description</Label>
-              <div className="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3">{nfa.detailed_description}</div>
+            <RichTextView html={nfa.detailed_description} className="mt-1 rounded border border-slate-200 bg-slate-50 p-3" />
             </div>
           )}
         </div>
