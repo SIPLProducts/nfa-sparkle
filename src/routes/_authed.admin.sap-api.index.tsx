@@ -465,6 +465,40 @@ function SetBadge({ set }: { set: boolean }) {
   );
 }
 
+function buildBaseUrl(s: { protocol: string; host: string; port: number; base_path: string }) {
+  if (!s.host) return "";
+  return `${s.protocol || "http"}://${s.host}${s.port ? `:${s.port}` : ""}${s.base_path || ""}`;
+}
+
+function parseBaseUrl(raw: string) {
+  const value = raw.trim();
+  const withProto = /^https?:\/\//i.test(value) ? value : `http://${value}`;
+  try {
+    const u = new URL(withProto);
+    return {
+      protocol: u.protocol.replace(":", "") || "http",
+      host: u.hostname,
+      port: u.port ? Number(u.port) : u.protocol === "https:" ? 443 : 80,
+      base_path: u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, ""),
+    };
+  } catch {
+    return { protocol: "http", host: value, port: 8000, base_path: "" };
+  }
+}
+
+const BLANK_SYSTEM = {
+  id: undefined as string | undefined,
+  key: "",
+  label: "",
+  environment: "DEV",
+  base_url: "",
+  sap_client: "300",
+  username: "",
+  route_via_middleware: true,
+  notes: "",
+  password: "",
+};
+
 function SystemsTab() {
   const qc = useQueryClient();
   const list = useServerFn(listSapSystems);
@@ -474,59 +508,65 @@ function SystemsTab() {
   const test = useServerFn(testSapSystem);
 
   const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list() });
-  const [editing, setEditing] = useState<SapSystem | null>(null);
-  const [open, setOpen] = useState(false);
+  const systems = data ?? [];
+
+  const [form, setForm] = useState(BLANK_SYSTEM);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const blank = {
-    id: undefined as string | undefined,
-    key: "",
-    label: "",
-    environment: "DEV",
-    protocol: "http",
-    host: "",
-    port: 8000,
-    sap_client: "300",
-    base_path: "",
-    username: "",
-    route_via_middleware: true,
-    notes: "",
-    password: "",
-  };
-  const [form, setForm] = useState(blank);
+  const [testing, setTesting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  function openNew() {
-    setEditing(null);
-    setForm(blank);
-    setOpen(true);
-  }
+  const current = systems.find((s) => s.id === selectedId) ?? null;
 
-  function openEdit(s: SapSystem) {
-    setEditing(s);
+  function load(s: SapSystem) {
+    setSelectedId(s.id);
     setForm({
       id: s.id,
       key: s.key,
       label: s.label,
       environment: s.environment,
-      protocol: s.protocol,
-      host: s.host,
-      port: s.port,
+      base_url: buildBaseUrl(s),
       sap_client: s.sap_client,
-      base_path: s.base_path,
       username: s.username,
       route_via_middleware: s.route_via_middleware,
       notes: s.notes ?? "",
       password: "",
     });
-    setOpen(true);
   }
 
+  useEffect(() => {
+    if (loaded || !data) return;
+    const active = data.find((s) => s.is_active) ?? data[0];
+    if (active) load(active);
+    setLoaded(true);
+  }, [data, loaded]);
+
   const saveMut = useMutation({
-    mutationFn: () => save({ data: form }),
-    onSuccess: () => {
-      toast.success(editing ? "System updated" : "System added");
-      setOpen(false);
-      qc.invalidateQueries({ queryKey: ["sap-systems"] });
+    mutationFn: () => {
+      const parsed = parseBaseUrl(form.base_url);
+      return save({
+        data: {
+          id: form.id,
+          key: form.key.trim() || `${form.environment}${form.sap_client || ""}`,
+          label: form.label.trim() || `SAP ${form.environment}`,
+          environment: form.environment,
+          protocol: parsed.protocol,
+          host: parsed.host,
+          port: parsed.port,
+          sap_client: form.sap_client,
+          base_path: parsed.base_path,
+          username: form.username,
+          route_via_middleware: form.route_via_middleware,
+          notes: form.notes,
+          password: form.password,
+        },
+      });
+    },
+    onSuccess: async () => {
+      toast.success(form.id ? "SAP connection saved" : "SAP system added");
+      setForm((f) => ({ ...f, password: "" }));
+      const fresh = await qc.invalidateQueries({ queryKey: ["sap-systems"] });
+      return fresh;
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -542,65 +582,188 @@ function SystemsTab() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: () => {
+    onSuccess: (_r, id) => {
       toast.success("System removed");
+      if (id === selectedId) {
+        setSelectedId(null);
+        setForm(BLANK_SYSTEM);
+        setLoaded(false);
+      }
       qc.invalidateQueries({ queryKey: ["sap-systems"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function runTest(s: SapSystem) {
-    setTestingId(s.id);
+  async function runTest(id: string, label: string) {
+    setTesting(true);
     try {
-      resultToast(await test({ data: { id: s.id } }), s.label || s.key);
+      resultToast(await test({ data: { id } }), label);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test failed");
     } finally {
-      setTestingId(null);
+      setTesting(false);
     }
   }
 
-  const systems = data ?? [];
-
   return (
-    <SectionCard
-      icon={Database}
-      title="SAP Systems"
-      description="Register every SAP system you integrate with (DEV / Quality / Production). One system is Active at a time — endpoints with a relative path use the Active system automatically, so moving to another SAP host is just an IP change here. No code changes, no redeploy."
-      action={
-        <Button className="gap-2 shrink-0" onClick={openNew}>
-          <Plus className="h-4 w-4" /> Add SAP system
-        </Button>
-      }
-    >
-      {isLoading ? (
-        <Skeleton className="h-48 w-full rounded-lg" />
-      ) : systems.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
-          <Database className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="font-medium">No SAP systems yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add your first system — e.g. host <span className="font-mono">10.200.1.2</span>, port{" "}
-            <span className="font-mono">8000</span>, client <span className="font-mono">300</span>.
-          </p>
-          <Button className="mt-4 gap-2" onClick={openNew}>
-            <Plus className="h-4 w-4" /> Add SAP system
+    <div className="space-y-5">
+      <SectionCard
+        icon={Database}
+        title="SAP Connection"
+        description="Base URL and technical-user credentials for the active SAP system. Endpoints that store a relative path (e.g. /sd_approval_mng/...) inherit this Base URL automatically — switching DEV → Quality is a one-field change."
+        action={
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            disabled={!form.id || testing}
+            onClick={() => form.id && runTest(form.id, form.label || form.key)}
+          >
+            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+            Test connection
           </Button>
-        </div>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {systems.map((s) => (
-            <div
-              key={s.id}
-              className={
-                "rounded-lg border bg-card p-4 shadow-sm transition " +
-                (s.is_active ? "border-primary/60 ring-1 ring-primary/20" : "border-border")
-              }
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+        }
+      >
+        {isLoading ? (
+          <Skeleton className="h-56 w-full rounded-lg" />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Environment</Label>
+                <Select value={form.environment} onValueChange={(v) => setForm({ ...form, environment: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SAP_ENVIRONMENTS.map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {e}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-url">SAP Base URL</Label>
+                <Input
+                  id="sys-url"
+                  placeholder="http://10.150.150.154:8103"
+                  value={form.base_url}
+                  onChange={(e) => setForm({ ...form, base_url: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-user">SAP Username</Label>
+                <Input
+                  id="sys-user"
+                  placeholder="sipl_qm"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-pass" className="flex items-center gap-2">
+                  SAP Password <SetBadge set={!!current?.has_password} />
+                </Label>
+                <Input
+                  id="sys-pass"
+                  type="password"
+                  placeholder={current?.has_password ? "•••••••• (leave blank to keep)" : "Enter password"}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 border-t border-border/70 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-key">System key</Label>
+                <Input
+                  id="sys-key"
+                  placeholder="DEV300"
+                  value={form.key}
+                  onChange={(e) => setForm({ ...form, key: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-label">Label</Label>
+                <Input
+                  id="sys-label"
+                  placeholder="SAP Development (client 300)"
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sys-client">SAP Client</Label>
+                <Input
+                  id="sys-client"
+                  placeholder="300"
+                  value={form.sap_client}
+                  onChange={(e) => setForm({ ...form, sap_client: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Routing</Label>
+                <Select
+                  value={form.route_via_middleware ? "proxy" : "direct"}
+                  onValueChange={(v) => setForm({ ...form, route_via_middleware: v === "proxy" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="proxy">Via local middleware</SelectItem>
+                    <SelectItem value="direct">Direct to SAP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+              {form.id && (
+                <Button
+                  variant="ghost"
+                  className="gap-2 mr-auto"
+                  onClick={() => {
+                    setSelectedId(null);
+                    setForm(BLANK_SYSTEM);
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Add another system
+                </Button>
+              )}
+              <Button
+                className="gap-2"
+                onClick={() => saveMut.mutate()}
+                disabled={saveMut.isPending || !form.base_url.trim()}
+              >
+                {saveMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save SAP connection
+              </Button>
+            </div>
+          </>
+        )}
+      </SectionCard>
+
+      {systems.length > 1 && (
+        <SectionCard
+          icon={Server}
+          title="Registered SAP systems"
+          description="One system is Active at a time — endpoints with a relative path use it automatically. Select a row to edit it above."
+        >
+          <div className="divide-y divide-border rounded-lg border border-border">
+            {systems.map((s) => (
+              <div
+                key={s.id}
+                className={
+                  "flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between " +
+                  (s.id === selectedId ? "bg-muted/50" : "")
+                }
+              >
+                <button type="button" className="min-w-0 text-left" onClick={() => load(s)}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-semibold tracking-tight">{s.label || s.key}</span>
+                    <span className="truncate font-medium">{s.label || s.key}</span>
                     <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
                       {s.environment}
                     </Badge>
@@ -610,216 +773,51 @@ function SystemsTab() {
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                    {s.protocol}://{s.host}
-                    {s.port ? `:${s.port}` : ""}
-                    {s.base_path}
+                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                    {buildBaseUrl(s)}
                     {s.sap_client ? `  ·  sap-client=${s.sap_client}` : ""}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Key <span className="font-mono">{s.key}</span> · user{" "}
-                    <span className="font-mono">{s.username || "—"}</span> <SetBadge set={s.has_password} /> ·{" "}
-                    {s.route_via_middleware ? "via middleware" : "direct"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
-                {!s.is_active && (
+                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!s.is_active && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => activateMut.mutate(s.id)}
+                      disabled={activateMut.isPending}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Make active
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => load(s)}>
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => activateMut.mutate(s.id)}
-                    disabled={activateMut.isPending}
+                    disabled={testing}
+                    onClick={() => runTest(s.id, s.label || s.key)}
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Make active
+                    <Activity className="h-3.5 w-3.5" /> Test
                   </Button>
-                )}
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openEdit(s)}>
-                  <Pencil className="h-3.5 w-3.5" /> Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={testingId === s.id}
-                  onClick={() => runTest(s)}
-                >
-                  {testingId === s.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Activity className="h-3.5 w-3.5" />
-                  )}
-                  Test
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Delete ${s.label || s.key}`}
-                  title="Delete system"
-                  className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setConfirmId(s.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${s.label || s.key}`}
+                    title="Delete system"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmId(s.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit SAP system" : "Add SAP system"}</DialogTitle>
-            <DialogDescription>
-              The app builds the base URL from these fields and always appends the SAP client.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-key">System key</Label>
-              <Input
-                id="sys-key"
-                placeholder="DEV300"
-                value={form.key}
-                onChange={(e) => setForm({ ...form, key: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">Must match the key in the middleware systems.json.</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-label">Label</Label>
-              <Input
-                id="sys-label"
-                placeholder="SAP Development (client 300)"
-                value={form.label}
-                onChange={(e) => setForm({ ...form, label: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Environment</Label>
-              <Select value={form.environment} onValueChange={(v) => setForm({ ...form, environment: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SAP_ENVIRONMENTS.map((e) => (
-                    <SelectItem key={e} value={e}>
-                      {e}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Protocol</Label>
-              <Select value={form.protocol} onValueChange={(v) => setForm({ ...form, protocol: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="http">http</SelectItem>
-                  <SelectItem value="https">https</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-host">SAP Host / IP</Label>
-              <Input
-                id="sys-host"
-                placeholder="10.200.1.2"
-                value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-port">Port</Label>
-              <Input
-                id="sys-port"
-                inputMode="numeric"
-                value={form.port}
-                onChange={(e) => setForm({ ...form, port: Number(e.target.value.replace(/\D/g, "")) || 0 })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-client">SAP Client</Label>
-              <Input
-                id="sys-client"
-                placeholder="300"
-                value={form.sap_client}
-                onChange={(e) => setForm({ ...form, sap_client: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-basepath">Base path (optional)</Label>
-              <Input
-                id="sys-basepath"
-                placeholder="/sap/bc"
-                value={form.base_path}
-                onChange={(e) => setForm({ ...form, base_path: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-user">SAP Username</Label>
-              <Input
-                id="sys-user"
-                placeholder="sipl_qm"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sys-pass" className="flex items-center gap-2">
-                SAP Password <SetBadge set={!!editing?.has_password} />
-              </Label>
-              <Input
-                id="sys-pass"
-                type="password"
-                placeholder={editing?.has_password ? "•••••••• (leave blank to keep)" : "Enter password"}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Routing</Label>
-              <Select
-                value={form.route_via_middleware ? "proxy" : "direct"}
-                onValueChange={(v) => setForm({ ...form, route_via_middleware: v === "proxy" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="proxy">Route via local middleware (ngrok)</SelectItem>
-                  <SelectItem value="direct">Call SAP directly from the cloud</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="sys-notes">Notes</Label>
-              <Textarea
-                id="sys-notes"
-                rows={2}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </div>
+            ))}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="gap-2"
-              onClick={() => saveMut.mutate()}
-              disabled={saveMut.isPending || !form.key.trim() || !form.host.trim()}
-            >
-              {saveMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {editing ? "Save system" : "Add system"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SectionCard>
+      )}
 
       <AlertDialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
         <AlertDialogContent>
@@ -842,9 +840,10 @@ function SystemsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SectionCard>
+    </div>
   );
 }
+
 
 /* ---------------------------- Middleware tab ---------------------------- */
 
