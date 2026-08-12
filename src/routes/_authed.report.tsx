@@ -1,9 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { type ApproverRow, type NfaRow, STATUS_LABEL, STATUS_TONE, APPROVER_TONE } from "@/lib/nfa-types";
-import { NFA_TYPES, PLANTS, FUNCTIONS, nfaTypeName } from "@/lib/sap/master";
-import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
+import { useServerFn } from "@tanstack/react-start";
+import { runSapEnfaReport, type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
+import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,66 +10,157 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
+import { Download, Play, BarChart3, RotateCcw, ChevronDown, ChevronRight, Code2 } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/report")({
+  head: () => ({
+    meta: [
+      { title: "E-NFA Report | SAP live report" },
+      { name: "description", content: "Filter and export live SAP eNFA approval data across plants, types, functions and approvers." },
+      { property: "og:title", content: "E-NFA Report | SAP live report" },
+      { property: "og:description", content: "Filter and export live SAP eNFA approval data across plants, types, functions and approvers." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Report,
 });
 
+const EMPTY: SapReportFilters = {
+  plant_from: "", plant_to: "", funct_from: "", funct_to: "", nfano_from: "", nfano_to: "",
+  extra_from: "", extra_to: "", dat_from: "", dat_to: "", usrid_from: "", usrid_to: "",
+  r_proc: "", r_comp: "", r_reje: "",
+};
+
+const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
+const BASE_COLS: { key: keyof SapReportRow; label: string }[] = [
+  { key: "REFFLD", label: "ENFA Number" },
+  { key: "PSPNR", label: "Plant" },
+  { key: "NAME1", label: "Plant Name" },
+  { key: "FUNCT_TXT", label: "NFA Type" },
+  { key: "EXTR_TXT", label: "Function" },
+  { key: "SUBJECT", label: "Subject" },
+  { key: "INIT_NAME", label: "Initiator" },
+  { key: "BEGDA", label: "Creation Date" },
+];
+
+function statusTone(s: string) {
+  const v = (s || "").toLowerCase();
+  if (v.includes("appro")) return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+  if (v.includes("reje")) return "bg-destructive/10 text-destructive";
+  if (v.includes("clari")) return "bg-amber-500/10 text-amber-600 dark:text-amber-400";
+  if (v.includes("proc") || v.includes("pend")) return "bg-accent/10 text-accent";
+  return "bg-muted text-muted-foreground";
+}
+
+function RangeSelect({
+  label, options, from, to, onFrom, onTo,
+}: {
+  label: string;
+  options: { code: string; name: string }[];
+  from: string; to: string;
+  onFrom: (v: string) => void; onTo: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Select value={from} onValueChange={(v) => onFrom(v === "_all" ? "" : v)}>
+          <SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="From" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Any</SelectItem>
+            {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">to</span>
+        <Select value={to} onValueChange={(v) => onTo(v === "_all" ? "" : v)}>
+          <SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="To" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Any</SelectItem>
+            {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+function RangeInput({
+  label, type = "text", from, to, onFrom, onTo, placeholder,
+}: {
+  label: string; type?: string; from: string; to: string;
+  onFrom: (v: string) => void; onTo: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input className="min-w-0 flex-1" type={type} value={from} placeholder={placeholder ? `${placeholder} from` : "From"} onChange={(e) => onFrom(e.target.value)} />
+        <span className="text-xs text-muted-foreground">to</span>
+        <Input className="min-w-0 flex-1" type={type} value={to} placeholder={placeholder ? `${placeholder} to` : "To"} onChange={(e) => onTo(e.target.value)} />
+      </div>
+    </div>
+  );
+}
+
 function Report() {
-  const [plant, setPlant] = useState<string>("");
-  const [type, setType] = useState<string>("");
-  const [func, setFunc] = useState<string>("");
-  const [enfa, setEnfa] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [inProcess, setInProc] = useState(true);
-  const [completed, setCompleted] = useState(true);
-  const [rejected, setRejected] = useState(true);
-  const [rows, setRows] = useState<NfaRow[]>([]);
-  const [approvers, setApprovers] = useState<Record<string, ApproverRow[]>>({});
-  const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
+  const runReport = useServerFn(runSapEnfaReport);
+  const [f, setF] = useState<SapReportFilters>(EMPTY);
+  const [rows, setRows] = useState<SapReportRow[]>([]);
+  const [meta, setMeta] = useState<{ status: number | null; latencyMs: number; raw: string; payload: SapReportFilters } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ran, setRan] = useState(false);
+  const [showPayload, setShowPayload] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
+
+  const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+  const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
 
   async function run() {
     setBusy(true);
-    let q = supabase.from("nfa").select("*").order("created_at", { ascending: false }).limit(500);
-    if (plant) q = q.eq("plant", plant);
-    if (type) q = q.eq("nfa_type", type);
-    if (func) q = q.eq("function", func);
-    if (enfa) q = q.ilike("enfa_number", `%${enfa}%`);
-    if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", new Date(new Date(to).getTime() + 86400000).toISOString());
-    const statuses: NfaRow["status"][] = [];
-    if (inProcess) statuses.push("in_process", "with_initiator", "clarification");
-    if (completed) statuses.push("completed");
-    if (rejected) statuses.push("rejected");
-    if (statuses.length) q = q.in("status", statuses);
-    const { data, error } = await q;
-    if (error) { toast.error(error.message); setBusy(false); return; }
-    const list = (data as NfaRow[]) ?? [];
-    setRows(list);
-    if (list.length) {
-      const ids = list.map((n) => n.id);
-      const { data: aps } = await supabase.from("nfa_approver").select("*").in("nfa_id", ids).order("level");
-      const m: Record<string, ApproverRow[]> = {};
-      for (const r of (aps as ApproverRow[]) ?? []) (m[r.nfa_id] ||= []).push(r);
-      setApprovers(m);
-      setProfiles(await fetchProfilesMap([
-        ...list.map((n) => n.initiator_id),
-        ...(((aps as ApproverRow[]) ?? []).map((a) => a.approver_id)),
-      ]));
-    } else { setApprovers({}); }
-    setBusy(false);
+    setError(null);
+    try {
+      const res = await runReport({ data: f });
+      setMeta({ status: res.status, latencyMs: res.latencyMs, raw: res.raw, payload: res.payload });
+      setRows(res.rows);
+      setRan(true);
+      if (!res.ok) {
+        const msg = res.error || `SAP responded with status ${res.status ?? "—"}`;
+        setError(msg);
+        toast.error(msg);
+      } else if (res.rows.length === 0) {
+        toast.info("SAP returned no records for these filters");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Report failed";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function exportCsv() {
     if (!rows.length) return;
-    const cols = ["ENFA Number","Status","Plant","Plant Name","NFA Type","Function","Subject","Initiator","Creation Date","Budget (Lakhs)","Timeline (Days)"];
+    const cols = [
+      ...BASE_COLS.map((c) => c.label),
+      ...LEVELS.flatMap((l) => [`Designation${l}`, `Approver${l}`, `Status${l}`]),
+      "ENFA Status",
+    ];
     const lines = [cols.join(",")];
     for (const r of rows) {
-      const vals = [r.enfa_number, STATUS_LABEL[r.status], r.plant ?? "", r.plant_name ?? "", nfaTypeName(r.nfa_type), r.function ?? "", r.subject, nameFor(profiles, r.initiator_id), new Date(r.created_at).toLocaleDateString(), r.budget_impact ?? "", r.timeline_days ?? ""];
+      const vals = [
+        ...BASE_COLS.map((c) => r[c.key] ?? ""),
+        ...LEVELS.flatMap((l) => [
+          r[`ROLE${l}` as keyof SapReportRow] ?? "",
+          r[`APPR${l}` as keyof SapReportRow] ?? "",
+          r[`STAT${l}` as keyof SapReportRow] ?? "",
+        ]),
+        r.STATUS_TXT ?? "",
+      ];
       lines.push(vals.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
     }
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
@@ -82,13 +172,14 @@ function Report() {
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
   const visibleRows = rows.slice(0, visibleCount);
+  const preview = JSON.stringify(meta?.payload ?? f, null, 2);
 
   return (
     <div>
       <PageHeader
         eyebrow="Insights"
         title="E-NFA Report"
-        subtitle="Filter, analyse and export Notes For Approval across the organisation."
+        subtitle="Live SAP report — filters are sent to SAP as the request payload."
         actions={
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
             <Download className="h-4 w-4" /> Export CSV
@@ -101,75 +192,104 @@ function Report() {
           <BarChart3 className="h-4 w-4 text-accent" />
           <h2 className="text-sm font-semibold tracking-wide text-foreground">Filters</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-1.5"><Label className="text-xs">Plant</Label>
-            <Select value={plant} onValueChange={(v) => setPlant(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All plants" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All plants</SelectItem>{PLANTS.map((p) => <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5"><Label className="text-xs">ENFA Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All types" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All types</SelectItem>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5"><Label className="text-xs">Function</Label>
-            <Select value={func} onValueChange={(v) => setFunc(v === "_all" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="All functions" /></SelectTrigger>
-              <SelectContent><SelectItem value="_all">All functions</SelectItem>{FUNCTIONS.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5"><Label className="text-xs">ENFA Number (contains)</Label><Input value={enfa} onChange={(e) => setEnfa(e.target.value)} placeholder="e.g. ENFA-00001" /></div>
-          <div className="space-y-1.5"><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <RangeSelect label="Plant" options={PLANTS} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
+          <RangeSelect label="ENFA Type" options={NFA_TYPES} from={f.funct_from} to={f.funct_to} onFrom={set("funct_from")} onTo={set("funct_to")} />
+          <RangeSelect label="Function" options={FUNCTIONS} from={f.extra_from} to={f.extra_to} onFrom={set("extra_from")} onTo={set("extra_to")} />
+          <RangeInput label="ENFA No" from={f.nfano_from} to={f.nfano_to} onFrom={set("nfano_from")} onTo={set("nfano_to")} placeholder="Number" />
+          <RangeInput label="Date range" type="date" from={f.dat_from} to={f.dat_to} onFrom={set("dat_from")} onTo={set("dat_to")} />
+          <RangeInput label="Approver IDs" from={f.usrid_from} to={f.usrid_to} onFrom={set("usrid_from")} onTo={set("usrid_to")} placeholder="User ID" />
         </div>
+
         <div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={inProcess} onCheckedChange={(v) => setInProc(!!v)} /> In Process</label>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={completed} onCheckedChange={(v) => setCompleted(!!v)} /> Completed</label>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={rejected} onCheckedChange={(v) => setRejected(!!v)} /> Rejected</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_proc === "X"} onCheckedChange={(v) => flag("r_proc")(!!v)} /> In Process</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_comp === "X"} onCheckedChange={(v) => flag("r_comp")(!!v)} /> Completed</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_reje === "X"} onCheckedChange={(v) => flag("r_reje")(!!v)} /> Rejected</label>
           </div>
           <div className="flex gap-2 sm:ml-auto">
-            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setPlant(""); setType(""); setFunc(""); setEnfa(""); setFrom(""); setTo(""); }}>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => setF(EMPTY)}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
-            <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none"><Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}</Button>
+            <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
+              <Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}
+            </Button>
           </div>
+        </div>
+
+        <div className="mt-3 border-t border-border pt-3">
+          <button type="button" onClick={() => setShowPayload((v) => !v)} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+            {showPayload ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            <Code2 className="h-3.5 w-3.5" /> Request payload
+          </button>
+          {showPayload && (
+            <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{preview}</pre>
+          )}
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
-      </div>
+      {meta && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <span className={"inline-flex items-center rounded-full px-2 py-0.5 font-medium " + (error ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")}>
+              {error ? "Failed" : "Success"}
+            </span>
+            <span className="text-muted-foreground">Status: <span className="font-mono text-foreground">{meta.status ?? "—"}</span></span>
+            <span className="text-muted-foreground">Latency: <span className="font-mono text-foreground">{meta.latencyMs} ms</span></span>
+            <span className="text-muted-foreground">Records: <span className="font-mono text-foreground">{rows.length}</span></span>
+            <button type="button" onClick={() => setShowRaw((v) => !v)} className="ml-auto font-medium text-muted-foreground hover:text-foreground">
+              {showRaw ? "Hide" : "Show"} raw response
+            </button>
+          </div>
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {showRaw && <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{meta.raw || "(empty)"}</pre>}
+        </div>
+      )}
+
+      <div className="mt-4 text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
 
       {/* Mobile card list */}
       <div className="mt-2 space-y-2.5 md:hidden">
         {rows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            Run the report to see results.
+            {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
           </div>
         )}
-        {visibleRows.map((r) => (
-          <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
-              <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span>
+        {visibleRows.map((r, i) => (
+          <details key={`${r.REFFLD}-${i}`} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+            <summary className="cursor-pointer list-none">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] font-semibold text-accent">{r.REFFLD || "—"}</span>
+                <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(r.STATUS_TXT)}>{r.STATUS_TXT || "—"}</span>
+              </div>
+              <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.SUBJECT}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {r.FUNCT_TXT || "—"} · {r.PSPNR} {r.NAME1 ? `· ${r.NAME1}` : ""} · {r.INIT_NAME || "—"} · {r.BEGDA || "—"}
+              </div>
+            </summary>
+            <div className="mt-2 space-y-1 border-t border-border pt-2">
+              <div className="text-[11px] text-muted-foreground">Function: {r.EXTR_TXT || "—"}</div>
+              {LEVELS.map((l) => {
+                const role = r[`ROLE${l}` as keyof SapReportRow] as string;
+                const appr = r[`APPR${l}` as keyof SapReportRow] as string;
+                const stat = r[`STAT${l}` as keyof SapReportRow] as string;
+                if (!role && !appr && !stat) return null;
+                return (
+                  <div key={l} className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="text-muted-foreground">L{l} · {role || "—"}</span>
+                    <span className="truncate">{appr || "—"}</span>
+                    <span className={"shrink-0 rounded-full px-1.5 py-px text-[10px] " + statusTone(stat)}>{stat || "—"}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.subject}</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">
-              {nfaTypeName(r.nfa_type)} · {r.plant ?? "—"} · {nameFor(profiles, r.initiator_id)} · {new Date(r.created_at).toLocaleDateString()}
-            </div>
-          </Link>
+          </details>
         ))}
         {hasMore && (
           <div ref={setSentinel} className="py-3 text-center text-[11px] text-muted-foreground">
             Loading more… <span className="text-foreground/60">({visibleCount} of {rows.length})</span>
           </div>
-        )}
-        {rows.length > 10 && !hasMore && (
-          <div className="py-3 text-center text-[11px] text-muted-foreground">All {rows.length} loaded</div>
         )}
       </div>
 
@@ -179,47 +299,60 @@ function Report() {
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-3 py-2.5 font-medium">ENFA Number</th>
-                <th className="px-3 py-2.5 font-medium">Status</th>
-                <th className="px-3 py-2.5 font-medium">Plant</th>
-                <th className="px-3 py-2.5 font-medium">Type</th>
-                <th className="px-3 py-2.5 font-medium">Subject</th>
-                <th className="px-3 py-2.5 font-medium">Initiator</th>
-                <th className="px-3 py-2.5 font-medium">Date</th>
-                {[1,2,3,4,5,6].map((l) => <th key={`s${l}`} className="px-3 py-2.5 font-medium">L{l}</th>)}
+                {BASE_COLS.map((c, idx) => (
+                  <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-10 bg-muted/50" : "")}>{c.label}</th>
+                ))}
+                {LEVELS.flatMap((l) => [
+                  <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Designation{l}</th>,
+                  <th key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Approver{l}</th>,
+                  <th key={`s${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Status{l}</th>,
+                ])}
+                <th className="whitespace-nowrap px-3 py-2.5 font-medium">ENFA Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows.length === 0 && <tr><td colSpan={13} className="px-4 py-12 text-center text-sm text-muted-foreground">Run the report to see results.</td></tr>}
-              {rows.map((r) => {
-                const chain = approvers[r.id] ?? [];
-                return (
-                  <tr key={r.id} className="hover:bg-muted/40">
-                    <td className="px-3 py-2.5 font-mono text-xs font-medium text-accent">
-                      <Link to="/nfa/$id" params={{ id: r.id }} className="hover:underline">{r.enfa_number}</Link>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
+                  </td>
+                </tr>
+              )}
+              {rows.map((r, i) => (
+                <tr key={`${r.REFFLD}-${i}`} className="hover:bg-muted/40">
+                  {BASE_COLS.map((c, idx) => (
+                    <td
+                      key={c.key}
+                      className={
+                        "px-3 py-2.5 " +
+                        (idx === 0
+                          ? "sticky left-0 z-10 bg-card font-mono text-xs font-medium text-accent"
+                          : c.key === "SUBJECT"
+                            ? "max-w-[240px] truncate"
+                            : "whitespace-nowrap")
+                      }
+                      title={c.key === "SUBJECT" ? r.SUBJECT : undefined}
+                    >
+                      {r[c.key] || "—"}
                     </td>
-                    <td className="px-3 py-2.5"><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span></td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{r.plant ? `${r.plant} · ${r.plant_name ?? ""}` : "—"}</td>
-                    <td className="px-3 py-2.5">{nfaTypeName(r.nfa_type)}</td>
-                    <td className="max-w-[260px] truncate px-3 py-2.5">{r.subject}</td>
-                    <td className="px-3 py-2.5">{nameFor(profiles, r.initiator_id)}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
-                    {[1,2,3,4,5,6].map((l) => {
-                      const a = chain.find((c) => c.level === l);
-                      return (
-                        <td key={`s${l}`} className="px-3 py-2.5">
-                          {a ? (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="truncate text-xs">{nameFor(profiles, a.approver_id)}</span>
-                              <span className={"inline-flex w-fit items-center rounded-full px-1.5 py-px text-[10px] font-medium " + APPROVER_TONE[a.status]}>{a.status}</span>
-                            </div>
-                          ) : <span className="text-muted-foreground/40">—</span>}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+                  ))}
+                  {LEVELS.flatMap((l) => {
+                    const role = r[`ROLE${l}` as keyof SapReportRow] as string;
+                    const appr = r[`APPR${l}` as keyof SapReportRow] as string;
+                    const stat = r[`STAT${l}` as keyof SapReportRow] as string;
+                    return [
+                      <td key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs text-muted-foreground">{role || "—"}</td>,
+                      <td key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs">{appr || "—"}</td>,
+                      <td key={`s${l}`} className="px-3 py-2.5">
+                        {stat ? <span className={"inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium " + statusTone(stat)}>{stat}</span> : <span className="text-muted-foreground/40">—</span>}
+                      </td>,
+                    ];
+                  })}
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(r.STATUS_TXT)}>{r.STATUS_TXT || "—"}</span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
