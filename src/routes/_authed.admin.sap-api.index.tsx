@@ -65,7 +65,7 @@ import {
   type TestResult,
 } from "@/lib/sap-api.functions";
 
-export const Route = createFileRoute("/_authed/admin/sap-api")({
+export const Route = createFileRoute("/_authed/admin/sap-api/")({
   head: () => ({
     meta: [
       { title: "SAP API Settings — NFA Portal" },

@@ -17,6 +17,7 @@ import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
+import { Route as AuthedAdminSapApiIndexRouteImport } from './routes/_authed.admin.sap-api.index'
 import { Route as AuthedNfaIdChangeRouteImport } from './routes/_authed.nfa.$id.change'
 
 const AuthRoute = AuthRouteImport.update({
@@ -58,6 +59,11 @@ const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
   path: '/nfa/$id',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedAdminSapApiIndexRoute = AuthedAdminSapApiIndexRouteImport.update({
+  id: '/admin/sap-api/',
+  path: '/admin/sap-api/',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedNfaIdChangeRoute = AuthedNfaIdChangeRouteImport.update({
   id: '/change',
   path: '/change',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
+  '/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
+  '/admin/sap-api': typeof AuthedAdminSapApiIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
+  '/_authed/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/nfa/my'
     | '/nfa/new'
     | '/nfa/$id/change'
+    | '/admin/sap-api/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/nfa/my'
     | '/nfa/new'
     | '/nfa/$id/change'
+    | '/admin/sap-api'
   id:
     | '__root__'
     | '/'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
     | '/_authed/nfa/$id/change'
+    | '/_authed/admin/sap-api/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -194,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedNfaIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/admin/sap-api/': {
+      id: '/_authed/admin/sap-api/'
+      path: '/admin/sap-api'
+      fullPath: '/admin/sap-api/'
+      preLoaderRoute: typeof AuthedAdminSapApiIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/nfa/$id/change': {
       id: '/_authed/nfa/$id/change'
       path: '/change'
@@ -222,6 +241,7 @@ interface AuthedRouteChildren {
   AuthedNfaIdRoute: typeof AuthedNfaIdRouteWithChildren
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
+  AuthedAdminSapApiIndexRoute: typeof AuthedAdminSapApiIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -230,6 +250,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedNfaIdRoute: AuthedNfaIdRouteWithChildren,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
+  AuthedAdminSapApiIndexRoute: AuthedAdminSapApiIndexRoute,
 }
 
 const AuthedRouteWithChildren =
@@ -243,13 +264,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
