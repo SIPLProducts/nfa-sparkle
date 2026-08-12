@@ -246,15 +246,15 @@ function NewNfaPage() {
               </Field>
 
               <Field label="Detailed Description" className="md:col-span-2">
-                <Textarea
+                <RichTextEditor
                   value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
+                  onChange={setDesc}
+                  minHeight="240px"
                   placeholder="Provide a complete rationale, background, alternatives considered, and recommendation. Free-form — supports long, multi-paragraph notes (2000+ words)."
-                  className="min-h-[240px] resize-y font-normal leading-relaxed"
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
                   <span>
-                    {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                    {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
                   </span>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -264,15 +264,9 @@ function NewNfaPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
                       <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
-                      <Textarea
-                        rows={22}
-                        value={desc}
-                        onChange={(e) => setDesc(e.target.value)}
-                        className="min-h-[420px] resize-y leading-relaxed"
-                        placeholder="Write freely — no length limit."
-                      />
+                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" placeholder="Write freely — no length limit." />
                       <div className="text-[11px] text-muted-foreground">
-                        {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                        {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
                       </div>
                       <DialogFooter><Button>Done</Button></DialogFooter>
                     </DialogContent>
