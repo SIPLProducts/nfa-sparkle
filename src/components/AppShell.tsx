@@ -47,7 +47,7 @@ export function AppShell({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  const { user, hasRole, canAccess, signOut } = useAuth();
+  const { user, canAccess, signOut } = useAuth();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
