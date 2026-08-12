@@ -413,6 +413,24 @@ export type Database = {
         }
         Relationships: []
       }
+      sap_secret: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       sap_test_log: {
         Row: {
           actor_id: string | null
