@@ -135,7 +135,12 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
         <Tool label="Undo" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><Undo2 className="h-4 w-4" /></Tool>
         <Tool label="Redo" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><Redo2 className="h-4 w-4" /></Tool>
       </div>
-      <EditorContent editor={editor} className="max-h-[60vh] overflow-y-auto text-sm" />
+      <div className="relative">
+        {placeholder && editor.isEmpty && (
+          <p className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground">{placeholder}</p>
+        )}
+        <EditorContent editor={editor} className="max-h-[60vh] overflow-y-auto text-sm" />
+      </div>
     </div>
   );
 }
