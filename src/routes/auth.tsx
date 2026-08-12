@@ -29,9 +29,22 @@ function AuthPage() {
 
   async function signIn() {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
-    setBusy(false);
-    if (error) toast.error(error.message);
+    try {
+      const login = email.trim();
+      let loginEmail = login;
+      if (login && !login.includes("@")) {
+        const { data } = await supabase.rpc("resolve_login_email", { _login: login });
+        loginEmail = (data as string | null) ?? "";
+      }
+      if (!loginEmail) {
+        toast.error("Invalid login credentials");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: pwd });
+      if (error) toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function signInDemo() {
