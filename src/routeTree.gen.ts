@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiEnfaReportRouteImport } from './routes/api/enfa-report'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
@@ -34,6 +35,11 @@ const AuthedRoute = AuthedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEnfaReportRoute = ApiEnfaReportRouteImport.update({
+  id: '/api/enfa-report',
+  path: '/api/enfa-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedReportRoute = AuthedReportRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
+  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRoute
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/api/enfa-report'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/api/enfa-report'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authed/approvals'
     | '/_authed/report'
+    | '/api/enfa-report'
     | '/_authed/admin/users'
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiEnfaReportRoute: typeof ApiEnfaReportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/enfa-report': {
+      id: '/api/enfa-report'
+      path: '/api/enfa-report'
+      fullPath: '/api/enfa-report'
+      preLoaderRoute: typeof ApiEnfaReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/report': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiEnfaReportRoute: ApiEnfaReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
