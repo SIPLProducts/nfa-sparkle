@@ -662,6 +662,7 @@ export type Database = {
           id: string
         }[]
       }
+      has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       nfa_act: {
         Args: { _action: string; _comment?: string; _nfa_id: string }
         Returns: undefined
