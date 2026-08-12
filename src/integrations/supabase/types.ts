@@ -275,6 +275,188 @@ export type Database = {
         }
         Relationships: []
       }
+      sap_connection: {
+        Row: {
+          base_url: string
+          created_at: string
+          environment: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          base_url?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      sap_endpoint: {
+        Row: {
+          active: boolean
+          api_type: string
+          auth_type: string
+          created_at: string
+          description: string | null
+          http_method: string
+          id: string
+          last_synced_at: string | null
+          last_test_at: string | null
+          last_test_body: string | null
+          last_test_error: string | null
+          last_test_ms: number | null
+          last_test_ok: boolean | null
+          last_test_status: number | null
+          module: string
+          name: string
+          path_or_url: string
+          request_body: string | null
+          request_headers: Json
+          request_query: Json
+          schedule_cron: string | null
+          schedule_enabled: boolean
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          active?: boolean
+          api_type?: string
+          auth_type?: string
+          created_at?: string
+          description?: string | null
+          http_method?: string
+          id?: string
+          last_synced_at?: string | null
+          last_test_at?: string | null
+          last_test_body?: string | null
+          last_test_error?: string | null
+          last_test_ms?: number | null
+          last_test_ok?: boolean | null
+          last_test_status?: number | null
+          module?: string
+          name: string
+          path_or_url?: string
+          request_body?: string | null
+          request_headers?: Json
+          request_query?: Json
+          schedule_cron?: string | null
+          schedule_enabled?: boolean
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          active?: boolean
+          api_type?: string
+          auth_type?: string
+          created_at?: string
+          description?: string | null
+          http_method?: string
+          id?: string
+          last_synced_at?: string | null
+          last_test_at?: string | null
+          last_test_body?: string | null
+          last_test_error?: string | null
+          last_test_ms?: number | null
+          last_test_ok?: boolean | null
+          last_test_status?: number | null
+          module?: string
+          name?: string
+          path_or_url?: string
+          request_body?: string | null
+          request_headers?: Json
+          request_query?: Json
+          schedule_cron?: string | null
+          schedule_enabled?: boolean
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      sap_middleware_config: {
+        Row: {
+          connection_mode: string
+          created_at: string
+          deployment_mode: string
+          id: string
+          port: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          connection_mode?: string
+          created_at?: string
+          deployment_mode?: string
+          id?: string
+          port?: number
+          updated_at?: string
+          url?: string
+        }
+        Update: {
+          connection_mode?: string
+          created_at?: string
+          deployment_mode?: string
+          id?: string
+          port?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      sap_test_log: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          endpoint_id: string | null
+          id: string
+          latency_ms: number | null
+          message: string | null
+          ok: boolean
+          status: number | null
+          target: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          ok?: boolean
+          status?: number | null
+          target: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          ok?: boolean
+          status?: number | null
+          target?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sap_test_log_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "sap_endpoint"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
