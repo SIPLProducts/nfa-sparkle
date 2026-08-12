@@ -170,7 +170,6 @@ function Report() {
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
   const visibleRows = rows.slice(0, visibleCount);
-  const preview = JSON.stringify(meta?.payload ?? f, null, 2);
 
   return (
     <div>
@@ -215,35 +214,7 @@ function Report() {
             </Button>
           </div>
         </div>
-
-        <div className="mt-3 border-t border-border pt-3">
-          <button type="button" onClick={() => setShowPayload((v) => !v)} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {showPayload ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Code2 className="h-3.5 w-3.5" /> Request payload
-          </button>
-          {showPayload && (
-            <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{preview}</pre>
-          )}
-        </div>
       </div>
-
-      {meta && (
-        <div className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span className={"inline-flex items-center rounded-full px-2 py-0.5 font-medium " + (error ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")}>
-              {error ? "Failed" : "Success"}
-            </span>
-            <span className="text-muted-foreground">Status: <span className="font-mono text-foreground">{meta.status ?? "—"}</span></span>
-            <span className="text-muted-foreground">Latency: <span className="font-mono text-foreground">{meta.latencyMs} ms</span></span>
-            <span className="text-muted-foreground">Records: <span className="font-mono text-foreground">{rows.length}</span></span>
-            <button type="button" onClick={() => setShowRaw((v) => !v)} className="ml-auto font-medium text-muted-foreground hover:text-foreground">
-              {showRaw ? "Hide" : "Show"} raw response
-            </button>
-          </div>
-          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-          {showRaw && <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted/60 p-3 text-[11px] leading-relaxed">{meta.raw || "(empty)"}</pre>}
-        </div>
-      )}
 
       <div className="mt-4 text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
 
