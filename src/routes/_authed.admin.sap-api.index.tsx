@@ -152,16 +152,19 @@ function EndpointsTab() {
     module: "Common",
     auth_type: "basic",
     path_or_url: "",
+    system_id: "",
   });
 
   const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list() });
+  const listSystems = useServerFn(listSapSystems);
+  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems() });
 
   const createMut = useMutation({
-    mutationFn: () => create({ data: form }),
+    mutationFn: () => create({ data: { ...form, system_id: form.system_id || null } }),
     onSuccess: () => {
       toast.success("Endpoint registered");
       setOpen(false);
-      setForm({ name: "", description: "", module: "Common", auth_type: "basic", path_or_url: "" });
+      setForm({ name: "", description: "", module: "Common", auth_type: "basic", path_or_url: "", system_id: "" });
       qc.invalidateQueries({ queryKey: ["sap-endpoints"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -352,17 +355,36 @@ function EndpointsTab() {
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label>SAP system</Label>
+              <Select
+                value={form.system_id || "__active"}
+                onValueChange={(v) => setForm({ ...form, system_id: v === "__active" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__active">Use active system</SelectItem>
+                  {(systems ?? []).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label || s.key} ({s.environment})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="ep-path">Endpoint Path or URL</Label>
               <Input
                 id="ep-path"
-                placeholder="/sd_approval_mng/zvk11_app/vk11_app?sap-client=300"
+                placeholder="/e-nfa/enfa_report//create"
                 value={form.path_or_url}
                 onChange={(e) => setForm({ ...form, path_or_url: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                Use a relative path (starting with /) to inherit the SAP Base URL from{" "}
-                <span className="font-medium text-foreground">SAP Connection</span>. A full https:// URL is also
-                accepted.
+                Use a relative path (starting with /) to inherit the host from{" "}
+                <span className="font-medium text-foreground">SAP Systems</span> — the SAP client is appended
+                automatically. A full http(s):// URL is also accepted.
               </p>
             </div>
           </div>
