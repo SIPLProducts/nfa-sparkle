@@ -224,8 +224,9 @@ async function applyRoles(db: any, userId: string, roles: RoleKey[]) {
 
 export const createManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { email: string; password: string; full_name: string; roles: RoleKey[] }) => {
+  .inputValidator((d: { email: string; username: string; password: string; full_name: string; roles: RoleKey[] }) => {
     if (!d.email?.trim()) throw new Error("Email is required");
+    d.username = normalizeUsername(d.username);
     if (!d.password || d.password.length < 8) throw new Error("Password must be at least 8 characters");
     if (!d.full_name?.trim()) throw new Error("Full name is required");
     if (!d.roles?.length) throw new Error("Select at least one role");
@@ -234,6 +235,7 @@ export const createManagedUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const db = await admin();
+    await assertUsernameFree(db, data.username);
     const { data: created, error } = await db.auth.admin.createUser({
       email: data.email.trim().toLowerCase(),
       password: data.password,
@@ -244,15 +246,21 @@ export const createManagedUser = createServerFn({ method: "POST" })
     const id = created.user.id;
     await db
       .from("profiles")
-      .upsert({ id, email: data.email.trim().toLowerCase(), full_name: data.full_name.trim() });
+      .upsert({
+        id,
+        email: data.email.trim().toLowerCase(),
+        full_name: data.full_name.trim(),
+        username: data.username,
+      });
     await applyRoles(db, id, data.roles);
     return { id };
   });
 
 export const updateManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; full_name: string; roles: RoleKey[] }) => {
+  .inputValidator((d: { id: string; full_name: string; username: string; roles: RoleKey[] }) => {
     if (!d.full_name?.trim()) throw new Error("Full name is required");
+    d.username = normalizeUsername(d.username);
     if (!d.roles?.length) throw new Error("Select at least one role");
     return d;
   })
@@ -262,7 +270,11 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     if (data.id === context.userId && !data.roles.includes("admin")) {
       throw new Error("You cannot remove your own admin role");
     }
-    await db.from("profiles").update({ full_name: data.full_name.trim() }).eq("id", data.id);
+    await assertUsernameFree(db, data.username, data.id);
+    await db
+      .from("profiles")
+      .update({ full_name: data.full_name.trim(), username: data.username })
+      .eq("id", data.id);
     await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: data.full_name.trim() } });
     await applyRoles(db, data.id, data.roles);
     return { ok: true };
