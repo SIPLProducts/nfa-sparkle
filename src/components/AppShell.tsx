@@ -17,6 +17,7 @@ import {
   Search,
   Bell,
   Menu,
+  Plug,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
@@ -82,11 +83,16 @@ export function AppShell({
         <div className="mt-4">
           <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45">Admin</div>
           <Link
-            to="/admin/users"
+            to="/admin/sap-api"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/75 hover:bg-sidebar-accent/60 hover:text-white"
+            className={
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition " +
+              (isActive("/admin/sap-api")
+                ? "bg-sidebar-accent text-white shadow-sm"
+                : "text-white/75 hover:bg-sidebar-accent/60 hover:text-white")
+            }
           >
-            <Users className="h-4 w-4" /> User & Roles
+            <Plug className="h-4 w-4" /> SAP API Settings
           </Link>
         </div>
       )}

@@ -19,6 +19,7 @@ import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
 import { Route as AuthedAdminSapApiIndexRouteImport } from './routes/_authed.admin.sap-api.index'
 import { Route as AuthedNfaIdChangeRouteImport } from './routes/_authed.nfa.$id.change'
+import { Route as AuthedAdminSapApiIdRouteImport } from './routes/_authed.admin.sap-api.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,6 +70,11 @@ const AuthedNfaIdChangeRoute = AuthedNfaIdChangeRouteImport.update({
   path: '/change',
   getParentRoute: () => AuthedNfaIdRoute,
 } as any)
+const AuthedAdminSapApiIdRoute = AuthedAdminSapApiIdRouteImport.update({
+  id: '/admin/sap-api/$id',
+  path: '/admin/sap-api/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
 }
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api': typeof AuthedAdminSapApiIndexRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
+  '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/_authed/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
 }
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api/'
   fileRoutesByTo: FileRoutesByTo
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
+    | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
     | '/_authed/admin/sap-api/'
   fileRoutesById: FileRoutesById
@@ -220,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedNfaIdChangeRouteImport
       parentRoute: typeof AuthedNfaIdRoute
     }
+    '/_authed/admin/sap-api/$id': {
+      id: '/_authed/admin/sap-api/$id'
+      path: '/admin/sap-api/$id'
+      fullPath: '/admin/sap-api/$id'
+      preLoaderRoute: typeof AuthedAdminSapApiIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
@@ -241,6 +260,7 @@ interface AuthedRouteChildren {
   AuthedNfaIdRoute: typeof AuthedNfaIdRouteWithChildren
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
+  AuthedAdminSapApiIdRoute: typeof AuthedAdminSapApiIdRoute
   AuthedAdminSapApiIndexRoute: typeof AuthedAdminSapApiIndexRoute
 }
 
@@ -250,6 +270,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedNfaIdRoute: AuthedNfaIdRouteWithChildren,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
+  AuthedAdminSapApiIdRoute: AuthedAdminSapApiIdRoute,
   AuthedAdminSapApiIndexRoute: AuthedAdminSapApiIndexRoute,
 }
 
