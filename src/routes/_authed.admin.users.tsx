@@ -157,6 +157,8 @@ function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) 
 function UsersTab() {
   const qc = useQueryClient();
   const fetchUsers = useServerFn(listManagedUsers);
+  const { data: roleDefs } = useRoleDefs();
+  const roleName = (k: string) => roleDefs?.find((r) => r.key === k)?.name ?? k;
   const createFn = useServerFn(createManagedUser);
   const updateFn = useServerFn(updateManagedUser);
   const resetFn = useServerFn(resetManagedUserPassword);
@@ -235,7 +237,7 @@ function UsersTab() {
                         {u.roles.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
                         {u.roles.map((r) => (
                           <Badge key={r} variant="secondary" className="capitalize">
-                            {r}
+                            {roleName(r)}
                           </Badge>
                         ))}
                       </div>
