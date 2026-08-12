@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Building2, ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
+import { ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
+import ramkyLogo from "@/assets/ramky-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in - NFA Portal" }] }),
@@ -51,7 +52,7 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2 bg-slate-50">
       {/* Left brand panel */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#0b2545] via-[#13315c] to-[#1e5f8c] p-12 text-white">
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-brand to-brand-2 p-12 text-white">
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
           style={{
@@ -60,8 +61,8 @@ function AuthPage() {
           }}
         />
         <div className="relative z-10 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-md bg-white/10 ring-1 ring-white/20 backdrop-blur">
-            <Building2 className="h-6 w-6" />
+          <div className="grid h-16 w-16 place-items-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-white/25">
+            <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="text-lg font-semibold tracking-wide">NFA Portal</div>
@@ -95,8 +96,8 @@ function AuthPage() {
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-[#0b2545] text-white">
-              <Building2 className="h-5 w-5" />
+            <div className="grid h-12 w-12 place-items-center rounded-md border border-border bg-card p-1.5">
+              <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
             </div>
             <div>
               <div className="text-base font-semibold text-slate-900">NFA Portal</div>
@@ -118,11 +119,11 @@ function AuthPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="signin-pwd">Password</Label>
-                      <a href="#" className="text-xs text-[#13315c] hover:underline">Forgot password?</a>
+                      <a href="#" className="text-xs text-brand hover:underline">Forgot password?</a>
                     </div>
                     <Input id="signin-pwd" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" autoComplete="current-password" />
                   </div>
-                  <Button onClick={signIn} disabled={busy} className="w-full bg-[#0b2545] hover:bg-[#13315c]">
+                  <Button onClick={signIn} disabled={busy} className="w-full bg-brand hover:bg-brand-2 text-primary-foreground">
                     {busy ? "Signing in…" : "Sign in"}
                   </Button>
                   <p className="pt-1 text-center text-xs text-slate-500">
@@ -144,7 +145,7 @@ function AuthPage() {
           </Card>
 
           <p className="mt-6 text-center text-xs text-slate-500">
-            Need help? Contact <a className="text-[#13315c] underline-offset-2 hover:underline" href="mailto:it-support@company.com">IT Support</a>
+            Need help? Contact <a className="text-brand underline-offset-2 hover:underline" href="mailto:it-support@company.com">IT Support</a>
           </p>
         </div>
       </div>

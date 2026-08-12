@@ -13,7 +13,6 @@ import {
 
   LogOut,
   LayoutDashboard,
-  Building2,
   Search,
   Bell,
   Menu,
@@ -22,6 +21,7 @@ import {
 import { Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { ScreenKey } from "@/lib/screens";
+import ramkyLogo from "@/assets/ramky-logo.png.asset.json";
 
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: string; screen: ScreenKey }[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, section: "Workspace", screen: "dashboard" },
@@ -123,8 +123,8 @@ export function AppShell({
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="flex items-center gap-3 px-5 py-5">
-          <div className="grid h-10 w-10 place-items-center rounded-md bg-sidebar-accent ring-1 ring-white/10">
-            <Building2 className="h-5 w-5 text-white" />
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
+            <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0">
             <div className="font-display text-base font-bold tracking-tight text-white">NFA Portal</div>
@@ -153,8 +153,8 @@ export function AppShell({
                 <SheetContent side="left" className="w-72 border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
                   <SheetHeader className="border-b border-sidebar-border px-5 py-4 text-left">
                     <SheetTitle className="flex items-center gap-3 text-white">
-                      <div className="grid h-9 w-9 place-items-center rounded-md bg-sidebar-accent ring-1 ring-white/10">
-                        <Building2 className="h-4 w-4 text-white" />
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
+                        <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
                       </div>
                       <div className="leading-tight">
                         <div className="font-display text-base font-bold">NFA Portal</div>
