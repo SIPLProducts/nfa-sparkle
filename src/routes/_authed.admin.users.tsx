@@ -105,12 +105,18 @@ function UserManagement() {
           <TabsTrigger value="users" className="gap-2">
             <UserCog className="h-4 w-4" /> Users
           </TabsTrigger>
+          <TabsTrigger value="roles" className="gap-2">
+            <Shield className="h-4 w-4" /> Roles
+          </TabsTrigger>
           <TabsTrigger value="perms" className="gap-2">
-            <ShieldCheck className="h-4 w-4" /> Roles &amp; Permissions
+            <ShieldCheck className="h-4 w-4" /> Screen Permissions
           </TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <UsersTab />
+        </TabsContent>
+        <TabsContent value="roles">
+          <RolesTab />
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />
@@ -123,22 +129,24 @@ function UserManagement() {
 /* --------------------------------- users -------------------------------- */
 
 function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) => void }) {
+  const { data: roleDefs, isLoading } = useRoleDefs();
+  if (isLoading) return <Skeleton className="h-20 w-full" />;
   return (
     <div className="grid grid-cols-2 gap-2">
-      {ROLES.map((r) => {
-        const checked = value.includes(r.value);
+      {(roleDefs ?? []).map((r) => {
+        const checked = value.includes(r.key);
         return (
           <label
-            key={r.value}
+            key={r.key}
             className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"
           >
             <Checkbox
               checked={checked}
               onCheckedChange={(c) =>
-                onChange(c ? [...value, r.value] : value.filter((v) => v !== r.value))
+                onChange(c ? [...value, r.key] : value.filter((v) => v !== r.key))
               }
             />
-            {r.label}
+            {r.name}
           </label>
         );
       })}
