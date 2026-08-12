@@ -6,10 +6,10 @@ import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
+import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
 import { Trash2, Plus, Save, Send, FileText, Building2, Users, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
 
@@ -35,6 +35,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
+  const plainDesc = htmlToPlainText(desc);
 
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
 
@@ -49,10 +50,11 @@ function NewNfaPage() {
     setBudget("42.5");
     setTimeline("60");
     setDesc(
-      "Background: Existing 160 KVA DG set is undersized for Phase 2 load (estimated 210 KVA continuous).\n\n" +
-        "Proposal: Procure a new 250 KVA Cummins DG set with AMF panel, acoustic enclosure and 990L fuel tank.\n\n" +
-        "Alternatives considered:\n1. Hire on monthly rental — higher 3-year TCO (~1.6x).\n2. Upgrade existing set — OEM has declared end-of-life.\n\n" +
-        "Recommendation: Approve CAPEX of INR 42.5 Lakhs; vendor finalisation via 3-bid process; delivery & commissioning within 60 days.",
+      "<p><strong>Background:</strong> Existing 160 KVA DG set is undersized for Phase 2 load (estimated 210 KVA continuous).</p>" +
+        "<p><strong>Proposal:</strong> Procure a new 250 KVA Cummins DG set with AMF panel, acoustic enclosure and 990L fuel tank.</p>" +
+        "<p><strong>Alternatives considered:</strong></p>" +
+        "<ol><li>Hire on monthly rental — higher 3-year TCO (~1.6x).</li><li>Upgrade existing set — OEM has declared end-of-life.</li></ol>" +
+        "<p><strong>Recommendation:</strong> Approve CAPEX of INR 42.5 Lakhs; vendor finalisation via 3-bid process; delivery &amp; commissioning within 60 days.</p>",
     );
     // Use the signed-in user for every level so the sample is end-to-end actionable
     // without provisioning additional approver accounts. Replace with real approvers later.
@@ -103,7 +105,7 @@ function NewNfaPage() {
         subject, scope_impact: scope || null,
         budget_impact: budget ? Number(budget) : null,
         timeline_days: timeline ? Number(timeline) : null,
-        detailed_description: desc || null,
+        detailed_description: plainDesc ? desc : null,
         status: asDraft ? "with_initiator" : "in_process",
         current_level: asDraft ? 0 : 1,
       }).select().single();
@@ -244,15 +246,15 @@ function NewNfaPage() {
               </Field>
 
               <Field label="Detailed Description" className="md:col-span-2">
-                <Textarea
+                <RichTextEditor
                   value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
+                  onChange={setDesc}
+                  minHeight="240px"
                   placeholder="Provide a complete rationale, background, alternatives considered, and recommendation. Free-form — supports long, multi-paragraph notes (2000+ words)."
-                  className="min-h-[240px] resize-y font-normal leading-relaxed"
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
                   <span>
-                    {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                    {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
                   </span>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -262,15 +264,9 @@ function NewNfaPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
                       <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
-                      <Textarea
-                        rows={22}
-                        value={desc}
-                        onChange={(e) => setDesc(e.target.value)}
-                        className="min-h-[420px] resize-y leading-relaxed"
-                        placeholder="Write freely — no length limit."
-                      />
+                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" placeholder="Write freely — no length limit." />
                       <div className="text-[11px] text-muted-foreground">
-                        {desc.trim() ? desc.trim().split(/\s+/).length : 0} words · {desc.length} characters
+                        {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
                       </div>
                       <DialogFooter><Button>Done</Button></DialogFooter>
                     </DialogContent>

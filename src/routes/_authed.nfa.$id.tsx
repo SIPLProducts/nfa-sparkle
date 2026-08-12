@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw, ArrowUp, ArrowDown, ArrowUpDown, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
+import { RichTextView } from "@/components/RichTextView";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
 import { Eye, Download as DownloadIcon } from "lucide-react";
 
@@ -265,7 +266,7 @@ function NfaDetail() {
           <ReadField label="Created" value={new Date(nfa.created_at).toLocaleString()} />
           {nfa.detailed_description && (
             <div className="md:col-span-2"><Label className="text-xs text-slate-500">Detailed Description</Label>
-              <div className="mt-1 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3">{nfa.detailed_description}</div>
+            <RichTextView html={nfa.detailed_description} className="mt-1 rounded border border-slate-200 bg-slate-50 p-3" />
             </div>
           )}
         </div>
