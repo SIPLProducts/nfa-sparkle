@@ -12,6 +12,7 @@ export interface SapEndpoint {
   api_type: string;
   active: boolean;
   username: string | null;
+  system_id: string | null;
   request_headers: Record<string, string>;
   request_query: Record<string, string>;
   request_body: string | null;
@@ -33,6 +34,23 @@ export interface TestResult {
   latencyMs: number;
   body: string;
   error: string | null;
+}
+
+export interface SapSystem {
+  id: string;
+  key: string;
+  label: string;
+  environment: string;
+  protocol: string;
+  host: string;
+  port: number;
+  sap_client: string;
+  base_path: string;
+  username: string;
+  route_via_middleware: boolean;
+  is_active: boolean;
+  notes: string | null;
+  has_password: boolean;
 }
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
@@ -84,6 +102,225 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms = 15000): Pro
     clearTimeout(timer);
   }
 }
+
+/* --------------------------- system resolution --------------------------- */
+
+function systemBaseUrl(s: {
+  protocol?: string | null;
+  host?: string | null;
+  port?: number | null;
+  base_path?: string | null;
+}) {
+  if (!s.host) return "";
+  const proto = s.protocol === "https" ? "https" : "http";
+  const port = s.port ? `:${s.port}` : "";
+  const basePath = (s.base_path ?? "").replace(/\/+$/, "");
+  return `${proto}://${s.host}${port}${basePath}`;
+}
+
+async function loadSystem(systemId: string | null) {
+  const db = await admin();
+  const q = db.from("sap_system").select("*");
+  const { data } = systemId
+    ? await q.eq("id", systemId).maybeSingle()
+    : await q.eq("is_active", true).limit(1).maybeSingle();
+  return data as Record<string, any> | null;
+}
+
+/**
+ * Executes a SAP call either directly or through the on-prem Node.js middleware,
+ * depending on the middleware Connection Mode and the system's routing flag.
+ */
+async function callSap(opts: {
+  system: Record<string, any> | null;
+  path: string;
+  method: string;
+  headers?: Record<string, string>;
+  query?: Record<string, string>;
+  body?: string;
+  username?: string;
+  password?: string;
+}): Promise<TestResult> {
+  const db = await admin();
+  const { data: mw } = await db.from("sap_middleware_config").select("*").limit(1).maybeSingle();
+  const viaProxy =
+    mw?.connection_mode === "proxy" && !!mw?.url && (opts.system?.route_via_middleware ?? true);
+
+  const base = systemBaseUrl(opts.system ?? {});
+  const raw = opts.path ?? "";
+  const isAbsolute = /^https?:\/\//i.test(raw);
+  const query: Record<string, string> = { ...(opts.query ?? {}) };
+  if (opts.system?.sap_client && !("sap-client" in query) && !/sap-client=/.test(raw)) {
+    query["sap-client"] = String(opts.system.sap_client);
+  }
+
+  if (viaProxy) {
+    const secret = (await getSecret("middleware_secret")) ?? "";
+    const url = `${mw!.url.replace(/\/+$/, "")}/sap/call`;
+    const payload = {
+      system: opts.system?.key ?? undefined,
+      baseUrl: isAbsolute ? undefined : base || undefined,
+      method: opts.method,
+      path: raw,
+      query,
+      headers: opts.headers ?? {},
+      body: opts.body,
+      auth: opts.username ? { username: opts.username, password: opts.password ?? "" } : undefined,
+    };
+    const r = await fetchWithTimeout(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok && r.status === null) return r;
+    try {
+      const parsed = JSON.parse(r.body) as {
+        ok?: boolean;
+        status?: number | null;
+        latencyMs?: number;
+        body?: unknown;
+        error?: string | null;
+      };
+      return {
+        ok: !!parsed.ok,
+        status: parsed.status ?? r.status,
+        latencyMs: parsed.latencyMs ?? r.latencyMs,
+        body: typeof parsed.body === "string" ? parsed.body : JSON.stringify(parsed.body ?? "", null, 2).slice(0, 4000),
+        error: parsed.error ?? null,
+      };
+    } catch {
+      return r;
+    }
+  }
+
+  if (!isAbsolute && !base) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error: "No SAP system configured — add a system in SAP Systems or use a full URL",
+    };
+  }
+  const target = new URL(isAbsolute ? raw : `${base}${raw.startsWith("/") ? "" : "/"}${raw}`);
+  for (const [k, v] of Object.entries(query)) if (k) target.searchParams.set(k, v);
+  const headers: Record<string, string> = { ...(opts.headers ?? {}) };
+  if (opts.username && !headers["Authorization"]) {
+    headers["Authorization"] = "Basic " + btoa(`${opts.username}:${opts.password ?? ""}`);
+  }
+  if (opts.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+  return fetchWithTimeout(target.toString(), { method: opts.method, headers, body: opts.body });
+}
+
+/* ------------------------------ sap systems ------------------------------ */
+
+export const listSapSystems = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context as any);
+    const db = await admin();
+    const { data } = await db.from("sap_system").select("*").order("created_at", { ascending: true });
+    const rows = (data ?? []) as Record<string, any>[];
+    const out: SapSystem[] = [];
+    for (const r of rows) out.push({ ...(r as any), has_password: await hasSecret(`system:${r.id}`) });
+    return out;
+  });
+
+export const saveSapSystem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      id?: string;
+      key: string;
+      label: string;
+      environment: string;
+      protocol: string;
+      host: string;
+      port: number;
+      sap_client: string;
+      base_path: string;
+      username: string;
+      route_via_middleware: boolean;
+      notes?: string;
+      password?: string;
+    }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    if (!data.key.trim()) throw new Error("System key is required");
+    if (!data.host.trim()) throw new Error("Host / IP is required");
+    const db = await admin();
+    const payload = {
+      key: data.key.trim(),
+      label: data.label.trim(),
+      environment: data.environment,
+      protocol: data.protocol,
+      host: data.host.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, ""),
+      port: Number(data.port) || 8000,
+      sap_client: data.sap_client.trim(),
+      base_path: data.base_path.trim(),
+      username: data.username.trim(),
+      route_via_middleware: data.route_via_middleware,
+      notes: data.notes?.trim() || null,
+    };
+    let id = data.id;
+    if (id) {
+      const { error } = await db.from("sap_system").update(payload).eq("id", id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { count } = await db.from("sap_system").select("id", { count: "exact", head: true });
+      const { data: row, error } = await db
+        .from("sap_system")
+        .insert({ ...payload, is_active: (count ?? 0) === 0 })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      id = row.id as string;
+    }
+    await setSecret(`system:${id}`, data.password);
+    return { id };
+  });
+
+export const activateSapSystem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    const db = await admin();
+    await db.from("sap_system").update({ is_active: false }).eq("is_active", true);
+    const { error } = await db.from("sap_system").update({ is_active: true }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteSapSystem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    const db = await admin();
+    await db.from("sap_system").delete().eq("id", data.id);
+    await db.from("sap_secret").delete().eq("key", `system:${data.id}`);
+    return { ok: true };
+  });
+
+export const testSapSystem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; path?: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    const sys = await loadSystem(data.id);
+    if (!sys) throw new Error("System not found");
+    const r = await callSap({
+      system: sys,
+      path: data.path?.trim() || "/",
+      method: "GET",
+      username: sys.username || undefined,
+      password: (await getSecret(`system:${sys.id}`)) ?? undefined,
+    });
+    await logTest(null, `system:${sys.key}`, r, (context as any).userId);
+    return r;
+  });
 
 /* ------------------------------ settings ------------------------------ */
 
