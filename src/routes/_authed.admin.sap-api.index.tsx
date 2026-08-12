@@ -544,19 +544,20 @@ function SystemsTab() {
   const saveMut = useMutation({
     mutationFn: () => {
       const parsed = parseBaseUrl(form.base_url);
+      const sapClient = form.sap_client.trim() || "300";
       return save({
         data: {
           id: form.id,
-          key: form.key.trim() || `${form.environment}${form.sap_client || ""}`,
+          key: form.key.trim() || `${form.environment}${sapClient}`,
           label: form.label.trim() || `SAP ${form.environment}`,
           environment: form.environment,
           protocol: parsed.protocol,
           host: parsed.host,
           port: parsed.port,
-          sap_client: form.sap_client,
+          sap_client: sapClient,
           base_path: parsed.base_path,
           username: form.username,
-          route_via_middleware: form.route_via_middleware,
+          route_via_middleware: true,
           notes: form.notes,
           password: form.password,
         },
