@@ -1,0 +1,33 @@
+[
+  {
+    "key": "DEV300",
+    "label": "SAP Development (client 300)",
+    "host": "10.200.1.2",
+    "port": 8000,
+    "client": "300",
+    "useHttps": false,
+    "defaultUser": "sipl_qm",
+    "defaultPassword": "put-the-sap-password-here",
+    "default": true
+  },
+  {
+    "key": "QAS300",
+    "label": "SAP Quality (client 300)",
+    "host": "10.200.1.10",
+    "port": 8000,
+    "client": "300",
+    "useHttps": false,
+    "defaultUser": "",
+    "defaultPassword": ""
+  },
+  {
+    "key": "PRD300",
+    "label": "SAP Production (client 300)",
+    "host": "10.200.1.20",
+    "port": 8000,
+    "client": "300",
+    "useHttps": false,
+    "defaultUser": "",
+    "defaultPassword": ""
+  }
+]

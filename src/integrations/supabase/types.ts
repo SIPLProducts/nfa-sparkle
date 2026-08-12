@@ -386,6 +386,7 @@ export type Database = {
           request_query: Json
           schedule_cron: string | null
           schedule_enabled: boolean
+          system_id: string | null
           updated_at: string
           username: string | null
         }
@@ -412,6 +413,7 @@ export type Database = {
           request_query?: Json
           schedule_cron?: string | null
           schedule_enabled?: boolean
+          system_id?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -438,10 +440,19 @@ export type Database = {
           request_query?: Json
           schedule_cron?: string | null
           schedule_enabled?: boolean
+          system_id?: string | null
           updated_at?: string
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sap_endpoint_system_id_fkey"
+            columns: ["system_id"]
+            isOneToOne: false
+            referencedRelation: "sap_system"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sap_middleware_config: {
         Row: {
@@ -488,6 +499,60 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      sap_system: {
+        Row: {
+          base_path: string
+          created_at: string
+          environment: string
+          host: string
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          notes: string | null
+          port: number
+          protocol: string
+          route_via_middleware: boolean
+          sap_client: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          base_path?: string
+          created_at?: string
+          environment?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          key: string
+          label?: string
+          notes?: string | null
+          port?: number
+          protocol?: string
+          route_via_middleware?: boolean
+          sap_client?: string
+          updated_at?: string
+          username?: string
+        }
+        Update: {
+          base_path?: string
+          created_at?: string
+          environment?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          notes?: string | null
+          port?: number
+          protocol?: string
+          route_via_middleware?: boolean
+          sap_client?: string
+          updated_at?: string
+          username?: string
         }
         Relationships: []
       }
