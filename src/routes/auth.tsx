@@ -61,7 +61,7 @@ function AuthPage() {
           }}
         />
         <div className="relative z-10 flex items-center gap-3">
-          <div className="grid h-16 w-16 place-items-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-white/25">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-white/25">
             <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
           </div>
           <div>
@@ -96,7 +96,7 @@ function AuthPage() {
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-md border border-border bg-card p-1.5">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md border border-border bg-card p-1.5 shadow-sm ring-1 ring-border/40">
               <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
             </div>
             <div>
