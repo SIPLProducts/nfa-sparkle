@@ -675,51 +675,6 @@ function SystemsTab() {
               </div>
             </div>
 
-            <div className="grid gap-4 border-t border-border/70 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="sys-key">System key</Label>
-                <Input
-                  id="sys-key"
-                  placeholder="DEV300"
-                  value={form.key}
-                  onChange={(e) => setForm({ ...form, key: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sys-label">Label</Label>
-                <Input
-                  id="sys-label"
-                  placeholder="SAP Development (client 300)"
-                  value={form.label}
-                  onChange={(e) => setForm({ ...form, label: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sys-client">SAP Client</Label>
-                <Input
-                  id="sys-client"
-                  placeholder="300"
-                  value={form.sap_client}
-                  onChange={(e) => setForm({ ...form, sap_client: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Routing</Label>
-                <Select
-                  value={form.route_via_middleware ? "proxy" : "direct"}
-                  onValueChange={(v) => setForm({ ...form, route_via_middleware: v === "proxy" })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="proxy">Via local middleware</SelectItem>
-                    <SelectItem value="direct">Direct to SAP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
               {form.id && (
                 <Button
