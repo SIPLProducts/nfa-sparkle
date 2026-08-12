@@ -19,14 +19,21 @@ import {
   Menu,
   Plug,
 } from "lucide-react";
+import { Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import type { ScreenKey } from "@/lib/screens";
 
-const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: string }[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, section: "Workspace" },
-  { to: "/nfa/new", label: "Create NFA", icon: PlusCircle, section: "Workspace" },
-  { to: "/nfa/my", label: "My NFAs", icon: FileText, section: "Workspace" },
-  { to: "/approvals", label: "Approvals", icon: Inbox, section: "Workspace" },
-  { to: "/report", label: "E-NFA Report", icon: BarChart3, section: "Insights" },
+const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: string; screen: ScreenKey }[] = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, section: "Workspace", screen: "dashboard" },
+  { to: "/nfa/new", label: "Create NFA", icon: PlusCircle, section: "Workspace", screen: "nfa_new" },
+  { to: "/nfa/my", label: "My NFAs", icon: FileText, section: "Workspace", screen: "nfa_my" },
+  { to: "/approvals", label: "Approvals", icon: Inbox, section: "Workspace", screen: "approvals" },
+  { to: "/report", label: "E-NFA Report", icon: BarChart3, section: "Insights", screen: "report" },
+];
+
+const ADMIN_NAV: { to: string; label: string; icon: typeof LayoutDashboard; screen: ScreenKey }[] = [
+  { to: "/admin/sap-api", label: "SAP API Settings", icon: Plug, screen: "sap_api" },
+  { to: "/admin/users", label: "User Management", icon: Users, screen: "user_management" },
 ];
 
 export function AppShell({
@@ -40,12 +47,14 @@ export function AppShell({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  const { user, hasRole, signOut } = useAuth();
+  const { user, canAccess, signOut } = useAuth();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
 
-  const sections = Array.from(new Set(NAV.map((n) => n.section)));
+  const visibleNav = NAV.filter((n) => canAccess(n.screen));
+  const visibleAdmin = ADMIN_NAV.filter((n) => canAccess(n.screen));
+  const sections = Array.from(new Set(visibleNav.map((n) => n.section)));
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navList = (
@@ -54,7 +63,7 @@ export function AppShell({
         <div key={sec} className="mt-4">
           <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45">{sec}</div>
           <ul className="space-y-0.5">
-            {NAV.filter((n) => n.section === sec).map((n) => {
+            {visibleNav.filter((n) => n.section === sec).map((n) => {
               const Icon = n.icon;
               const active = isActive(n.to);
               return (
@@ -79,21 +88,31 @@ export function AppShell({
           </ul>
         </div>
       ))}
-      {hasRole("admin") && (
+      {visibleAdmin.length > 0 && (
         <div className="mt-4">
           <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45">Admin</div>
-          <Link
-            to="/admin/sap-api"
-            onClick={() => setMobileOpen(false)}
-            className={
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition " +
-              (isActive("/admin/sap-api")
-                ? "bg-sidebar-accent text-white shadow-sm"
-                : "text-white/75 hover:bg-sidebar-accent/60 hover:text-white")
-            }
-          >
-            <Plug className="h-4 w-4" /> SAP API Settings
-          </Link>
+          <ul className="space-y-0.5">
+            {visibleAdmin.map((n) => {
+              const Icon = n.icon;
+              return (
+                <li key={n.to}>
+                  <Link
+                    to={n.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition " +
+                      (isActive(n.to)
+                        ? "bg-sidebar-accent text-white shadow-sm"
+                        : "text-white/75 hover:bg-sidebar-accent/60 hover:text-white")
+                    }
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{n.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </>

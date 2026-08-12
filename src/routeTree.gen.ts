@@ -17,6 +17,7 @@ import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
+import { Route as AuthedAdminUsersRouteImport } from './routes/_authed.admin.users'
 import { Route as AuthedAdminSapApiIndexRouteImport } from './routes/_authed.admin.sap-api.index'
 import { Route as AuthedNfaIdChangeRouteImport } from './routes/_authed.nfa.$id.change'
 import { Route as AuthedAdminSapApiIdRouteImport } from './routes/_authed.admin.sap-api.$id'
@@ -60,6 +61,11 @@ const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
   path: '/nfa/$id',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedAdminUsersRoute = AuthedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedAdminSapApiIndexRoute = AuthedAdminSapApiIndexRouteImport.update({
   id: '/admin/sap-api/',
   path: '/admin/sap-api/',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
+  '/_authed/admin/users': typeof AuthedAdminUsersRoute
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authed/approvals'
     | '/_authed/report'
+    | '/_authed/admin/users'
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
@@ -218,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedNfaIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/admin/users': {
+      id: '/_authed/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthedAdminUsersRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/admin/sap-api/': {
       id: '/_authed/admin/sap-api/'
       path: '/admin/sap-api'
@@ -257,6 +276,7 @@ const AuthedNfaIdRouteWithChildren = AuthedNfaIdRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedApprovalsRoute: typeof AuthedApprovalsRoute
   AuthedReportRoute: typeof AuthedReportRoute
+  AuthedAdminUsersRoute: typeof AuthedAdminUsersRoute
   AuthedNfaIdRoute: typeof AuthedNfaIdRouteWithChildren
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
   AuthedNfaNewRoute: typeof AuthedNfaNewRoute
@@ -267,6 +287,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedApprovalsRoute: AuthedApprovalsRoute,
   AuthedReportRoute: AuthedReportRoute,
+  AuthedAdminUsersRoute: AuthedAdminUsersRoute,
   AuthedNfaIdRoute: AuthedNfaIdRouteWithChildren,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
   AuthedNfaNewRoute: AuthedNfaNewRoute,
@@ -285,13 +306,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
