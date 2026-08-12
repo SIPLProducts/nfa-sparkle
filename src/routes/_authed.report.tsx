@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { runSapEnfaReport, type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
+import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,8 +105,23 @@ function RangeInput({
   );
 }
 
+function normaliseRows(value: unknown): SapReportRow[] {
+  let v = value;
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const obj = v as Record<string, unknown>;
+    for (const k of ["body", "data", "ITEMS", "items", "result", "RESULT"]) {
+      if (Array.isArray(obj[k])) { v = obj[k]; break; }
+    }
+  }
+  if (!Array.isArray(v)) return [];
+  return (v as Record<string, unknown>[]).map((r) => {
+    const out: Record<string, string> = {};
+    for (const [k, val] of Object.entries(r)) out[k.trim().toUpperCase()] = val == null ? "" : String(val);
+    return out as unknown as SapReportRow;
+  });
+}
+
 function Report() {
-  const runReport = useServerFn(runSapEnfaReport);
   const [f, setF] = useState<SapReportFilters>(EMPTY);
   const [rows, setRows] = useState<SapReportRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -120,18 +135,42 @@ function Report() {
     setBusy(true);
     setError(null);
     try {
-      const res = await runReport({ data: f });
-      console.log("[eNFA Report] request payload", res.payload);
-      console.log("[eNFA Report] response", { status: res.status, latencyMs: res.latencyMs, rows: res.rows, raw: res.raw });
-      setRows(res.rows);
+      // Payload sent to SAP, exactly as SAP expects it (visible in DevTools → Network).
+      const payload: Record<string, string> = {};
+      for (const k of Object.keys(EMPTY) as (keyof SapReportFilters)[]) {
+        payload[k] = (f[k] ?? "").toString().trim();
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+
+      const res = await fetch("/api/enfa-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let parsed: unknown = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+
       setRan(true);
       if (!res.ok) {
-        const msg = res.error || `SAP responded with status ${res.status ?? "—"}`;
-        setError(msg);
-        toast.error(msg);
-      } else if (res.rows.length === 0) {
-        toast.info("SAP returned no records for these filters");
+        const msg =
+          (parsed && typeof parsed === "object" && (parsed as any).error) ||
+          `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
+        setRows([]);
+        setError(String(msg));
+        toast.error(String(msg));
+        return;
       }
+
+      const parsedRows = normaliseRows(parsed);
+      setRows(parsedRows);
+      if (parsedRows.length === 0) toast.info("SAP returned no records for these filters");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Report failed";
       setError(msg);
