@@ -177,7 +177,10 @@ function UsersTab() {
     const rows = data ?? [];
     if (!term) return rows;
     return rows.filter(
-      (u) => u.email.toLowerCase().includes(term) || (u.full_name ?? "").toLowerCase().includes(term),
+      (u) =>
+        u.email.toLowerCase().includes(term) ||
+        (u.username ?? "").toLowerCase().includes(term) ||
+        (u.full_name ?? "").toLowerCase().includes(term),
     );
   }, [data, q]);
 
@@ -195,7 +198,12 @@ function UsersTab() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:w-80">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email…" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name, User ID or email…"
+            className="pl-9"
+          />
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> Create user
@@ -230,6 +238,7 @@ function UsersTab() {
                   <tr key={u.id} className="border-t border-border/70 odd:bg-muted/20">
                     <td className="px-4 py-3">
                       <div className="font-medium">{u.full_name || "—"}</div>
+                      <div className="text-xs font-medium text-primary">{u.username ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{u.email}</div>
                     </td>
                     <td className="px-4 py-3">
@@ -326,9 +335,16 @@ function CreateUserDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: { email: string; password: string; full_name: string; roles: Role[] }) => Promise<void>;
+  onSubmit: (v: {
+    email: string;
+    username: string;
+    password: string;
+    full_name: string;
+    roles: Role[];
+  }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [roles, setRoles] = useState<Role[]>(["initiator"]);
@@ -337,6 +353,7 @@ function CreateUserDialog({
   useEffect(() => {
     if (open) {
       setFullName("");
+      setUsername("");
       setEmail("");
       setPassword("");
       setRoles(["initiator"]);
@@ -346,7 +363,7 @@ function CreateUserDialog({
   const submit = async () => {
     setBusy(true);
     try {
-      await onSubmit({ email, password, full_name: fullName, roles });
+      await onSubmit({ email, username, password, full_name: fullName, roles });
       onOpenChange(false);
     } catch (e) {
       toast.error(errMsg(e));
@@ -368,6 +385,16 @@ function CreateUserDialog({
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" />
           </div>
           <div className="space-y-1.5">
+            <Label>User ID *</Label>
+            <Input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="jane.doe"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">Used to sign in. Letters, numbers, dot, underscore or hyphen.</p>
+          </div>
+          <div className="space-y-1.5">
             <Label>Email *</Label>
             <Input
               type="email"
@@ -377,7 +404,7 @@ function CreateUserDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Temporary password *</Label>
+            <Label>Password *</Label>
             <Input
               type="text"
               value={password}
@@ -410,15 +437,17 @@ function EditUserDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onSubmit: (v: { id: string; full_name: string; roles: Role[] }) => Promise<void>;
+  onSubmit: (v: { id: string; full_name: string; username: string; roles: Role[] }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFullName(user.full_name);
+      setUsername(user.username ?? "");
       setRoles(user.roles);
     }
   }, [user]);
@@ -427,7 +456,7 @@ function EditUserDialog({
     if (!user) return;
     setBusy(true);
     try {
-      await onSubmit({ id: user.id, full_name: fullName, roles });
+      await onSubmit({ id: user.id, full_name: fullName, username, roles });
       onClose();
     } catch (e) {
       toast.error(errMsg(e));
@@ -447,6 +476,10 @@ function EditUserDialog({
           <div className="space-y-1.5">
             <Label>Full name *</Label>
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>User ID *</Label>
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <Label>Roles *</Label>
