@@ -410,7 +410,14 @@ export const getSapEndpoint = createServerFn({ method: "GET" })
 export const createSapEndpoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { name: string; description?: string; module: string; auth_type: string; path_or_url: string }) => d,
+    (d: {
+      name: string;
+      description?: string;
+      module: string;
+      auth_type: string;
+      path_or_url: string;
+      system_id?: string | null;
+    }) => d,
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
@@ -424,6 +431,7 @@ export const createSapEndpoint = createServerFn({ method: "POST" })
         module: data.module,
         auth_type: data.auth_type,
         path_or_url: data.path_or_url.trim(),
+        system_id: data.system_id || null,
       })
       .select("id")
       .single();
@@ -510,36 +518,33 @@ export const testSapEndpoint = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const db = await admin();
-    const [{ data: ep }, { data: conn }] = await Promise.all([
-      db.from("sap_endpoint").select("*").eq("id", data.id).maybeSingle(),
-      db.from("sap_connection").select("*").limit(1).maybeSingle(),
-    ]);
+    const { data: ep } = await db.from("sap_endpoint").select("*").eq("id", data.id).maybeSingle();
     if (!ep) throw new Error("Endpoint not found");
 
-    const base = (conn?.base_url ?? "").replace(/\/+$/, "");
-    const raw: string = ep.path_or_url ?? "";
-    const url = /^https?:\/\//i.test(raw) ? raw : `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
-    if (!/^https?:\/\//i.test(url)) throw new Error("No usable URL — set the SAP Base URL or use a full URL");
-
-    const target = new URL(url);
-    for (const [k, v] of Object.entries((ep.request_query ?? {}) as Record<string, string>)) {
-      if (k) target.searchParams.set(k, v);
-    }
-
+    const sys = await loadSystem(ep.system_id ?? null);
     const headers: Record<string, string> = { ...((ep.request_headers ?? {}) as Record<string, string>) };
-    if (ep.auth_type === "basic") {
-      const user = ep.username || conn?.username || "";
-      const pwd = (await getSecret(`endpoint:${ep.id}`)) ?? (await getSecret("sap_password")) ?? "";
-      if (user) headers["Authorization"] = "Basic " + btoa(`${user}:${pwd}`);
-    }
     const method = (ep.http_method ?? "GET").toUpperCase();
     let body: string | undefined;
-    if (method !== "GET" && method !== "HEAD" && ep.request_body) {
-      body = ep.request_body;
-      headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
-    }
+    if (method !== "GET" && method !== "HEAD" && ep.request_body) body = ep.request_body;
 
-    const r = await fetchWithTimeout(target.toString(), { method, headers, body });
+    const username =
+      ep.auth_type === "basic" ? ep.username || sys?.username || "" : "";
+    const password =
+      (await getSecret(`endpoint:${ep.id}`)) ??
+      (sys ? await getSecret(`system:${sys.id}`) : null) ??
+      (await getSecret("sap_password")) ??
+      "";
+
+    const r = await callSap({
+      system: sys,
+      path: ep.path_or_url ?? "",
+      method,
+      headers,
+      query: (ep.request_query ?? {}) as Record<string, string>,
+      body,
+      username: username || undefined,
+      password,
+    });
     await db
       .from("sap_endpoint")
       .update({
