@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_role_def: {
+        Row: {
+          created_at: string
+          description: string | null
+          is_system: boolean
+          key: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          is_system?: boolean
+          key: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          is_system?: boolean
+          key?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nfa: {
         Row: {
           budget_impact: number | null
@@ -283,7 +310,8 @@ export type Database = {
           allowed: boolean
           created_at: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | null
+          role_key: string | null
           screen: string
           updated_at: string
         }
@@ -291,7 +319,8 @@ export type Database = {
           allowed?: boolean
           created_at?: string
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_key?: string | null
           screen: string
           updated_at?: string
         }
@@ -299,7 +328,8 @@ export type Database = {
           allowed?: boolean
           created_at?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | null
+          role_key?: string | null
           screen?: string
           updated_at?: string
         }
@@ -502,6 +532,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sap_endpoint"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_role_assignment: {
+        Row: {
+          created_at: string
+          id: string
+          role_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_assignment_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "app_role_def"
+            referencedColumns: ["key"]
           },
         ]
       }
