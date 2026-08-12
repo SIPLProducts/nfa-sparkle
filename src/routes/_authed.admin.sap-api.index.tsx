@@ -58,10 +58,14 @@ import {
   getSapSettings,
   listSapEndpoints,
   saveMiddlewareConfig,
-  saveSapConnection,
   testMiddleware,
-  testSapConnection,
   testSapEndpoint,
+  listSapSystems,
+  saveSapSystem,
+  activateSapSystem,
+  deleteSapSystem,
+  testSapSystem,
+  type SapSystem,
   type TestResult,
 } from "@/lib/sap-api.functions";
 
@@ -111,7 +115,7 @@ function SapApiSettings() {
             <Plug className="h-4 w-4" /> APIs
           </TabsTrigger>
           <TabsTrigger value="connection" className="gap-2">
-            <Database className="h-4 w-4" /> SAP Connection
+            <Database className="h-4 w-4" /> SAP Systems
           </TabsTrigger>
           <TabsTrigger value="middleware" className="gap-2">
             <Server className="h-4 w-4" /> Middleware Configuration
@@ -121,7 +125,7 @@ function SapApiSettings() {
           <EndpointsTab />
         </TabsContent>
         <TabsContent value="connection" className="mt-0">
-          <ConnectionTab />
+          <SystemsTab />
         </TabsContent>
         <TabsContent value="middleware" className="mt-0">
           <MiddlewareTab />
