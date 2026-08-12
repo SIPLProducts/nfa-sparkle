@@ -288,6 +288,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -295,6 +296,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -302,6 +304,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean
+          username?: string | null
         }
         Relationships: []
       }
@@ -671,6 +674,7 @@ export type Database = {
         Args: { _comment?: string; _nfa_id: string }
         Returns: undefined
       }
+      resolve_login_email: { Args: { _login: string }; Returns: string }
       resolve_users_by_email: {
         Args: { _emails: string[] }
         Returns: {
