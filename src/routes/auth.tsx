@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Building2, ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
+import { ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
 import ramkyLogo from "@/assets/ramky-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({

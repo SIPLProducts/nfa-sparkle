@@ -13,7 +13,6 @@ import {
 
   LogOut,
   LayoutDashboard,
-  Building2,
   Search,
   Bell,
   Menu,
