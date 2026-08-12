@@ -25,15 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase
       .from("role_permission")
-      .select("role, screen, allowed")
+      .select("role_key, screen, allowed")
       .then(({ data }) => {
         const m: Record<string, boolean> = {};
-        for (const r of (data ?? []) as { role: string; screen: string; allowed: boolean }[]) {
-          m[`${r.role}:${r.screen}`] = r.allowed;
+        for (const r of (data ?? []) as { role_key: string | null; screen: string; allowed: boolean }[]) {
+          if (r.role_key) m[`${r.role_key}:${r.screen}`] = r.allowed;
         }
         setPerms(m);
       });
   }, []);
+
+  async function loadRoles(userId: string) {
+    const [sys, custom] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("user_role_assignment").select("role_key").eq("user_id", userId),
+    ]);
+    const list = [
+      ...((sys.data ?? []) as { role: string }[]).map((r) => r.role),
+      ...((custom.data ?? []) as { role_key: string }[]).map((r) => r.role_key),
+    ];
+    setRoles(Array.from(new Set(list)));
+  }
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -41,11 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null);
       if (s?.user) {
         setTimeout(() => {
-          supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", s.user.id)
-            .then(({ data }) => setRoles((data ?? []).map((r: { role: Role }) => r.role)));
+          void loadRoles(s.user.id);
         }, 0);
       } else {
         setRoles([]);
@@ -56,11 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session?.user ?? null);
       setLoading(false);
       if (data.session?.user) {
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.session.user.id)
-          .then(({ data: rd }) => setRoles((rd ?? []).map((r: { role: Role }) => r.role)));
+        void loadRoles(data.session.user.id);
       }
     });
     return () => sub.subscription.unsubscribe();
