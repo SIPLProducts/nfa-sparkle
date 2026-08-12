@@ -222,7 +222,7 @@ function Report() {
       <div className="mt-2 space-y-2.5 md:hidden">
         {rows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
+            {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
           </div>
         )}
         {visibleRows.map((r, i) => (
@@ -283,7 +283,7 @@ function Report() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {busy ? "Calling SAP…" : ran ? "No records returned by SAP." : "Run the report to see results."}
+                    {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
                   </td>
                 </tr>
               )}
