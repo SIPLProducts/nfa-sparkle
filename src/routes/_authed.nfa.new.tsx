@@ -36,6 +36,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
+  const plainDesc = htmlToPlainText(desc);
 
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
 
