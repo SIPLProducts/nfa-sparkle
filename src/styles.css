@@ -159,8 +159,7 @@
 .rich-content pre { background: var(--color-muted); padding: 0.7em; border-radius: 0.375rem; overflow-x: auto; }
 .rich-content strong { font-weight: 700; }
 .rich-content:focus { outline: none; }
-.rich-content p.is-editor-empty:first-child::before,
-.ProseMirror[data-placeholder]:empty::before {
+.rich-content[data-placeholder] > p:only-child:empty::before {
   content: attr(data-placeholder);
   color: var(--color-muted-foreground);
   float: left;
