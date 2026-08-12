@@ -21,6 +21,7 @@ export interface RoleDef {
 export interface ManagedUser {
   id: string;
   email: string;
+  username: string | null;
   full_name: string;
   roles: RoleKey[];
   is_active: boolean;
@@ -54,6 +55,22 @@ function slugify(name: string) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
+}
+
+function normalizeUsername(raw: string) {
+  const u = (raw ?? "").trim().toLowerCase();
+  if (!u) throw new Error("User ID is required");
+  if (u.length < 3 || u.length > 40) throw new Error("User ID must be 3-40 characters");
+  if (!/^[a-z0-9._-]+$/.test(u)) {
+    throw new Error("User ID may only contain letters, numbers, dot, underscore or hyphen");
+  }
+  return u;
+}
+
+async function assertUsernameFree(db: any, username: string, exceptId?: string) {
+  const { data } = await db.from("profiles").select("id").ilike("username", username);
+  const clash = (data ?? []).find((r: any) => r.id !== exceptId);
+  if (clash) throw new Error("That User ID is already taken");
 }
 
 /* --------------------------------- roles -------------------------------- */
@@ -162,7 +179,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, email, is_active").in("id", ids),
+      db.from("profiles").select("id, full_name, email, is_active, username").in("id", ids),
       db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
@@ -181,6 +198,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
         return {
           id: u.id,
           email: u.email ?? p?.email ?? "",
+          username: p?.username ?? null,
           full_name: p?.full_name ?? (u.user_metadata?.full_name as string) ?? "",
           roles: rmap.get(u.id) ?? [],
           is_active: p?.is_active !== false && !u.banned_until,
