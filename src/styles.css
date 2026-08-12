@@ -20,6 +20,10 @@
   --color-brand: var(--brand-navy);
   --color-brand-2: var(--brand-navy-2);
   --color-brand-blue: var(--brand-blue);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-green: var(--brand-green);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-brand-surface: var(--brand-surface);
   --color-brand-gold: var(--brand-gold);
   --color-background: var(--background);
