@@ -3,7 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { KeyRound, Loader2, Pencil, Plus, Search, ShieldCheck, UserCog, UserX, UserCheck, Save } from "lucide-react";
+import {
+  KeyRound,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  UserCog,
+  UserX,
+  UserCheck,
+  Save,
+  Trash2,
+  Shield,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -21,16 +34,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ROLES, SCREENS, type Role, type ScreenKey } from "@/lib/screens";
+import { Textarea } from "@/components/ui/textarea";
+import { SCREENS, type Role, type ScreenKey } from "@/lib/screens";
 import {
   createManagedUser,
+  createRoleDef,
+  deleteRoleDef,
   listManagedUsers,
+  listRoleDefs,
   listRolePermissions,
   resetManagedUserPassword,
   saveRolePermissions,
   setManagedUserActive,
   updateManagedUser,
+  updateRoleDef,
   type ManagedUser,
+  type RoleDef,
   type RolePermissionRow,
 } from "@/lib/user-admin.functions";
 
@@ -53,6 +72,11 @@ export const Route = createFileRoute("/_authed/admin/users")({
 
 function errMsg(e: unknown) {
   return e instanceof Error ? e.message : "Something went wrong";
+}
+
+function useRoleDefs() {
+  const fetchRoles = useServerFn(listRoleDefs);
+  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles() });
 }
 
 function UserManagement() {
