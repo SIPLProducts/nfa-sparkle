@@ -6,7 +6,6 @@ import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
@@ -106,7 +105,7 @@ function NewNfaPage() {
         subject, scope_impact: scope || null,
         budget_impact: budget ? Number(budget) : null,
         timeline_days: timeline ? Number(timeline) : null,
-        detailed_description: desc || null,
+        detailed_description: plainDesc ? desc : null,
         status: asDraft ? "with_initiator" : "in_process",
         current_level: asDraft ? 0 : 1,
       }).select().single();
