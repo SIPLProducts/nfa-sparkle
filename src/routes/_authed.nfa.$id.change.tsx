@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AttachmentList } from "@/components/AttachmentList";
@@ -246,7 +247,11 @@ function ChangeRequestPage() {
               <Input type="number" value={timeline} onChange={(e) => setTimeline(e.target.value)} disabled={!canEdit} />
             </Field>
             <Field label="Detailed Description" className="md:col-span-2">
-              <Textarea rows={8} value={desc} onChange={(e) => setDesc(e.target.value)} disabled={!canEdit} />
+              {canEdit ? (
+                <RichTextEditor value={desc} onChange={setDesc} minHeight="200px" placeholder="Revise the detailed description…" />
+              ) : (
+                <Textarea rows={8} value={htmlToPlainText(desc)} disabled />
+              )}
             </Field>
             <Field label="Reason for Change" required className="md:col-span-2">
               <Textarea
@@ -308,8 +313,12 @@ function ChangeRequestPage() {
                   <li key={d.key} className="rounded-md border border-border bg-muted/30 p-3">
                     <div className="mb-1 font-medium uppercase tracking-wider text-[10px] text-muted-foreground">{FIELD_LABEL[d.key]}</div>
                     <div className="flex flex-col gap-1">
-                      <div className="line-through text-rose-700/80 break-words">{d.from || "—"}</div>
-                      <div className="text-emerald-700 break-words">{d.to || "—"}</div>
+                      <div className="line-through text-rose-700/80 break-words">
+                        {(d.key === "detailed_description" ? htmlToPlainText(d.from) : d.from) || "—"}
+                      </div>
+                      <div className="text-emerald-700 break-words">
+                        {(d.key === "detailed_description" ? htmlToPlainText(d.to) : d.to) || "—"}
+                      </div>
                     </div>
                   </li>
                 ))}
