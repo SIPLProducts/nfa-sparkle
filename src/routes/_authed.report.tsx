@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Download, Play, BarChart3, RotateCcw, ChevronDown, ChevronRight, Code2 } from "lucide-react";
+import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 
 export const Route = createFileRoute("/_authed/report")({
@@ -109,12 +109,9 @@ function Report() {
   const runReport = useServerFn(runSapEnfaReport);
   const [f, setF] = useState<SapReportFilters>(EMPTY);
   const [rows, setRows] = useState<SapReportRow[]>([]);
-  const [meta, setMeta] = useState<{ status: number | null; latencyMs: number; raw: string; payload: SapReportFilters } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [ran, setRan] = useState(false);
-  const [showPayload, setShowPayload] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
@@ -124,7 +121,8 @@ function Report() {
     setError(null);
     try {
       const res = await runReport({ data: f });
-      setMeta({ status: res.status, latencyMs: res.latencyMs, raw: res.raw, payload: res.payload });
+      console.log("[eNFA Report] request payload", res.payload);
+      console.log("[eNFA Report] response", { status: res.status, latencyMs: res.latencyMs, rows: res.rows, raw: res.raw });
       setRows(res.rows);
       setRan(true);
       if (!res.ok) {
