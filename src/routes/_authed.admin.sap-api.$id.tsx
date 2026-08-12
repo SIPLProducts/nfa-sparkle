@@ -18,6 +18,7 @@ import { SAP_API_TYPES, SAP_AUTH_TYPES, SAP_METHODS, SAP_MODULES } from "@/lib/s
 import {
   getSapEndpoint,
   listSapTestLog,
+  listSapSystems,
   testSapEndpoint,
   updateSapEndpoint,
   type SapEndpoint,
@@ -112,6 +113,12 @@ function EndpointDetail() {
   const { data: history } = useQuery({
     queryKey: ["sap-endpoint-log", id],
     queryFn: () => logs({ data: { endpointId: id } }),
+    enabled: isAdmin,
+  });
+  const listSystems = useServerFn(listSapSystems);
+  const { data: systems } = useQuery({
+    queryKey: ["sap-systems"],
+    queryFn: () => listSystems(),
     enabled: isAdmin,
   });
 
