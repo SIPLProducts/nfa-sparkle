@@ -118,22 +118,35 @@ export function RecordEditDialog({
         if (!cancelled) setDetailError(e instanceof Error ? e.message : "Could not load record details from SAP");
       }
 
-      // 2. Locally saved edits take precedence over the SAP values.
+      if (sap) {
+        // SAP response is the single source of truth when the live call succeeds.
+        if (cancelled) return;
+        setDetail(sap);
+        setDraft({
+          subject: str(sap, "SUBJECT"),
+          scope_impact: str(sap, "SCOPE_IMPACT"),
+          budget_impact: str(sap, "BUDGET_IMPACT"),
+          timeline_days: str(sap, "TIMELINE_IMPACT"),
+          detailed_description: str(sap, "TEXT"),
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Fallback only when SAP could not be reached: locally saved draft, then the row.
       const { data } = await supabase
         .from("sap_record_draft")
         .select("*")
         .eq("enfa_number", enfa)
         .maybeSingle();
       if (cancelled) return;
-      setDetail(sap);
+      setDetail(null);
       setDraft({
-        subject: data?.subject ?? str(sap, "SUBJECT") ?? row?.SUBJECT ?? "",
-        scope_impact: data?.scope_impact ?? str(sap, "SCOPE_IMPACT"),
-        budget_impact:
-          data?.budget_impact != null ? String(data.budget_impact) : str(sap, "BUDGET_IMPACT"),
-        timeline_days:
-          data?.timeline_days != null ? String(data.timeline_days) : str(sap, "TIMELINE_IMPACT"),
-        detailed_description: data?.detailed_description ?? str(sap, "TEXT"),
+        subject: data?.subject ?? row?.SUBJECT ?? "",
+        scope_impact: data?.scope_impact ?? "",
+        budget_impact: data?.budget_impact != null ? String(data.budget_impact) : "",
+        timeline_days: data?.timeline_days != null ? String(data.timeline_days) : "",
+        detailed_description: data?.detailed_description ?? "",
       });
       setLoading(false);
     })();
