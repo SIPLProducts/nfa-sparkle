@@ -1,0 +1,256 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
+import { PLANTS, COMPANIES } from "@/lib/sap/master";
+import type { SapReportRow } from "@/lib/sap-api.functions";
+import { FileText, Loader2, Save, Send } from "lucide-react";
+import { toast } from "sonner";
+
+interface DraftState {
+  subject: string;
+  scope_impact: string;
+  budget_impact: string;
+  timeline_days: string;
+  detailed_description: string;
+}
+
+const EMPTY_DRAFT: DraftState = {
+  subject: "",
+  scope_impact: "",
+  budget_impact: "",
+  timeline_days: "",
+  detailed_description: "",
+};
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex h-9 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
+        <span className="truncate">{value || "—"}</span>
+      </div>
+    </div>
+  );
+}
+
+export function RecordEditDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: SapReportRow | null;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const enfa = row?.REFFLD ?? "";
+  const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [descOpen, setDescOpen] = useState(false);
+
+  const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
+  const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
+
+  useEffect(() => {
+    if (!open || !enfa) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("sap_record_draft")
+        .select("*")
+        .eq("enfa_number", enfa)
+        .maybeSingle();
+      if (cancelled) return;
+      setDraft({
+        subject: data?.subject ?? row?.SUBJECT ?? "",
+        scope_impact: data?.scope_impact ?? "",
+        budget_impact: data?.budget_impact != null ? String(data.budget_impact) : "",
+        timeline_days: data?.timeline_days != null ? String(data.timeline_days) : "",
+        detailed_description: data?.detailed_description ?? "",
+      });
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [open, enfa, row]);
+
+  const set = (k: keyof DraftState) => (v: string) => setDraft((p) => ({ ...p, [k]: v }));
+
+  async function save() {
+    if (!enfa) return;
+    setSaving(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("You must be signed in");
+      const { error } = await supabase.from("sap_record_draft").upsert(
+        {
+          enfa_number: enfa,
+          subject: draft.subject || null,
+          scope_impact: draft.scope_impact || null,
+          budget_impact: draft.budget_impact ? Number(draft.budget_impact) : null,
+          timeline_days: draft.timeline_days ? Number(draft.timeline_days) : null,
+          detailed_description: draft.detailed_description || null,
+          updated_by: u.user.id,
+        },
+        { onConflict: "enfa_number" },
+      );
+      if (error) throw new Error(error.message);
+      toast.success("Changes saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendToSap() {
+    if (!enfa) return;
+    setSending(true);
+    try {
+      const { data: s } = await supabase.auth.getSession();
+      const token = s.session?.access_token ?? "";
+      const payload = {
+        enfa: {
+          reffld: enfa,
+          pspnr: row?.PSPNR ?? "",
+          funct: row?.FUNCT_TXT ?? "",
+          extra: row?.EXTR_TXT ?? "",
+          subject: draft.subject,
+          scope_impact: draft.scope_impact,
+          budget_impact: draft.budget_impact,
+          timeline_days: draft.timeline_days,
+          detailed_description: htmlToPlainText(draft.detailed_description),
+        },
+      };
+      const res = await fetch("/api/public/enfa-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        let msg = `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
+        try {
+          const p = JSON.parse(text) as { error?: string };
+          if (p?.error) msg = p.error;
+        } catch { /* keep default */ }
+        throw new Error(msg);
+      }
+      toast.success("Record submitted to SAP");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const descChars = htmlToPlainText(draft.detailed_description).trim().length;
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">Edit ENFA · {enfa || "—"}</DialogTitle>
+          </DialogHeader>
+
+          {loading ? (
+            <p className="py-10 text-center text-xs text-muted-foreground">Loading record…</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ReadOnlyField label="Company" value={company ? `${company.code} – ${company.name}` : ""} />
+                <ReadOnlyField label="Plant" value={[row?.PSPNR, row?.NAME1].filter(Boolean).join(" – ")} />
+                <ReadOnlyField label="NFA Type" value={row?.FUNCT_TXT ?? ""} />
+                <ReadOnlyField label="Function" value={row?.EXTR_TXT ?? ""} />
+                <ReadOnlyField label="Initiator" value={row?.INIT_NAME ?? ""} />
+                <ReadOnlyField label="Creation Date" value={row?.BEGDA ?? ""} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Subject *</Label>
+                <Input value={draft.subject} onChange={(e) => set("subject")(e.target.value)} placeholder="Subject of the NFA" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Scope Impact</Label>
+                <Textarea
+                  rows={3}
+                  value={draft.scope_impact}
+                  onChange={(e) => set("scope_impact")(e.target.value)}
+                  placeholder="Describe the impact on scope"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Budget Impact</Label>
+                  <Input
+                    type="number"
+                    value={draft.budget_impact}
+                    onChange={(e) => set("budget_impact")(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Timeline Impact (days)</Label>
+                  <Input
+                    type="number"
+                    value={draft.timeline_days}
+                    onChange={(e) => set("timeline_days")(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">Detailed Description</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {descChars ? `${descChars} characters` : "Not filled in yet"}
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)}>
+                  <FileText className="h-3.5 w-3.5" /> Open
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="secondary" className="gap-1.5" onClick={save} disabled={saving || loading}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+            </Button>
+            <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
+              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Update in SAP
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={descOpen} onOpenChange={setDescOpen}>
+        <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">Detailed Description · {enfa || "—"}</DialogTitle>
+          </DialogHeader>
+          <RichTextEditor
+            value={draft.detailed_description}
+            onChange={set("detailed_description")}
+            placeholder="Type the detailed description…"
+            minHeight="45vh"
+          />
+          <DialogFooter>
+            <Button onClick={() => setDescOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

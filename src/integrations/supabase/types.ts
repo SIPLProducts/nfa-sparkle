@@ -338,6 +338,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sap_attachment: {
+        Row: {
+          enfa_number: string
+          filename: string
+          id: string
+          mime: string | null
+          size: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          enfa_number: string
+          filename: string
+          id?: string
+          mime?: string | null
+          size?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          enfa_number?: string
+          filename?: string
+          id?: string
+          mime?: string | null
+          size?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       sap_connection: {
         Row: {
           base_url: string
@@ -484,6 +517,42 @@ export type Database = {
           port?: number
           updated_at?: string
           url?: string
+        }
+        Relationships: []
+      }
+      sap_record_draft: {
+        Row: {
+          budget_impact: number | null
+          created_at: string
+          detailed_description: string | null
+          enfa_number: string
+          scope_impact: string | null
+          subject: string | null
+          timeline_days: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          budget_impact?: number | null
+          created_at?: string
+          detailed_description?: string | null
+          enfa_number: string
+          scope_impact?: string | null
+          subject?: string | null
+          timeline_days?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          budget_impact?: number | null
+          created_at?: string
+          detailed_description?: string | null
+          enfa_number?: string
+          scope_impact?: string | null
+          subject?: string | null
+          timeline_days?: number | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
