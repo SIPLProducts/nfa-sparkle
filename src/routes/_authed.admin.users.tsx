@@ -471,10 +471,19 @@ function EditUserDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onSubmit: (v: { id: string; full_name: string; username: string; roles: Role[] }) => Promise<void>;
+  onSubmit: (v: {
+    id: string;
+    full_name: string;
+    username: string;
+    employee_id: string;
+    department: string;
+    roles: Role[];
+  }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -482,6 +491,8 @@ function EditUserDialog({
     if (user) {
       setFullName(user.full_name);
       setUsername(user.username ?? "");
+      setEmployeeId(user.employee_id ?? "");
+      setDepartment(user.department ?? "");
       setRoles(user.roles);
     }
   }, [user]);
@@ -490,7 +501,14 @@ function EditUserDialog({
     if (!user) return;
     setBusy(true);
     try {
-      await onSubmit({ id: user.id, full_name: fullName, username, roles });
+      await onSubmit({
+        id: user.id,
+        full_name: fullName,
+        username,
+        employee_id: employeeId,
+        department,
+        roles,
+      });
       onClose();
     } catch (e) {
       toast.error(errMsg(e));
@@ -514,6 +532,16 @@ function EditUserDialog({
           <div className="space-y-1.5">
             <Label>User ID *</Label>
             <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Employee ID</Label>
+              <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Roles *</Label>
