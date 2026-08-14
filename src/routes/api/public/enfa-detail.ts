@@ -47,7 +47,13 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           input = {};
         }
 
-        const result = await callEnfaDetail(input);
+        const edit = (input["edit"] ?? {}) as Record<string, unknown>;
+        const reffld = String(edit["reffld"] ?? input["reffld"] ?? "").trim();
+        if (!reffld) {
+          return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
+        }
+
+        const result = await callEnfaDetail(reffld);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
