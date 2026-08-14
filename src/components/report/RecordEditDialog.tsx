@@ -27,6 +27,29 @@ const EMPTY_DRAFT: DraftState = {
   detailed_description: "",
 };
 
+/** SAP detail response — keys come straight from SAP, so read defensively. */
+type SapDetail = Record<string, unknown>;
+
+function pickDetail(raw: unknown): SapDetail | null {
+  let v: unknown = raw;
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    for (const k of ["data", "body", "result", "response"]) {
+      if (o[k] !== undefined) { v = o[k]; break; }
+    }
+  }
+  if (typeof v === "string") {
+    try { v = JSON.parse(v); } catch { return null; }
+  }
+  if (Array.isArray(v)) v = v[0];
+  return v && typeof v === "object" ? (v as SapDetail) : null;
+}
+
+function str(d: SapDetail | null, key: string): string {
+  const v = d?.[key];
+  return v === undefined || v === null ? "" : String(v);
+}
+
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
@@ -53,6 +76,8 @@ export function RecordEditDialog({
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
+  const [detail, setDetail] = useState<SapDetail | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
@@ -62,18 +87,53 @@ export function RecordEditDialog({
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setDetailError(null);
+      setDetail(null);
+
+      // 1. Live SAP record details for the selected ENFA number.
+      let sap: SapDetail | null = null;
+      try {
+        const { data: s } = await supabase.auth.getSession();
+        const token = s.session?.access_token ?? "";
+        const res = await fetch("/api/public/enfa-detail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ edit: { reffld: enfa } }),
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          let msg = `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
+          try {
+            const p = JSON.parse(text) as { error?: string };
+            if (p?.error) msg = p.error;
+          } catch { /* keep default */ }
+          throw new Error(msg);
+        }
+        sap = pickDetail(text ? JSON.parse(text) : null);
+        if (!sap) throw new Error("SAP returned no details for this record");
+      } catch (e) {
+        if (!cancelled) setDetailError(e instanceof Error ? e.message : "Could not load record details from SAP");
+      }
+
+      // 2. Locally saved edits take precedence over the SAP values.
       const { data } = await supabase
         .from("sap_record_draft")
         .select("*")
         .eq("enfa_number", enfa)
         .maybeSingle();
       if (cancelled) return;
+      setDetail(sap);
       setDraft({
-        subject: data?.subject ?? row?.SUBJECT ?? "",
-        scope_impact: data?.scope_impact ?? "",
-        budget_impact: data?.budget_impact != null ? String(data.budget_impact) : "",
-        timeline_days: data?.timeline_days != null ? String(data.timeline_days) : "",
-        detailed_description: data?.detailed_description ?? "",
+        subject: data?.subject ?? str(sap, "SUBJECT") ?? row?.SUBJECT ?? "",
+        scope_impact: data?.scope_impact ?? str(sap, "SCOPE_IMPACT"),
+        budget_impact:
+          data?.budget_impact != null ? String(data.budget_impact) : str(sap, "BUDGET_IMPACT"),
+        timeline_days:
+          data?.timeline_days != null ? String(data.timeline_days) : str(sap, "TIMELINE_IMPACT"),
+        detailed_description: data?.detailed_description ?? str(sap, "TEXT"),
       });
       setLoading(false);
     })();
@@ -164,10 +224,25 @@ export function RecordEditDialog({
             <p className="py-10 text-center text-xs text-muted-foreground">Loading record…</p>
           ) : (
             <div className="space-y-4">
+              {detailError ? (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {detailError}
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <ReadOnlyField label="Company" value={company ? `${company.code} – ${company.name}` : ""} />
-                <ReadOnlyField label="Plant" value={[row?.PSPNR, row?.NAME1].filter(Boolean).join(" – ")} />
-                <ReadOnlyField label="NFA Type" value={row?.FUNCT_TXT ?? ""} />
+                <ReadOnlyField
+                  label="Company"
+                  value={str(detail, "CC_TEXT") || (company ? `${company.code} – ${company.name}` : "")}
+                />
+                <ReadOnlyField
+                  label="Plant"
+                  value={
+                    [str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1]
+                      .filter(Boolean)
+                      .join(" – ")
+                  }
+                />
+                <ReadOnlyField label="NFA Type" value={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")} />
                 <ReadOnlyField label="Function" value={row?.EXTR_TXT ?? ""} />
                 <ReadOnlyField label="Initiator" value={row?.INIT_NAME ?? ""} />
                 <ReadOnlyField label="Creation Date" value={row?.BEGDA ?? ""} />

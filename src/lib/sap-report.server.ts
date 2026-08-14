@@ -69,6 +69,57 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
 }
 
 /**
+ * Fetches a single eNFA record's details from SAP for the given record number.
+ * The endpoint is looked up dynamically — nothing about the SAP URL or payload is hardcoded.
+ */
+export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: ep } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .or("name.ilike.%detail%,name.ilike.%deatil%,name.ilike.%number%")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP eNFA record-details endpoint is not registered yet. Add it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const username = ep.username || sys?.username || "";
+  const password =
+    (await getSecret(`endpoint:${ep.id}`)) ??
+    (sys ? await getSecret(`system:${sys.id}`) : null) ??
+    (await getSecret("sap_password")) ??
+    "";
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "PUT").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify({ edit: { reffld } }),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
+
+/**
  * Sends an edited eNFA record back to SAP through the registered update endpoint.
  * The endpoint is looked up dynamically — nothing about the SAP URL or payload is hardcoded.
  */
