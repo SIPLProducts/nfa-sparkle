@@ -29,13 +29,18 @@ export async function hasSecret(key: string) {
   return (await getSecret(key)) !== null;
 }
 
-export async function fetchWithTimeout(url: string, init: RequestInit, ms = 15000): Promise<SapCallResult> {
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  ms = 15000,
+  maxBytes = 4000,
+): Promise<SapCallResult> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
     const res = await fetch(url, { ...init, redirect: "manual", signal: controller.signal });
-    const text = (await res.text()).slice(0, 4000);
+    const text = (await res.text()).slice(0, maxBytes);
     return { ok: res.ok, status: res.status, latencyMs: Date.now() - started, body: text, error: null };
   } catch (e) {
     return {
@@ -102,6 +107,7 @@ export async function callSap(opts: {
 
   if (viaProxy) {
     const secret = (await getSecret("middleware_secret")) ?? "";
+    const limit = opts.maxBytes ?? 4000;
     const url = `${mw!.url.replace(/\/+$/, "")}/sap/call`;
     const payload = {
       system: opts.system?.key ?? undefined,
@@ -117,7 +123,7 @@ export async function callSap(opts: {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
       body: JSON.stringify(payload),
-    }, 20000);
+    }, 20000, Math.max(limit + 4000, 8000));
     if (!r.ok && r.status === null) return r;
     try {
       const parsed = JSON.parse(r.body) as {
@@ -134,7 +140,7 @@ export async function callSap(opts: {
         body:
           typeof parsed.body === "string"
             ? parsed.body
-            : JSON.stringify(parsed.body ?? "", null, 2).slice(0, opts.maxBytes ?? 4000),
+            : JSON.stringify(parsed.body ?? "").slice(0, limit),
         error: parsed.error ?? null,
       };
     } catch {
@@ -158,5 +164,10 @@ export async function callSap(opts: {
     headers["Authorization"] = "Basic " + btoa(`${opts.username}:${opts.password ?? ""}`);
   }
   if (opts.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
-  return fetchWithTimeout(target.toString(), { method: opts.method, headers, body: opts.body });
+  return fetchWithTimeout(
+    target.toString(),
+    { method: opts.method, headers, body: opts.body },
+    15000,
+    opts.maxBytes ?? 4000,
+  );
 }
