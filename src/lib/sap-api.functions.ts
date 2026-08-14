@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { wrapReportPayload } from "@/lib/sap-api-constants";
 
 export interface SapEndpoint {
   id: string;
@@ -689,7 +690,7 @@ export const runSapEnfaReport = createServerFn({ method: "POST" })
       method: (ep.http_method ?? "PUT").toUpperCase(),
       headers,
       query: (ep.request_query ?? {}) as Record<string, string>,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(wrapReportPayload(payload as unknown as Record<string, string>)),
       username: username || undefined,
       password,
     });

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { useState } from "react";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -174,7 +175,7 @@ function Report() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(wrapReportPayload(payload)),
       });
 
       const text = await res.text();
