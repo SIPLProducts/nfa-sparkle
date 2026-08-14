@@ -128,7 +128,17 @@ export async function callEnfaUpdate(payload: Record<string, unknown>): Promise<
   const { data: ep } = await db
     .from("sap_endpoint")
     .select("*")
-    .or("name.ilike.%enfa update%,path_or_url.ilike.%enfa_update%,path_or_url.ilike.%enfa_change%")
+    .or(
+      [
+        "name.ilike.%change report%",
+        "name.ilike.%enfa update%",
+        "name.ilike.%update%",
+        "name.ilike.%submit%",
+        "name.ilike.%change%",
+        "path_or_url.ilike.%enfa_update%",
+        "path_or_url.ilike.%enfa_change%",
+      ].join(","),
+    )
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
