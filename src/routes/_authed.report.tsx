@@ -151,6 +151,8 @@ function Report() {
   const [ran, setRan] = useState(false);
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+  const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
+    setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
 
   async function run() {
@@ -252,11 +254,9 @@ function Report() {
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <RangeSelect label="Plant" options={PLANTS} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
-          <RangeSelect label="ENFA Type" options={NFA_TYPES} from={f.funct_from} to={f.funct_to} onFrom={set("funct_from")} onTo={set("funct_to")} />
-          <RangeSelect label="Function" options={FUNCTIONS} from={f.extra_from} to={f.extra_to} onFrom={set("extra_from")} onTo={set("extra_to")} />
-          <RangeInput label="ENFA No" from={f.nfano_from} to={f.nfano_to} onFrom={set("nfano_from")} onTo={set("nfano_to")} placeholder="Number" />
+          <SingleSelect label="ENFA Type" options={NFA_TYPES} value={f.funct_from} onChange={setPair("funct_from", "funct_to")} />
+          <SingleSelect label="Function" options={FUNCTIONS} value={f.extra_from} onChange={setPair("extra_from", "extra_to")} />
           <RangeInput label="Date range" type="date" from={f.dat_from} to={f.dat_to} onFrom={set("dat_from")} onTo={set("dat_to")} />
-          <RangeInput label="Approver IDs" from={f.usrid_from} to={f.usrid_to} onFrom={set("usrid_from")} onTo={set("usrid_to")} placeholder="User ID" />
         </div>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
