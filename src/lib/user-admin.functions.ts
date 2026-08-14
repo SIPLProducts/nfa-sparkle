@@ -228,7 +228,15 @@ async function applyRoles(db: any, userId: string, roles: RoleKey[]) {
 
 export const createManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { email: string; username: string; password: string; full_name: string; roles: RoleKey[] }) => {
+  .inputValidator((d: {
+    email: string;
+    username: string;
+    password: string;
+    full_name: string;
+    employee_id?: string;
+    department?: string;
+    roles: RoleKey[];
+  }) => {
     if (!d.email?.trim()) throw new Error("Email is required");
     d.username = normalizeUsername(d.username);
     if (!d.password || d.password.length < 8) throw new Error("Password must be at least 8 characters");
@@ -255,6 +263,8 @@ export const createManagedUser = createServerFn({ method: "POST" })
         email: data.email.trim().toLowerCase(),
         full_name: data.full_name.trim(),
         username: data.username,
+        employee_id: data.employee_id?.trim() || null,
+        department: data.department?.trim() || null,
       });
     await applyRoles(db, id, data.roles);
     return { id };
@@ -262,7 +272,14 @@ export const createManagedUser = createServerFn({ method: "POST" })
 
 export const updateManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; full_name: string; username: string; roles: RoleKey[] }) => {
+  .inputValidator((d: {
+    id: string;
+    full_name: string;
+    username: string;
+    employee_id?: string;
+    department?: string;
+    roles: RoleKey[];
+  }) => {
     if (!d.full_name?.trim()) throw new Error("Full name is required");
     d.username = normalizeUsername(d.username);
     if (!d.roles?.length) throw new Error("Select at least one role");
@@ -277,7 +294,12 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     await assertUsernameFree(db, data.username, data.id);
     await db
       .from("profiles")
-      .update({ full_name: data.full_name.trim(), username: data.username })
+      .update({
+        full_name: data.full_name.trim(),
+        username: data.username,
+        employee_id: data.employee_id?.trim() || null,
+        department: data.department?.trim() || null,
+      })
       .eq("id", data.id);
     await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: data.full_name.trim() } });
     await applyRoles(db, data.id, data.roles);
