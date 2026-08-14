@@ -400,7 +400,7 @@ function CreateUserDialog({
           <DialogTitle>Create user</DialogTitle>
           <DialogDescription>The account is confirmed immediately and can sign in right away.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>Full name *</Label>
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" />
@@ -415,25 +415,23 @@ function CreateUserDialog({
             />
             <p className="text-xs text-muted-foreground">Used to sign in. Letters, numbers, dot, underscore or hyphen.</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Employee ID</Label>
-              <Input
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="EMP-1024"
-                autoComplete="off"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Department</Label>
-              <Input
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                placeholder="Projects"
-                autoComplete="off"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Employee ID</Label>
+            <Input
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+              placeholder="EMP-1024"
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Department</Label>
+            <Input
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              placeholder="Projects"
+              autoComplete="off"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Email *</Label>
