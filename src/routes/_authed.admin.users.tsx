@@ -180,6 +180,8 @@ function UsersTab() {
       (u) =>
         u.email.toLowerCase().includes(term) ||
         (u.username ?? "").toLowerCase().includes(term) ||
+        (u.employee_id ?? "").toLowerCase().includes(term) ||
+        (u.department ?? "").toLowerCase().includes(term) ||
         (u.full_name ?? "").toLowerCase().includes(term),
     );
   }, [data, q]);
@@ -240,6 +242,11 @@ function UsersTab() {
                       <div className="font-medium">{u.full_name || "—"}</div>
                       <div className="text-xs font-medium text-primary">{u.username ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{u.email}</div>
+                      {(u.employee_id || u.department) && (
+                        <div className="text-xs text-muted-foreground">
+                          {[u.employee_id, u.department].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -340,11 +347,15 @@ function CreateUserDialog({
     username: string;
     password: string;
     full_name: string;
+    employee_id: string;
+    department: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [roles, setRoles] = useState<Role[]>(["initiator"]);
@@ -354,6 +365,8 @@ function CreateUserDialog({
     if (open) {
       setFullName("");
       setUsername("");
+      setEmployeeId("");
+      setDepartment("");
       setEmail("");
       setPassword("");
       setRoles(["initiator"]);
@@ -363,7 +376,15 @@ function CreateUserDialog({
   const submit = async () => {
     setBusy(true);
     try {
-      await onSubmit({ email, username, password, full_name: fullName, roles });
+      await onSubmit({
+        email,
+        username,
+        password,
+        full_name: fullName,
+        employee_id: employeeId,
+        department,
+        roles,
+      });
       onOpenChange(false);
     } catch (e) {
       toast.error(errMsg(e));
@@ -393,6 +414,26 @@ function CreateUserDialog({
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">Used to sign in. Letters, numbers, dot, underscore or hyphen.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Employee ID</Label>
+              <Input
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="EMP-1024"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Input
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="Projects"
+                autoComplete="off"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Email *</Label>
@@ -437,10 +478,19 @@ function EditUserDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onSubmit: (v: { id: string; full_name: string; username: string; roles: Role[] }) => Promise<void>;
+  onSubmit: (v: {
+    id: string;
+    full_name: string;
+    username: string;
+    employee_id: string;
+    department: string;
+    roles: Role[];
+  }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -448,6 +498,8 @@ function EditUserDialog({
     if (user) {
       setFullName(user.full_name);
       setUsername(user.username ?? "");
+      setEmployeeId(user.employee_id ?? "");
+      setDepartment(user.department ?? "");
       setRoles(user.roles);
     }
   }, [user]);
@@ -456,7 +508,14 @@ function EditUserDialog({
     if (!user) return;
     setBusy(true);
     try {
-      await onSubmit({ id: user.id, full_name: fullName, username, roles });
+      await onSubmit({
+        id: user.id,
+        full_name: fullName,
+        username,
+        employee_id: employeeId,
+        department,
+        roles,
+      });
       onClose();
     } catch (e) {
       toast.error(errMsg(e));
@@ -480,6 +539,16 @@ function EditUserDialog({
           <div className="space-y-1.5">
             <Label>User ID *</Label>
             <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Employee ID</Label>
+              <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Roles *</Label>
