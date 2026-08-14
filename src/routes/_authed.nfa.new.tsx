@@ -263,7 +263,7 @@ function NewNfaPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
                       <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
-                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" placeholder="Write freely — no length limit." />
+                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" />
                       <div className="text-[11px] text-muted-foreground">
                         {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
                       </div>
