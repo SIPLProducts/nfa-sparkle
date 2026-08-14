@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { wrapReportPayload } from "@/lib/sap-api-constants";
 
 export interface SapEndpoint {
   id: string;
@@ -170,7 +171,7 @@ async function callSap(opts: {
     const r = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
-      body: JSON.stringify(wrapReportPayload(payload as unknown as Record<string, string>)),
+      body: JSON.stringify(payload),
     });
     if (!r.ok && r.status === null) return r;
     try {
@@ -689,7 +690,7 @@ export const runSapEnfaReport = createServerFn({ method: "POST" })
       method: (ep.http_method ?? "PUT").toUpperCase(),
       headers,
       query: (ep.request_query ?? {}) as Record<string, string>,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(wrapReportPayload(payload as unknown as Record<string, string>)),
       username: username || undefined,
       password,
     });
