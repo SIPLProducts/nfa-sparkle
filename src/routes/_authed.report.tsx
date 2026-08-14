@@ -193,6 +193,7 @@ function Report() {
   const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
     setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
+  const uiFlag = (k: "back" | "clarify") => (v: boolean) => setExtraStatus((p) => ({ ...p, [k]: v }));
 
   async function run() {
     setBusy(true);
@@ -312,9 +313,11 @@ function Report() {
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_proc === "X"} onCheckedChange={(v) => flag("r_proc")(!!v)} /> In Process</label>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_comp === "X"} onCheckedChange={(v) => flag("r_comp")(!!v)} /> Completed</label>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_reje === "X"} onCheckedChange={(v) => flag("r_reje")(!!v)} /> Rejected</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={extraStatus.back} onCheckedChange={(v) => uiFlag("back")(!!v)} /> Back to Initiator</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={extraStatus.clarify} onCheckedChange={(v) => uiFlag("clarify")(!!v)} /> Requested Clarification</label>
           </div>
           <div className="flex gap-2 sm:ml-auto">
-            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => setF(EMPTY)}>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setF(EMPTY); setExtraStatus({ back: false, clarify: false }); }}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
             <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
