@@ -105,6 +105,28 @@ function RangeInput({
   );
 }
 
+function SingleSelect({
+  label, options, value, onChange,
+}: {
+  label: string;
+  options: { code: string; name: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Select value={value} onValueChange={(v) => onChange(v === "_all" ? "" : v)}>
+        <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Any" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="_all">Any</SelectItem>
+          {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function normaliseRows(value: unknown): SapReportRow[] {
   let v = value;
   if (v && typeof v === "object" && !Array.isArray(v)) {
