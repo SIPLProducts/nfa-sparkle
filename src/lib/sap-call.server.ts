@@ -29,13 +29,18 @@ export async function hasSecret(key: string) {
   return (await getSecret(key)) !== null;
 }
 
-export async function fetchWithTimeout(url: string, init: RequestInit, ms = 15000): Promise<SapCallResult> {
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  ms = 15000,
+  maxBytes = 4000,
+): Promise<SapCallResult> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
     const res = await fetch(url, { ...init, redirect: "manual", signal: controller.signal });
-    const text = (await res.text()).slice(0, 4000);
+    const text = (await res.text()).slice(0, maxBytes);
     return { ok: res.ok, status: res.status, latencyMs: Date.now() - started, body: text, error: null };
   } catch (e) {
     return {
