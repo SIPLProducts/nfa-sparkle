@@ -190,6 +190,7 @@ function Report() {
   }
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+  const [extraStatus, setExtraStatus] = useState<{ back: boolean; clarify: boolean }>({ back: false, clarify: false });
   const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
     setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
