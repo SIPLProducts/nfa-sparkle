@@ -180,6 +180,8 @@ function UsersTab() {
       (u) =>
         u.email.toLowerCase().includes(term) ||
         (u.username ?? "").toLowerCase().includes(term) ||
+        (u.employee_id ?? "").toLowerCase().includes(term) ||
+        (u.department ?? "").toLowerCase().includes(term) ||
         (u.full_name ?? "").toLowerCase().includes(term),
     );
   }, [data, q]);
@@ -240,6 +242,11 @@ function UsersTab() {
                       <div className="font-medium">{u.full_name || "—"}</div>
                       <div className="text-xs font-medium text-primary">{u.username ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{u.email}</div>
+                      {(u.employee_id || u.department) && (
+                        <div className="text-xs text-muted-foreground">
+                          {[u.employee_id, u.department].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
