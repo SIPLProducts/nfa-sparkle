@@ -69,7 +69,7 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
 }
 
 /**
- * Sends an edited eNFA record back to SAP through the registered update endpoint.
+ * Fetches a single eNFA record's details from SAP for the given record number.
  * The endpoint is looked up dynamically — nothing about the SAP URL or payload is hardcoded.
  */
 export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
