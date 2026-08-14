@@ -176,16 +176,16 @@ export function RecordEditDialog({
       const { data: s } = await supabase.auth.getSession();
       const token = s.session?.access_token ?? "";
       const payload = {
-        enfa: {
+        submit: {
           reffld: enfa,
-          pspnr: row?.PSPNR ?? "",
-          funct: row?.FUNCT_TXT ?? "",
-          extra: row?.EXTR_TXT ?? "",
-          subject: draft.subject,
-          scope_impact: draft.scope_impact,
-          budget_impact: draft.budget_impact,
-          timeline_days: draft.timeline_days,
-          detailed_description: htmlToPlainText(draft.detailed_description),
+          CC_TEXT: str(detail, "CC_TEXT") || (company ? company.name : ""),
+          PSPNR: str(detail, "PSPNR") || (row?.PSPNR ?? ""),
+          NAME1: str(detail, "NAME1") || (row?.NAME1 ?? ""),
+          SUBJECT: draft.subject,
+          SCOPE_IMPACT: draft.scope_impact,
+          BUDGET_IMPACT: draft.budget_impact,
+          TIMELINE_IMPACT: draft.timeline_days,
+          TEXT: htmlToPlainText(draft.detailed_description),
         },
       };
       const res = await fetch("/api/public/enfa-update", {
@@ -202,7 +202,22 @@ export function RecordEditDialog({
         } catch { /* keep default */ }
         throw new Error(msg);
       }
-      toast.success("Record submitted to SAP");
+      let message = "Record updated in SAP";
+      const trimmed = text.trim();
+      if (trimmed) {
+        try {
+          const parsed = JSON.parse(trimmed) as unknown;
+          if (typeof parsed === "string") message = parsed;
+          else if (parsed && typeof parsed === "object") {
+            const o = parsed as Record<string, unknown>;
+            const m = o["message"] ?? o["MESSAGE"] ?? o["status"] ?? o["result"];
+            if (typeof m === "string" && m.trim()) message = m;
+          }
+        } catch {
+          message = trimmed.slice(0, 200);
+        }
+      }
+      toast.success(message);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
     } finally {
