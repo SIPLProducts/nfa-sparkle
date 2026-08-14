@@ -180,7 +180,8 @@ function Report() {
 
       const text = await res.text();
       let parsed: unknown = null;
-      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+      let parseFailed = false;
+      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; parseFailed = true; }
 
       setRan(true);
       if (!res.ok) {
@@ -195,7 +196,13 @@ function Report() {
 
       const parsedRows = normaliseRows(parsed);
       setRows(parsedRows);
-      if (parsedRows.length === 0) toast.info("SAP returned no records for these filters");
+      if (parseFailed) {
+        const msg = "Could not read the SAP response (it was not valid JSON)";
+        setError(msg);
+        toast.error(msg);
+      } else if (parsedRows.length === 0) {
+        toast.info("SAP returned no records for these filters");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Report failed";
       setError(msg);
