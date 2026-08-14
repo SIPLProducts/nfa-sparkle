@@ -250,7 +250,6 @@ function NewNfaPage() {
                   value={desc}
                   onChange={setDesc}
                   minHeight="240px"
-                  placeholder="Provide a complete rationale, background, alternatives considered, and recommendation. Free-form — supports long, multi-paragraph notes (2000+ words)."
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
                   <span>
