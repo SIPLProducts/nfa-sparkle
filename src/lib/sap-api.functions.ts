@@ -508,7 +508,8 @@ export const testMiddleware = createServerFn({ method: "POST" })
     const secret = await getSecret("middleware_secret");
     const headers: Record<string, string> = {};
     if (secret) headers["x-proxy-secret"] = secret;
-    const r = await fetchWithTimeout(mw.url, { method: "GET", headers });
+    const healthUrl = `${mw.url.replace(/\/+$/, "")}/health`;
+    const r = await fetchWithTimeout(healthUrl, { method: "GET", headers });
     await logTest(null, "middleware", r, (context as any).userId);
     return r;
   });
