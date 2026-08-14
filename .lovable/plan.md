@@ -26,3 +26,7 @@ Two candidate causes, both addressed below:
 
 - `src/lib/sap-report.server.ts`, `sap-call.server.ts` and the wire-key mapping are untouched.
 - Verification after the change: call the endpoint from the preview with the live session and confirm a 200 plus `x-sap-status` set by SAP (a SAP-side error is then a genuinely different, visible failure).
+
+## Note on your Postman test
+
+Postman hitting `http://10.200.1.2:8000/e-nfa/enfa_report//create?sap-client=300` proves SAP and the payload are correct — the app never reaches SAP, so that side isn't the problem. Once the 401 is cleared, the call still has to leave the cloud through your local middleware, since `10.200.1.2` is a private LAN address. If SAP then times out or is unreachable, that is the next (separate) step: middleware URL + secret configured and the tunnel running.
