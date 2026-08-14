@@ -169,7 +169,7 @@ function Report() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
 
-      const res = await fetch("/api/enfa-report", {
+      const res = await fetch("/api/public/enfa-report", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

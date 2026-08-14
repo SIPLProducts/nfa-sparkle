@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiEnfaReportRouteImport } from './routes/api/enfa-report'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
+import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
@@ -37,11 +37,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiEnfaReportRoute = ApiEnfaReportRouteImport.update({
-  id: '/api/enfa-report',
-  path: '/api/enfa-report',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthedReportRoute = AuthedReportRouteImport.update({
   id: '/report',
   path: '/report',
@@ -51,6 +46,11 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
   getParentRoute: () => AuthedRoute,
+} as any)
+const ApiPublicEnfaReportRoute = ApiPublicEnfaReportRouteImport.update({
+  id: '/api/public/enfa-report',
+  path: '/api/public/enfa-report',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
   id: '/nfa/new',
@@ -93,11 +93,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
-  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -107,11 +107,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
-  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api': typeof AuthedAdminSapApiIndexRoute
@@ -123,11 +123,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
-  '/api/enfa-report': typeof ApiEnfaReportRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRoute
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/_authed/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -139,11 +139,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
-    | '/api/enfa-report'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/api/public/enfa-report'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api/'
@@ -153,11 +153,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
-    | '/api/enfa-report'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/api/public/enfa-report'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api'
@@ -168,11 +168,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authed/approvals'
     | '/_authed/report'
-    | '/api/enfa-report'
     | '/_authed/admin/users'
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
+    | '/api/public/enfa-report'
     | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
     | '/_authed/admin/sap-api/'
@@ -182,7 +182,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
-  ApiEnfaReportRoute: typeof ApiEnfaReportRoute
+  ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -208,13 +208,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/enfa-report': {
-      id: '/api/enfa-report'
-      path: '/api/enfa-report'
-      fullPath: '/api/enfa-report'
-      preLoaderRoute: typeof ApiEnfaReportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authed/report': {
       id: '/_authed/report'
       path: '/report'
@@ -228,6 +221,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/approvals'
       preLoaderRoute: typeof AuthedApprovalsRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/public/enfa-report': {
+      id: '/api/public/enfa-report'
+      path: '/api/public/enfa-report'
+      fullPath: '/api/public/enfa-report'
+      preLoaderRoute: typeof ApiPublicEnfaReportRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/nfa/new': {
       id: '/_authed/nfa/new'
@@ -322,7 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
-  ApiEnfaReportRoute: ApiEnfaReportRoute,
+  ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
