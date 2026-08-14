@@ -1,4 +1,5 @@
 import { admin, callSap, getSecret, loadSystem, type SapCallResult } from "./sap-call.server";
+import { wrapReportPayload } from "./sap-api-constants";
 
 export const REPORT_KEYS = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
@@ -10,7 +11,9 @@ export type ReportKey = (typeof REPORT_KEYS)[number];
 
 /** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
 export function buildReportPayload(input: unknown): Record<ReportKey, string> {
-  const src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  let src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  // Accept both a flat object and SAP's wrapped `{ report: { ... } }` shape.
+  if (src["report"] && typeof src["report"] === "object") src = src["report"] as Record<string, unknown>;
   const normalised: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(src)) normalised[k.trim().toLowerCase()] = v;
   const out = {} as Record<ReportKey, string>;
@@ -58,7 +61,7 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(wrapReportPayload(payload)),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,

@@ -170,7 +170,7 @@ async function callSap(opts: {
     const r = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(wrapReportPayload(payload as unknown as Record<string, string>)),
     });
     if (!r.ok && r.status === null) return r;
     try {
