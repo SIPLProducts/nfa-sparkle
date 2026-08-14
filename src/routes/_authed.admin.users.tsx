@@ -340,11 +340,15 @@ function CreateUserDialog({
     username: string;
     password: string;
     full_name: string;
+    employee_id: string;
+    department: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [roles, setRoles] = useState<Role[]>(["initiator"]);
@@ -354,6 +358,8 @@ function CreateUserDialog({
     if (open) {
       setFullName("");
       setUsername("");
+      setEmployeeId("");
+      setDepartment("");
       setEmail("");
       setPassword("");
       setRoles(["initiator"]);
@@ -363,7 +369,15 @@ function CreateUserDialog({
   const submit = async () => {
     setBusy(true);
     try {
-      await onSubmit({ email, username, password, full_name: fullName, roles });
+      await onSubmit({
+        email,
+        username,
+        password,
+        full_name: fullName,
+        employee_id: employeeId,
+        department,
+        roles,
+      });
       onOpenChange(false);
     } catch (e) {
       toast.error(errMsg(e));
@@ -393,6 +407,26 @@ function CreateUserDialog({
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">Used to sign in. Letters, numbers, dot, underscore or hyphen.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Employee ID</Label>
+              <Input
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="EMP-1024"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Input
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="Projects"
+                autoComplete="off"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Email *</Label>
