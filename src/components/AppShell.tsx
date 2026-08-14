@@ -119,9 +119,9 @@ export function AppShell({
   );
 
   return (
-    <div className="flex min-h-screen w-full bg-background text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="hidden md:flex md:w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <aside className="hidden md:flex md:w-64 h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="flex items-center gap-3 px-5 py-5">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
             <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
@@ -140,7 +140,7 @@ export function AppShell({
       </aside>
 
       {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-y-auto">
         <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
