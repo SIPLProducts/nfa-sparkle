@@ -71,7 +71,19 @@ export const Route = createFileRoute("/api/public/enfa-report")({
           );
         }
 
-        return new Response(result.body || "[]", { status: 200, headers });
+        // Defensive: if the middleware envelope slipped through, hand the screen the inner array.
+        let out = result.body || "[]";
+        try {
+          const parsed = JSON.parse(out);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+            const inner = (parsed as { body: unknown }).body;
+            out = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+          }
+        } catch {
+          /* pass SAP's raw body through unchanged */
+        }
+
+        return new Response(out, { status: 200, headers });
       },
     },
   },
