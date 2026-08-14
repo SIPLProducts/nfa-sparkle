@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
@@ -11,8 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
-import { Download, Play, BarChart3, RotateCcw } from "lucide-react";
+import { Download, Play, BarChart3, RotateCcw, Upload, Paperclip, Eye, Pencil } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
+import { RecordAttachmentsDialog, uploadSapFile } from "@/components/report/RecordAttachmentsDialog";
+import { RecordEditDialog } from "@/components/report/RecordEditDialog";
+import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 
 export const Route = createFileRoute("/_authed/report")({
   head: () => ({
@@ -150,6 +153,41 @@ function Report() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [ran, setRan] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
+
+  const selectedRow = useMemo(
+    () => (selected != null && selected < rows.length ? rows[selected]! : null),
+    [selected, rows],
+  );
+
+  function requireSelection(): SapReportRow | null {
+    if (!selectedRow) {
+      toast.info("Select a record first");
+      return null;
+    }
+    return selectedRow;
+  }
+
+  async function onUploadPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    const row = selectedRow;
+    if (!list.length || !row?.REFFLD) return;
+    setUploading(true);
+    try {
+      for (const file of list) await uploadSapFile(row.REFFLD, file);
+      toast.success(`${list.length} file${list.length === 1 ? "" : "s"} uploaded to ${row.REFFLD}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
   const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
@@ -159,6 +197,7 @@ function Report() {
   async function run() {
     setBusy(true);
     setError(null);
+    setSelected(null);
     try {
       // Payload sent to SAP, exactly as SAP expects it (visible in DevTools → Network).
       const payload: Record<string, string> = {};
@@ -285,7 +324,33 @@ function Report() {
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-muted-foreground">{rows.length} result{rows.length === 1 ? "" : "s"}</div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-muted-foreground">
+          {rows.length} result{rows.length === 1 ? "" : "s"}
+          {selectedRow ? <span className="ml-2 font-mono text-xs text-accent">{selectedRow.REFFLD}</span> : null}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={uploading}
+            onClick={() => requireSelection() && uploadRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Upload File, If Any"}
+          </Button>
+          <input ref={uploadRef} type="file" multiple className="hidden" onChange={onUploadPick} />
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setDocsOpen(true)}>
+            <Paperclip className="h-3.5 w-3.5" /> Attached Docs
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setPreviewOpen(true)}>
+            <Eye className="h-3.5 w-3.5" /> Preview
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => requireSelection() && setEditOpen(true)}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        </div>
+      </div>
 
       {/* Mobile card list */}
       <div className="mt-2 space-y-2.5 md:hidden">
@@ -298,7 +363,18 @@ function Report() {
           <details key={`${r.REFFLD}-${i}`} className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <summary className="cursor-pointer list-none">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[11px] font-semibold text-accent">{r.REFFLD || "—"}</span>
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="enfa-record"
+                    className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                    checked={selected === i}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => setSelected(i)}
+                    aria-label={`Select ${r.REFFLD}`}
+                  />
+                  <span className="font-mono text-[11px] font-semibold text-accent">{r.REFFLD || "—"}</span>
+                </span>
                 <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(r.STATUS_TXT)}>{r.STATUS_TXT || "—"}</span>
               </div>
               <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.SUBJECT}</div>
@@ -337,6 +413,7 @@ function Report() {
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="w-9 px-3 py-2.5" />
                 {BASE_COLS.map((c, idx) => (
                   <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-10 bg-muted/50" : "")}>{c.label}</th>
                 ))}
@@ -351,13 +428,27 @@ function Report() {
             <tbody className="divide-y divide-border">
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 2} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
                   </td>
                 </tr>
               )}
               {rows.map((r, i) => (
-                <tr key={`${r.REFFLD}-${i}`} className="hover:bg-muted/40">
+                <tr
+                  key={`${r.REFFLD}-${i}`}
+                  className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+                  onClick={() => setSelected(i)}
+                >
+                  <td className="px-3 py-2.5">
+                    <input
+                      type="radio"
+                      name="enfa-record-desktop"
+                      className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                      checked={selected === i}
+                      onChange={() => setSelected(i)}
+                      aria-label={`Select ${r.REFFLD}`}
+                    />
+                  </td>
                   {BASE_COLS.map((c, idx) => (
                     <td
                       key={c.key}
@@ -395,6 +486,10 @@ function Report() {
           </table>
         </div>
       </div>
+
+      <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
+      <RecordEditDialog row={selectedRow} open={editOpen} onOpenChange={setEditOpen} />
+      <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }
