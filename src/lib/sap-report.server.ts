@@ -1,6 +1,72 @@
 import { admin, callSap, getSecret, loadSystem, type SapCallResult } from "./sap-call.server";
 import { wrapReportPayload } from "./sap-api-constants";
 
+/** Resolves credentials for an endpoint row (endpoint override -> system -> legacy global). */
+async function credentialsFor(ep: Record<string, any>, sys: Record<string, any> | null) {
+  const username = ep.username || sys?.username || "";
+  const password =
+    (await getSecret(`endpoint:${ep.id}`)) ??
+    (sys ? await getSecret(`system:${sys.id}`) : null) ??
+    (await getSecret("sap_password")) ??
+    "";
+  return { username, password };
+}
+
+/**
+ * Sends a new eNFA to SAP through the registered "Create ENFA" endpoint.
+ * The endpoint (host, path, method, headers, query, credentials) comes entirely
+ * from Admin -> SAP API Settings — nothing is hardcoded here.
+ */
+export async function callEnfaCreate(payload: Record<string, unknown>): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: ep } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .or(
+      [
+        "name.ilike.%create enfa%",
+        "name.ilike.%create e-nfa%",
+        "name.ilike.%create%",
+        "path_or_url.ilike.%create%",
+      ].join(","),
+    )
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Create ENFA endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "POST").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
+
 export const REPORT_KEYS = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
   "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",

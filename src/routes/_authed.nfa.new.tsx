@@ -163,12 +163,86 @@ function NewNfaPage() {
         }
       }
 
-      toast.success(asDraft ? "Draft saved" : `Submitted: ${created.enfa_number}`);
+      if (asDraft) {
+        toast.success("Draft saved");
+      } else {
+        // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
+        const sap = await submitToSap(created.id, plantObj?.name ?? "");
+        if (sap.ok) toast.success(sap.message);
+        else toast.error(sap.message);
+      }
       nav({ to: "/nfa/$id", params: { id: created.id } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Reads a file as a base64 string (without the data-url prefix). */
+  function toBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const r = String(reader.result ?? "");
+        resolve(r.includes(",") ? r.slice(r.indexOf(",") + 1) : r);
+      };
+      reader.onerror = () => reject(reader.error ?? new Error("Could not read file"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /** Sends the newly created record to SAP and stores the returned ENFA number. */
+  async function submitToSap(nfaId: string, plantName: string): Promise<{ ok: boolean; message: string }> {
+    try {
+      const files: Array<{ file_name: string; file: string }> = [];
+      for (const f of pending) {
+        try { files.push({ file_name: f.name, file: await toBase64(f) }); } catch { /* skip unreadable file */ }
+      }
+      const payload = {
+        create: {
+          CC_code: company,
+          PSPNR: plant,
+          NAME1: plantName,
+          FUNCT: nfaType,
+          EXTR_TXT: func,
+          SUBJECT: subject,
+          SCOPE_IMPACT: scope,
+          BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
+          TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
+          TEXT: plainDesc,
+          file: files,
+        },
+      };
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      const res = await fetch("/api/public/enfa-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      let parsed: any = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+      if (!res.ok) {
+        return {
+          ok: false,
+          message: `Saved locally, but SAP submission failed: ${
+            parsed?.error || parsed?.MESSAGE || `status ${res.headers.get("x-sap-status") || res.status}`
+          }`,
+        };
+      }
+      const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
+      if (parsed?.STATUS === "S" && enfaNo) {
+        await supabase.from("nfa").update({ enfa_number: enfaNo }).eq("id", nfaId);
+        return { ok: true, message: parsed?.MESSAGE || `Submitted successfully with ENFA No ${enfaNo}` };
+      }
+      return {
+        ok: false,
+        message: `Saved locally, but SAP did not confirm: ${parsed?.MESSAGE || text.slice(0, 200) || "empty response"}`,
+      };
+    } catch (e) {
+      return { ok: false, message: `Saved locally, but SAP submission failed: ${(e as Error).message}` };
     }
   }
 
