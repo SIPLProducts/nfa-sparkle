@@ -49,3 +49,31 @@ export function wrapReportPayload(flat: Record<string, string>) {
   for (const [k, wire] of Object.entries(REPORT_WIRE_KEYS)) report[wire] = (flat[k] ?? "").toString();
   return { report };
 }
+
+/* ------------------------- eNFA create wire format ------------------------ */
+
+/** Exact SAP keys for the Create ENFA service, in payload order. */
+export const CREATE_WIRE_KEYS = [
+  "CC_code",
+  "PSPNR",
+  "NAME1",
+  "FUNCT",
+  "EXTR_TXT",
+  "SUBJECT",
+  "SCOPE_IMPACT",
+  "BUDGET_IMPACT",
+  "TIMELINE_IMPACT",
+  "TEXT",
+] as const;
+
+export interface CreateFile { file_name: string; file: string }
+
+/** Wraps a flat field map + attachments into SAP's `{ create: { ... } }` payload. */
+export function wrapCreatePayload(flat: Record<string, unknown>, files: CreateFile[] = []) {
+  const lower: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(flat ?? {})) lower[k.trim().toLowerCase()] = v;
+  const create: Record<string, unknown> = {};
+  for (const key of CREATE_WIRE_KEYS) create[key] = (lower[key.toLowerCase()] ?? "").toString().trim();
+  create["file"] = files.map((f) => ({ file_name: String(f.file_name ?? ""), file: String(f.file ?? "") }));
+  return { create };
+}
