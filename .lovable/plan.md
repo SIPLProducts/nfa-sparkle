@@ -1,25 +1,27 @@
-# Create eNFA — fix attachment upload error and finish multi-file SAP push
+# Create eNFA — push to SAP on Save, multi-file Base64, and fix the upload error
 
 ## What is actually happening
 
-- The storage insert policy on the attachments bucket only allows a file when the parent NFA is `with_initiator`, `clarification` or `rejected`. On **Submit for Approval** the record is inserted as `in_process` **before** the staged files are uploaded, so every file is rejected with `new row violates row-level security policy`. Save Draft works because the record stays `with_initiator`.
-- The SAP Create ENFA push already exists and already sends `{ create: { CC_code, PSPNR, NAME1, FUNCT, EXTR_TXT, SUBJECT, SCOPE_IMPACT, BUDGET_IMPACT, TIMELINE_IMPACT, TEXT, file: [...] } }` as POST to the endpoint registered in API Settings, and stores the returned `ENFA_NO`. What is missing: files that fail to read are silently dropped, and a failed local upload still lets the SAP call run with an incomplete file list.
+- **Save Draft does not call SAP today.** The record is saved locally as `with_initiator` and the SAP Create ENFA call only runs on *Submit for Approval*. So clicking Save never shows a SAP response or an ENFA number.
+- **Submit fails on attachments.** The storage insert policy only allows a file when the parent NFA is `with_initiator`, `clarification` or `rejected`. On Submit the record is inserted as `in_process` **before** the files upload, so each file is rejected with `new row violates row-level security policy`.
+- The SAP create payload wrapper already sends the exact `{ create: { CC_code, PSPNR, NAME1, FUNCT, EXTR_TXT, SUBJECT, SCOPE_IMPACT, BUDGET_IMPACT, TIMELINE_IMPACT, TEXT, file: [...] } }` shape as POST to the endpoint registered in API Settings, and reads `STATUS` / `MESSAGE` / `ENFA_NO` back. Files that fail to encode are currently dropped silently.
 
 ## Changes
 
-1. **Submit ordering (`src/routes/_authed.nfa.new.tsx`)**
-   - Insert the NFA as `with_initiator` / level 0, insert approvers, upload all staged attachments, then flip to `in_process` / level 1 and push to SAP. Files are therefore always written while the record is in an upload-allowed state.
-   - If any attachment fails to upload, stop before submission and show the error so nothing is half-submitted.
+1. **Save pushes to SAP immediately (`src/routes/_authed.nfa.new.tsx`)**
+   - On Save, after the local record and attachments are stored, call the same Create ENFA endpoint and show SAP's response right away — success toast with SAP's `MESSAGE` and the returned `ENFA_NO`, or the SAP error text on failure.
+   - The record stays in its current state (no approval routing, no status change) — Save still does not submit for approval.
+   - Submit for Approval keeps its existing behaviour unchanged.
 
-2. **Storage policy (migration)**
-   - Extend the insert policy so the initiator can also attach to their own NFA while it is `in_process`, and so an assigned approver can attach when acting (reusing the existing `private.is_nfa_approver` helper already used by the read policy). This also fixes the same failure on the Approvals screen.
+2. **Fix the attachment RLS error**
+   - Reorder Submit: insert the NFA as `with_initiator` / level 0, insert approvers, upload attachments, then flip to `in_process` / level 1 and push to SAP. Files are always written while the record allows uploads.
+   - Migration: extend the storage insert policy so the initiator can attach to their own NFA while it is `in_process`, and an assigned approver can attach when acting (reusing the existing `private.is_nfa_approver` helper). This also fixes the same failure on the Approvals screen.
 
-3. **Multi-file Base64 to SAP (`src/routes/_authed.nfa.new.tsx`)**
-   - Build the `file` array from every staged attachment, each as `{ file_name, file: <base64 without data-url prefix> }` — no hardcoded names, no limit of one.
-   - Surface a clear error when a file cannot be encoded instead of silently skipping it, and guard total payload size so an oversized batch fails with a readable message rather than a SAP timeout.
-   - Keep the response handling unchanged: on `STATUS: "S"` store `ENFA_NO` on the record and show SAP's `MESSAGE`.
+3. **Multi-file Base64 to SAP**
+   - Build the `file` array from every staged attachment as `{ file_name, file: <base64 without the data-url prefix> }` — no hardcoded names, no single-file limit.
+   - Report a clear error when a file cannot be encoded instead of skipping it, and guard total payload size so an oversized batch fails readably instead of timing out against SAP.
 
-4. **Endpoint config** — the Create ENFA row stays fully driven by SAP API Settings (path, POST method, auth, SAP system). Nothing is hardcoded in the app.
+4. **Everything stays config-driven** — path, POST method, auth and SAP system continue to come from Admin → SAP API Settings.
 
 ## Notes
 
