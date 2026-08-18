@@ -21,7 +21,7 @@ const https = require("https");
 const express = require("express");
 const cors = require("cors");
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const PORT = Number(process.env.PORT || 3005);
 const PROXY_SECRET = process.env.PROXY_SECRET || "";
 const ALLOW_IPS = (process.env.ALLOW_IPS || "")
@@ -67,7 +67,11 @@ function redact(value) {
   return value ? "***" : "";
 }
 
-/** Node's fetch rejects GET/HEAD bodies, but this SAP F4 service requires one. */
+/**
+ * Node's global fetch rejects GET/HEAD bodies, but this SAP service requires one
+ * (exactly like the working Postman call). For those requests we use Node's own
+ * http/https client, which happily writes the body. Everything else uses fetch.
+ */
 function requestWithOptionalGetBody(url, { method, headers, body, signal }) {
   if ((method !== "GET" && method !== "HEAD") || body === undefined) {
     return fetch(url, { method, headers, body, redirect: "manual", signal });
@@ -76,8 +80,11 @@ function requestWithOptionalGetBody(url, { method, headers, body, signal }) {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
     const transport = target.protocol === "https:" ? https : http;
-    const payload = Buffer.from(body);
+    const payload = Buffer.from(body, "utf8");
     const requestHeaders = { ...headers };
+    if (!requestHeaders["Content-Type"] && !requestHeaders["content-type"]) {
+      requestHeaders["Content-Type"] = "application/json";
+    }
     if (!requestHeaders["Content-Length"] && !requestHeaders["content-length"]) {
       requestHeaders["Content-Length"] = String(payload.length);
     }
@@ -87,7 +94,7 @@ function requestWithOptionalGetBody(url, { method, headers, body, signal }) {
       response.on("end", () => {
         const responseBody = Buffer.concat(chunks);
         resolve({
-          ok: response.statusCode >= 200 && response.statusCode < 300,
+          ok: (response.statusCode || 0) >= 200 && (response.statusCode || 0) < 300,
           status: response.statusCode || 0,
           headers: { get: (name) => response.headers[String(name).toLowerCase()] || null },
           text: async () => responseBody.toString("utf8"),
@@ -95,7 +102,13 @@ function requestWithOptionalGetBody(url, { method, headers, body, signal }) {
       });
     });
     request.on("error", reject);
-    signal.addEventListener("abort", () => request.destroy(Object.assign(new Error("Request timed out"), { name: "AbortError" })), { once: true });
+    if (signal) {
+      signal.addEventListener(
+        "abort",
+        () => request.destroy(Object.assign(new Error("Request timed out"), { name: "AbortError" })),
+        { once: true },
+      );
+    }
     request.end(payload);
   });
 }
@@ -128,6 +141,7 @@ app.get("/health", (_req, res) => {
     version: VERSION,
     port: PORT,
     uptimeSec: Math.round(process.uptime()),
+    getBodySupported: true,
     systems: systems.map((s) => ({ key: s.key, label: s.label || s.key, target: baseUrlOf(s), client: s.client })),
   });
 });
@@ -151,11 +165,11 @@ app.get("/systems", requireSecret, (_req, res) => {
  * {
  *   system?: "DEV300",               // key from systems.json (falls back to default)
  *   baseUrl?: "http://10.200.1.2:8000", // overrides the system host (sent by the app)
- *   method: "PUT",
- *   path: "/e-nfa/enfa_report//create",
+ *   method: "GET" | "POST" | "PUT" | ...,
+ *   path: "/e-nfa/enfa_report/create",
  *   query: { "sap-client": "300" },
  *   headers: { "Content-Type": "application/json" },
- *   body: { ... } | "raw string",
+ *   body: { ... } | "raw string",    // forwarded even for GET (SAP F4 requires it)
  *   auth: { username, password },    // optional; defaults to the system credentials
  *   timeoutMs: 30000
  * }
@@ -167,11 +181,15 @@ app.post("/sap/call", requireSecret, async (req, res) => {
 
   const base = (p.baseUrl || (sys ? baseUrlOf(sys) : "")).replace(/\/+$/, "");
   if (!base) {
-    return res.status(400).json({ ok: false, error: `Unknown SAP system "${p.system || "(default)"}" and no baseUrl supplied` });
+    return res
+      .status(400)
+      .json({ ok: false, error: `Unknown SAP system "${p.system || "(default)"}" and no baseUrl supplied` });
   }
 
   const rawPath = p.path || "";
-  const url = /^https?:\/\//i.test(rawPath) ? new URL(rawPath) : new URL(`${base}${rawPath.startsWith("/") ? "" : "/"}${rawPath}`);
+  const url = /^https?:\/\//i.test(rawPath)
+    ? new URL(rawPath)
+    : new URL(`${base}${rawPath.startsWith("/") ? "" : "/"}${rawPath}`);
 
   if (sys && sys.client && !url.searchParams.has("sap-client")) url.searchParams.set("sap-client", String(sys.client));
   for (const [k, v] of Object.entries(p.query || {})) if (k) url.searchParams.set(k, String(v));
@@ -185,6 +203,8 @@ app.post("/sap/call", requireSecret, async (req, res) => {
 
   const method = (p.method || "GET").toUpperCase();
   let body;
+  // The body is forwarded for EVERY method, including GET/HEAD — SAP's F4 services
+  // require it and Postman sends it the same way.
   if (p.body !== undefined && p.body !== null && p.body !== "") {
     body = typeof p.body === "string" ? p.body : JSON.stringify(p.body);
     if (!headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
@@ -193,17 +213,28 @@ app.post("/sap/call", requireSecret, async (req, res) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Number(p.timeoutMs) || DEFAULT_TIMEOUT_MS);
 
-  console.log(`[middleware] ${method} ${url.origin}${url.pathname} user=${username || "-"} pwd=${redact(password)}`);
+  console.log(`[middleware] ${method} ${url.origin}${url.pathname}${url.search} user=${username || "-"} pwd=${redact(password)}`);
+  console.log("[middleware] SAP REQUEST PAYLOAD:", body || "(no request body)");
 
   try {
-    const upstream = await requestWithOptionalGetBody(url.toString(), { method, headers, body, signal: controller.signal });
+    const upstream = await requestWithOptionalGetBody(url.toString(), {
+      method,
+      headers,
+      body,
+      signal: controller.signal,
+    });
+
     const text = await upstream.text();
+    console.log("[middleware] SAP STATUS:", upstream.status, "OK:", upstream.ok, "bytes:", text.length);
+    console.log("[middleware] SAP RESPONSE:", text.slice(0, 2000));
+
     let parsed = null;
     try {
       parsed = JSON.parse(text);
     } catch {
-      /* keep raw text */
+      /* SAP response is not JSON — keep the raw text */
     }
+
     res.status(200).json({
       ok: upstream.ok,
       status: upstream.status,
@@ -213,6 +244,7 @@ app.post("/sap/call", requireSecret, async (req, res) => {
       raw: parsed !== null ? undefined : text,
     });
   } catch (e) {
+    console.error("[middleware] SAP REQUEST ERROR:", (e && e.message) || e);
     res.status(200).json({
       ok: false,
       status: null,
@@ -230,6 +262,7 @@ app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 app.listen(PORT, () => {
   console.log(`[middleware] eNFA SAP middleware v${VERSION} listening on http://localhost:${PORT}`);
   const systems = loadSystems();
-  if (!systems.length) console.warn("[middleware] No systems.json found — the app must send baseUrl on every call.");
-  else systems.forEach((s) => console.log(`  · ${s.key} -> ${baseUrlOf(s)} (client ${s.client || "-"})`));
+  if (systems.length) {
+    systems.forEach((s) => console.log(`  · ${s.key} -> ${baseUrlOf(s)} (client ${s.client || "-"})`));
+  }
 });
