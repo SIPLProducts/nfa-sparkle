@@ -171,7 +171,7 @@ function NewNfaPage() {
     // Company must always come from the live SAP F4 list — never a hardcoded code.
     if (companies.length) setCompany(companies[0]!.code);
     setProject("P002");
-    setNfaType("CAPEX");
+    if (nfaTypes.length) setNfaType(nfaTypes[0]!.code);
     setFunc("PROJECTS");
     setSubject("Procurement of 250 KVA DG Set for Varthur Phase 2");
     setScope("Civil, Electrical and Project Operations at Varthur site");
