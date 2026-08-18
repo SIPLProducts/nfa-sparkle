@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
+import { PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
-  const [companies, setCompanies] = useState<Option[]>(COMPANIES);
+  const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
   const plainDesc = htmlToPlainText(desc);
@@ -69,11 +69,14 @@ function NewNfaPage() {
             (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
             (text ? text.slice(0, 300) : "") ||
             `SAP responded with status ${res.status}`;
-          setCompanies(COMPANIES);
+          setCompanies([]);
           setCompaniesError(`SAP: ${String(detail)}`);
         }
       } catch {
-        if (!cancelled) setCompaniesError("Could not reach the SAP company service — showing the built-in list.");
+        if (!cancelled) {
+          setCompanies([]);
+          setCompaniesError("Could not reach the SAP company service.");
+        }
       } finally {
         if (!cancelled) setCompaniesLoading(false);
       }
@@ -82,7 +85,8 @@ function NewNfaPage() {
   }, [companyReload]);
 
   function loadSample() {
-    setCompany("REFL");
+    // Company must always come from the live SAP F4 list — never a hardcoded code.
+    if (companies.length) setCompany(companies[0]!.code);
     setPlant("9064");
     setProject("P002");
     setNfaType("CAPEX");
@@ -314,9 +318,17 @@ function NewNfaPage() {
           <Section icon={<Building2 className="h-4 w-4" />} title="Organisation & Type" desc="Master data is sourced from SAP.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
-                <Select value={company} onValueChange={setCompany}>
+                <Select value={company} onValueChange={setCompany} disabled={companiesLoading || companies.length === 0}>
                   <SelectTrigger>
-                    <SelectValue placeholder={companiesLoading ? "Loading companies…" : "Select company"} />
+                    <SelectValue
+                      placeholder={
+                        companiesLoading
+                          ? "Loading companies from SAP…"
+                          : companies.length
+                            ? "Select company"
+                            : "No companies returned by SAP"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {companies.map((c) => (

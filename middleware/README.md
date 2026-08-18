@@ -20,6 +20,12 @@ npm start
 
 Check it: `curl http://localhost:3005/health`
 
+> **Upgrade required (v1.1.0):** earlier versions dropped the JSON body from `GET`
+> requests, which broke SAP value-help services such as **Company F4**. Replace your
+> local `server.js` with this file and restart the service. Confirm with
+> `curl http://localhost:3005/health` — it must report `"version": "1.1.0"` and
+> `"getBodySupported": true`.
+
 Keep it running permanently with pm2 (Linux) or nssm (Windows service):
 
 ```bash
