@@ -240,12 +240,6 @@ export async function callSapPlantF4(bukrs: string): Promise<SapCallResult> {
   });
 }
 
-const _REPORT_KEYS_UNUSED = [
-  "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
-  "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",
-  "r_proc", "r_comp", "r_reje",
-] as const;
-
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
 /** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
