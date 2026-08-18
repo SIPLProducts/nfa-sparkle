@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { NFA_TYPES, FUNCTIONS, projectsFor, parseCompanyF4, parsePlantF4 } from "@/lib/sap/master";
+import { FUNCTIONS, projectsFor, parseCompanyF4, parsePlantF4, parseEnfaTypeF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,10 @@ function NewNfaPage() {
   const [plantsLoading, setPlantsLoading] = useState(false);
   const [plantsError, setPlantsError] = useState("");
   const [plantReload, setPlantReload] = useState(0);
+  const [nfaTypes, setNfaTypes] = useState<Option[]>([]);
+  const [nfaTypesLoading, setNfaTypesLoading] = useState(true);
+  const [nfaTypesError, setNfaTypesError] = useState("");
+  const [nfaTypeReload, setNfaTypeReload] = useState(0);
   const plainDesc = htmlToPlainText(desc);
 
 
@@ -125,6 +129,43 @@ function NewNfaPage() {
     })();
     return () => { cancelled = true; };
   }, [company, plantReload]);
+
+  // NFA Type list comes from the SAP "ENFA Type F4" endpoint registered in Admin → SAP API Settings.
+  useEffect(() => {
+    let cancelled = false;
+    setNfaTypesLoading(true);
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-enfa-type", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: "{}",
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parseEnfaTypeF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { setNfaTypes(list); setNfaTypesError(""); }
+        else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 300) : "") ||
+            `SAP responded with status ${res.status}`;
+          setNfaTypes([]);
+          setNfaTypesError(res.ok ? "SAP returned no NFA types." : `SAP: ${String(detail)}`);
+        }
+      } catch {
+        if (!cancelled) { setNfaTypes([]); setNfaTypesError("Could not reach the SAP NFA type service."); }
+      } finally {
+        if (!cancelled) setNfaTypesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nfaTypeReload]);
 
   function loadSample() {
     // Company must always come from the live SAP F4 list — never a hardcoded code.
@@ -391,10 +432,34 @@ function NewNfaPage() {
                 ) : null}
               </Field>
               <Field label="NFA Type" required>
-                <Select value={nfaType} onValueChange={setNfaType}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
+                <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        nfaTypesLoading
+                          ? "Loading NFA types from SAP…"
+                          : nfaTypes.length
+                            ? "Select type"
+                            : "No NFA types returned by SAP"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}
+                  </SelectContent>
                 </Select>
+                {nfaTypesError ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {nfaTypesError}{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline underline-offset-2"
+                      onClick={() => setNfaTypeReload((n) => n + 1)}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                ) : null}
               </Field>
               <Field label="Plant">
                 <Select value={plant} onValueChange={setPlant} disabled={!company || plantsLoading || plants.length === 0}>
