@@ -318,9 +318,17 @@ function NewNfaPage() {
           <Section icon={<Building2 className="h-4 w-4" />} title="Organisation & Type" desc="Master data is sourced from SAP.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
-                <Select value={company} onValueChange={setCompany}>
+                <Select value={company} onValueChange={setCompany} disabled={companiesLoading || companies.length === 0}>
                   <SelectTrigger>
-                    <SelectValue placeholder={companiesLoading ? "Loading companies…" : "Select company"} />
+                    <SelectValue
+                      placeholder={
+                        companiesLoading
+                          ? "Loading companies from SAP…"
+                          : companies.length
+                            ? "Select company"
+                            : "No companies returned by SAP"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {companies.map((c) => (
