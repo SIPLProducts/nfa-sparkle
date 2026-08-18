@@ -96,6 +96,41 @@ export function parseCompanyF4(raw: unknown): Option[] {
 export function projectsFor(plant: string) {
   return PROJECTS.filter((p) => p.plant === plant);
 }
+
+/** Parses SAP's Plant F4 response into `{ code, name }` options. */
+export function parsePlantF4(raw: unknown): Option[] {
+  let src: unknown = raw;
+  if (typeof src === "string") {
+    try { src = JSON.parse(src); } catch { return []; }
+  }
+  for (let depth = 0; depth < 3; depth++) {
+    if (Array.isArray(src)) break;
+    if (!src || typeof src !== "object") break;
+    const values = Object.values(src as Record<string, unknown>);
+    const arr = values.find((v) => Array.isArray(v));
+    if (arr) { src = arr; break; }
+    const nested = values.find((v) => v && typeof v === "object");
+    if (!nested) break;
+    src = nested;
+  }
+  if (!Array.isArray(src)) {
+    if (src && typeof src === "object") src = [src];
+    else return [];
+  }
+  const out: Option[] = [];
+  const seen = new Set<string>();
+  for (const row of src as unknown[]) {
+    if (!row || typeof row !== "object") continue;
+    const lower: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
+    const code = String(lower["werks"] ?? lower["plant"] ?? lower["pspnr"] ?? "").trim();
+    if (!code || seen.has(code)) continue;
+    const name = String(lower["name1"] ?? lower["ktext"] ?? "").trim();
+    seen.add(code);
+    out.push({ code, name: name || code });
+  }
+  return out;
+}
 export function plantName(code: string | null | undefined) {
   return PLANTS.find((p) => p.code === code)?.name ?? "";
 }
