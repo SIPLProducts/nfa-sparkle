@@ -75,14 +75,28 @@ export async function callEnfaCreate(payload: Record<string, unknown>): Promise<
  */
 export async function callSapCompanyF4(): Promise<SapCallResult> {
   const db = await admin();
-  const { data: ep } = await db
+  const { data: exactEndpoint } = await db
     .from("sap_endpoint")
     .select("*")
-    .or(["name.ilike.%company%", "request_body.ilike.%cc_code%"].join(","))
+    .ilike("name", "Company F4")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+
+  // Compatibility fallback for installations that use a longer company-specific
+  // label. Never infer this endpoint from cc_code because Create ENFA also has it.
+  const { data: fallbackEndpoint } = exactEndpoint
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%company%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exactEndpoint ?? fallbackEndpoint;
 
   if (!ep) {
     return {
