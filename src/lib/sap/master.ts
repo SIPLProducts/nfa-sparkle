@@ -80,7 +80,7 @@ export function parseCompanyF4(raw: unknown): Option[] {
     else return [];
   }
   const out: Option[] = [];
-  for (const row of src) {
+  for (const row of src as unknown[]) {
     if (!row || typeof row !== "object") continue;
     const lower: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
