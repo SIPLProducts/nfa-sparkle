@@ -186,7 +186,10 @@ async function callSap(opts: {
         ok: !!parsed.ok,
         status: parsed.status ?? r.status,
         latencyMs: parsed.latencyMs ?? r.latencyMs,
-        body: typeof parsed.body === "string" ? parsed.body : JSON.stringify(parsed.body ?? "", null, 2).slice(0, 4000),
+        body:
+          typeof parsed.body === "string"
+            ? parsed.body
+            : JSON.stringify(parsed.body ?? "", null, 2).slice(0, 200000),
         error: parsed.error ?? null,
       };
     } catch {
