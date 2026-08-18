@@ -269,6 +269,8 @@ function NewNfaPage() {
     setBusy(true);
     try {
       const plantObj = plants.find((p) => p.code === plant);
+      // Always create the record in an upload-allowed state; it is promoted to
+      // `in_process` only after every staged attachment has been stored.
       const { data: created, error } = await supabase.from("nfa").insert({
         initiator_id: user.id,
         company, plant: plant || null, plant_name: plantObj?.name ?? null,
@@ -277,8 +279,8 @@ function NewNfaPage() {
         budget_impact: budget ? Number(budget) : null,
         timeline_days: timeline ? Number(timeline) : null,
         detailed_description: plainDesc ? desc : null,
-        status: asDraft ? "with_initiator" : "in_process",
-        current_level: asDraft ? 0 : 1,
+        status: "with_initiator",
+        current_level: 0,
       }).select().single();
       if (error || !created) throw error;
 
@@ -311,18 +313,19 @@ function NewNfaPage() {
         action: asDraft ? "Created (draft)" : "Submitted for approval",
       });
 
-      // Upload staged attachments (best-effort: failures are surfaced but don't roll back the NFA).
+      // Upload staged attachments while the record still allows storage inserts.
       if (pending.length) {
         const uploaded: string[] = [];
+        const failed: string[] = [];
         for (const file of pending) {
           const path = `${created.id}/${Date.now()}-${file.name}`;
           const { error: se } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
-          if (se) { toast.error(`Upload failed for ${file.name}: ${se.message}`); continue; }
+          if (se) { toast.error(`Upload failed for ${file.name}: ${se.message}`); failed.push(file.name); continue; }
           const { error: ie } = await supabase.from("nfa_attachment").insert({
             nfa_id: created.id, storage_path: path, filename: file.name,
             mime: file.type || null, size: file.size, uploaded_by: user.id,
           });
-          if (ie) { toast.error(`Record failed for ${file.name}: ${ie.message}`); continue; }
+          if (ie) { toast.error(`Record failed for ${file.name}: ${ie.message}`); failed.push(file.name); continue; }
           uploaded.push(file.name);
         }
         if (uploaded.length) {
@@ -332,16 +335,30 @@ function NewNfaPage() {
             comment: uploaded.join(", "),
           });
         }
+        if (failed.length) {
+          toast.error(`Stopped before sending to SAP — ${failed.length} attachment(s) could not be stored.`);
+          nav({ to: "/nfa/$id", params: { id: created.id } });
+          return;
+        }
       }
 
-      if (asDraft) {
-        toast.success("Draft saved");
-      } else {
-        // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
-        const sap = await submitToSap(created.id, plantObj?.name ?? "");
-        if (sap.ok) toast.success(sap.message);
-        else toast.error(sap.message);
+      if (!asDraft) {
+        // Route for approval only on Submit.
+        const { error: perr } = await supabase
+          .from("nfa")
+          .update({ status: "in_process", current_level: 1 })
+          .eq("id", created.id);
+        if (perr) throw perr;
       }
+
+      if (asDraft) toast.success("Draft saved");
+
+      // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
+      // This runs for both Save and Submit so the SAP response is always shown.
+      const sap = await submitToSap(created.id, plantObj?.name ?? "");
+      if (sap.ok) toast.success(sap.message);
+      else toast.error(sap.message);
+
       nav({ to: "/nfa/$id", params: { id: created.id } });
     } catch (e) {
       toast.error((e as Error).message);
