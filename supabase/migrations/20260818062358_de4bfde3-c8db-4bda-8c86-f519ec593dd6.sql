@@ -1,0 +1,3 @@
+INSERT INTO public.sap_endpoint (name, description, module, path_or_url, http_method, auth_type, api_type, active, request_headers, request_query, request_body)
+SELECT 'Company F4', 'SAP value help for the Company field on Create eNFA', 'Common', '/e-nfa/enfa_report/create', 'POST', 'basic', 'fetch', true, '{}'::jsonb, '{}'::jsonb, '{ "cc_code": "" }'
+WHERE NOT EXISTS (SELECT 1 FROM public.sap_endpoint WHERE name ILIKE '%company%');
