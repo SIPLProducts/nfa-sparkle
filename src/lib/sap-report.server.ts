@@ -67,7 +67,6 @@ export async function callEnfaCreate(payload: Record<string, unknown>): Promise<
   });
 }
 
-export const REPORT_KEYS = [
 /**
  * Fetches the Company value-help (F4) list from SAP through the registered
  * "Company F4" endpoint. Path, method, headers, query, body template and
