@@ -85,7 +85,8 @@ function NewNfaPage() {
   }, [companyReload]);
 
   function loadSample() {
-    setCompany("REFL");
+    // Company must always come from the live SAP F4 list — never a hardcoded code.
+    if (companies.length) setCompany(companies[0]!.code);
     setPlant("9064");
     setProject("P002");
     setNfaType("CAPEX");
