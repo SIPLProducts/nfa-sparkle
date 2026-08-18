@@ -242,6 +242,91 @@ export async function callSapPlantF4(bukrs: string): Promise<SapCallResult> {
 
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
+/**
+ * Fetches the eNFA Type value-help (F4) list from SAP through the registered
+ * "ENFA Type F4" endpoint. Host, path, method, headers, query, body template
+ * and credentials all come from Admin → SAP API Settings.
+ */
+export async function callSapEnfaTypeF4(): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exactEndpoint } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "ENFA Type F4")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallbackEndpoint } = exactEndpoint
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%type%")
+        .not("name", "ilike", "%create%")
+        .not("name", "ilike", "%company%")
+        .not("name", "ilike", "%plant%")
+        .not("name", "ilike", "%report%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exactEndpoint ?? fallbackEndpoint;
+
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP ENFA Type F4 endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "GET").toUpperCase();
+
+  let payload: Record<string, unknown> = { type: { nfa_typ: "" } };
+  const template = (ep.request_body ?? "").trim();
+  if (template) {
+    try {
+      const parsed = JSON.parse(template);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        payload = parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {
+        ok: false,
+        status: null,
+        latencyMs: 0,
+        body: "",
+        error:
+          'The ENFA Type F4 request body in Admin → SAP API Settings is not valid JSON. Expected something like { "type": { "nfa_typ": "" } }.',
+      };
+    }
+  }
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: method === "DELETE" ? undefined : JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
+
 /** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
 export function buildReportPayload(input: unknown): Record<ReportKey, string> {
   let src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
