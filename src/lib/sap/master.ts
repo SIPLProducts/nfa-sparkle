@@ -51,7 +51,32 @@ export const FUNCTIONS: Option[] = [
 ];
 
 export function plantsFor(company: string) {
-  return PLANTS.filter((p) => p.company === company);
+  const matched = PLANTS.filter((p) => p.company === company);
+  // SAP company codes (BUKRS) differ from the built-in codes; keep plants
+  // selectable until a Plant F4 service is wired up.
+  return matched.length ? matched : PLANTS;
+}
+
+/** Parses SAP's Company F4 response into `{ code, name }` options. */
+export function parseCompanyF4(raw: unknown): Option[] {
+  let src: unknown = raw;
+  if (src && typeof src === "object" && !Array.isArray(src)) {
+    const obj = src as Record<string, unknown>;
+    const arr = Object.values(obj).find((v) => Array.isArray(v));
+    src = arr ?? [];
+  }
+  if (!Array.isArray(src)) return [];
+  const out: Option[] = [];
+  for (const row of src) {
+    if (!row || typeof row !== "object") continue;
+    const lower: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
+    const code = String(lower["bukrs"] ?? lower["cc_code"] ?? "").trim();
+    if (!code) continue;
+    const name = String(lower["butxt"] ?? lower["name1"] ?? "").trim();
+    out.push({ code, name: name || code });
+  }
+  return out;
 }
 export function projectsFor(plant: string) {
   return PROJECTS.filter((p) => p.plant === plant);

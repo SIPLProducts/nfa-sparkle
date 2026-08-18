@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor } from "@/lib/sap/master";
+import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
+import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +36,40 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
+  const [companies, setCompanies] = useState<Option[]>(COMPANIES);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState("");
   const plainDesc = htmlToPlainText(desc);
 
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
+
+  // Company list comes from the SAP "Company F4" endpoint registered in Admin → SAP API Settings.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-company", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: "{}",
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parseCompanyF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { setCompanies(list); setCompaniesError(""); }
+        else setCompaniesError("Could not load the company list from SAP — showing the built-in list.");
+      } catch {
+        if (!cancelled) setCompaniesError("Could not load the company list from SAP — showing the built-in list.");
+      } finally {
+        if (!cancelled) setCompaniesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   function loadSample() {
     setCompany("REFL");
@@ -273,9 +305,18 @@ function NewNfaPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
                 <Select value={company} onValueChange={setCompany}>
-                  <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
-                  <SelectContent>{COMPANIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+                  <SelectTrigger>
+                    <SelectValue placeholder={companiesLoading ? "Loading companies…" : "Select company"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.code} – {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
+                {companiesError ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{companiesError}</p>
+                ) : null}
               </Field>
               <Field label="NFA Type" required>
                 <Select value={nfaType} onValueChange={setNfaType}>
