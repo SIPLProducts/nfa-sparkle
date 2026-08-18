@@ -30,6 +30,7 @@ export async function callEnfaCreate(payload: Record<string, unknown>): Promise<
         "path_or_url.ilike.%create%",
       ].join(","),
     )
+    .not("name", "ilike", "%company%")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
