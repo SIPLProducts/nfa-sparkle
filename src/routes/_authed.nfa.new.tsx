@@ -44,8 +44,10 @@ function NewNfaPage() {
   useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
 
   // Company list comes from the SAP "Company F4" endpoint registered in Admin → SAP API Settings.
+  const [companyReload, setCompanyReload] = useState(0);
   useEffect(() => {
     let cancelled = false;
+    setCompaniesLoading(true);
     (async () => {
       try {
         const { data: sess } = await supabase.auth.getSession();
@@ -61,15 +63,23 @@ function NewNfaPage() {
         const list = res.ok ? parseCompanyF4(parsed) : [];
         if (cancelled) return;
         if (list.length) { setCompanies(list); setCompaniesError(""); }
-        else setCompaniesError("Could not load the company list from SAP — showing the built-in list.");
+        else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 300) : "") ||
+            `SAP responded with status ${res.status}`;
+          setCompanies(COMPANIES);
+          setCompaniesError(`SAP: ${String(detail)}`);
+        }
       } catch {
-        if (!cancelled) setCompaniesError("Could not load the company list from SAP — showing the built-in list.");
+        if (!cancelled) setCompaniesError("Could not reach the SAP company service — showing the built-in list.");
       } finally {
         if (!cancelled) setCompaniesLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [companyReload]);
 
   function loadSample() {
     setCompany("REFL");
@@ -315,7 +325,16 @@ function NewNfaPage() {
                   </SelectContent>
                 </Select>
                 {companiesError ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{companiesError}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {companiesError}{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline underline-offset-2"
+                      onClick={() => setCompanyReload((n) => n + 1)}
+                    >
+                      Retry
+                    </button>
+                  </p>
                 ) : null}
               </Field>
               <Field label="NFA Type" required>
