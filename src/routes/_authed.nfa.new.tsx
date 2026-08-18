@@ -385,7 +385,19 @@ function NewNfaPage() {
     try {
       const files: Array<{ file_name: string; file: string }> = [];
       for (const f of pending) {
-        try { files.push({ file_name: f.name, file: await toBase64(f) }); } catch { /* skip unreadable file */ }
+        try {
+          files.push({ file_name: f.name, file: await toBase64(f) });
+        } catch (err) {
+          return { ok: false, message: `Could not read ${f.name} for SAP upload: ${(err as Error).message}` };
+        }
+      }
+      // Base64 inflates by ~4/3; keep the whole batch under a size SAP accepts.
+      const encodedBytes = files.reduce((n, f) => n + f.file.length, 0);
+      if (encodedBytes > 40 * 1024 * 1024) {
+        return {
+          ok: false,
+          message: "Saved locally, but the attachments are too large to send to SAP in one request. Remove some files and try again.",
+        };
       }
       const payload = {
         create: {
