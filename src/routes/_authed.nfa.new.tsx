@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { FUNCTIONS, projectsFor, parseCompanyF4, parsePlantF4, parseEnfaTypeF4 } from "@/lib/sap/master";
+import { projectsFor, parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,10 @@ function NewNfaPage() {
   const [nfaTypesLoading, setNfaTypesLoading] = useState(true);
   const [nfaTypesError, setNfaTypesError] = useState("");
   const [nfaTypeReload, setNfaTypeReload] = useState(0);
+  const [functions, setFunctions] = useState<Option[]>([]);
+  const [functionsLoading, setFunctionsLoading] = useState(false);
+  const [functionsError, setFunctionsError] = useState("");
+  const [functionReload, setFunctionReload] = useState(0);
   const plainDesc = htmlToPlainText(desc);
 
 
@@ -167,12 +171,51 @@ function NewNfaPage() {
     return () => { cancelled = true; };
   }, [nfaTypeReload]);
 
+  // Function list comes from the SAP "Function F4" endpoint registered in Admin → SAP API Settings.
+  useEffect(() => {
+    if (!nfaType) { setFunctions([]); setFunctionsError(""); setFunctionsLoading(false); setFunc(""); return; }
+    let cancelled = false;
+    setFunctionsLoading(true);
+    setFunc("");
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-function", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ nfaType }),
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parseFunctionF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { setFunctions(list); setFunctionsError(""); }
+        else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 300) : "") ||
+            `SAP responded with status ${res.status}`;
+          setFunctions([]);
+          setFunctionsError(res.ok ? "SAP returned no functions for this NFA type." : `SAP: ${String(detail)}`);
+        }
+      } catch {
+        if (!cancelled) { setFunctions([]); setFunctionsError("Could not reach the SAP function service."); }
+      } finally {
+        if (!cancelled) setFunctionsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nfaType, functionReload]);
+
   function loadSample() {
     // Company must always come from the live SAP F4 list — never a hardcoded code.
     if (companies.length) setCompany(companies[0]!.code);
     setProject("P002");
     if (nfaTypes.length) setNfaType(nfaTypes[0]!.code);
-    setFunc("PROJECTS");
+    if (functions.length) setFunc(functions[0]!.code);
     setSubject("Procurement of 250 KVA DG Set for Varthur Phase 2");
     setScope("Civil, Electrical and Project Operations at Varthur site");
     setBudget("42.5");
@@ -502,10 +545,36 @@ function NewNfaPage() {
                 </Select>
               </Field>
               <Field label="Function" className="md:col-span-2">
-                <Select value={func} onValueChange={setFunc}>
-                  <SelectTrigger><SelectValue placeholder="Select function" /></SelectTrigger>
-                  <SelectContent>{FUNCTIONS.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}</SelectContent>
+                <Select value={func} onValueChange={setFunc} disabled={!nfaType || functionsLoading || functions.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !nfaType
+                          ? "Select NFA type first"
+                          : functionsLoading
+                            ? "Loading functions from SAP…"
+                            : functions.length
+                              ? "Select function"
+                              : "No functions returned by SAP"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {functions.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}
+                  </SelectContent>
                 </Select>
+                {functionsError ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {functionsError}{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline underline-offset-2"
+                      onClick={() => setFunctionReload((n) => n + 1)}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                ) : null}
               </Field>
             </div>
           </Section>

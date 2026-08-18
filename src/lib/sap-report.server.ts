@@ -497,3 +497,97 @@ export async function callEnfaUpdate(payload: Record<string, unknown>): Promise<
     maxBytes: 2_000_000,
   });
 }
+
+/**
+ * Fetches the Function value-help (F4) list from SAP through the registered
+ * "Function F4" endpoint. Host, path, method, headers, query, body template and
+ * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callSapFunctionF4(nfaType: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exactEndpoint } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Function F4")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallbackEndpoint } = exactEndpoint
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%function%")
+        .not("name", "ilike", "%create%")
+        .not("name", "ilike", "%company%")
+        .not("name", "ilike", "%plant%")
+        .not("name", "ilike", "%type%")
+        .not("name", "ilike", "%report%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exactEndpoint ?? fallbackEndpoint;
+
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Function F4 endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "GET").toUpperCase();
+
+  // Start from the configured body template so extra keys added in API Settings
+  // are preserved, then set the selected eNFA type.
+  let payload: Record<string, unknown> = { FUNC: { nfa_typ1: nfaType } };
+  const template = (ep.request_body ?? "").trim();
+  if (template) {
+    try {
+      const parsed = JSON.parse(template);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const obj = parsed as Record<string, unknown>;
+        const key = Object.keys(obj).find((k) => k.trim().toLowerCase() === "func") ?? "FUNC";
+        const inner = obj[key];
+        payload = {
+          ...obj,
+          [key]: { ...(inner && typeof inner === "object" ? inner : {}), nfa_typ1: nfaType },
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        status: null,
+        latencyMs: 0,
+        body: "",
+        error:
+          'The Function F4 request body in Admin → SAP API Settings is not valid JSON. Expected something like { "FUNC": { "nfa_typ1": "" } }.',
+      };
+    }
+  }
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: method === "DELETE" ? undefined : JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
