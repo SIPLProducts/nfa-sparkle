@@ -68,6 +68,57 @@ export async function callEnfaCreate(payload: Record<string, unknown>): Promise<
 }
 
 export const REPORT_KEYS = [
+/**
+ * Fetches the Company value-help (F4) list from SAP through the registered
+ * "Company F4" endpoint. Path, method, headers, query, body template and
+ * credentials all come from Admin → SAP API Settings.
+ */
+export async function callSapCompanyF4(): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: ep } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .or(["name.ilike.%company%", "request_body.ilike.%cc_code%"].join(","))
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Company F4 endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "POST").toUpperCase();
+  const body = (ep.request_body ?? "").trim() || JSON.stringify({ cc_code: "" });
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: method === "GET" || method === "DELETE" ? undefined : body,
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
+
+export const REPORT_KEYS = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
   "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",
   "r_proc", "r_comp", "r_reje",
