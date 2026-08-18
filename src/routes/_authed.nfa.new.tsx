@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { COMPANIES, PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
+import { PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
-  const [companies, setCompanies] = useState<Option[]>(COMPANIES);
+  const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
   const plainDesc = htmlToPlainText(desc);
@@ -69,11 +69,14 @@ function NewNfaPage() {
             (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
             (text ? text.slice(0, 300) : "") ||
             `SAP responded with status ${res.status}`;
-          setCompanies(COMPANIES);
+          setCompanies([]);
           setCompaniesError(`SAP: ${String(detail)}`);
         }
       } catch {
-        if (!cancelled) setCompaniesError("Could not reach the SAP company service — showing the built-in list.");
+        if (!cancelled) {
+          setCompanies([]);
+          setCompaniesError("Could not reach the SAP company service.");
+        }
       } finally {
         if (!cancelled) setCompaniesLoading(false);
       }
