@@ -104,6 +104,18 @@ export async function callSapCompanyF4(): Promise<SapCallResult> {
   const { username, password } = await credentialsFor(ep, sys);
   const method = (ep.http_method ?? "GET").toUpperCase();
   const body = (ep.request_body ?? "").trim() || JSON.stringify({ cc_code: "" });
+  try {
+    JSON.parse(body);
+  } catch {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The Company F4 request body in Admin → SAP API Settings is not valid JSON. Expected something like { \"cc_code\": \"\" }.",
+    };
+  }
 
   return callSap({
     system: sys,
