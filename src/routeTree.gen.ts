@@ -14,6 +14,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
+import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
 import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
 import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
@@ -50,6 +51,11 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
   getParentRoute: () => AuthedRoute,
+} as any)
+const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
+  id: '/api/public/sap-plant',
+  path: '/api/public/sap-plant',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
   id: '/api/public/sap-company',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api': typeof AuthedAdminSapApiIndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/_authed/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api/'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-plant'
     | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
     | '/_authed/admin/sap-api/'
@@ -235,6 +247,7 @@ export interface RootRouteChildren {
   ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
   ApiPublicEnfaUpdateRoute: typeof ApiPublicEnfaUpdateRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
+  ApiPublicSapPlantRoute: typeof ApiPublicSapPlantRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -273,6 +286,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/approvals'
       preLoaderRoute: typeof AuthedApprovalsRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/public/sap-plant': {
+      id: '/api/public/sap-plant'
+      path: '/api/public/sap-plant'
+      fullPath: '/api/public/sap-plant'
+      preLoaderRoute: typeof ApiPublicSapPlantRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/sap-company': {
       id: '/api/public/sap-company'
@@ -407,6 +427,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
   ApiPublicEnfaUpdateRoute: ApiPublicEnfaUpdateRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
+  ApiPublicSapPlantRoute: ApiPublicSapPlantRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
