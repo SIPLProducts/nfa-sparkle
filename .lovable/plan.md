@@ -1,54 +1,60 @@
 # Make Company F4 fully dynamic from SAP
 
-## Confirmed current state
+## Confirmed cause
 
-- **Company F4** is saved as an active `GET` endpoint with the SAP path and `{ "cc_code": "" }` body.
-- The current repository passes the saved method and body to the middleware, and its middleware source supports a body-bearing `GET` through Node HTTP(S).
-- The live Create eNFA request still receives **“Decoded attachment is empty”**, indicating the active on-premise middleware is not yet forwarding the request in the same shape as the current source/Postman request.
-- Create eNFA currently initializes and falls back to the hardcoded `COMPANIES` list whenever SAP fails, which is why those values appear instead of the SAP response.
+Your currently running `middleware/server.js` contains:
+
+```text
+if (method !== "GET" && method !== "HEAD" && p.body !== undefined ...) { body = ... }
+```
+
+So for the Company F4 call (`GET` + `{ "cc_code": "" }`) the middleware **removes the body** and SAP
+receives an empty GET on `/e-nfa/enfa_report/create?sap-client=300`. SAP answers with the create-service
+error **"Decoded attachment is empty"**, and the Create eNFA screen then falls back to the hardcoded
+Ramky company list. Postman works because it sends the JSON body with GET.
 
 ## Changes
 
-1. **Use API Settings as the single Company API source**
-   - Resolve the active Company F4 endpoint dynamically from SAP API Settings.
-   - Preserve its configured `GET` method, exact path/query, headers, credentials, and saved `{ "cc_code": "" }` body without method conversion or hardcoded endpoint details.
-   - Validate the saved body as JSON and return a clear configuration error when invalid.
+1. **Middleware: send the configured body on GET**
+   - Replace the body-stripping condition so a `GET`/`HEAD` request carries the configured JSON body.
+   - Because Node's `fetch` rejects GET bodies, use a native Node HTTP(S) request path for body-bearing
+     GET/HEAD calls, with correct `Content-Type` and `Content-Length`.
+   - Keep your added SAP request/response/status logging, auth, headers, query, timeout, multi-system
+     routing, and all non-GET behavior unchanged.
+   - Bump the middleware version so the installed copy can be identified after replacement.
 
-2. **Guarantee GET-with-body transport through the local middleware**
-   - Keep the Node HTTP(S) transport for body-bearing `GET` requests and ensure `Content-Type` and `Content-Length` are sent correctly.
-   - Add safe middleware diagnostics showing method, path, body byte count, and upstream status without logging credentials or body content.
-   - Update the middleware version/readme so the installed instance can be identified and replaced before restart.
+2. **App: keep the endpoint exactly as configured in API Settings**
+   - Resolve the active Company F4 row dynamically (path, method, query, headers, body, credentials).
+   - Never convert the method or substitute a body; return a clear error if the saved body is not valid JSON.
 
-3. **Make API Settings testing match Create eNFA**
-   - Use the same shared Company F4 execution path for **Test connection** and the Create eNFA lookup.
-   - Display SAP’s raw response/status in the Response tab so a successful test confirms the exact integration used by the form.
+3. **API Settings testing matches Create eNFA**
+   - Test connection uses the same execution path as the Company lookup, so a green test proves the live call.
 
-4. **Map the SAP response reliably**
-   - Accept the direct array returned by SAP and supported wrapper forms.
-   - Map `BUKRS` to the Company value and `BUTXT` to its label, trim fields, discard invalid rows, and deduplicate by `BUKRS`.
-   - Preserve the complete response for lists larger than the current response-size limits.
+4. **Response mapping**
+   - Accept SAP's direct array (and common wrappers), map `BUKRS` to the value and `BUTXT` to the label,
+     trim, drop invalid rows, deduplicate by `BUKRS`, and keep the full list (no truncation for ~230 rows).
 
 5. **Remove all hardcoded Company values from Create eNFA**
-   - Start the Company dropdown empty and populate it only with the live SAP response.
-   - Do not show the built-in Ramky list when loading fails or SAP returns no valid rows.
-   - Keep the Company field disabled/empty with the SAP error and **Retry** action until dynamic values load.
-   - Prevent sample-data loading from injecting a hardcoded Company code; it will use an available SAP option only after the list loads.
+   - The dropdown starts empty and is populated only from the SAP response.
+   - On failure it stays empty, shows SAP's own message plus a **Retry** action, and never shows the built-in list.
+   - Sample data no longer injects a hardcoded company code.
 
-6. **Verify end to end**
-   - Confirm the middleware forwards `GET /e-nfa/enfa_report/create?sap-client=300` with the JSON body `{ "cc_code": "" }`.
-   - Confirm API Settings Test connection and Create eNFA receive the same SAP response.
-   - Confirm the dropdown renders values such as `1000 – Ramky Infrastructure Ltd`, with no built-in Company entries.
-   - Regression-check existing SAP report, detail, update, and Create ENFA calls.
+6. **Verify**
+   - Middleware log shows `GET .../create?sap-client=300` with the `{ "cc_code": "" }` payload and status 200.
+   - Dropdown renders live values such as `1000 – Ramky Infrastructure Ltd`.
+   - Regression-check Create ENFA, eNFA Report, detail and update endpoints.
 
 ## Deployment requirement
 
-The updated `middleware/server.js` must replace the currently running on-premise copy and that service must be restarted. Application deployment alone cannot change how the local SAP middleware forwards the non-standard GET body.
+The updated `middleware/server.js` must replace the copy running on your network and that process must be
+restarted. No application-side change can make the current middleware forward a GET body.
 
 ## Technical details
 
-- `src/lib/sap-report.server.ts`: dynamic endpoint resolution and exact request preservation.
-- `src/lib/sap-call.server.ts`: full Company response transport and shared call behavior.
-- `src/lib/sap-api.functions.ts`: API Settings test parity.
-- `src/lib/sap/master.ts`: `BUKRS`/`BUTXT` normalization only; no Company fallback for Create eNFA.
-- `src/routes/_authed.nfa.new.tsx`: SAP-only Company state, retry/error handling, and sample behavior.
-- `middleware/server.js` and `middleware/README.md`: GET-body forwarding, diagnostics, versioning, and restart instructions.
+- `middleware/server.js`: GET/HEAD body forwarding via Node HTTP(S), preserved logging, version bump.
+- `middleware/README.md`: update/restart instructions.
+- `src/lib/sap-report.server.ts`: exact request preservation for the dynamically resolved endpoint.
+- `src/lib/sap-call.server.ts`: full-size Company response handling.
+- `src/lib/sap-api.functions.ts`: test parity with the live call.
+- `src/lib/sap/master.ts`: `BUKRS`/`BUTXT` normalization and dedupe.
+- `src/routes/_authed.nfa.new.tsx`: SAP-only company list, error/retry, no fallback.
