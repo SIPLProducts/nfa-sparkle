@@ -46,7 +46,14 @@ export const Route = createFileRoute("/api/public/sap-function")({
 
         let result;
         try {
-          result = await callSapFunctionF4();
+          let nfaType = "";
+          try {
+            const payload = (await request.json()) as Record<string, unknown> | null;
+            nfaType = String(payload?.["nfaType"] ?? payload?.["nfa_typ1"] ?? "").trim();
+          } catch {
+            nfaType = "";
+          }
+          result = await callSapFunctionF4(nfaType);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Function service failed";
           return Response.json(
