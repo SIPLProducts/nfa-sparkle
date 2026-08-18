@@ -134,6 +134,44 @@ export function parsePlantF4(raw: unknown): Option[] {
 export function plantName(code: string | null | undefined) {
   return PLANTS.find((p) => p.code === code)?.name ?? "";
 }
+
+/** Parses SAP's ENFA Type F4 response into `{ code, name }` options (code = SAP FUNCT value). */
+export function parseEnfaTypeF4(raw: unknown): Option[] {
+  let src: unknown = raw;
+  if (typeof src === "string") {
+    try { src = JSON.parse(src); } catch { return []; }
+  }
+  for (let depth = 0; depth < 3; depth++) {
+    if (Array.isArray(src)) break;
+    if (!src || typeof src !== "object") break;
+    const values = Object.values(src as Record<string, unknown>);
+    const arr = values.find((v) => Array.isArray(v));
+    if (arr) { src = arr; break; }
+    const nested = values.find((v) => v && typeof v === "object");
+    if (!nested) break;
+    src = nested;
+  }
+  if (!Array.isArray(src)) {
+    if (src && typeof src === "object") src = [src];
+    else return [];
+  }
+  const out: Option[] = [];
+  const seen = new Set<string>();
+  for (const row of src as unknown[]) {
+    if (!row) continue;
+    let value = "";
+    if (typeof row === "string") value = row.trim();
+    else if (typeof row === "object") {
+      const lower: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
+      value = String(lower["funct"] ?? lower["nfa_typ"] ?? lower["type"] ?? "").trim();
+    }
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push({ code: value, name: value });
+  }
+  return out;
+}
 export function nfaTypeName(code: string) {
   return NFA_TYPES.find((t) => t.code === code)?.name ?? code;
 }

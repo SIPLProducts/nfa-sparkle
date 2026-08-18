@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
+import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
 import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
 import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
@@ -55,6 +56,11 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
 const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
   id: '/api/public/sap-plant',
   path: '/api/public/sap-plant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapEnfaTypeRoute = ApiPublicSapEnfaTypeRouteImport.update({
+  id: '/api/public/sap-enfa-type',
+  path: '/api/public/sap-enfa-type',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-enfa-type'
     | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-enfa-type'
     | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
+    | '/api/public/sap-enfa-type'
     | '/api/public/sap-plant'
     | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
@@ -247,6 +259,7 @@ export interface RootRouteChildren {
   ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
   ApiPublicEnfaUpdateRoute: typeof ApiPublicEnfaUpdateRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
+  ApiPublicSapEnfaTypeRoute: typeof ApiPublicSapEnfaTypeRoute
   ApiPublicSapPlantRoute: typeof ApiPublicSapPlantRoute
 }
 
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/sap-plant'
       fullPath: '/api/public/sap-plant'
       preLoaderRoute: typeof ApiPublicSapPlantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-enfa-type': {
+      id: '/api/public/sap-enfa-type'
+      path: '/api/public/sap-enfa-type'
+      fullPath: '/api/public/sap-enfa-type'
+      preLoaderRoute: typeof ApiPublicSapEnfaTypeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sap-company': {
@@ -427,6 +447,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
   ApiPublicEnfaUpdateRoute: ApiPublicEnfaUpdateRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
+  ApiPublicSapEnfaTypeRoute: ApiPublicSapEnfaTypeRoute,
   ApiPublicSapPlantRoute: ApiPublicSapPlantRoute,
 }
 export const routeTree = rootRouteImport
