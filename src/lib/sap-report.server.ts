@@ -19,22 +19,35 @@ async function credentialsFor(ep: Record<string, any>, sys: Record<string, any> 
  */
 export async function callEnfaCreate(payload: Record<string, unknown>): Promise<SapCallResult> {
   const db = await admin();
-  const { data: ep } = await db
+  // Every registered endpoint shares the same path, so the endpoint must be
+  // resolved by name only — never by path_or_url.
+  const { data: exactEndpoint } = await db
     .from("sap_endpoint")
     .select("*")
-    .or(
-      [
-        "name.ilike.%create enfa%",
-        "name.ilike.%create e-nfa%",
-        "name.ilike.%create%",
-        "path_or_url.ilike.%create%",
-      ].join(","),
-    )
-    .not("name", "ilike", "%company%")
+    .ilike("name", "Create ENFA")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+
+  const { data: fallbackEndpoint } = exactEndpoint
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .or(["name.ilike.%create enfa%", "name.ilike.%create e-nfa%"].join(","))
+        .not("name", "ilike", "%report%")
+        .not("name", "ilike", "%company%")
+        .not("name", "ilike", "%plant%")
+        .not("name", "ilike", "%type%")
+        .not("name", "ilike", "%function%")
+        .not("name", "ilike", "%change%")
+        .not("name", "ilike", "%edit%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exactEndpoint ?? fallbackEndpoint;
 
   if (!ep) {
     return {
