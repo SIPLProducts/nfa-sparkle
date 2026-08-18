@@ -102,8 +102,11 @@ export async function callSapCompanyF4(): Promise<SapCallResult> {
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const { username, password } = await credentialsFor(ep, sys);
-  const method = (ep.http_method ?? "POST").toUpperCase();
+  const configured = (ep.http_method ?? "POST").toUpperCase();
   const body = (ep.request_body ?? "").trim() || JSON.stringify({ cc_code: "" });
+  // GET/HEAD cannot carry a body. The SAP F4 service needs `{ "cc_code": "" }`,
+  // so when the endpoint is saved as GET with a body we send it as POST.
+  const method = configured === "GET" || configured === "HEAD" ? "POST" : configured;
 
   return callSap({
     system: sys,
@@ -111,7 +114,7 @@ export async function callSapCompanyF4(): Promise<SapCallResult> {
     method,
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: method === "GET" || method === "DELETE" ? undefined : body,
+    body: method === "DELETE" ? undefined : body,
     username: username || undefined,
     password,
     maxBytes: 2_000_000,

@@ -60,14 +60,27 @@ export function plantsFor(company: string) {
 /** Parses SAP's Company F4 response into `{ code, name }` options. */
 export function parseCompanyF4(raw: unknown): Option[] {
   let src: unknown = raw;
-  if (src && typeof src === "object" && !Array.isArray(src)) {
-    const obj = src as Record<string, unknown>;
-    const arr = Object.values(obj).find((v) => Array.isArray(v));
-    src = arr ?? [];
+  if (typeof src === "string") {
+    try { src = JSON.parse(src); } catch { return []; }
   }
-  if (!Array.isArray(src)) return [];
+  // Walk up to two levels of wrapper objects looking for the first array.
+  for (let depth = 0; depth < 3; depth++) {
+    if (Array.isArray(src)) break;
+    if (!src || typeof src !== "object") break;
+    const values = Object.values(src as Record<string, unknown>);
+    const arr = values.find((v) => Array.isArray(v));
+    if (arr) { src = arr; break; }
+    const nested = values.find((v) => v && typeof v === "object");
+    if (!nested) break;
+    src = nested;
+  }
+  // A single row object is also acceptable.
+  if (!Array.isArray(src)) {
+    if (src && typeof src === "object") src = [src];
+    else return [];
+  }
   const out: Option[] = [];
-  for (const row of src) {
+  for (const row of src as unknown[]) {
     if (!row || typeof row !== "object") continue;
     const lower: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
