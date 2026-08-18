@@ -40,7 +40,16 @@ export const Route = createFileRoute("/api/public/sap-company")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        const result = await callSapCompanyF4();
+        let result;
+        try {
+          result = await callSapCompanyF4();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Company service failed";
+          return Response.json(
+            { error: `Could not load companies from SAP: ${message}` },
+            { status: 424, headers: { "cache-control": "no-store" } },
+          );
+        }
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
@@ -50,11 +59,22 @@ export const Route = createFileRoute("/api/public/sap-company")({
         };
 
         if (!result.ok) {
-          return new Response(
-            result.body && result.body.trim()
-              ? result.body
-              : JSON.stringify({ error: result.error ?? "SAP request failed" }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
+          const rawBody = result.body?.trim() ?? "";
+          const isHtml = /^<!doctype html|^<html/i.test(rawBody);
+          let detail = result.error ?? "SAP request failed";
+          if (!isHtml && rawBody) {
+            try {
+              const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+              detail = String(parsed["error"] ?? parsed["MESSAGE"] ?? parsed["message"] ?? detail);
+            } catch {
+              detail = rawBody.slice(0, 300);
+            }
+          } else if (isHtml) {
+            detail = "The SAP middleware gateway is temporarily unavailable. Please retry.";
+          }
+          return Response.json(
+            { error: detail, sapStatus: result.status },
+            { status: 424, headers },
           );
         }
 
