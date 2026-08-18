@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { PLANTS, NFA_TYPES, FUNCTIONS, plantsFor, projectsFor, parseCompanyF4 } from "@/lib/sap/master";
+import { NFA_TYPES, FUNCTIONS, projectsFor, parseCompanyF4, parsePlantF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,9 +39,12 @@ function NewNfaPage() {
   const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
+  const [plants, setPlants] = useState<Option[]>([]);
+  const [plantsLoading, setPlantsLoading] = useState(false);
+  const [plantsError, setPlantsError] = useState("");
+  const [plantReload, setPlantReload] = useState(0);
   const plainDesc = htmlToPlainText(desc);
 
-  useEffect(() => { if (PLANTS.find((p) => p.code === plant)?.company !== company) setPlant(""); }, [company, plant]);
 
   // Company list comes from the SAP "Company F4" endpoint registered in Admin → SAP API Settings.
   const [companyReload, setCompanyReload] = useState(0);
@@ -84,10 +87,48 @@ function NewNfaPage() {
     return () => { cancelled = true; };
   }, [companyReload]);
 
+  // Plant list comes from the SAP "Plant F4" endpoint registered in Admin → SAP API Settings.
+  useEffect(() => {
+    if (!company) { setPlants([]); setPlantsError(""); setPlantsLoading(false); setPlant(""); return; }
+    let cancelled = false;
+    setPlantsLoading(true);
+    setPlant("");
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-plant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ bukrs: company }),
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parsePlantF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { setPlants(list); setPlantsError(""); }
+        else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 300) : "") ||
+            `SAP responded with status ${res.status}`;
+          setPlants([]);
+          setPlantsError(res.ok ? "SAP returned no plants for this company." : `SAP: ${String(detail)}`);
+        }
+      } catch {
+        if (!cancelled) { setPlants([]); setPlantsError("Could not reach the SAP plant service."); }
+      } finally {
+        if (!cancelled) setPlantsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [company, plantReload]);
+
   function loadSample() {
     // Company must always come from the live SAP F4 list — never a hardcoded code.
     if (companies.length) setCompany(companies[0]!.code);
-    setPlant("9064");
     setProject("P002");
     setNfaType("CAPEX");
     setFunc("PROJECTS");
@@ -143,7 +184,7 @@ function NewNfaPage() {
     if (!asDraft && validApprovers.length === 0) return toast.error("Add at least one approver before submitting");
     setBusy(true);
     try {
-      const plantObj = PLANTS.find((p) => p.code === plant);
+      const plantObj = plants.find((p) => p.code === plant);
       const { data: created, error } = await supabase.from("nfa").insert({
         initiator_id: user.id,
         company, plant: plant || null, plant_name: plantObj?.name ?? null,
@@ -356,10 +397,38 @@ function NewNfaPage() {
                 </Select>
               </Field>
               <Field label="Plant">
-                <Select value={plant} onValueChange={setPlant} disabled={!company}>
-                  <SelectTrigger><SelectValue placeholder={company ? "Select plant" : "Select company first"} /></SelectTrigger>
-                  <SelectContent>{plantsFor(company).map((p) => <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>)}</SelectContent>
+                <Select value={plant} onValueChange={setPlant} disabled={!company || plantsLoading || plants.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !company
+                          ? "Select company first"
+                          : plantsLoading
+                            ? "Loading plants from SAP…"
+                            : plants.length
+                              ? "Select plant"
+                              : "No plants returned by SAP"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plants.map((p) => (
+                      <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
+                {plantsError ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {plantsError}{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline underline-offset-2"
+                      onClick={() => setPlantReload((n) => n + 1)}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                ) : null}
               </Field>
               <Field label="Project">
                 <Select value={project} onValueChange={setProject} disabled={!plant}>
