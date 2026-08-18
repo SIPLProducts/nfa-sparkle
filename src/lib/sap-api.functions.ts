@@ -526,8 +526,7 @@ export const testSapEndpoint = createServerFn({ method: "POST" })
     const sys = await loadSystem(ep.system_id ?? null);
     const headers: Record<string, string> = { ...((ep.request_headers ?? {}) as Record<string, string>) };
     const method = (ep.http_method ?? "GET").toUpperCase();
-    let body: string | undefined;
-    if (method !== "GET" && method !== "HEAD" && ep.request_body) body = ep.request_body;
+    const body = ep.request_body?.trim() || undefined;
 
     const username =
       ep.auth_type === "basic" ? ep.username || sys?.username || "" : "";

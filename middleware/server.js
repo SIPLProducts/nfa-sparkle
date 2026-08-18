@@ -16,6 +16,8 @@ require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
+const https = require("https");
 const express = require("express");
 const cors = require("cors");
 
@@ -63,6 +65,39 @@ function baseUrlOf(sys) {
 
 function redact(value) {
   return value ? "***" : "";
+}
+
+/** Node's fetch rejects GET/HEAD bodies, but this SAP F4 service requires one. */
+function requestWithOptionalGetBody(url, { method, headers, body, signal }) {
+  if ((method !== "GET" && method !== "HEAD") || body === undefined) {
+    return fetch(url, { method, headers, body, redirect: "manual", signal });
+  }
+
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const transport = target.protocol === "https:" ? https : http;
+    const payload = Buffer.from(body);
+    const requestHeaders = { ...headers };
+    if (!requestHeaders["Content-Length"] && !requestHeaders["content-length"]) {
+      requestHeaders["Content-Length"] = String(payload.length);
+    }
+    const request = transport.request(target, { method, headers: requestHeaders }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      response.on("end", () => {
+        const responseBody = Buffer.concat(chunks);
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode || 0,
+          headers: { get: (name) => response.headers[String(name).toLowerCase()] || null },
+          text: async () => responseBody.toString("utf8"),
+        });
+      });
+    });
+    request.on("error", reject);
+    signal.addEventListener("abort", () => request.destroy(Object.assign(new Error("Request timed out"), { name: "AbortError" })), { once: true });
+    request.end(payload);
+  });
 }
 
 /* -------------------------------- app ---------------------------------- */
@@ -150,7 +185,7 @@ app.post("/sap/call", requireSecret, async (req, res) => {
 
   const method = (p.method || "GET").toUpperCase();
   let body;
-  if (method !== "GET" && method !== "HEAD" && p.body !== undefined && p.body !== null && p.body !== "") {
+  if (p.body !== undefined && p.body !== null && p.body !== "") {
     body = typeof p.body === "string" ? p.body : JSON.stringify(p.body);
     if (!headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
   }
@@ -161,7 +196,7 @@ app.post("/sap/call", requireSecret, async (req, res) => {
   console.log(`[middleware] ${method} ${url.origin}${url.pathname} user=${username || "-"} pwd=${redact(password)}`);
 
   try {
-    const upstream = await fetch(url.toString(), { method, headers, body, redirect: "manual", signal: controller.signal });
+    const upstream = await requestWithOptionalGetBody(url.toString(), { method, headers, body, signal: controller.signal });
     const text = await upstream.text();
     let parsed = null;
     try {

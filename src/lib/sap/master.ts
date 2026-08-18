@@ -80,13 +80,15 @@ export function parseCompanyF4(raw: unknown): Option[] {
     else return [];
   }
   const out: Option[] = [];
+  const seen = new Set<string>();
   for (const row of src as unknown[]) {
     if (!row || typeof row !== "object") continue;
     const lower: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(row as Record<string, unknown>)) lower[k.trim().toLowerCase()] = v;
     const code = String(lower["bukrs"] ?? lower["cc_code"] ?? "").trim();
-    if (!code) continue;
+    if (!code || seen.has(code)) continue;
     const name = String(lower["butxt"] ?? lower["name1"] ?? "").trim();
+    seen.add(code);
     out.push({ code, name: name || code });
   }
   return out;
