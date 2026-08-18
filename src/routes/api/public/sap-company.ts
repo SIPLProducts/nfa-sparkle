@@ -35,8 +35,12 @@ export const Route = createFileRoute("/api/public/sap-company")({
           },
         });
 
-        const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-        if (claimsErr || !claimsData?.claims?.sub) {
+        try {
+          const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+          if (claimsErr || !claimsData?.claims?.sub) {
+            return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
+          }
+        } catch {
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
