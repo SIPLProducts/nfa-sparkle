@@ -2,21 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Eye, FileText, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
-
-interface SapAttachment {
-  id: string;
-  enfa_number: string;
-  storage_path: string;
-  filename: string;
-  mime: string | null;
-  size: number | null;
-  uploaded_at: string;
-  uploaded_by: string;
-}
-
-const BUCKET = "nfa-attachments";
 
 interface SapFile {
   filename: string;
