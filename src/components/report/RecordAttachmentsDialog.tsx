@@ -318,23 +318,6 @@ export function RecordAttachmentsDialog({
           </div>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-w-5xl p-0">
-          <DialogHeader className="border-b border-border px-5 py-3">
-            <DialogTitle className="truncate font-display text-sm">{preview?.f.filename}</DialogTitle>
-          </DialogHeader>
-          <div className="h-[75vh] w-full bg-muted/30">
-            {preview?.kind === "pdf" ? (
-              <iframe src={preview.url} title={preview.f.filename} className="h-full w-full" />
-            ) : preview?.kind === "image" ? (
-              <div className="flex h-full w-full items-center justify-center overflow-auto p-4">
-                <img src={preview.url} alt={preview.f.filename} className="max-h-full max-w-full object-contain" />
-              </div>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
