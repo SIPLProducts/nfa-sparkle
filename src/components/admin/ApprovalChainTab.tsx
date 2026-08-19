@@ -161,10 +161,8 @@ export function ApprovalChainTab() {
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-4 py-2.5 font-medium">Chain</th>
-                <th className="px-4 py-2.5 font-medium">Applies to</th>
+                <th className="px-4 py-2.5 font-medium">Company</th>
                 <th className="px-4 py-2.5 font-medium">Levels</th>
-                <th className="px-4 py-2.5 font-medium">Active</th>
                 <th className="px-4 py-2.5 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -181,18 +179,7 @@ export function ApprovalChainTab() {
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div>{c.owner_name ?? "Any user"}</div>
-                    <div className="text-xs text-muted-foreground">{c.role_key ?? "Any role"}</div>
-                  </td>
                   <td className="px-4 py-3">{c.levels.length}</td>
-                  <td className="px-4 py-3">
-                    <Switch
-                      checked={c.is_active}
-                      onCheckedChange={(v) => toggleMut.mutate({ id: c.id, is_active: v })}
-                      aria-label="Toggle chain active"
-                    />
-                  </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openEdit(c)}>
@@ -219,65 +206,17 @@ export function ApprovalChainTab() {
         <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>{draft.id ? "Edit approval chain" : "New approval chain"}</DialogTitle>
-            <DialogDescription>Pick who the chain applies to, then order the approvers.</DialogDescription>
+            <DialogDescription>Enter the company, then order the approvers.</DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
             <div className="space-y-1.5">
-              <Label>Chain name *</Label>
+              <Label>Company Name *</Label>
               <Input
                 value={draft.name}
                 onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Budget deviation — plant 9000"
+                placeholder="e.g. Ramky Estates & Farms Ltd"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Applies to user</Label>
-              <Select
-                value={draft.owner_user_id || "_any"}
-                onValueChange={(v) => setDraft((p) => ({ ...p, owner_user_id: v === "_any" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any user" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_any">Any user</SelectItem>
-                  {userOptions.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.label} — {u.sub}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Applies to role</Label>
-              <Select
-                value={draft.role_key || "_any"}
-                onValueChange={(v) => setDraft((p) => ({ ...p, role_key: v === "_any" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_any">Any role</SelectItem>
-                  {(roles.data ?? []).map((r) => (
-                    <SelectItem key={r.key} value={r.key}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">Active</p>
-                <p className="text-xs text-muted-foreground">Inactive chains are kept but not used.</p>
-              </div>
-              <Switch checked={draft.is_active} onCheckedChange={(v) => setDraft((p) => ({ ...p, is_active: v }))} />
             </div>
 
             <div className="space-y-2">
