@@ -189,7 +189,6 @@ export function RecordAttachmentsDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const { files, loading, refresh } = useSapAttachments(open ? enfaNumber : null);
   const {
     docs: sapDocs,
     loading: sapLoading,
@@ -197,27 +196,8 @@ export function RecordAttachmentsDialog({
     refresh: refreshSap,
   } = useSapDocuments(open ? enfaNumber : null);
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
-  const [preview, setPreview] = useState<{ f: SapAttachment; url: string; kind: "pdf" | "image" } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-
-  async function openFile(f: SapAttachment, download = false) {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(f.storage_path, 300, download ? { download: f.filename } : undefined);
-    if (error || !data) return toast.error(error?.message ?? "Cannot open file");
-    const kind = previewKind(f);
-    if (download || !kind) return void window.open(data.signedUrl, "_blank");
-    setPreview({ f, url: data.signedUrl, kind });
-  }
-
-  async function remove(f: SapAttachment) {
-    await supabase.storage.from(BUCKET).remove([f.storage_path]);
-    const { error } = await supabase.from("sap_attachment").delete().eq("id", f.id);
-    if (error) return toast.error(error.message);
-    toast.success("Attachment removed");
-    void refresh();
-  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? []);
@@ -226,9 +206,7 @@ export function RecordAttachmentsDialog({
     setBusy(true);
     try {
       const message = await uploadToSap(enfaNumber, list);
-      for (const file of list) await uploadSapFile(enfaNumber, file);
       toast.success(message);
-      void refresh();
       refreshSap();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
