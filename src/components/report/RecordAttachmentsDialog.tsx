@@ -387,6 +387,27 @@ export function RecordAttachmentsDialog({
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={!!sapPreview}
+        onOpenChange={(o) => {
+          if (!o && sapPreview) {
+            URL.revokeObjectURL(sapPreview.url);
+            setSapPreview(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl p-0">
+          <DialogHeader className="border-b border-border px-5 py-3">
+            <DialogTitle className="truncate font-display text-sm">{sapPreview?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="h-[75vh] w-full bg-muted/30">
+            {sapPreview ? (
+              <SapDocViewer url={sapPreview.url} mime={sapPreview.mime} name={sapPreview.name} />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-5xl p-0">
           <DialogHeader className="border-b border-border px-5 py-3">
