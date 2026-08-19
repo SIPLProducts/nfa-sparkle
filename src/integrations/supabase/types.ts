@@ -41,6 +41,74 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_chain: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          owner_user_id: string | null
+          role_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          owner_user_id?: string | null
+          role_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_user_id?: string | null
+          role_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      approval_chain_level: {
+        Row: {
+          approver_id: string
+          chain_id: string
+          created_at: string
+          designation: string | null
+          id: string
+          level: number
+        }
+        Insert: {
+          approver_id: string
+          chain_id: string
+          created_at?: string
+          designation?: string | null
+          id?: string
+          level: number
+        }
+        Update: {
+          approver_id?: string
+          chain_id?: string
+          created_at?: string
+          designation?: string | null
+          id?: string
+          level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_chain_level_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "approval_chain"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nfa: {
         Row: {
           budget_impact: number | null
