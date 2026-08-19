@@ -601,6 +601,84 @@ export async function callEnfaAttachments(reffld: string): Promise<SapCallResult
 }
 
 async function callEnfaUpdateInnerImpl(db: any, payload: Record<string, unknown>): Promise<SapCallResult> {
+  return callEnfaUpdateInnerImplOriginal(db, payload);
+}
+
+/**
+ * Uploads documents to an eNFA in SAP through the registered "Upload Document"
+ * endpoint. Host, path, method, headers, query and credentials all come from
+ * Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callEnfaUpload(
+  reffld: string,
+  files: { file_name: string; file: string }[],
+): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Upload Document")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%upload%")
+        .not("name", "ilike", "%report%")
+        .not("name", "ilike", "%create%")
+        .not("name", "ilike", "%company%")
+        .not("name", "ilike", "%plant%")
+        .not("name", "ilike", "%type%")
+        .not("name", "ilike", "%function%")
+        .not("name", "ilike", "%update%")
+        .not("name", "ilike", "%change%")
+        .not("name", "ilike", "%preview%")
+        .not("name", "ilike", "%print%")
+        .not("name", "ilike", "%attach%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP eNFA Upload endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "POST").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify({ upload: { reffld, file: files } }),
+    username: username || undefined,
+    password,
+    maxBytes: 20_000_000,
+  });
+}
+
+async function callEnfaUpdateInnerImplOriginal(db: any, payload: Record<string, unknown>): Promise<SapCallResult> {
   const { data: ep } = await db
     .from("sap_endpoint")
     .select("*")
