@@ -140,6 +140,8 @@ export function RecordAttachmentsDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const { files, loading, refresh } = useSapAttachments(open ? enfaNumber : null);
+  const { docs: sapDocs, loading: sapLoading, error: sapError } = useSapDocuments(open ? enfaNumber : null);
+  const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const [preview, setPreview] = useState<{ f: SapAttachment; url: string; kind: "pdf" | "image" } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -178,15 +180,84 @@ export function RecordAttachmentsDialog({
     }
   }
 
+  function openSapDoc(d: SapFile, download = false) {
+    const url = base64ToBlobUrl(d.base64, d.mime);
+    if (download) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = d.filename || "document";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      return;
+    }
+    setSapPreview({ name: d.filename, url, mime: d.mime });
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-display text-base">
               <Paperclip className="h-4 w-4" /> Attached Docs · {enfaNumber ?? "—"}
             </DialogTitle>
           </DialogHeader>
+
+          <section className="space-y-2">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              SAP documents
+            </h4>
+            {sapLoading ? (
+              <p className="flex items-center gap-2 rounded-md border border-border px-3 py-4 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Fetching documents from SAP…
+              </p>
+            ) : sapDocs.length ? (
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {sapDocs.map((d, i) => (
+                  <li key={`${d.filename}-${i}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+                        <FileText className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{d.filename}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {d.mime} · {Math.round((d.base64.length * 3) / 4 / 1024)} KB · from SAP
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => openSapDoc(d)}>
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => openSapDoc(d, true)}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p
+                className={
+                  sapError
+                    ? "rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-xs text-destructive"
+                    : "rounded-md border border-dashed border-border py-6 text-center text-xs text-muted-foreground"
+                }
+              >
+                {sapError ?? "No documents attached to this eNFA in SAP."}
+              </p>
+            )}
+          </section>
+
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Uploaded in this app
+          </h4>
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-muted-foreground">
