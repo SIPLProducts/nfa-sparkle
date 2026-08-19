@@ -29,6 +29,7 @@ function useSapDocuments(enfaNumber: string | null) {
   const [docs, setDocs] = useState<SapFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!enfaNumber) {
@@ -70,9 +71,9 @@ function useSapDocuments(enfaNumber: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [enfaNumber]);
+  }, [enfaNumber, nonce]);
 
-  return { docs, loading, error };
+  return { docs, loading, error, refresh: useCallback(() => setNonce((n) => n + 1), []) };
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
