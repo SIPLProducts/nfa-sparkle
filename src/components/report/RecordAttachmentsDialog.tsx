@@ -70,46 +70,6 @@ function base64ToBlobUrl(base64: string, mime: string) {
   return URL.createObjectURL(new Blob([bytes.slice()], { type: mime || "application/octet-stream" }));
 }
 
-export function useSapAttachments(enfaNumber: string | null) {
-  const [files, setFiles] = useState<SapAttachment[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    if (!enfaNumber) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("sap_attachment")
-      .select("*")
-      .eq("enfa_number", enfaNumber)
-      .order("uploaded_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setFiles((data as SapAttachment[]) ?? []);
-    setLoading(false);
-  }, [enfaNumber]);
-
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  return { files, loading, refresh };
-}
-
-export async function uploadSapFile(enfaNumber: string, file: File) {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) throw new Error("You must be signed in to upload");
-  const safe = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `sap/${enfaNumber}/${crypto.randomUUID()}-${safe}`;
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
-  if (upErr) throw new Error(upErr.message);
-  const { error } = await supabase.from("sap_attachment").insert({
-    enfa_number: enfaNumber,
-    storage_path: path,
-    filename: file.name,
-    mime: file.type || null,
-    size: file.size,
-    uploaded_by: u.user.id,
-  });
-  if (error) throw new Error(error.message);
-}
-
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -143,14 +103,6 @@ export async function uploadToSap(enfaNumber: string, files: File[]): Promise<st
   const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string; enfaNo?: string };
   if (!res.ok) throw new Error(json?.error ?? `SAP upload failed (HTTP ${res.status})`);
   return json.message ?? `Uploaded to SAP against ENFA ${json.enfaNo ?? enfaNumber}`;
-}
-
-function previewKind(f: SapAttachment): "pdf" | "image" | null {
-  const mime = (f.mime || "").toLowerCase();
-  const name = f.filename.toLowerCase();
-  if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
-  if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg|bmp)$/.test(name)) return "image";
-  return null;
 }
 
 function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: string }) {
