@@ -251,7 +251,12 @@ export function RecordAttachmentsDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const { files, loading, refresh } = useSapAttachments(open ? enfaNumber : null);
-  const { docs: sapDocs, loading: sapLoading, error: sapError } = useSapDocuments(open ? enfaNumber : null);
+  const {
+    docs: sapDocs,
+    loading: sapLoading,
+    error: sapError,
+    refresh: refreshSap,
+  } = useSapDocuments(open ? enfaNumber : null);
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const [preview, setPreview] = useState<{ f: SapAttachment; url: string; kind: "pdf" | "image" } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -281,9 +286,11 @@ export function RecordAttachmentsDialog({
     if (!list.length || !enfaNumber) return;
     setBusy(true);
     try {
+      const message = await uploadToSap(enfaNumber, list);
       for (const file of list) await uploadSapFile(enfaNumber, file);
-      toast.success(`${list.length} file${list.length === 1 ? "" : "s"} uploaded`);
+      toast.success(message);
       void refresh();
+      refreshSap();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
