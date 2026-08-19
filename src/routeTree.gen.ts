@@ -20,6 +20,7 @@ import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sa
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
 import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
 import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
+import { Route as ApiPublicEnfaPrintRouteImport } from './routes/api/public/enfa-print'
 import { Route as ApiPublicEnfaDetailRouteImport } from './routes/api/public/enfa-detail'
 import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enfa-create'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
@@ -84,6 +85,11 @@ const ApiPublicEnfaReportRoute = ApiPublicEnfaReportRouteImport.update({
   path: '/api/public/enfa-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEnfaPrintRoute = ApiPublicEnfaPrintRouteImport.update({
+  id: '/api/public/enfa-print',
+  path: '/api/public/enfa-print',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicEnfaDetailRoute = ApiPublicEnfaDetailRouteImport.update({
   id: '/api/public/enfa-detail',
   path: '/api/public/enfa-detail',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/nfa/new'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/nfa/new'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/new'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
     | '/api/public/sap-company'
@@ -268,6 +280,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiPublicEnfaCreateRoute: typeof ApiPublicEnfaCreateRoute
   ApiPublicEnfaDetailRoute: typeof ApiPublicEnfaDetailRoute
+  ApiPublicEnfaPrintRoute: typeof ApiPublicEnfaPrintRoute
   ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
   ApiPublicEnfaUpdateRoute: typeof ApiPublicEnfaUpdateRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/enfa-report'
       fullPath: '/api/public/enfa-report'
       preLoaderRoute: typeof ApiPublicEnfaReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-print': {
+      id: '/api/public/enfa-print'
+      path: '/api/public/enfa-print'
+      fullPath: '/api/public/enfa-print'
+      preLoaderRoute: typeof ApiPublicEnfaPrintRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/enfa-detail': {
@@ -464,6 +484,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiPublicEnfaCreateRoute: ApiPublicEnfaCreateRoute,
   ApiPublicEnfaDetailRoute: ApiPublicEnfaDetailRoute,
+  ApiPublicEnfaPrintRoute: ApiPublicEnfaPrintRoute,
   ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
   ApiPublicEnfaUpdateRoute: ApiPublicEnfaUpdateRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,

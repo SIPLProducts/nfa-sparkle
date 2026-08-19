@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextView } from "@/components/RichTextView";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { Printer } from "lucide-react";
+import { Printer, Download, Loader2 } from "lucide-react";
 
 const LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
@@ -36,6 +36,10 @@ export function RecordPreviewDialog({
     subject: string | null;
   } | null>(null);
   const [fileCount, setFileCount] = useState(0);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (!open || !enfa) return;
@@ -56,6 +60,46 @@ export function RecordPreviewDialog({
     return () => { cancelled = true; };
   }, [open, enfa]);
 
+  // Fetch the printable document from SAP for the selected record.
+  useEffect(() => {
+    if (!open || !enfa) return;
+    let cancelled = false;
+    let url: string | null = null;
+    setPdfError(null);
+    setPdfUrl(null);
+    setPdfLoading(true);
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token ?? "";
+        const res = await fetch("/api/public/enfa-print", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ PRINT: { EFNA_NO: enfa } }),
+        });
+        const json = await res.json().catch(() => ({}) as any);
+        if (cancelled) return;
+        if (!res.ok || !json?.base64) {
+          setPdfError(json?.error ?? `SAP preview failed (HTTP ${res.status})`);
+          return;
+        }
+        const bin = atob(json.base64 as string);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        url = URL.createObjectURL(new Blob([bytes], { type: json.mime || "application/pdf" }));
+        setPdfUrl(url);
+      } catch (e) {
+        if (!cancelled) setPdfError(e instanceof Error ? e.message : "SAP preview failed");
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [open, enfa]);
+
   const plant = PLANTS.find((p) => p.code === (row?.PSPNR ?? ""));
   const company = COMPANIES.find((c) => c.code === plant?.company);
 
@@ -67,6 +111,29 @@ export function RecordPreviewDialog({
         </DialogHeader>
 
         <div id="enfa-preview" className="space-y-5">
+          {pdfLoading ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border p-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Fetching the document from SAP…
+            </div>
+          ) : pdfUrl ? (
+            <iframe
+              ref={frameRef}
+              src={pdfUrl}
+              title={`eNFA ${enfa} document`}
+              className="h-[70vh] w-full rounded-lg border border-border"
+            />
+          ) : (
+            <>
+              {pdfError ? (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  {pdfError} — showing the local summary instead.
+                </p>
+              ) : null}
+            </>
+          )}
+
+          {pdfUrl ? null : (
+          <>
           <section className="rounded-lg border border-border p-4">
             <h3 className="mb-2 font-display text-sm font-bold">NFA Details</h3>
             <Row label="ENFA Number" value={enfa} />
@@ -120,10 +187,33 @@ export function RecordPreviewDialog({
               <RichTextView html={draft.detailed_description} />
             </section>
           ) : null}
+          </>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" className="gap-1.5" onClick={() => window.print()}>
+          {pdfUrl ? (
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = pdfUrl;
+                a.download = `ENFA-${enfa || "document"}.pdf`;
+                a.click();
+              }}
+            >
+              <Download className="h-3.5 w-3.5" /> Download
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => {
+              if (pdfUrl && frameRef.current?.contentWindow) frameRef.current.contentWindow.print();
+              else window.print();
+            }}
+          >
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
