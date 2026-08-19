@@ -122,6 +122,41 @@ export async function uploadSapFile(enfaNumber: string, file: File) {
   if (error) throw new Error(error.message);
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.onload = () => {
+      const res = String(reader.result ?? "");
+      resolve(res.slice(res.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
+
+/** Sends the picked files to SAP through the registered "Upload Document" endpoint. */
+export async function uploadToSap(enfaNumber: string, files: File[]): Promise<string> {
+  const total = files.reduce((s, f) => s + f.size, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    throw new Error(`Total upload size is ${(total / 1024 / 1024).toFixed(1)} MB — the limit is 40 MB per upload.`);
+  }
+  const payloadFiles = await Promise.all(
+    files.map(async (f) => ({ file_name: f.name, file: await fileToBase64(f) })),
+  );
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token ?? "";
+  const res = await fetch("/api/public/enfa-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ upload: { reffld: enfaNumber, file: payloadFiles } }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string; enfaNo?: string };
+  if (!res.ok) throw new Error(json?.error ?? `SAP upload failed (HTTP ${res.status})`);
+  return json.message ?? `Uploaded to SAP against ENFA ${json.enfaNo ?? enfaNumber}`;
+}
+
 function previewKind(f: SapAttachment): "pdf" | "image" | null {
   const mime = (f.mime || "").toLowerCase();
   const name = f.filename.toLowerCase();

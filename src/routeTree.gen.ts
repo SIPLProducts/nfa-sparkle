@@ -18,6 +18,7 @@ import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-p
 import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
 import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
+import { Route as ApiPublicEnfaUploadRouteImport } from './routes/api/public/enfa-upload'
 import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
 import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
 import { Route as ApiPublicEnfaPrintRouteImport } from './routes/api/public/enfa-print'
@@ -74,6 +75,11 @@ const ApiPublicSapEnfaTypeRoute = ApiPublicSapEnfaTypeRouteImport.update({
 const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
   id: '/api/public/sap-company',
   path: '/api/public/sap-company',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaUploadRoute = ApiPublicEnfaUploadRouteImport.update({
+  id: '/api/public/enfa-upload',
+  path: '/api/public/enfa-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicEnfaUpdateRoute = ApiPublicEnfaUpdateRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
+  '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
+  '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-update': typeof ApiPublicEnfaUpdateRoute
+  '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
+    | '/api/public/enfa-upload'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
+    | '/api/public/enfa-upload'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-update'
+    | '/api/public/enfa-upload'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   ApiPublicEnfaPrintRoute: typeof ApiPublicEnfaPrintRoute
   ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
   ApiPublicEnfaUpdateRoute: typeof ApiPublicEnfaUpdateRoute
+  ApiPublicEnfaUploadRoute: typeof ApiPublicEnfaUploadRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
   ApiPublicSapEnfaTypeRoute: typeof ApiPublicSapEnfaTypeRoute
   ApiPublicSapFunctionRoute: typeof ApiPublicSapFunctionRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/sap-company'
       fullPath: '/api/public/sap-company'
       preLoaderRoute: typeof ApiPublicSapCompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-upload': {
+      id: '/api/public/enfa-upload'
+      path: '/api/public/enfa-upload'
+      fullPath: '/api/public/enfa-upload'
+      preLoaderRoute: typeof ApiPublicEnfaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/enfa-update': {
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEnfaPrintRoute: ApiPublicEnfaPrintRoute,
   ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
   ApiPublicEnfaUpdateRoute: ApiPublicEnfaUpdateRoute,
+  ApiPublicEnfaUploadRoute: ApiPublicEnfaUploadRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
   ApiPublicSapEnfaTypeRoute: ApiPublicSapEnfaTypeRoute,
   ApiPublicSapFunctionRoute: ApiPublicSapFunctionRoute,
