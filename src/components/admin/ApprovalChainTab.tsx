@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -18,12 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { listManagedUsers, listRoleDefs } from "@/lib/user-admin.functions";
+import { listManagedUsers } from "@/lib/user-admin.functions";
 import {
   deleteApprovalChain,
   listApprovalChains,
   saveApprovalChain,
-  setApprovalChainActive,
   type ApprovalChain,
 } from "@/lib/approval-chain.functions";
 
@@ -39,18 +37,12 @@ interface DraftLevel {
 interface Draft {
   id: string | null;
   name: string;
-  owner_user_id: string;
-  role_key: string;
-  is_active: boolean;
   levels: DraftLevel[];
 }
 
 const EMPTY_DRAFT: Draft = {
   id: null,
   name: "",
-  owner_user_id: "",
-  role_key: "",
-  is_active: true,
   levels: [{ approver_id: "", designation: "" }],
 };
 
@@ -58,14 +50,11 @@ export function ApprovalChainTab() {
   const qc = useQueryClient();
   const fetchChains = useServerFn(listApprovalChains);
   const fetchUsers = useServerFn(listManagedUsers);
-  const fetchRoles = useServerFn(listRoleDefs);
   const save = useServerFn(saveApprovalChain);
   const remove = useServerFn(deleteApprovalChain);
-  const toggle = useServerFn(setApprovalChainActive);
 
   const chains = useQuery({ queryKey: ["approval-chains"], queryFn: () => fetchChains() });
   const users = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers() });
-  const roles = useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles() });
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -84,9 +73,9 @@ export function ApprovalChainTab() {
         data: {
           id: d.id,
           name: d.name,
-          owner_user_id: d.owner_user_id || null,
-          role_key: d.role_key || null,
-          is_active: d.is_active,
+          owner_user_id: null,
+          role_key: null,
+          is_active: true,
           levels: d.levels
             .filter((l) => l.approver_id)
             .map((l) => ({ approver_id: l.approver_id, designation: l.designation })),
@@ -109,12 +98,6 @@ export function ApprovalChainTab() {
     onError: (e) => toast.error(errMsg(e)),
   });
 
-  const toggleMut = useMutation({
-    mutationFn: (v: { id: string; is_active: boolean }) => toggle({ data: v }),
-    onSuccess: () => void invalidate(),
-    onError: (e) => toast.error(errMsg(e)),
-  });
-
   function openNew() {
     setDraft({ ...EMPTY_DRAFT, levels: [{ approver_id: "", designation: "" }] });
     setOpen(true);
@@ -124,9 +107,6 @@ export function ApprovalChainTab() {
     setDraft({
       id: c.id,
       name: c.name,
-      owner_user_id: c.owner_user_id ?? "",
-      role_key: c.role_key ?? "",
-      is_active: c.is_active,
       levels: c.levels.length
         ? c.levels.map((l) => ({ approver_id: l.approver_id, designation: l.designation ?? "" }))
         : [{ approver_id: "", designation: "" }],
