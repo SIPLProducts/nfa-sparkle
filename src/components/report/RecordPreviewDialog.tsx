@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { RichTextView } from "@/components/RichTextView";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { Printer, Download, Loader2 } from "lucide-react";
+import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
 
 const LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
@@ -39,7 +39,7 @@ export function RecordPreviewDialog({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const pagesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open || !enfa) return;
@@ -86,7 +86,40 @@ export function RecordPreviewDialog({
         const bin = atob(json.base64 as string);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        url = URL.createObjectURL(new Blob([bytes], { type: json.mime || "application/pdf" }));
+        url = URL.createObjectURL(new Blob([bytes.slice()], { type: json.mime || "application/pdf" }));
+
+        // Chrome's PDF plugin is blocked inside embedded/sandboxed frames, so
+        // the pages are rendered to canvas with pdf.js instead of an <iframe>.
+        const pdfjs = await import("pdfjs-dist");
+        const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+        const doc = await pdfjs.getDocument({ data: bytes }).promise;
+        if (cancelled) return;
+
+        const host = pagesRef.current;
+        const width = Math.min(host?.clientWidth || 800, 900);
+        const frag = document.createDocumentFragment();
+        for (let p = 1; p <= doc.numPages; p++) {
+          const page = await doc.getPage(p);
+          if (cancelled) return;
+          const base = page.getViewport({ scale: 1 });
+          const scale = (width / base.width) * (window.devicePixelRatio || 1);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = "100%";
+          canvas.style.height = "auto";
+          canvas.className = "rounded-lg border border-border bg-white";
+          const ctx = canvas.getContext("2d");
+          if (ctx) await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
+          frag.appendChild(canvas);
+        }
+        if (cancelled) return;
+        if (pagesRef.current) {
+          pagesRef.current.innerHTML = "";
+          pagesRef.current.appendChild(frag);
+        }
         setPdfUrl(url);
       } catch (e) {
         if (!cancelled) setPdfError(e instanceof Error ? e.message : "SAP preview failed");
@@ -103,6 +136,17 @@ export function RecordPreviewDialog({
   const plant = PLANTS.find((p) => p.code === (row?.PSPNR ?? ""));
   const company = COMPANIES.find((c) => c.code === plant?.company);
 
+  const printPdf = () => {
+    if (pdfUrl) {
+      const w = window.open(pdfUrl, "_blank");
+      if (w) {
+        w.addEventListener("load", () => w.print(), { once: true });
+        return;
+      }
+    }
+    window.print();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
@@ -115,14 +159,14 @@ export function RecordPreviewDialog({
             <div className="flex items-center gap-2 rounded-lg border border-border p-6 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Fetching the document from SAP…
             </div>
-          ) : pdfUrl ? (
-            <iframe
-              ref={frameRef}
-              src={pdfUrl}
-              title={`eNFA ${enfa} document`}
-              className="h-[70vh] w-full rounded-lg border border-border"
-            />
-          ) : (
+          ) : null}
+
+          <div
+            ref={pagesRef}
+            className={pdfUrl && !pdfLoading ? "flex max-h-[70vh] flex-col gap-3 overflow-y-auto" : "hidden"}
+          />
+
+          {!pdfLoading && !pdfUrl ? (
             <>
               {pdfError ? (
                 <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -130,7 +174,7 @@ export function RecordPreviewDialog({
                 </p>
               ) : null}
             </>
-          )}
+          ) : null}
 
           {pdfUrl ? null : (
           <>
@@ -193,7 +237,15 @@ export function RecordPreviewDialog({
 
         <DialogFooter>
           {pdfUrl ? (
-            <Button
+            <>
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => window.open(pdfUrl, "_blank", "noopener")}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open in new tab
+              </Button>
+              <Button
               variant="outline"
               className="gap-1.5"
               onClick={() => {
@@ -205,15 +257,9 @@ export function RecordPreviewDialog({
             >
               <Download className="h-3.5 w-3.5" /> Download
             </Button>
+            </>
           ) : null}
-          <Button
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => {
-              if (pdfUrl && frameRef.current?.contentWindow) frameRef.current.contentWindow.print();
-              else window.print();
-            }}
-          >
+          <Button variant="outline" className="gap-1.5" onClick={printPdf}>
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
