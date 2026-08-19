@@ -239,9 +239,15 @@ export function RecordAttachmentsDialog({
           </DialogHeader>
 
           <section className="space-y-2">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              SAP documents
-            </h4>
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                SAP documents
+              </h4>
+              <Button size="sm" className="gap-1.5" disabled={busy} onClick={() => inputRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : "Upload File"}
+              </Button>
+              <input ref={inputRef} type="file" multiple className="hidden" onChange={onPick} />
+            </div>
             {sapLoading ? (
               <p className="flex items-center gap-2 rounded-md border border-border px-3 py-4 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Fetching documents from SAP…
@@ -289,61 +295,6 @@ export function RecordAttachmentsDialog({
               </p>
             )}
           </section>
-
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Uploaded in this app
-          </h4>
-
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-muted-foreground">
-              {files.length} file{files.length === 1 ? "" : "s"} attached to this ENFA
-            </span>
-            <Button size="sm" className="gap-1.5" disabled={busy} onClick={() => inputRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> {busy ? "Uploading…" : "Upload File"}
-            </Button>
-            <input ref={inputRef} type="file" multiple className="hidden" onChange={onPick} />
-          </div>
-
-          <div className="max-h-[60vh] overflow-y-auto">
-            {loading ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>
-            ) : files.length === 0 ? (
-              <p className="rounded-md border border-dashed border-border py-10 text-center text-xs text-muted-foreground">
-                No documents attached yet.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border border-border">
-                {files.map((f) => (
-                  <li key={f.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-primary">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{f.filename}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {f.mime || "file"}
-                          {f.size ? ` · ${(f.size / 1024).toFixed(1)} KB` : ""}
-                          {f.uploaded_at ? ` · ${new Date(f.uploaded_at).toLocaleString()}` : ""}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 gap-1.5">
-                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => openFile(f)}>
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => openFile(f, true)}>
-                        <Download className="h-3.5 w-3.5" /> Download
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Remove" onClick={() => remove(f)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </DialogContent>
       </Dialog>
 
