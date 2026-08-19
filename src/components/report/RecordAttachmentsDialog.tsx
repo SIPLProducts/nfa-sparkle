@@ -130,6 +130,81 @@ function previewKind(f: SapAttachment): "pdf" | "image" | null {
   return null;
 }
 
+function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const isPdf = mime === "application/pdf";
+  const isImage = mime.startsWith("image/");
+
+  useEffect(() => {
+    if (!isPdf) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        const pdfjs = await import("pdfjs-dist");
+        const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+        const doc = await pdfjs.getDocument({ data: bytes }).promise;
+        if (cancelled) return;
+        const host = hostRef.current;
+        const width = Math.min(host?.clientWidth || 800, 900);
+        const frag = document.createDocumentFragment();
+        for (let p = 1; p <= doc.numPages; p++) {
+          const page = await doc.getPage(p);
+          if (cancelled) return;
+          const base = page.getViewport({ scale: 1 });
+          const scale = (width / base.width) * (window.devicePixelRatio || 1);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = "100%";
+          canvas.style.height = "auto";
+          canvas.className = "rounded-lg border border-border bg-white";
+          const ctx = canvas.getContext("2d");
+          if (ctx) await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
+          frag.appendChild(canvas);
+        }
+        if (cancelled || !hostRef.current) return;
+        hostRef.current.innerHTML = "";
+        hostRef.current.appendChild(frag);
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : "Could not render this document");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url, isPdf]);
+
+  if (isImage) {
+    return (
+      <div className="flex h-full w-full items-center justify-center overflow-auto p-4">
+        <img src={url} alt={name} className="max-h-full max-w-full object-contain" />
+      </div>
+    );
+  }
+  if (!isPdf) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
+        This file type cannot be previewed in the browser.
+        <Button asChild size="sm" variant="outline">
+          <a href={url} download={name}>
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Download
+          </a>
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="h-full overflow-y-auto p-4">
+      {err ? <p className="text-sm text-destructive">{err}</p> : null}
+      <div ref={hostRef} className="flex flex-col gap-3" />
+    </div>
+  );
+}
+
 export function RecordAttachmentsDialog({
   enfaNumber,
   open,
