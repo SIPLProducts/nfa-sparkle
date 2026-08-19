@@ -17,6 +17,8 @@ import {
   Trash2,
   Shield,
 } from "lucide-react";
+import { GitBranch } from "lucide-react";
+import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -111,6 +113,9 @@ function UserManagement() {
           <TabsTrigger value="perms" className="gap-2">
             <ShieldCheck className="h-4 w-4" /> Screen Permissions
           </TabsTrigger>
+          <TabsTrigger value="chain" className="gap-2">
+            <GitBranch className="h-4 w-4" /> Approval Chain
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <UsersTab />
@@ -120,6 +125,9 @@ function UserManagement() {
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />
+        </TabsContent>
+        <TabsContent value="chain">
+          <ApprovalChainTab />
         </TabsContent>
       </Tabs>
     </div>
