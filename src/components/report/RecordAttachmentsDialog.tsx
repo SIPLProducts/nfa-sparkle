@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Eye, FileText, Paperclip, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileText, Loader2, Paperclip, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface SapAttachment {
@@ -17,6 +17,70 @@ interface SapAttachment {
 }
 
 const BUCKET = "nfa-attachments";
+
+interface SapFile {
+  filename: string;
+  base64: string;
+  mime: string;
+}
+
+/** Live documents attached to the eNFA in SAP (endpoint configured in Admin → SAP API Settings). */
+function useSapDocuments(enfaNumber: string | null) {
+  const [docs, setDocs] = useState<SapFile[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enfaNumber) {
+      setDocs([]);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token ?? "";
+        const res = await fetch("/api/public/enfa-attachments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ attachment: { reffld: enfaNumber } }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          files?: SapFile[];
+          error?: string;
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setDocs([]);
+          setError(json?.error ?? `SAP attachments failed (HTTP ${res.status})`);
+          return;
+        }
+        setDocs(Array.isArray(json.files) ? json.files : []);
+        setError(json.files?.length ? null : (json.message ?? null));
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "SAP attachments failed");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enfaNumber]);
+
+  return { docs, loading, error };
+}
+
+function base64ToBlobUrl(base64: string, mime: string) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes.slice()], { type: mime || "application/octet-stream" }));
+}
 
 export function useSapAttachments(enfaNumber: string | null) {
   const [files, setFiles] = useState<SapAttachment[]>([]);
