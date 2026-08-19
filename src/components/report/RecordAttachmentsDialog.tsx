@@ -29,6 +29,7 @@ function useSapDocuments(enfaNumber: string | null) {
   const [docs, setDocs] = useState<SapFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!enfaNumber) {
@@ -70,9 +71,9 @@ function useSapDocuments(enfaNumber: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [enfaNumber]);
+  }, [enfaNumber, nonce]);
 
-  return { docs, loading, error };
+  return { docs, loading, error, refresh: useCallback(() => setNonce((n) => n + 1), []) };
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
@@ -120,6 +121,41 @@ export async function uploadSapFile(enfaNumber: string, file: File) {
     uploaded_by: u.user.id,
   });
   if (error) throw new Error(error.message);
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.onload = () => {
+      const res = String(reader.result ?? "");
+      resolve(res.slice(res.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
+
+/** Sends the picked files to SAP through the registered "Upload Document" endpoint. */
+export async function uploadToSap(enfaNumber: string, files: File[]): Promise<string> {
+  const total = files.reduce((s, f) => s + f.size, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    throw new Error(`Total upload size is ${(total / 1024 / 1024).toFixed(1)} MB — the limit is 40 MB per upload.`);
+  }
+  const payloadFiles = await Promise.all(
+    files.map(async (f) => ({ file_name: f.name, file: await fileToBase64(f) })),
+  );
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token ?? "";
+  const res = await fetch("/api/public/enfa-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ upload: { reffld: enfaNumber, file: payloadFiles } }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string; enfaNo?: string };
+  if (!res.ok) throw new Error(json?.error ?? `SAP upload failed (HTTP ${res.status})`);
+  return json.message ?? `Uploaded to SAP against ENFA ${json.enfaNo ?? enfaNumber}`;
 }
 
 function previewKind(f: SapAttachment): "pdf" | "image" | null {
@@ -215,7 +251,12 @@ export function RecordAttachmentsDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const { files, loading, refresh } = useSapAttachments(open ? enfaNumber : null);
-  const { docs: sapDocs, loading: sapLoading, error: sapError } = useSapDocuments(open ? enfaNumber : null);
+  const {
+    docs: sapDocs,
+    loading: sapLoading,
+    error: sapError,
+    refresh: refreshSap,
+  } = useSapDocuments(open ? enfaNumber : null);
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const [preview, setPreview] = useState<{ f: SapAttachment; url: string; kind: "pdf" | "image" } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -245,9 +286,11 @@ export function RecordAttachmentsDialog({
     if (!list.length || !enfaNumber) return;
     setBusy(true);
     try {
+      const message = await uploadToSap(enfaNumber, list);
       for (const file of list) await uploadSapFile(enfaNumber, file);
-      toast.success(`${list.length} file${list.length === 1 ? "" : "s"} uploaded`);
+      toast.success(message);
       void refresh();
+      refreshSap();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
