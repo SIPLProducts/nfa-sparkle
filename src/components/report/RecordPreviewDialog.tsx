@@ -35,7 +35,6 @@ export function RecordPreviewDialog({
     detailed_description: string | null;
     subject: string | null;
   } | null>(null);
-  const [fileCount, setFileCount] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -45,17 +44,13 @@ export function RecordPreviewDialog({
     if (!open || !enfa) return;
     let cancelled = false;
     (async () => {
-      const [{ data: d }, { count }] = await Promise.all([
-        supabase
-          .from("sap_record_draft")
-          .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
-          .eq("enfa_number", enfa)
-          .maybeSingle(),
-        supabase.from("sap_attachment").select("id", { count: "exact", head: true }).eq("enfa_number", enfa),
-      ]);
+      const { data: d } = await supabase
+        .from("sap_record_draft")
+        .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+        .eq("enfa_number", enfa)
+        .maybeSingle();
       if (cancelled) return;
       setDraft(d ?? null);
-      setFileCount(count ?? 0);
     })();
     return () => { cancelled = true; };
   }, [open, enfa]);
@@ -192,7 +187,6 @@ export function RecordPreviewDialog({
             <Row label="Scope Impact" value={draft?.scope_impact ?? ""} />
             <Row label="Budget Impact" value={draft?.budget_impact != null ? String(draft.budget_impact) : ""} />
             <Row label="Timeline Impact" value={draft?.timeline_days != null ? `${draft.timeline_days} days` : ""} />
-            <Row label="Attachments" value={`${fileCount} file${fileCount === 1 ? "" : "s"}`} />
           </section>
 
           <section className="rounded-lg border border-border p-4">

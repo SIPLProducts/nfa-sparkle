@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { toast } from "sonner";
 import { Download, Play, BarChart3, RotateCcw, Upload, Paperclip, Eye, Pencil } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
-import { RecordAttachmentsDialog, uploadSapFile, uploadToSap } from "@/components/report/RecordAttachmentsDialog";
+import { RecordAttachmentsDialog, uploadToSap } from "@/components/report/RecordAttachmentsDialog";
 import { RecordEditDialog } from "@/components/report/RecordEditDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 
@@ -181,7 +181,6 @@ function Report() {
     setUploading(true);
     try {
       const message = await uploadToSap(row.REFFLD, list);
-      for (const file of list) await uploadSapFile(row.REFFLD, file);
       toast.success(message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
