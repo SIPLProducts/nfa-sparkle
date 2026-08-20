@@ -715,12 +715,15 @@ async function callEnfaUpdateInner(payload: Record<string, unknown>): Promise<Sa
  * "Attachments IN Reports" endpoint. Host, path, method, headers, query and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaAttachments(reffld: string): Promise<SapCallResult> {
+export async function callEnfaAttachments(
+  reffld: string,
+  endpoint: "report" | "my" = "report",
+): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
     .select("*")
-    .ilike("name", "Attachments IN Reports")
+    .ilike("name", endpoint === "my" ? "Attachments In My NFA" : "Attachments IN Reports")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)

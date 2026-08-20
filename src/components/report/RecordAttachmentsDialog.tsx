@@ -12,7 +12,7 @@ interface SapFile {
 }
 
 /** Live documents attached to the eNFA in SAP (endpoint configured in Admin → SAP API Settings). */
-function useSapDocuments(enfaNumber: string | null) {
+function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
   const [docs, setDocs] = useState<SapFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ function useSapDocuments(enfaNumber: string | null) {
         const res = await fetch("/api/public/enfa-attachments", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ attachment: { reffld: enfaNumber } }),
+          body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint }),
         });
         const json = (await res.json().catch(() => ({}))) as {
           files?: SapFile[];
@@ -58,7 +58,7 @@ function useSapDocuments(enfaNumber: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [enfaNumber, nonce]);
+  }, [enfaNumber, endpoint, nonce]);
 
   return { docs, loading, error, refresh: useCallback(() => setNonce((n) => n + 1), []) };
 }
@@ -184,17 +184,19 @@ export function RecordAttachmentsDialog({
   enfaNumber,
   open,
   onOpenChange,
+  endpoint = "report",
 }: {
   enfaNumber: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  endpoint?: "report" | "my";
 }) {
   const {
     docs: sapDocs,
     loading: sapLoading,
     error: sapError,
     refresh: refreshSap,
-  } = useSapDocuments(open ? enfaNumber : null);
+  } = useSapDocuments(open ? enfaNumber : null, endpoint);
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

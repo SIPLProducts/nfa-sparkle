@@ -122,7 +122,8 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
           return Response.json({ error: "An eNFA number is required" }, { status: 400 });
         }
 
-        const result = await callEnfaAttachments(reffld);
+        const target = input["endpoint"] === "my" ? "my" : "report";
+        const result = await callEnfaAttachments(reffld, target);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",

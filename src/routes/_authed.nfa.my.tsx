@@ -316,7 +316,12 @@ function MyNfas() {
         </div>
       </div>
 
-      <RecordAttachmentsDialog enfaNumber={selectedEnfaNo || null} open={docsOpen} onOpenChange={setDocsOpen} />
+      <RecordAttachmentsDialog
+        enfaNumber={selectedEnfaNo || null}
+        open={docsOpen}
+        onOpenChange={setDocsOpen}
+        endpoint="my"
+      />
       <RecordEditDialog row={selectedRow} endpoint="select" open={editOpen} onOpenChange={setEditOpen} onUpdated={() => void load()} />
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" />
     </div>
