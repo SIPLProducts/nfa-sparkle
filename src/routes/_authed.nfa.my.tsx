@@ -189,9 +189,20 @@ function MyNfas() {
           const chain = appr[r.id] ?? [];
           const current = chain.find((c) => c.level === r.current_level);
           return (
-            <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className="block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40">
+            <Link key={r.id} to="/nfa/$id" params={{ id: r.id }} className={"block rounded-lg border border-border bg-card p-3 shadow-sm active:bg-muted/40 " + (selectedId === r.id ? "bg-accent/5" : "")}>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="my-nfa-record"
+                    className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                    checked={selectedId === r.id}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSelectedId(r.id); }}
+                    onChange={() => setSelectedId(r.id)}
+                    aria-label={`Select ${r.enfa_number}`}
+                  />
+                  <span className="font-mono text-[11px] font-semibold text-accent">{r.enfa_number}</span>
+                </span>
                 <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span>
               </div>
               <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{r.subject}</div>
@@ -223,6 +234,7 @@ function MyNfas() {
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
+                <Th> </Th>
                 <Th>ENFA Number</Th><Th>Status</Th><Th>Plant</Th><Th>NFA Type</Th><Th>Subject</Th><Th>Created</Th>
                 {[1,2,3,4,5,6].map((l) => (<Th key={`s${l}`}>{`L${l}`}</Th>))}
                 <Th> </Th>
@@ -240,7 +252,17 @@ function MyNfas() {
               {filtered.map((r) => {
                 const chain = appr[r.id] ?? [];
                 return (
-                  <tr key={r.id} className="hover:bg-muted/40">
+                  <tr key={r.id} className={"hover:bg-muted/40 " + (selectedId === r.id ? "bg-accent/5" : "")}>
+                    <Td>
+                      <input
+                        type="radio"
+                        name="my-nfa-record-desktop"
+                        className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                        checked={selectedId === r.id}
+                        onChange={() => setSelectedId(r.id)}
+                        aria-label={`Select ${r.enfa_number}`}
+                      />
+                    </Td>
                     <Td><Link to="/nfa/$id" params={{ id: r.id }} className="font-mono text-xs font-medium text-accent hover:underline">{r.enfa_number}</Link></Td>
                     <Td><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</span></Td>
                     <Td className="text-muted-foreground">{r.plant ? `${r.plant} · ${r.plant_name ?? ""}` : "—"}</Td>
@@ -268,6 +290,10 @@ function MyNfas() {
           </table>
         </div>
       </div>
+
+      <RecordAttachmentsDialog enfaNumber={selectedEnfaNo || null} open={docsOpen} onOpenChange={setDocsOpen} />
+      <RecordEditDialog row={selectedSapRow} open={editOpen} onOpenChange={setEditOpen} />
+      <RecordPreviewDialog row={selectedSapRow} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }
