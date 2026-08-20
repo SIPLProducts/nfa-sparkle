@@ -794,12 +794,13 @@ async function callEnfaUpdateInnerImpl(db: any, payload: Record<string, unknown>
 export async function callEnfaUpload(
   reffld: string,
   files: { file_name: string; file: string }[],
+  endpoint: "report" | "my" = "report",
 ): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
     .select("*")
-    .ilike("name", "Upload Document")
+    .ilike("name", endpoint === "my" ? "Attached Docs In MY NFA" : "Upload Document")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)

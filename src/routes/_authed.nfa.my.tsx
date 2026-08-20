@@ -137,7 +137,7 @@ function MyNfas() {
     if (!list.length || !selectedEnfaNo) return;
     setUploading(true);
     try {
-      toast.success(await uploadToSap(selectedEnfaNo, list));
+      toast.success(await uploadToSap(selectedEnfaNo, list, "my"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {

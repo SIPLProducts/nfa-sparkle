@@ -85,7 +85,11 @@ function fileToBase64(file: File): Promise<string> {
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
 /** Sends the picked files to SAP through the registered "Upload Document" endpoint. */
-export async function uploadToSap(enfaNumber: string, files: File[]): Promise<string> {
+export async function uploadToSap(
+  enfaNumber: string,
+  files: File[],
+  endpoint: "report" | "my" = "report",
+): Promise<string> {
   const total = files.reduce((s, f) => s + f.size, 0);
   if (total > MAX_UPLOAD_BYTES) {
     throw new Error(`Total upload size is ${(total / 1024 / 1024).toFixed(1)} MB — the limit is 40 MB per upload.`);
@@ -98,7 +102,7 @@ export async function uploadToSap(enfaNumber: string, files: File[]): Promise<st
   const res = await fetch("/api/public/enfa-upload", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ upload: { reffld: enfaNumber, file: payloadFiles } }),
+    body: JSON.stringify({ upload: { reffld: enfaNumber, file: payloadFiles }, endpoint }),
   });
   const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string; enfaNo?: string };
   if (!res.ok) throw new Error(json?.error ?? `SAP upload failed (HTTP ${res.status})`);
@@ -207,7 +211,7 @@ export function RecordAttachmentsDialog({
     if (!list.length || !enfaNumber) return;
     setBusy(true);
     try {
-      const message = await uploadToSap(enfaNumber, list);
+      const message = await uploadToSap(enfaNumber, list, endpoint);
       toast.success(message);
       refreshSap();
     } catch (err) {
