@@ -603,18 +603,38 @@ export async function callEnfaSelect(reffld: string): Promise<SapCallResult> {
  * "Preview Button" endpoint. Host, path, method, headers, query and credentials
  * all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaPrint(enfaNo: string): Promise<SapCallResult> {
+export async function callEnfaPrint(
+  enfaNo: string,
+  variant?: "edit" | "report",
+): Promise<SapCallResult> {
   const db = await admin();
-  const { data: exact } = await db
-    .from("sap_endpoint")
-    .select("*")
-    .ilike("name", "Preview Button")
-    .eq("active", true)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
 
-  const { data: fallback } = exact
+  // The My NFAs screen uses its own registered row ("Preview In Edit"); the
+  // Reports screen keeps using "Preview Button".
+  const { data: variantRow } =
+    variant === "edit"
+      ? await db
+          .from("sap_endpoint")
+          .select("*")
+          .ilike("name", "Preview In Edit")
+          .eq("active", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+
+  const { data: exact } = variantRow
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "Preview Button")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const { data: fallback } = variantRow || exact
     ? { data: null }
     : await db
         .from("sap_endpoint")
@@ -633,7 +653,7 @@ export async function callEnfaPrint(enfaNo: string): Promise<SapCallResult> {
         .limit(1)
         .maybeSingle();
 
-  const ep = exact ?? fallback;
+  const ep = variantRow ?? exact ?? fallback;
   if (!ep) {
     return {
       ok: false,
@@ -653,13 +673,32 @@ export async function callEnfaPrint(enfaNo: string): Promise<SapCallResult> {
   };
   const { username, password } = await credentialsFor(ep, sys);
 
+  // Use the endpoint's saved body template, substituting the requested number.
+  let body = JSON.stringify({ PRINT: { EFNA_NO: enfaNo } });
+  const tpl = (ep.request_body ?? "").trim();
+  if (tpl) {
+    try {
+      const parsed = JSON.parse(tpl) as Record<string, unknown>;
+      const print = parsed?.["PRINT"] ?? parsed?.["print"];
+      if (print && typeof print === "object") {
+        const p = print as Record<string, unknown>;
+        if ("EFNA_NO" in p) p["EFNA_NO"] = enfaNo;
+        else if ("efna_no" in p) p["efna_no"] = enfaNo;
+        else p["EFNA_NO"] = enfaNo;
+        body = JSON.stringify(parsed);
+      }
+    } catch {
+      /* fall back to the default shape */
+    }
+  }
+
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "POST").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify({ PRINT: { EFNA_NO: enfaNo } }),
+    body,
     username: username || undefined,
     password,
     maxBytes: 8_000_000,
