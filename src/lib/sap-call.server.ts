@@ -37,18 +37,29 @@ export async function fetchWithTimeout(
 ): Promise<SapCallResult> {
   const started = Date.now();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
   try {
     const res = await fetch(url, { ...init, redirect: "manual", signal: controller.signal });
     const text = (await res.text()).slice(0, maxBytes);
     return { ok: res.ok, status: res.status, latencyMs: Date.now() - started, body: text, error: null };
   } catch (e) {
+    const aborted =
+      timedOut ||
+      (e instanceof Error && (e.name === "AbortError" || /abort/i.test(e.message)));
     return {
       ok: false,
       status: null,
       latencyMs: Date.now() - started,
       body: "",
-      error: e instanceof Error ? e.message : "Request failed",
+      error: aborted
+        ? `SAP did not respond within ${Math.round(ms / 1000)} seconds — the file may be too large or the SAP service is slow. Please try again.`
+        : e instanceof Error
+          ? e.message
+          : "Request failed",
     };
   } finally {
     clearTimeout(timer);
@@ -91,6 +102,7 @@ export async function callSap(opts: {
   username?: string;
   password?: string;
   maxBytes?: number;
+  timeoutMs?: number;
 }): Promise<SapCallResult> {
   const db = await admin();
   const { data: mw } = await db.from("sap_middleware_config").select("*").limit(1).maybeSingle();
@@ -108,6 +120,7 @@ export async function callSap(opts: {
   if (viaProxy) {
     const secret = (await getSecret("middleware_secret")) ?? "";
     const limit = opts.maxBytes ?? 4000;
+    const timeoutMs = opts.timeoutMs ?? 20000;
     const url = `${mw!.url.replace(/\/+$/, "")}/sap/call`;
     const payload = {
       system: opts.system?.key ?? undefined,
@@ -118,12 +131,13 @@ export async function callSap(opts: {
       headers: opts.headers ?? {},
       body: opts.body,
       auth: opts.username ? { username: opts.username, password: opts.password ?? "" } : undefined,
+      timeoutMs,
     };
     const r = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
       body: JSON.stringify(payload),
-    }, 20000, Math.max(limit + 4000, 8000));
+    }, timeoutMs + 5000, Math.max(limit + 4000, 8000));
     if (!r.ok && r.status === null) return r;
     try {
       const parsed = JSON.parse(r.body) as {
@@ -167,7 +181,7 @@ export async function callSap(opts: {
   return fetchWithTimeout(
     target.toString(),
     { method: opts.method, headers, body: opts.body },
-    15000,
+    opts.timeoutMs ?? 15000,
     opts.maxBytes ?? 4000,
   );
 }
