@@ -8,12 +8,54 @@ import { fetchProfilesMap, nameFor } from "@/lib/nfa-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { PlusCircle, Search, FileText } from "lucide-react";
+import { PlusCircle, Search, FileText, Upload, Paperclip, Eye, Pencil } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
+import { toast } from "sonner";
+import type { SapReportRow } from "@/lib/sap-api.functions";
+import { RecordAttachmentsDialog, uploadToSap } from "@/components/report/RecordAttachmentsDialog";
+import { RecordEditDialog } from "@/components/report/RecordEditDialog";
+import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
 });
+
+const EMPTY_LEVELS = {
+  ROLE1: "", APPR1: "", STAT1: "",
+  ROLE2: "", APPR2: "", STAT2: "",
+  ROLE3: "", APPR3: "", STAT3: "",
+  ROLE4: "", APPR4: "", STAT4: "",
+  ROLE5: "", APPR5: "", STAT5: "",
+  ROLE6: "", APPR6: "", STAT6: "",
+};
+
+/** Maps a local NFA row onto the SAP report row shape the shared dialogs expect. */
+function toSapRow(
+  r: NfaRow,
+  chain: ApproverRow[],
+  profiles: Record<string, { full_name: string | null; email: string | null }>,
+): SapReportRow {
+  const levels: Record<string, string> = { ...EMPTY_LEVELS };
+  for (const a of chain) {
+    if (a.level < 1 || a.level > 6) continue;
+    levels[`ROLE${a.level}`] = a.designation ?? "";
+    levels[`APPR${a.level}`] = nameFor(profiles, a.approver_id);
+    levels[`STAT${a.level}`] = a.status ?? "";
+  }
+  return {
+    REFFLD: r.enfa_number ?? "",
+    PSPNR: r.plant ?? "",
+    NAME1: r.plant_name ?? "",
+    FUNCT_TXT: nfaTypeName(r.nfa_type),
+    EXTR_TXT: "",
+    SUBJECT: r.subject ?? "",
+    INIT_NAME: "",
+    BEGDA: new Date(r.created_at).toLocaleDateString(),
+    STATUS_TXT: STATUS_LABEL[r.status] ?? "",
+    ...(levels as unknown as Omit<SapReportRow, "REFFLD" | "PSPNR" | "NAME1" | "FUNCT_TXT" | "EXTR_TXT" | "SUBJECT" | "INIT_NAME" | "BEGDA" | "STATUS_TXT">),
+  };
+}
 
 function MyNfas() {
   const { user } = useAuth();
@@ -22,6 +64,12 @@ function MyNfas() {
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -49,6 +97,39 @@ function MyNfas() {
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filtered.length, 10, 10);
   const visible = filtered.slice(0, visibleCount);
 
+  const selectedNfa = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
+  const selectedSapRow = useMemo(
+    () => (selectedNfa ? toSapRow(selectedNfa, appr[selectedNfa.id] ?? [], profiles) : null),
+    [selectedNfa, appr, profiles],
+  );
+  const selectedEnfaNo = selectedSapRow?.REFFLD?.trim() || "";
+
+  function requireSelection() {
+    if (!selectedNfa) {
+      toast.info("Select a record first.");
+      return false;
+    }
+    if (!selectedEnfaNo) {
+      toast.info("This NFA does not have an eNFA number in SAP yet.");
+      return false;
+    }
+    return true;
+  }
+
+  async function onUploadPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!list.length || !selectedEnfaNo) return;
+    setUploading(true);
+    try {
+      toast.success(await uploadToSap(selectedEnfaNo, list));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -65,6 +146,34 @@ function MyNfas() {
           </>
         }
       />
+
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-muted-foreground">
+          {filtered.length} record{filtered.length === 1 ? "" : "s"}
+          {selectedEnfaNo ? <span className="ml-2 font-mono text-xs text-accent">{selectedEnfaNo}</span> : null}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={uploading}
+            onClick={() => requireSelection() && uploadRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Upload File, If Any"}
+          </Button>
+          <input ref={uploadRef} type="file" multiple className="hidden" onChange={onUploadPick} />
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setDocsOpen(true)}>
+            <Paperclip className="h-3.5 w-3.5" /> Attached Docs
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setPreviewOpen(true)}>
+            <Eye className="h-3.5 w-3.5" /> Preview
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => requireSelection() && setEditOpen(true)}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        </div>
+      </div>
 
       {/* Mobile card list */}
       <div className="space-y-2.5 md:hidden">
