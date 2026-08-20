@@ -22,10 +22,12 @@ export function RecordPreviewDialog({
   row,
   open,
   onOpenChange,
+  endpoint = "report",
 }: {
   row: SapReportRow | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  endpoint?: "report" | "select";
 }) {
   const enfa = row?.REFFLD ?? "";
   const [draft, setDraft] = useState<{
@@ -70,7 +72,10 @@ export function RecordPreviewDialog({
         const res = await fetch("/api/public/enfa-print", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ PRINT: { EFNA_NO: enfa } }),
+          body: JSON.stringify({
+            PRINT: { EFNA_NO: enfa },
+            ...(endpoint === "select" ? { variant: "edit" } : {}),
+          }),
         });
         const json = await res.json().catch(() => ({}) as any);
         if (cancelled) return;
@@ -126,7 +131,7 @@ export function RecordPreviewDialog({
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [open, enfa]);
+  }, [open, enfa, endpoint]);
 
   const plant = PLANTS.find((p) => p.code === (row?.PSPNR ?? ""));
   const company = COMPANIES.find((c) => c.code === plant?.company);
