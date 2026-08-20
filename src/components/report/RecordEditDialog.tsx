@@ -66,12 +66,15 @@ export function RecordEditDialog({
   open,
   onOpenChange,
   endpoint = "detail",
+  onUpdated,
 }: {
   row: SapReportRow | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   /** Which registered SAP endpoint loads the record: report detail, or MY NFA Select. */
   endpoint?: "detail" | "select";
+  /** Called after SAP confirms an update, so the caller can refresh its list. */
+  onUpdated?: () => void;
 }) {
   const enfa = row?.REFFLD ?? "";
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
@@ -197,6 +200,7 @@ export function RecordEditDialog({
           CC_TEXT: str(detail, "CC_TEXT") || (company ? company.name : ""),
           PSPNR: str(detail, "PSPNR") || (row?.PSPNR ?? ""),
           NAME1: str(detail, "NAME1") || (row?.NAME1 ?? ""),
+          FUNCT: str(detail, "FUNCT") || str(detail, "FUNCT_TXT") || (row?.FUNCT_TXT ?? ""),
           SUBJECT: draft.subject,
           SCOPE_IMPACT: draft.scope_impact,
           BUDGET_IMPACT: draft.budget_impact,
@@ -204,7 +208,7 @@ export function RecordEditDialog({
           TEXT: htmlToPlainText(draft.detailed_description),
         },
       };
-      const res = await fetch("/api/public/enfa-update", {
+      const res = await fetch(endpoint === "select" ? "/api/public/enfa-my-update" : "/api/public/enfa-update", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload),
@@ -234,6 +238,7 @@ export function RecordEditDialog({
         }
       }
       toast.success(message);
+      onUpdated?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
     } finally {

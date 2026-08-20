@@ -459,6 +459,71 @@ export async function callEnfaUpdate(payload: Record<string, unknown>): Promise<
 }
 
 /**
+ * Sends an edited My NFA record back to SAP through the registered "Edit IN My NFA"
+ * endpoint (the approval API). Host, path, method, headers, query and credentials
+ * all come from Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callEnfaMyNfaUpdate(payload: Record<string, unknown>): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Edit IN My NFA")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .or(["name.ilike.%edit%my nfa%", "name.ilike.%my nfa%edit%", "name.ilike.%my nfa%update%"].join(","))
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP \"Edit IN My NFA\" endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const username = ep.username || sys?.username || "";
+  const password =
+    (await getSecret(`endpoint:${ep.id}`)) ??
+    (sys ? await getSecret(`system:${sys.id}`) : null) ??
+    (await getSecret("sap_password")) ??
+    "";
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "PUT").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+  });
+}
+
+/**
  * Fetches a single eNFA record for editing through the registered "MY NFA Select"
  * endpoint (the approval API). Host, path, method, headers, query, body template and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
