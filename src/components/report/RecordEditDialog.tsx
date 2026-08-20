@@ -65,10 +65,13 @@ export function RecordEditDialog({
   row,
   open,
   onOpenChange,
+  endpoint = "detail",
 }: {
   row: SapReportRow | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** Which registered SAP endpoint loads the record: report detail, or MY NFA Select. */
+  endpoint?: "detail" | "select";
 }) {
   const enfa = row?.REFFLD ?? "";
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
@@ -95,7 +98,7 @@ export function RecordEditDialog({
       try {
         const { data: s } = await supabase.auth.getSession();
         const token = s.session?.access_token ?? "";
-        const res = await fetch("/api/public/enfa-detail", {
+        const res = await fetch(endpoint === "select" ? "/api/public/enfa-select" : "/api/public/enfa-detail", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -151,7 +154,7 @@ export function RecordEditDialog({
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [open, enfa, row]);
+  }, [open, enfa, row, endpoint]);
 
   const set = (k: keyof DraftState) => (v: string) => setDraft((p) => ({ ...p, [k]: v }));
 
