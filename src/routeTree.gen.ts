@@ -23,6 +23,7 @@ import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enf
 import { Route as ApiPublicEnfaSelectRouteImport } from './routes/api/public/enfa-select'
 import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
 import { Route as ApiPublicEnfaPrintRouteImport } from './routes/api/public/enfa-print'
+import { Route as ApiPublicEnfaMyUpdateRouteImport } from './routes/api/public/enfa-my-update'
 import { Route as ApiPublicEnfaDetailRouteImport } from './routes/api/public/enfa-detail'
 import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enfa-create'
 import { Route as ApiPublicEnfaAttachmentsRouteImport } from './routes/api/public/enfa-attachments'
@@ -104,6 +105,11 @@ const ApiPublicEnfaPrintRoute = ApiPublicEnfaPrintRouteImport.update({
   path: '/api/public/enfa-print',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEnfaMyUpdateRoute = ApiPublicEnfaMyUpdateRouteImport.update({
+  id: '/api/public/enfa-my-update',
+  path: '/api/public/enfa-my-update',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicEnfaDetailRoute = ApiPublicEnfaDetailRouteImport.update({
   id: '/api/public/enfa-detail',
   path: '/api/public/enfa-detail',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-my-update': typeof ApiPublicEnfaMyUpdateRoute
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-select': typeof ApiPublicEnfaSelectRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-my-update': typeof ApiPublicEnfaMyUpdateRoute
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-select': typeof ApiPublicEnfaSelectRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
+  '/api/public/enfa-my-update': typeof ApiPublicEnfaMyUpdateRoute
   '/api/public/enfa-print': typeof ApiPublicEnfaPrintRoute
   '/api/public/enfa-report': typeof ApiPublicEnfaReportRoute
   '/api/public/enfa-select': typeof ApiPublicEnfaSelectRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-my-update'
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-select'
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-my-update'
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-select'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
+    | '/api/public/enfa-my-update'
     | '/api/public/enfa-print'
     | '/api/public/enfa-report'
     | '/api/public/enfa-select'
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   ApiPublicEnfaAttachmentsRoute: typeof ApiPublicEnfaAttachmentsRoute
   ApiPublicEnfaCreateRoute: typeof ApiPublicEnfaCreateRoute
   ApiPublicEnfaDetailRoute: typeof ApiPublicEnfaDetailRoute
+  ApiPublicEnfaMyUpdateRoute: typeof ApiPublicEnfaMyUpdateRoute
   ApiPublicEnfaPrintRoute: typeof ApiPublicEnfaPrintRoute
   ApiPublicEnfaReportRoute: typeof ApiPublicEnfaReportRoute
   ApiPublicEnfaSelectRoute: typeof ApiPublicEnfaSelectRoute
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/enfa-print'
       fullPath: '/api/public/enfa-print'
       preLoaderRoute: typeof ApiPublicEnfaPrintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-my-update': {
+      id: '/api/public/enfa-my-update'
+      path: '/api/public/enfa-my-update'
+      fullPath: '/api/public/enfa-my-update'
+      preLoaderRoute: typeof ApiPublicEnfaMyUpdateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/enfa-detail': {
@@ -567,6 +587,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEnfaAttachmentsRoute: ApiPublicEnfaAttachmentsRoute,
   ApiPublicEnfaCreateRoute: ApiPublicEnfaCreateRoute,
   ApiPublicEnfaDetailRoute: ApiPublicEnfaDetailRoute,
+  ApiPublicEnfaMyUpdateRoute: ApiPublicEnfaMyUpdateRoute,
   ApiPublicEnfaPrintRoute: ApiPublicEnfaPrintRoute,
   ApiPublicEnfaReportRoute: ApiPublicEnfaReportRoute,
   ApiPublicEnfaSelectRoute: ApiPublicEnfaSelectRoute,
