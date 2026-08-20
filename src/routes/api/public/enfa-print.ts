@@ -98,7 +98,9 @@ export const Route = createFileRoute("/api/public/enfa-print")({
           return Response.json({ error: "An eNFA number is required" }, { status: 400 });
         }
 
-        const result = await callEnfaPrint(enfaNo);
+        const variantRaw = String(input["variant"] ?? "").toLowerCase();
+        const variant = variantRaw === "edit" ? "edit" : undefined;
+        const result = await callEnfaPrint(enfaNo, variant);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
