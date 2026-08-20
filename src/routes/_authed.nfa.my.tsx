@@ -327,5 +327,5 @@ function Th({ children }: { children?: React.ReactNode }) {
   return <th className="px-3 py-2.5 whitespace-nowrap font-medium">{children}</th>;
 }
 function Td({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
-  return <td className={"px-3 py-2.5 whitespace-nowrap " + className}>{className ? children : children}</td>;
+  return <td className={"px-3 py-2.5 whitespace-nowrap " + className}>{children}</td>;
 }
