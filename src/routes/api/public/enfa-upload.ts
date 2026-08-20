@@ -82,6 +82,7 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
           input = {};
         }
         const up = (input["upload"] ?? input["UPLOAD"] ?? {}) as Record<string, unknown>;
+        const endpoint = String(input["endpoint"] ?? "report").toLowerCase() === "my" ? "my" : "report";
         const reffld = String(up["reffld"] ?? up["REFFLD"] ?? input["reffld"] ?? "").trim();
         const rawFiles = Array.isArray(up["file"]) ? (up["file"] as any[]) : [];
         const files = rawFiles
@@ -94,7 +95,7 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
         if (!reffld) return Response.json({ error: "An eNFA number is required" }, { status: 400 });
         if (!files.length) return Response.json({ error: "No files to upload" }, { status: 400 });
 
-        const result = await callEnfaUpload(reffld, files);
+        const result = await callEnfaUpload(reffld, files, endpoint);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
