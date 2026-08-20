@@ -702,6 +702,7 @@ export async function callEnfaPrint(
     username: username || undefined,
     password,
     maxBytes: 8_000_000,
+    timeoutMs: 180_000,
   });
 }
 
@@ -779,6 +780,7 @@ export async function callEnfaAttachments(
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
+    timeoutMs: 180_000,
   });
 }
 
@@ -858,6 +860,7 @@ export async function callEnfaUpload(
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
+    timeoutMs: 180_000,
   });
 }
 
@@ -1080,5 +1083,6 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
     username: username || undefined,
     password,
     maxBytes: 4_000_000,
+    timeoutMs: 180_000,
   });
 }
