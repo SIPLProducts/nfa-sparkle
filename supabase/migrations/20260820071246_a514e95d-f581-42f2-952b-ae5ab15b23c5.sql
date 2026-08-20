@@ -1,0 +1,3 @@
+insert into public.sap_endpoint (name, description, module, path_or_url, http_method, auth_type, api_type, active, request_body)
+select 'Approval Report', 'Returns the eNFA approval worklist used by the My NFAs screen.', 'Approval', '/e-nfa/enfa_approval/APPROVAL?sap-client=300', 'PUT', 'basic', 'fetch', true, '{ "report": "" }'
+where not exists (select 1 from public.sap_endpoint where lower(name) = 'approval report');
