@@ -827,3 +827,75 @@ export async function callSapFunctionF4(nfaType: string): Promise<SapCallResult>
     maxBytes: 2_000_000,
   });
 }
+
+/**
+ * Fetches the eNFA approval worklist from SAP through the registered
+ * "Approval Report" endpoint. Host, path, method, headers, query and
+ * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callEnfaApproval(): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Approval Report")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%approval%")
+        .not("name", "ilike", "%create%")
+        .not("name", "ilike", "%preview%")
+        .not("name", "ilike", "%print%")
+        .not("name", "ilike", "%attach%")
+        .not("name", "ilike", "%upload%")
+        .not("name", "ilike", "%edit%")
+        .not("name", "ilike", "%detail%")
+        .not("name", "ilike", "%deatil%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Approval Report endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+
+  // The request body comes from the endpoint's saved template when present.
+  let body = (ep.request_body ?? "").trim();
+  if (!body) body = JSON.stringify({ report: "" });
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "PUT").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body,
+    username: username || undefined,
+    password,
+    maxBytes: 4_000_000,
+  });
+}
