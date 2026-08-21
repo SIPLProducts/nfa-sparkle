@@ -239,8 +239,13 @@ function ApprovalsInbox() {
           {!loading && filtered.length === 0 && (
             <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
               <CheckCircle2 className="mx-auto mb-2 h-7 w-7 text-muted-foreground/50" />
-              <div className="text-sm font-medium">No items waiting</div>
-              <div className="text-xs text-muted-foreground">{emptyText}</div>
+              <div className="text-sm font-medium">{error ? "Worklist unavailable" : "No items"}</div>
+              <div className="mx-auto max-w-sm text-xs text-muted-foreground">{emptyText}</div>
+              {error && (
+                <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={() => void load()}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Retry
+                </Button>
+              )}
             </div>
           )}
           {visible.map((r, i) => {
