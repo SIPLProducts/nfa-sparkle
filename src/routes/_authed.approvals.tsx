@@ -11,7 +11,6 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
-import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
