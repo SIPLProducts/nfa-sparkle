@@ -1187,3 +1187,67 @@ export async function callEnfaApprovalAction(opts: {
     timeoutMs: 120_000,
   });
 }
+
+/**
+ * Fetches the My NFAs list from SAP through the registered "Display Edit Data"
+ * endpoint. Host, path, method, headers, query, body template and credentials
+ * all come from Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callEnfaDisplayEditData(): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Display Edit Data")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%display%edit%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Display Edit Data endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+
+  let body = (ep.request_body ?? "").trim();
+  if (!body) body = JSON.stringify({ report: "" });
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "PUT").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body,
+    username: username || undefined,
+    password,
+    maxBytes: 4_000_000,
+    timeoutMs: 180_000,
+  });
+}
