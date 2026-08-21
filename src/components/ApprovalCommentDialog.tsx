@@ -125,8 +125,7 @@ export function ApprovalCommentDialog({ open, onOpenChange, enfaNumber, action, 
           <Button
             onClick={submit}
             disabled={busy || (meta?.requireComment && !comment.trim())}
-            className={meta?.accent || undefined}
-            variant={!meta?.accent ? "default" : undefined}
+            className={meta?.className || undefined}
           >
             {busy ? "Submitting…" : meta?.submit}
           </Button>
