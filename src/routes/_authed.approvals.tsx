@@ -160,16 +160,39 @@ function ApprovalsInbox() {
   }
 
   async function submitAction(action: ApprovalAction, comment: string) {
+    if (!selectedEnfaNo) {
+      toast.info("Select a record first.");
+      return;
+    }
     setBusy(true);
     try {
-      // Placeholder: the SAP integration will be wired here once the endpoint details are provided.
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      toast.success(
-        action === "approve" ? "Approved" :
-        action === "reject" ? "Rejected" :
-        action === "back_to_initiator" ? "Sent back to initiator" :
-        "Clarification requested"
-      );
+      if (action === "approve") {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token ?? "";
+        const res = await fetch("/api/public/enfa-approve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ reffld: selectedEnfaNo, comment }),
+        });
+        const text = await res.text();
+        let parsed: Record<string, unknown> | null = null;
+        try { parsed = text ? (JSON.parse(text) as Record<string, unknown>) : null; } catch { parsed = null; }
+
+        const message = String(parsed?.["message"] ?? parsed?.["error"] ?? "").trim();
+        if (!res.ok || parsed?.["ok"] === false) {
+          toast.error(message || `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`);
+          return;
+        }
+        toast.success(message || "SAP accepted the approval");
+      } else {
+        // Reject / Back To Initiator / Clarification are wired once their
+        // SAP payloads are registered in Admin → SAP API Settings.
+        toast.info("This action is not yet connected to SAP.");
+        return;
+      }
       setCommentAction(null);
       await load();
     } catch (e: any) {
@@ -178,6 +201,7 @@ function ApprovalsInbox() {
       setBusy(false);
     }
   }
+
 
   const emptyText = error
     ? error
