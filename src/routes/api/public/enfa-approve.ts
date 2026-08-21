@@ -4,7 +4,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { callEnfaApproveAction } = await import("@/lib/sap-report.server");
+        const { callEnfaApprovalAction } = await import("@/lib/sap-report.server");
 
         const authHeader = request.headers.get("authorization") ?? "";
         if (!authHeader.toLowerCase().startsWith("bearer ")) {
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        let input: { reffld?: string; comment?: string } = {};
+        let input: { reffld?: string; comment?: string; action?: string } = {};
         try {
           input = (await request.json()) as typeof input;
         } catch {
@@ -51,7 +51,13 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           return Response.json({ ok: false, message: "No ENFA number was selected" }, { status: 200 });
         }
 
-        const result = await callEnfaApproveAction({
+        const rawAction = String(input.action ?? "approve").toLowerCase();
+        if (rawAction !== "approve" && rawAction !== "reject") {
+          return Response.json({ ok: false, message: `Unsupported action: ${rawAction}` }, { status: 200 });
+        }
+
+        const result = await callEnfaApprovalAction({
+          action: rawAction,
           reffld,
           comment: String(input.comment ?? ""),
         });
@@ -66,7 +72,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         if (!result.ok) {
           console.warn("[enfa-approve] SAP call failed:", result.status, result.error);
           return new Response(
-            JSON.stringify({ ok: false, message: result.error ?? "SAP did not accept the approval" }),
+            JSON.stringify({ ok: false, message: result.error ?? "SAP did not accept the action" }),
             { status: 200, headers },
           );
         }
