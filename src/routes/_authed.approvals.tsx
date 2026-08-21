@@ -11,7 +11,6 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
-import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
@@ -50,6 +49,11 @@ function val(row: SapReportRow, key: string): string {
   return ((row as unknown as Record<string, string>)[key] ?? "").trim();
 }
 
+/** NFA Type: FUNCT_TXT when present, else FUNCT (as in the get_data response). */
+function nfaType(row: SapReportRow): string {
+  return val(row, "FUNCT_TXT") || val(row, "FUNCT") || "—";
+}
+
 /** Finds the total number of approval levels present in the row. */
 function totalLevels(row: SapReportRow): number {
   let count = 0;
@@ -68,7 +72,7 @@ function currentLevel(row: SapReportRow): number {
 }
 
 function ApprovalsInbox() {
-  const { user } = useAuth();
+  
   const [rows, setRows] = useState<SapReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,19 +96,22 @@ function ApprovalsInbox() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ report: "" }),
+        body: JSON.stringify({ get_data: "" }),
       });
       const text = await res.text();
       let parsed: unknown = null;
       try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
 
-      if (!res.ok) {
+      const asObj = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+
+      if (!res.ok || (asObj && asObj["ok"] === false)) {
         const msg =
-          (parsed && typeof parsed === "object" && (parsed as any).error) ||
+          (asObj && (asObj["message"] || asObj["error"])) ||
           `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
         setRows([]);
         setError(String(msg));
-        toast.error(String(msg));
         return;
       }
       setRows(normaliseRows(parsed));
@@ -112,7 +119,6 @@ function ApprovalsInbox() {
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
       setRows([]);
       setError(msg);
-      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -120,28 +126,24 @@ function ApprovalsInbox() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Filter to records that are pending the current approver.
-  const pendingRows = useMemo(() => {
-    if (!user) return [];
-    return rows.filter((r) => {
-      const status = val(r, "STATUS_TXT").toLowerCase();
-      if (status.includes("complete") || status.includes("closed") || status.includes("reject")) return false;
-      const cur = currentLevel(r);
-      const approver = val(r, `APPR${cur}`);
-      return !approver || approver.toLowerCase() === (user.email || "").toLowerCase() || approver === user.id;
-    });
-  }, [rows, user]);
-
+  /** SAP decides what appears here — no client-side filtering by user. */
   const filtered = useMemo(() => {
-    if (!q.trim()) return pendingRows;
+    if (!q.trim()) return rows;
     const s = q.toLowerCase();
-    return pendingRows.filter((r) =>
+    return rows.filter((r) =>
       val(r, "REFFLD").toLowerCase().includes(s) ||
       val(r, "SUBJECT").toLowerCase().includes(s) ||
-      val(r, "FUNCT_TXT").toLowerCase().includes(s) ||
+      nfaType(r).toLowerCase().includes(s) ||
       val(r, "NAME1").toLowerCase().includes(s),
     );
-  }, [q, pendingRows]);
+  }, [q, rows]);
+
+  /** Status / level columns only render when SAP actually returns those keys. */
+  const hasStatus = useMemo(() => rows.some((r) => val(r, "STATUS_TXT")), [rows]);
+  const hasLevels = useMemo(
+    () => rows.some((r) => LEVELS.some((l) => val(r, `APPR${l}`) || val(r, `STAT${l}`))),
+    [rows],
+  );
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filtered.length, 10, 10);
   const visible = filtered.slice(0, visibleCount);
@@ -236,8 +238,13 @@ function ApprovalsInbox() {
           {!loading && filtered.length === 0 && (
             <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
               <CheckCircle2 className="mx-auto mb-2 h-7 w-7 text-muted-foreground/50" />
-              <div className="text-sm font-medium">No items waiting</div>
-              <div className="text-xs text-muted-foreground">{emptyText}</div>
+              <div className="text-sm font-medium">{error ? "Worklist unavailable" : "No items"}</div>
+              <div className="mx-auto max-w-sm text-xs text-muted-foreground">{emptyText}</div>
+              {error && (
+                <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={() => void load()}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Retry
+                </Button>
+              )}
             </div>
           )}
           {visible.map((r, i) => {
@@ -263,17 +270,21 @@ function ApprovalsInbox() {
                     />
                     <span className="font-mono text-[11px] font-semibold text-accent">{val(r, "REFFLD") || "—"}</span>
                   </span>
-                  <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(status)}>{status || "—"}</span>
+                  {hasStatus && (
+                    <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(status)}>{status || "—"}</span>
+                  )}
                 </div>
                 <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{val(r, "SUBJECT") || "—"}</div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  {val(r, "FUNCT_TXT") || "—"} · {val(r, "PSPNR") || "—"} · {val(r, "BEGDA") || "—"}
+                  {nfaType(r)} · {val(r, "PSPNR") || "—"} · {val(r, "BEGDA") || "—"}
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">{val(r, "NAME1") || "—"}</span>
-                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    Level {cur} / {tot}
-                  </span>
+                  {hasLevels && (
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Level {cur} / {tot}
+                    </span>
+                  )}
                 </div>
               </button>
             );
@@ -301,8 +312,8 @@ function ApprovalsInbox() {
                   <Th>NFA Type</Th>
                   <Th>Date</Th>
                   <Th>Subject</Th>
-                  <Th>Status</Th>
-                  <Th>Level</Th>
+                  {hasStatus && <Th>Status</Th>}
+                  {hasLevels && <Th>Level</Th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -310,8 +321,13 @@ function ApprovalsInbox() {
                 {!loading && filtered.length === 0 && (
                   <tr><td colSpan={20} className="px-4 py-12 text-center">
                     <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
-                    <div className="text-sm font-medium">No items waiting</div>
+                    <div className="text-sm font-medium">{error ? "Worklist unavailable" : "No items"}</div>
                     <div className="text-xs text-muted-foreground">{emptyText}</div>
+                    {error && (
+                      <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={() => void load()}>
+                        <RefreshCw className="h-3.5 w-3.5" /> Retry
+                      </Button>
+                    )}
                   </td></tr>
                 )}
                 {filtered.map((r, i) => {
@@ -337,15 +353,19 @@ function ApprovalsInbox() {
                       <Td><span className="font-mono text-xs font-medium text-accent">{val(r, "REFFLD") || "—"}</span></Td>
                       <Td>{val(r, "PSPNR") || "—"}</Td>
                       <Td className="text-muted-foreground">{val(r, "NAME1") || "—"}</Td>
-                      <Td>{val(r, "FUNCT_TXT") || "—"}</Td>
+                      <Td>{nfaType(r)}</Td>
                       <Td className="text-muted-foreground">{val(r, "BEGDA") || "—"}</Td>
                       <Td className="max-w-[280px] truncate">{val(r, "SUBJECT") || "—"}</Td>
-                      <Td><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(status)}>{status || "—"}</span></Td>
-                      <Td>
-                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                          Level {cur} / {tot}
-                        </span>
-                      </Td>
+                      {hasStatus && (
+                        <Td><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(status)}>{status || "—"}</span></Td>
+                      )}
+                      {hasLevels && (
+                        <Td>
+                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                            Level {cur} / {tot}
+                          </span>
+                        </Td>
+                      )}
                     </tr>
                   );
                 })}

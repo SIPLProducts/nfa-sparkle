@@ -1016,7 +1016,7 @@ export async function callSapFunctionF4(nfaType: string): Promise<SapCallResult>
 
 /**
  * Fetches the eNFA approval worklist from SAP through the registered
- * "Approval Report" endpoint. Host, path, method, headers, query and
+ * "Approval Get Data" endpoint. Host, path, method, headers, query and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
  */
 export async function callEnfaApproval(): Promise<SapCallResult> {
@@ -1024,7 +1024,7 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
   const { data: exact } = await db
     .from("sap_endpoint")
     .select("*")
-    .ilike("name", "Approval Report")
+    .ilike("name", "Approval Get Data")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -1057,7 +1057,7 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
       latencyMs: 0,
       body: "",
       error:
-        "The SAP Approval Report endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+        "The SAP Approval Get Data endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
     };
   }
 
@@ -1071,7 +1071,7 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
 
   // The request body comes from the endpoint's saved template when present.
   let body = (ep.request_body ?? "").trim();
-  if (!body) body = JSON.stringify({ report: "" });
+  if (!body) body = JSON.stringify({ get_data: "" });
 
   return callSap({
     system: sys,

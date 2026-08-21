@@ -50,13 +50,18 @@ export const Route = createFileRoute("/api/public/enfa-approval")({
         };
 
         if (!result.ok) {
-          console.error("[enfa-approval] SAP call failed:", result.status, result.error);
-          return new Response(
-            result.body && result.body.trim()
-              ? result.body
-              : JSON.stringify({ error: result.error ?? "SAP request failed" }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
-          );
+          // Configuration/upstream failures return a clean 200 with an
+          // ok:false body so the screen shows an inline notice instead of
+          // popping the global error overlay. Real auth failures stay 401.
+          console.warn("[enfa-approval] SAP call failed:", result.status, result.error);
+          const body = JSON.stringify({
+            ok: false,
+            message: result.error ?? "SAP worklist unavailable",
+          });
+          return new Response(body, {
+            status: result.status && result.status >= 400 && result.status < 500 ? result.status : 200,
+            headers: { ...headers, "content-type": "application/json" },
+          });
         }
 
         // Unwrap a middleware envelope if one slipped through.
