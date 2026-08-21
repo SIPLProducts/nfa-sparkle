@@ -89,6 +89,13 @@ function MyNfas() {
         toast.error(String(msg));
         return;
       }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && (parsed as any).ok === false) {
+        const msg = String((parsed as any).message || "SAP worklist unavailable");
+        setRows([]);
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
       setRows(normaliseRows(parsed));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
