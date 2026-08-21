@@ -73,7 +73,7 @@ function currentLevel(row: SapReportRow): number {
 }
 
 function ApprovalsInbox() {
-  const { user } = useAuth();
+  
   const [rows, setRows] = useState<SapReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
