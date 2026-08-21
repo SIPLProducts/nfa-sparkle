@@ -1088,19 +1088,25 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
 }
 
 /**
- * Sends an Approve action to SAP through the registered "Approved Button"
- * endpoint. Host, path, method, headers, query, credentials and the body
- * template all come from Admin → SAP API Settings — nothing is hardcoded.
+ * Sends an approval-workflow action (approve / reject) to SAP through the
+ * matching registered endpoint. Host, path, method, headers, query,
+ * credentials and the body template all come from Admin → SAP API Settings.
  */
-export async function callEnfaApproveAction(opts: {
+export async function callEnfaApprovalAction(opts: {
+  action: "approve" | "reject";
   reffld: string;
   comment: string;
 }): Promise<SapCallResult> {
+  const config = {
+    approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
+    reject: { exactName: "Reject Button", pattern: "%reject%", wrapper: "reject" },
+  }[opts.action];
+
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
     .select("*")
-    .ilike("name", "Approved Button")
+    .ilike("name", config.exactName)
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -1111,7 +1117,7 @@ export async function callEnfaApproveAction(opts: {
     : await db
         .from("sap_endpoint")
         .select("*")
-        .ilike("name", "%approve%")
+        .ilike("name", config.pattern)
         .eq("active", true)
         .order("created_at", { ascending: true })
         .limit(1)
@@ -1124,10 +1130,10 @@ export async function callEnfaApproveAction(opts: {
       status: null,
       latencyMs: 0,
       body: "",
-      error:
-        "The SAP Approve endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+      error: `The SAP ${config.exactName} endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.`,
     };
   }
+
 
   const sys = await loadSystem(ep.system_id ?? null);
   const headers: Record<string, string> = {
