@@ -1071,7 +1071,7 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
 
   // The request body comes from the endpoint's saved template when present.
   let body = (ep.request_body ?? "").trim();
-  if (!body) body = JSON.stringify({ report: "" });
+  if (!body) body = JSON.stringify({ get_data: "" });
 
   return callSap({
     system: sys,
