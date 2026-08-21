@@ -1093,7 +1093,7 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
  * query, credentials and the body template all come from Admin → SAP API Settings.
  */
 export async function callEnfaApprovalAction(opts: {
-  action: "approve" | "reject" | "back_to_initiator";
+  action: "approve" | "reject" | "back_to_initiator" | "clarification";
   reffld: string;
   comment: string;
 }): Promise<SapCallResult> {
@@ -1101,6 +1101,7 @@ export async function callEnfaApprovalAction(opts: {
     approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
     reject: { exactName: "Reject Button", pattern: "%reject%", wrapper: "reject" },
     back_to_initiator: { exactName: "Back To Intiator", pattern: "%tiator%", wrapper: "initiator" },
+    clarification: { exactName: "Clarification Button", pattern: "%clarif%", wrapper: "clarification" },
   }[opts.action];
 
 
