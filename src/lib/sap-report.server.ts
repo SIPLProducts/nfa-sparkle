@@ -1145,7 +1145,7 @@ export async function callEnfaApprovalAction(opts: {
 
   // Start from the endpoint's saved body template when it parses, so admins
   // can change the wrapper/keys in API Settings without a code change.
-  let payload: Record<string, any> = { approve: { REFFLD: "", Comment: "" } };
+  let payload: Record<string, any> = { [config.wrapper]: { REFFLD: "", Comment: "" } };
   const tpl = (ep.request_body ?? "").trim();
   if (tpl) {
     try {
@@ -1157,7 +1157,8 @@ export async function callEnfaApprovalAction(opts: {
   }
 
   const wrapperKey =
-    Object.keys(payload).find((k) => k.toLowerCase() === "approve") ?? "approve";
+    Object.keys(payload).find((k) => k.toLowerCase() === config.wrapper) ?? config.wrapper;
+
   const inner =
     payload[wrapperKey] && typeof payload[wrapperKey] === "object" && !Array.isArray(payload[wrapperKey])
       ? { ...(payload[wrapperKey] as Record<string, any>) }
