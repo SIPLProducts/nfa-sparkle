@@ -17,32 +17,32 @@ interface ApprovalCommentDialogProps {
   busy?: boolean;
 }
 
-const ACTION_META: Record<ApprovalAction, { title: string; icon: React.ReactNode; accent: string; submit: string; requireComment: boolean }> = {
+const ACTION_META: Record<ApprovalAction, { title: string; icon: React.ReactNode; className: string; submit: string; requireComment: boolean }> = {
   approve: {
     title: "Approve",
     icon: <Check className="h-4 w-4" />,
-    accent: "bg-emerald-600 text-white hover:bg-emerald-700",
+    className: "bg-success text-success-foreground hover:bg-success/90",
     submit: "Confirm Approve",
     requireComment: false,
   },
   reject: {
     title: "Reject",
     icon: <X className="h-4 w-4" />,
-    accent: "",
+    className: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
     submit: "Confirm Reject",
     requireComment: true,
   },
   back_to_initiator: {
     title: "Back To Initiator",
     icon: <RotateCcw className="h-4 w-4" />,
-    accent: "bg-amber-500 text-white hover:bg-amber-600",
+    className: "bg-accent text-accent-foreground hover:bg-accent/90",
     submit: "Send Back",
     requireComment: true,
   },
   clarification: {
     title: "Clarification",
     icon: <HelpCircle className="h-4 w-4" />,
-    accent: "bg-blue-600 text-white hover:bg-blue-700",
+    className: "bg-primary text-primary-foreground hover:bg-primary/90",
     submit: "Request Clarification",
     requireComment: true,
   },
