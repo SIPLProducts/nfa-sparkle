@@ -68,7 +68,7 @@ function MyNfas() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
-      const res = await fetch("/api/public/enfa-approval", {
+      const res = await fetch("/api/public/enfa-display-edit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -87,6 +87,13 @@ function MyNfas() {
         setRows([]);
         setError(String(msg));
         toast.error(String(msg));
+        return;
+      }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && (parsed as any).ok === false) {
+        const msg = String((parsed as any).message || "SAP worklist unavailable");
+        setRows([]);
+        setError(msg);
+        toast.error(msg);
         return;
       }
       setRows(normaliseRows(parsed));
