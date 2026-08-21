@@ -4,14 +4,14 @@ Rebuild the Approvals Inbox so it behaves like the SAP approval transaction: one
 
 ## Layout (matching the SAP reference)
 
-A single action toolbar sits above the table with these buttons, in this order:
+A clean, modern action toolbar sits above the table with these buttons, in this order:
 
-Preview | Attached Docs | Approve | Reject | Back To Initiator | Clarification | User Manual
+Preview | Attached Docs | Approve | Reject | Back To Initiator | Clarification
 
 - All buttons are disabled until exactly one record is selected (radio in the first column), same selection behaviour as My NFAs.
 - Table columns follow SAP: ENFA No, Plant, Plant Name, NFA Type, Date, Subject, Status, plus the level progress pill already used on My NFAs.
 - The current per-row Approve / Reject / Clarify buttons are removed — actions now come from the toolbar only.
-- Existing app styling (cards, pills, header, sticky table head) is kept; this is the SAP flow in the app's own design language, not an SAP-grey clone.
+- The UI is kept clean and professional: a white card surface, subtle borders, soft shadows, generous whitespace, and a clear visual hierarchy. No User Manual section.
 
 ## Data
 
