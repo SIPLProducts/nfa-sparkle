@@ -68,7 +68,7 @@ function MyNfas() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
-      const res = await fetch("/api/public/enfa-approval", {
+      const res = await fetch("/api/public/enfa-display-edit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
