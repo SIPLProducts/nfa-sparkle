@@ -1088,19 +1088,21 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
 }
 
 /**
- * Sends an approval-workflow action (approve / reject) to SAP through the
- * matching registered endpoint. Host, path, method, headers, query,
- * credentials and the body template all come from Admin → SAP API Settings.
+ * Sends an approval-workflow action (approve / reject / back to initiator) to
+ * SAP through the matching registered endpoint. Host, path, method, headers,
+ * query, credentials and the body template all come from Admin → SAP API Settings.
  */
 export async function callEnfaApprovalAction(opts: {
-  action: "approve" | "reject";
+  action: "approve" | "reject" | "back_to_initiator";
   reffld: string;
   comment: string;
 }): Promise<SapCallResult> {
   const config = {
     approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
     reject: { exactName: "Reject Button", pattern: "%reject%", wrapper: "reject" },
+    back_to_initiator: { exactName: "Back To Intiator", pattern: "%tiator%", wrapper: "initiator" },
   }[opts.action];
+
 
   const db = await admin();
   const { data: exact } = await db
