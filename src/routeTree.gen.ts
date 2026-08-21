@@ -27,6 +27,7 @@ import { Route as ApiPublicEnfaMyUpdateRouteImport } from './routes/api/public/e
 import { Route as ApiPublicEnfaDetailRouteImport } from './routes/api/public/enfa-detail'
 import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enfa-create'
 import { Route as ApiPublicEnfaAttachmentsRouteImport } from './routes/api/public/enfa-attachments'
+import { Route as ApiPublicEnfaApproveRouteImport } from './routes/api/public/enfa-approve'
 import { Route as ApiPublicEnfaApprovalRouteImport } from './routes/api/public/enfa-approval'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
@@ -126,6 +127,11 @@ const ApiPublicEnfaAttachmentsRoute =
     path: '/api/public/enfa-attachments',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicEnfaApproveRoute = ApiPublicEnfaApproveRouteImport.update({
+  id: '/api/public/enfa-approve',
+  path: '/api/public/enfa-approve',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicEnfaApprovalRoute = ApiPublicEnfaApprovalRouteImport.update({
   id: '/api/public/enfa-approval',
   path: '/api/public/enfa-approval',
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
+  '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByTo {
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
+  '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
@@ -233,6 +241,7 @@ export interface FileRoutesById {
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
+  '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
   '/api/public/enfa-create': typeof ApiPublicEnfaCreateRoute
   '/api/public/enfa-detail': typeof ApiPublicEnfaDetailRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/nfa/my'
     | '/nfa/new'
     | '/api/public/enfa-approval'
+    | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/nfa/my'
     | '/nfa/new'
     | '/api/public/enfa-approval'
+    | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
     | '/api/public/enfa-approval'
+    | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
     | '/api/public/enfa-create'
     | '/api/public/enfa-detail'
@@ -340,6 +352,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicEnfaApprovalRoute: typeof ApiPublicEnfaApprovalRoute
+  ApiPublicEnfaApproveRoute: typeof ApiPublicEnfaApproveRoute
   ApiPublicEnfaAttachmentsRoute: typeof ApiPublicEnfaAttachmentsRoute
   ApiPublicEnfaCreateRoute: typeof ApiPublicEnfaCreateRoute
   ApiPublicEnfaDetailRoute: typeof ApiPublicEnfaDetailRoute
@@ -483,6 +496,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEnfaAttachmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/enfa-approve': {
+      id: '/api/public/enfa-approve'
+      path: '/api/public/enfa-approve'
+      fullPath: '/api/public/enfa-approve'
+      preLoaderRoute: typeof ApiPublicEnfaApproveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/enfa-approval': {
       id: '/api/public/enfa-approval'
       path: '/api/public/enfa-approval'
@@ -584,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicEnfaApprovalRoute: ApiPublicEnfaApprovalRoute,
+  ApiPublicEnfaApproveRoute: ApiPublicEnfaApproveRoute,
   ApiPublicEnfaAttachmentsRoute: ApiPublicEnfaAttachmentsRoute,
   ApiPublicEnfaCreateRoute: ApiPublicEnfaCreateRoute,
   ApiPublicEnfaDetailRoute: ApiPublicEnfaDetailRoute,
