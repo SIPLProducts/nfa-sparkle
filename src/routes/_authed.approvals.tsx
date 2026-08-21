@@ -166,7 +166,7 @@ function ApprovalsInbox() {
     }
     setBusy(true);
     try {
-      if (action === "approve") {
+      if (action === "approve" || action === "reject") {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token ?? "";
         const res = await fetch("/api/public/enfa-approve", {
@@ -175,7 +175,7 @@ function ApprovalsInbox() {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ reffld: selectedEnfaNo, comment }),
+          body: JSON.stringify({ action, reffld: selectedEnfaNo, comment }),
         });
         const text = await res.text();
         let parsed: Record<string, unknown> | null = null;
@@ -186,13 +186,14 @@ function ApprovalsInbox() {
           toast.error(message || `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`);
           return;
         }
-        toast.success(message || "SAP accepted the approval");
+        toast.success(message || (action === "approve" ? "SAP accepted the approval" : "SAP accepted the rejection"));
       } else {
-        // Reject / Back To Initiator / Clarification are wired once their
+        // Back To Initiator / Clarification are wired once their
         // SAP payloads are registered in Admin → SAP API Settings.
         toast.info("This action is not yet connected to SAP.");
         return;
       }
+
       setCommentAction(null);
       await load();
     } catch (e: any) {
