@@ -271,17 +271,21 @@ function ApprovalsInbox() {
                     />
                     <span className="font-mono text-[11px] font-semibold text-accent">{val(r, "REFFLD") || "—"}</span>
                   </span>
-                  <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(status)}>{status || "—"}</span>
+                  {hasStatus && (
+                    <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " + statusTone(status)}>{status || "—"}</span>
+                  )}
                 </div>
                 <div className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">{val(r, "SUBJECT") || "—"}</div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  {val(r, "FUNCT_TXT") || "—"} · {val(r, "PSPNR") || "—"} · {val(r, "BEGDA") || "—"}
+                  {nfaType(r)} · {val(r, "PSPNR") || "—"} · {val(r, "BEGDA") || "—"}
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">{val(r, "NAME1") || "—"}</span>
-                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    Level {cur} / {tot}
-                  </span>
+                  {hasLevels && (
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Level {cur} / {tot}
+                    </span>
+                  )}
                 </div>
               </button>
             );
