@@ -1086,3 +1086,93 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
     timeoutMs: 180_000,
   });
 }
+
+/**
+ * Sends an Approve action to SAP through the registered "Approved Button"
+ * endpoint. Host, path, method, headers, query, credentials and the body
+ * template all come from Admin → SAP API Settings — nothing is hardcoded.
+ */
+export async function callEnfaApproveAction(opts: {
+  reffld: string;
+  comment: string;
+}): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Approved Button")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%approve%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Approve endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+
+  // Start from the endpoint's saved body template when it parses, so admins
+  // can change the wrapper/keys in API Settings without a code change.
+  let payload: Record<string, any> = { approve: { REFFLD: "", Comment: "" } };
+  const tpl = (ep.request_body ?? "").trim();
+  if (tpl) {
+    try {
+      const parsed = JSON.parse(tpl);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed;
+    } catch {
+      /* keep the default shape */
+    }
+  }
+
+  const wrapperKey =
+    Object.keys(payload).find((k) => k.toLowerCase() === "approve") ?? "approve";
+  const inner =
+    payload[wrapperKey] && typeof payload[wrapperKey] === "object" && !Array.isArray(payload[wrapperKey])
+      ? { ...(payload[wrapperKey] as Record<string, any>) }
+      : {};
+
+  const refKey = Object.keys(inner).find((k) => k.toLowerCase() === "reffld") ?? "REFFLD";
+  const cmtKey = Object.keys(inner).find((k) => k.toLowerCase() === "comment") ?? "Comment";
+  inner[refKey] = opts.reffld;
+  inner[cmtKey] = opts.comment ?? "";
+  payload[wrapperKey] = inner;
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "PUT").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 200_000,
+    timeoutMs: 120_000,
+  });
+}
