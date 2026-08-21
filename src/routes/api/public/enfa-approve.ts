@@ -52,12 +52,13 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         }
 
         const rawAction = String(input.action ?? "approve").toLowerCase();
-        if (rawAction !== "approve" && rawAction !== "reject") {
+        const allowed = ["approve", "reject", "back_to_initiator"] as const;
+        if (!(allowed as readonly string[]).includes(rawAction)) {
           return Response.json({ ok: false, message: `Unsupported action: ${rawAction}` }, { status: 200 });
         }
 
         const result = await callEnfaApprovalAction({
-          action: rawAction,
+          action: rawAction as (typeof allowed)[number],
           reffld,
           comment: String(input.comment ?? ""),
         });

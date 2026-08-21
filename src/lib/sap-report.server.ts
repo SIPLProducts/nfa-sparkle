@@ -1088,19 +1088,21 @@ export async function callEnfaApproval(): Promise<SapCallResult> {
 }
 
 /**
- * Sends an approval-workflow action (approve / reject) to SAP through the
- * matching registered endpoint. Host, path, method, headers, query,
- * credentials and the body template all come from Admin → SAP API Settings.
+ * Sends an approval-workflow action (approve / reject / back to initiator) to
+ * SAP through the matching registered endpoint. Host, path, method, headers,
+ * query, credentials and the body template all come from Admin → SAP API Settings.
  */
 export async function callEnfaApprovalAction(opts: {
-  action: "approve" | "reject";
+  action: "approve" | "reject" | "back_to_initiator";
   reffld: string;
   comment: string;
 }): Promise<SapCallResult> {
   const config = {
     approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
     reject: { exactName: "Reject Button", pattern: "%reject%", wrapper: "reject" },
+    back_to_initiator: { exactName: "Back To Intiator", pattern: "%tiator%", wrapper: "initiator" },
   }[opts.action];
+
 
   const db = await admin();
   const { data: exact } = await db
@@ -1145,7 +1147,8 @@ export async function callEnfaApprovalAction(opts: {
 
   // Start from the endpoint's saved body template when it parses, so admins
   // can change the wrapper/keys in API Settings without a code change.
-  let payload: Record<string, any> = { [config.wrapper]: { REFFLD: "", Comment: "" } };
+  const defaultWrapper = opts.action === "back_to_initiator" ? "INITIATOR" : config.wrapper;
+  let payload: Record<string, any> = { [defaultWrapper]: { REFFLD: "", Comment: "" } };
   const tpl = (ep.request_body ?? "").trim();
   if (tpl) {
     try {
@@ -1157,7 +1160,7 @@ export async function callEnfaApprovalAction(opts: {
   }
 
   const wrapperKey =
-    Object.keys(payload).find((k) => k.toLowerCase() === config.wrapper) ?? config.wrapper;
+    Object.keys(payload).find((k) => k.toLowerCase() === config.wrapper) ?? defaultWrapper;
 
   const inner =
     payload[wrapperKey] && typeof payload[wrapperKey] === "object" && !Array.isArray(payload[wrapperKey])
