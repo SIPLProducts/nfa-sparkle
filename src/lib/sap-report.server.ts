@@ -770,7 +770,7 @@ export async function callEnfaAttachments(
   };
   const { username, password } = await credentialsFor(ep, sys);
 
-  return callSap({
+  const result = await callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "POST").toUpperCase(),
@@ -780,9 +780,23 @@ export async function callEnfaAttachments(
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
-    timeoutMs: 180_000,
+    // The tunnel in front of the on-prem middleware gives up at ~100 s (HTTP 524),
+    // so stay inside that window and return our own clear message instead.
+    timeoutMs: 85_000,
   });
+
+  if (!result.ok && (result.status === null || result.status >= 500)) {
+    return {
+      ...result,
+      error:
+        result.error && result.status === null
+          ? result.error
+          : "SAP took too long to return the documents for this eNFA. Please try again in a moment.",
+    };
+  }
+  return result;
 }
+
 
 async function callEnfaUpdateInnerImpl(db: any, payload: Record<string, unknown>): Promise<SapCallResult> {
   return callEnfaUpdateInnerImplOriginal(db, payload);

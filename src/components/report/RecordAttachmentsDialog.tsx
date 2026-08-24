@@ -382,9 +382,21 @@ export function RecordAttachmentsDialog({
   const [pending, setPending] = useState<string | null>(null);
   const contentCache = useRef(new Map<number, { filename: string; mime: string; base64: string }>());
 
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!sapLoading) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [sapLoading]);
+
   useEffect(() => {
     contentCache.current.clear();
   }, [enfaNumber, endpoint]);
+
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? []);
@@ -454,8 +466,12 @@ export function RecordAttachmentsDialog({
             </div>
             {sapLoading ? (
               <p className="flex items-center gap-2 rounded-md border border-border px-3 py-4 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Fetching documents from SAP…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {elapsed >= 8
+                  ? `Still fetching documents from SAP… (${elapsed}s)`
+                  : "Fetching documents from SAP…"}
               </p>
+
             ) : sapDocs.length ? (
               <ul className="divide-y divide-border rounded-md border border-border">
                 {sapDocs.map((d, i) => (
@@ -505,17 +521,19 @@ export function RecordAttachmentsDialog({
                   </li>
                 ))}
               </ul>
+            ) : sapError ? (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-xs text-destructive">
+                <span className="min-w-0">{sapError}</span>
+                <Button size="sm" variant="outline" className="h-7 shrink-0 text-xs" onClick={() => refreshSap(true)}>
+                  Retry
+                </Button>
+              </div>
             ) : (
-              <p
-                className={
-                  sapError
-                    ? "rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-xs text-destructive"
-                    : "rounded-md border border-dashed border-border py-6 text-center text-xs text-muted-foreground"
-                }
-              >
-                {sapError ?? "No documents attached to this eNFA in SAP."}
+              <p className="rounded-md border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+                No documents attached to this eNFA in SAP.
               </p>
             )}
+
           </section>
         </DialogContent>
       </Dialog>

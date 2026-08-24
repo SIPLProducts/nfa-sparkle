@@ -16,9 +16,11 @@ interface CacheEntry {
   at: number;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 20;
 const cache = new Map<string, CacheEntry>();
+/** Concurrent requests for the same record share one SAP round-trip. */
+const inFlight = new Map<string, Promise<CacheEntry>>();
 
 function readCache(key: string): CacheEntry | null {
   const hit = cache.get(key);
@@ -38,6 +40,56 @@ function writeCache(key: string, entry: CacheEntry) {
     cache.delete(oldest);
   }
 }
+
+/** Shared cache row so a warm result survives cold starts and other server instances. */
+async function readDbCache(key: string): Promise<CacheEntry | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("sap_attachment_cache")
+      .select("payload, status, latency_ms, fetched_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (!data) return null;
+    const at = new Date(data.fetched_at).getTime();
+    if (!Number.isFinite(at) || Date.now() - at > CACHE_TTL_MS) return null;
+    const payload = data.payload as { files?: SapFile[]; message?: string | null };
+    return {
+      files: Array.isArray(payload?.files) ? payload.files : [],
+      message: payload?.message ?? null,
+      status: data.status ?? null,
+      latencyMs: data.latency_ms ?? 0,
+      at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeDbCache(key: string, entry: CacheEntry) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("sap_attachment_cache").upsert({
+      cache_key: key,
+      payload: { files: entry.files, message: entry.message },
+      status: entry.status,
+      latency_ms: entry.latencyMs,
+      fetched_at: new Date(entry.at).toISOString(),
+    });
+  } catch {
+    /* cache writes are best-effort */
+  }
+}
+
+async function clearDbCache(key: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("sap_attachment_cache").delete().eq("cache_key", key);
+  } catch {
+    /* best effort */
+  }
+}
+
 
 
 function sniffMime(name: string, base64: string): string {
@@ -158,7 +210,11 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const mode = input["mode"] === "content" ? "content" : "list";
         const wantIndex = Number(input["index"] ?? -1);
         const cacheKey = `${target}:${reffld}`;
-        if (input["refresh"] === true) cache.delete(cacheKey);
+        if (input["refresh"] === true) {
+          cache.delete(cacheKey);
+          inFlight.delete(cacheKey);
+          await clearDbCache(cacheKey);
+        }
 
         const baseHeaders: Record<string, string> = {
           "content-type": "application/json",
@@ -166,39 +222,72 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         };
 
         let entry = readCache(cacheKey);
+        if (!entry) entry = await readDbCache(cacheKey);
+        if (entry) writeCache(cacheKey, entry);
+
         if (!entry) {
-          const result = await callEnfaAttachments(reffld, target);
+          let job = inFlight.get(cacheKey);
+          if (!job) {
+            job = (async () => {
+              const result = await callEnfaAttachments(reffld, target);
+              if (!result.ok) {
+                const err = new Error(result.error ?? "SAP request failed") as Error & {
+                  sapStatus?: number | null;
+                  latencyMs?: number;
+                };
+                err.sapStatus = result.status ?? null;
+                err.latencyMs = result.latencyMs ?? 0;
+                throw err;
+              }
 
-          const headers: Record<string, string> = {
-            ...baseHeaders,
-            "x-sap-status": String(result.status ?? ""),
-            "x-sap-latency-ms": String(result.latencyMs ?? 0),
-          };
+              // Unwrap the middleware envelope if it slipped through.
+              let body = result.body || "";
+              try {
+                const parsed = JSON.parse(body);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+                  const inner = (parsed as { body: unknown }).body;
+                  body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+                }
+              } catch {
+                /* raw body */
+              }
 
-          if (!result.ok) {
-            console.error("[enfa-attachments] SAP call failed:", result.status, result.error);
-            return new Response(
-              JSON.stringify({ error: result.error ?? "SAP request failed", status: result.status }),
-              { status: result.status && result.status >= 400 ? result.status : 502, headers },
-            );
+              const { files, message } = extractFiles(body);
+              const fresh: CacheEntry = {
+                files,
+                message,
+                status: result.status ?? null,
+                latencyMs: result.latencyMs ?? 0,
+                at: Date.now(),
+              };
+              writeCache(cacheKey, fresh);
+              await writeDbCache(cacheKey, fresh);
+              return fresh;
+            })().finally(() => inFlight.delete(cacheKey));
+            inFlight.set(cacheKey, job);
           }
 
-          // Unwrap the middleware envelope if it slipped through.
-          let body = result.body || "";
           try {
-            const parsed = JSON.parse(body);
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
-              const inner = (parsed as { body: unknown }).body;
-              body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
-            }
-          } catch {
-            /* raw body */
+            entry = await job;
+          } catch (e) {
+            const err = e as Error & { sapStatus?: number | null; latencyMs?: number };
+            console.error("[enfa-attachments] SAP call failed:", err.sapStatus, err.message);
+            const status = err.sapStatus ?? null;
+            const friendly =
+              status !== null && status >= 500
+                ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
+                : (err.message || "SAP request failed");
+            return new Response(JSON.stringify({ error: friendly, status }), {
+              status: status && status >= 400 && status < 500 ? status : 504,
+              headers: {
+                ...baseHeaders,
+                "x-sap-status": String(status ?? ""),
+                "x-sap-latency-ms": String(err.latencyMs ?? 0),
+              },
+            });
           }
-
-          const { files, message } = extractFiles(body);
-          entry = { files, message, status: result.status ?? null, latencyMs: result.latencyMs ?? 0, at: Date.now() };
-          writeCache(cacheKey, entry);
         }
+
 
         const headers: Record<string, string> = {
           ...baseHeaders,
