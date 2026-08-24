@@ -335,26 +335,16 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         if (entry) writeCache(cacheKey, entry);
 
         if (!entry) {
-          // The SAP attachments service can take ~95 s for large records — far beyond the
-          // edge request window. Run it as a background job and let the client poll.
-          const job = await readJob(cacheKey);
-          if (job?.state === "error" && !inFlight.has(cacheKey)) {
-            await writeJob(cacheKey, "idle", null);
-            return new Response(JSON.stringify({ error: job.error || "SAP request failed" }), {
+          const fetched = await fetchAttachments(cacheKey, reffld, target);
+          if ("error" in fetched) {
+            return new Response(JSON.stringify({ error: fetched.error }), {
               status: 502,
               headers: baseHeaders,
             });
           }
-          if (!jobIsRunning(job) && !inFlight.has(cacheKey)) {
-            await writeJob(cacheKey, "running", null, new Date().toISOString());
-            const task = runAttachmentJob(cacheKey, reffld, target).finally(() =>
-              inFlight.delete(cacheKey),
-            );
-            inFlight.set(cacheKey, task);
-            keepAlive(context, task);
-          }
-          return new Response(JSON.stringify({ pending: true }), { status: 202, headers: baseHeaders });
+          entry = fetched.entry;
         }
+
 
 
 
