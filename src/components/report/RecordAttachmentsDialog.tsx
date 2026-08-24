@@ -172,7 +172,7 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
         }
 
         if (kind === "docx") {
-          const mammoth = await import("mammoth/mammoth.browser");
+          const mammoth = await import("mammoth/mammoth.browser" as any);
           const result = await (mammoth as any).convertToHtml({ arrayBuffer: bytes.buffer.slice(0) });
           if (cancelled) return;
           setHtml(sanitizeHtml(result?.value || "<p>(empty document)</p>"));
