@@ -166,33 +166,33 @@ export function AppShell({
       >
         <div
           className={cn(
-            "flex items-center gap-3 px-5 py-5 transition-all duration-300",
-            sidebarCollapsed && "justify-center px-3"
+            "flex h-16 shrink-0 items-center border-b border-sidebar-border transition-all duration-300",
+            sidebarCollapsed ? "justify-center px-0" : "justify-between gap-3 px-4"
           )}
         >
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
-            <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
-          </div>
-          <div
-            className={cn(
-              "flex min-w-0 flex-col justify-center overflow-hidden transition-all duration-300",
-              sidebarCollapsed ? "w-0 flex-[0] opacity-0" : "w-auto flex-1 opacity-100"
-            )}
-          >
-            <div className="font-display text-base font-bold tracking-tight text-white">NFA Portal</div>
-            <div className="truncate text-[11px] uppercase tracking-[0.14em] text-white/55">SAP Integrated</div>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
+                <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
+              </div>
+              <div className="flex min-w-0 flex-col justify-center overflow-hidden">
+                <div className="font-display text-base font-bold leading-tight tracking-tight text-white">NFA Portal</div>
+                <div className="truncate text-[11px] uppercase leading-tight tracking-[0.14em] text-white/55">SAP Integrated</div>
+              </div>
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0 text-white/70 hover:bg-sidebar-accent hover:text-white"
+            className="h-9 w-9 shrink-0 rounded-lg border border-white/10 text-white/70 hover:bg-sidebar-accent hover:text-white"
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={() => setSidebarCollapsed((c) => !c)}
           >
-            {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {sidebarCollapsed ? <PanelLeft className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
           </Button>
         </div>
+
         <nav className="flex-1 overflow-y-auto px-3 pb-4">{navList(sidebarCollapsed)}</nav>
         <div
           className={cn(
