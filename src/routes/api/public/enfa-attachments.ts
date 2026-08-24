@@ -239,11 +239,34 @@ function extractFiles(raw: string): { files: SapFile[]; message: string | null }
   return { files, message };
 }
 
+/** Background jobs started by this instance — avoids duplicate SAP trips within one worker. */
+const inFlight = new Map<string, Promise<void>>();
+
+/** Keeps background work alive after the response is sent (Cloudflare `waitUntil` when available). */
+function keepAlive(ctx: unknown, task: Promise<void>) {
+  const candidates = [
+    (ctx as any)?.waitUntil,
+    (ctx as any)?.cloudflare?.ctx?.waitUntil,
+    (globalThis as any)?.__cfExecutionCtx?.waitUntil,
+  ];
+  for (const fn of candidates) {
+    if (typeof fn === "function") {
+      try {
+        fn.call((ctx as any)?.cloudflare?.ctx ?? ctx ?? globalThis, task);
+        return;
+      } catch {
+        /* try the next candidate */
+      }
+    }
+  }
+  void task.catch(() => {});
+}
+
 export const Route = createFileRoute("/api/public/enfa-attachments")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
-        const { callEnfaAttachments } = await import("@/lib/sap-report.server");
+      POST: async ({ request, context }: any) => {
+
 
         const authHeader = request.headers.get("authorization") ?? "";
         if (!authHeader.toLowerCase().startsWith("bearer ")) {
