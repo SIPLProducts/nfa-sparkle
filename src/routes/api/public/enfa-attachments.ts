@@ -89,62 +89,26 @@ async function clearDbCache(key: string) {
   }
 }
 
-/* ----------------------------- background jobs ----------------------------- */
+/* ------------------------------ SAP round-trip ----------------------------- */
 
-/** Longer than the SAP call budget (170 s) so a genuinely running job is never declared stale. */
-const JOB_STALE_MS = 200 * 1000;
-
-type JobRow = { state: string; error: string | null; started_at: string };
-
-async function readJob(key: string): Promise<JobRow | null> {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await (supabaseAdmin as any)
-      .from("sap_attachment_job")
-      .select("state, error, started_at")
-      .eq("cache_key", key)
-      .maybeSingle();
-    return (data as JobRow) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function writeJob(key: string, state: string, error: string | null, startedAt?: string) {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await (supabaseAdmin as any).from("sap_attachment_job").upsert({
-      cache_key: key,
-      state,
-      error,
-      ...(startedAt ? { started_at: startedAt } : {}),
-      updated_at: new Date().toISOString(),
-    });
-  } catch {
-    /* best effort */
-  }
-}
-
-function jobIsRunning(job: JobRow | null) {
-  if (!job || job.state !== "running") return false;
-  const started = new Date(job.started_at).getTime();
-  return Number.isFinite(started) && Date.now() - started < JOB_STALE_MS;
-}
-
-/** Runs the SAP round-trip outside the browser request and stores the result in the shared cache. */
-async function runAttachmentJob(key: string, reffld: string, target: "report" | "my") {
+/** Calls SAP, stores the result in both caches and returns it, all inside the request. */
+async function fetchAttachments(
+  key: string,
+  reffld: string,
+  target: "report" | "my",
+): Promise<{ entry: CacheEntry } | { error: string }> {
   try {
     const { callEnfaAttachments } = await import("@/lib/sap-report.server");
     const result = await callEnfaAttachments(reffld, target);
     if (!result.ok) {
       const status = result.status ?? null;
-      const message =
-        status !== null && status >= 500
-          ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
-          : (result.error || "SAP request failed");
       console.error("[enfa-attachments] SAP call failed:", status, result.error);
-      await writeJob(key, "error", message);
-      return;
+      return {
+        error:
+          status !== null && status >= 500
+            ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
+            : (result.error || "SAP request failed"),
+      };
     }
 
     // Unwrap the middleware envelope if it slipped through.
@@ -169,11 +133,13 @@ async function runAttachmentJob(key: string, reffld: string, target: "report" | 
     };
     writeCache(key, entry);
     await writeDbCache(key, entry);
-    await writeJob(key, "done", null);
+    return { entry };
   } catch (e) {
-    await writeJob(key, "error", e instanceof Error ? e.message : "SAP request failed");
+    return { error: e instanceof Error ? e.message : "SAP request failed" };
   }
 }
+
+
 
 
 
@@ -239,28 +205,6 @@ function extractFiles(raw: string): { files: SapFile[]; message: string | null }
   return { files, message };
 }
 
-/** Background jobs started by this instance — avoids duplicate SAP trips within one worker. */
-const inFlight = new Map<string, Promise<void>>();
-
-/** Keeps background work alive after the response is sent (Cloudflare `waitUntil` when available). */
-function keepAlive(ctx: unknown, task: Promise<void>) {
-  const candidates = [
-    (ctx as any)?.waitUntil,
-    (ctx as any)?.cloudflare?.ctx?.waitUntil,
-    (globalThis as any)?.__cfExecutionCtx?.waitUntil,
-  ];
-  for (const fn of candidates) {
-    if (typeof fn === "function") {
-      try {
-        fn.call((ctx as any)?.cloudflare?.ctx ?? ctx ?? globalThis, task);
-        return;
-      } catch {
-        /* try the next candidate */
-      }
-    }
-  }
-  void task.catch(() => {});
-}
 
 export const Route = createFileRoute("/api/public/enfa-attachments")({
   server: {
@@ -320,9 +264,7 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const cacheKey = `${target}:${reffld}`;
         if (input["refresh"] === true) {
           cache.delete(cacheKey);
-          inFlight.delete(cacheKey);
           await clearDbCache(cacheKey);
-          await writeJob(cacheKey, "idle", null);
         }
 
         const baseHeaders: Record<string, string> = {
@@ -330,31 +272,23 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
           "cache-control": "no-store",
         };
 
-        let entry = readCache(cacheKey);
-        if (!entry) entry = await readDbCache(cacheKey);
-        if (entry) writeCache(cacheKey, entry);
+        let cached = readCache(cacheKey);
+        if (!cached) cached = await readDbCache(cacheKey);
+        if (cached) writeCache(cacheKey, cached);
 
-        if (!entry) {
-          // The SAP attachments service can take ~95 s for large records — far beyond the
-          // edge request window. Run it as a background job and let the client poll.
-          const job = await readJob(cacheKey);
-          if (job?.state === "error" && !inFlight.has(cacheKey)) {
-            await writeJob(cacheKey, "idle", null);
-            return new Response(JSON.stringify({ error: job.error || "SAP request failed" }), {
+        if (!cached) {
+          const fetched = await fetchAttachments(cacheKey, reffld, target);
+          if ("error" in fetched) {
+            return new Response(JSON.stringify({ error: fetched.error }), {
               status: 502,
               headers: baseHeaders,
             });
           }
-          if (!jobIsRunning(job) && !inFlight.has(cacheKey)) {
-            await writeJob(cacheKey, "running", null, new Date().toISOString());
-            const task = runAttachmentJob(cacheKey, reffld, target).finally(() =>
-              inFlight.delete(cacheKey),
-            );
-            inFlight.set(cacheKey, task);
-            keepAlive(context, task);
-          }
-          return new Response(JSON.stringify({ pending: true }), { status: 202, headers: baseHeaders });
+          cached = fetched.entry;
         }
+        const entry: CacheEntry = cached;
+
+
 
 
 
