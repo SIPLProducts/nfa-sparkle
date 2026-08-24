@@ -1,0 +1,27 @@
+[Unit]
+Description=eNFA SAP middleware (Express proxy to on-premise SAP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=enfa
+Group=enfa
+WorkingDirectory=/opt/enfa/middleware
+Environment=NODE_ENV=production
+Environment=PORT=3005
+# PROXY_SECRET, ALLOW_IPS, TIMEOUT_MS are read from /opt/enfa/middleware/.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=enfa-middleware
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
