@@ -467,23 +467,41 @@ export function RecordAttachmentsDialog({
                       <div className="min-w-0">
                         <div className="truncate font-medium">{d.filename}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {d.mime} · {Math.round((d.base64.length * 3) / 4 / 1024)} KB · from SAP
+                          {d.mime} · {Math.max(1, Math.round(d.size / 1024))} KB · from SAP
                         </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
-                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => openSapDoc(d)}>
-                        <Eye className="h-3.5 w-3.5" /> View
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        disabled={pending === `${d.index}:v`}
+                        onClick={() => openSapDoc(d)}
+                      >
+                        {pending === `${d.index}:v` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}{" "}
+                        View
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 gap-1 text-xs"
+                        disabled={pending === `${d.index}:d`}
                         onClick={() => openSapDoc(d, true)}
                       >
-                        <Download className="h-3.5 w-3.5" /> Download
+                        {pending === `${d.index}:d` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}{" "}
+                        Download
                       </Button>
                     </div>
+
                   </li>
                 ))}
               </ul>
