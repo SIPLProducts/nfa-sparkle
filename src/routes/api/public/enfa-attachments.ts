@@ -8,6 +8,38 @@ interface SapFile {
 
 const B64 = /^[A-Za-z0-9+/\r\n=]+$/;
 
+interface CacheEntry {
+  files: SapFile[];
+  message: string | null;
+  status: number | null;
+  latencyMs: number;
+  at: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX = 20;
+const cache = new Map<string, CacheEntry>();
+
+function readCache(key: string): CacheEntry | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return hit;
+}
+
+function writeCache(key: string, entry: CacheEntry) {
+  cache.set(key, entry);
+  while (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+
 function sniffMime(name: string, base64: string): string {
   const n = name.toLowerCase();
   if (n.endsWith(".pdf")) return "application/pdf";
