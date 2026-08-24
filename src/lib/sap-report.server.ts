@@ -780,9 +780,10 @@ export async function callEnfaAttachments(
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
-    // This runs in a background job (see /api/public/enfa-attachments), so the
-    // browser/edge request window no longer applies — give SAP time to answer.
-    timeoutMs: 170_000,
+    // Answered inside the browser request: stay just under the ~100 s edge window so we
+    // can return a readable message instead of being cut off.
+    timeoutMs: 85_000,
+
 
 
   });
