@@ -445,6 +445,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sap_attachment_cache: {
+        Row: {
+          cache_key: string
+          fetched_at: string
+          latency_ms: number | null
+          payload: Json
+          status: number | null
+        }
+        Insert: {
+          cache_key: string
+          fetched_at?: string
+          latency_ms?: number | null
+          payload: Json
+          status?: number | null
+        }
+        Update: {
+          cache_key?: string
+          fetched_at?: string
+          latency_ms?: number | null
+          payload?: Json
+          status?: number | null
+        }
+        Relationships: []
+      }
       sap_connection: {
         Row: {
           base_url: string
