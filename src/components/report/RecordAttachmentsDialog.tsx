@@ -382,9 +382,21 @@ export function RecordAttachmentsDialog({
   const [pending, setPending] = useState<string | null>(null);
   const contentCache = useRef(new Map<number, { filename: string; mime: string; base64: string }>());
 
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!sapLoading) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [sapLoading]);
+
   useEffect(() => {
     contentCache.current.clear();
   }, [enfaNumber, endpoint]);
+
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? []);
