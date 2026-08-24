@@ -21,6 +21,21 @@ const CACHE_MAX = 20;
 const cache = new Map<string, CacheEntry>();
 /** Concurrent requests for the same record share one SAP round-trip. */
 const inFlight = new Map<string, Promise<CacheEntry>>();
+/** Failures of a background job, picked up by the next poll. */
+const failures = new Map<string, { error: string; status: number | null; at: number }>();
+/** How long a single request waits before telling the client to poll again. */
+const WAIT_MS = 20_000;
+const FAILURE_TTL_MS = 60_000;
+
+function readFailure(key: string) {
+  const hit = failures.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > FAILURE_TTL_MS) {
+    failures.delete(key);
+    return null;
+  }
+  return hit;
+}
 
 function readCache(key: string): CacheEntry | null {
   const hit = cache.get(key);
