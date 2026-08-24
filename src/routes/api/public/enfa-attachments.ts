@@ -89,6 +89,92 @@ async function clearDbCache(key: string) {
   }
 }
 
+/* ----------------------------- background jobs ----------------------------- */
+
+/** Longer than the SAP call budget (170 s) so a genuinely running job is never declared stale. */
+const JOB_STALE_MS = 200 * 1000;
+
+type JobRow = { state: string; error: string | null; started_at: string };
+
+async function readJob(key: string): Promise<JobRow | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("sap_attachment_job")
+      .select("state, error, started_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    return (data as JobRow) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeJob(key: string, state: string, error: string | null, startedAt?: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("sap_attachment_job").upsert({
+      cache_key: key,
+      state,
+      error,
+      ...(startedAt ? { started_at: startedAt } : {}),
+      updated_at: new Date().toISOString(),
+    });
+  } catch {
+    /* best effort */
+  }
+}
+
+function jobIsRunning(job: JobRow | null) {
+  if (!job || job.state !== "running") return false;
+  const started = new Date(job.started_at).getTime();
+  return Number.isFinite(started) && Date.now() - started < JOB_STALE_MS;
+}
+
+/** Runs the SAP round-trip outside the browser request and stores the result in the shared cache. */
+async function runAttachmentJob(key: string, reffld: string, target: "report" | "my") {
+  try {
+    const { callEnfaAttachments } = await import("@/lib/sap-report.server");
+    const result = await callEnfaAttachments(reffld, target);
+    if (!result.ok) {
+      const status = result.status ?? null;
+      const message =
+        status !== null && status >= 500
+          ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
+          : (result.error || "SAP request failed");
+      console.error("[enfa-attachments] SAP call failed:", status, result.error);
+      await writeJob(key, "error", message);
+      return;
+    }
+
+    // Unwrap the middleware envelope if it slipped through.
+    let body = result.body || "";
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+        const inner = (parsed as { body: unknown }).body;
+        body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+      }
+    } catch {
+      /* raw body */
+    }
+
+    const { files, message } = extractFiles(body);
+    const entry: CacheEntry = {
+      files,
+      message,
+      status: result.status ?? null,
+      latencyMs: result.latencyMs ?? 0,
+      at: Date.now(),
+    };
+    writeCache(key, entry);
+    await writeDbCache(key, entry);
+    await writeJob(key, "done", null);
+  } catch (e) {
+    await writeJob(key, "error", e instanceof Error ? e.message : "SAP request failed");
+  }
+}
+
 
 
 function sniffMime(name: string, base64: string): string {
