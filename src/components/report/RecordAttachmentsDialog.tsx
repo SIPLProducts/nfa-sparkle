@@ -505,17 +505,19 @@ export function RecordAttachmentsDialog({
                   </li>
                 ))}
               </ul>
+            ) : sapError ? (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-xs text-destructive">
+                <span className="min-w-0">{sapError}</span>
+                <Button size="sm" variant="outline" className="h-7 shrink-0 text-xs" onClick={() => refreshSap(true)}>
+                  Retry
+                </Button>
+              </div>
             ) : (
-              <p
-                className={
-                  sapError
-                    ? "rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-xs text-destructive"
-                    : "rounded-md border border-dashed border-border py-6 text-center text-xs text-muted-foreground"
-                }
-              >
-                {sapError ?? "No documents attached to this eNFA in SAP."}
+              <p className="rounded-md border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+                No documents attached to this eNFA in SAP.
               </p>
             )}
+
           </section>
         </DialogContent>
       </Dialog>
