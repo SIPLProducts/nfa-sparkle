@@ -320,9 +320,7 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const cacheKey = `${target}:${reffld}`;
         if (input["refresh"] === true) {
           cache.delete(cacheKey);
-          inFlight.delete(cacheKey);
           await clearDbCache(cacheKey);
-          await writeJob(cacheKey, "idle", null);
         }
 
         const baseHeaders: Record<string, string> = {
@@ -330,11 +328,11 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
           "cache-control": "no-store",
         };
 
-        let entry = readCache(cacheKey);
-        if (!entry) entry = await readDbCache(cacheKey);
-        if (entry) writeCache(cacheKey, entry);
+        let cached = readCache(cacheKey);
+        if (!cached) cached = await readDbCache(cacheKey);
+        if (cached) writeCache(cacheKey, cached);
 
-        if (!entry) {
+        if (!cached) {
           const fetched = await fetchAttachments(cacheKey, reffld, target);
           if ("error" in fetched) {
             return new Response(JSON.stringify({ error: fetched.error }), {
@@ -342,8 +340,10 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
               headers: baseHeaders,
             });
           }
-          entry = fetched.entry;
+          cached = fetched.entry;
         }
+        const entry: CacheEntry = cached;
+
 
 
 
