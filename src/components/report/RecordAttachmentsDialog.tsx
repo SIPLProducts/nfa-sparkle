@@ -105,18 +105,26 @@ async function fetchSapDocContent(
   endpoint: "report" | "my",
   index: number,
 ): Promise<{ filename: string; mime: string; base64: string }> {
-  const token = await authToken();
-  const res = await fetch("/api/public/enfa-attachments", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
-  });
-  const json = (await res.json().catch(() => ({}))) as {
-    file?: { filename: string; mime: string; base64: string };
-    error?: string;
-  };
-  if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
-  return json.file;
+  const deadline = Date.now() + 5 * 60 * 1000;
+  for (;;) {
+    const token = await authToken();
+    const res = await fetch("/api/public/enfa-attachments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      file?: { filename: string; mime: string; base64: string };
+      error?: string;
+      pending?: boolean;
+    };
+    if ((res.status === 202 || json.pending) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      continue;
+    }
+    if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
+    return json.file;
+  }
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
