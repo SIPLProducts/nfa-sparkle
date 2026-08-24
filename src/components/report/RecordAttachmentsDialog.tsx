@@ -38,30 +38,48 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
     setError(null);
     (async () => {
       try {
-        const token = await authToken();
-        const res = await fetch("/api/public/enfa-attachments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            attachment: { reffld: enfaNumber },
-            endpoint,
-            mode: "list",
-            ...(forceRefresh ? { refresh: true } : {}),
-          }),
-        });
-        const json = (await res.json().catch(() => ({}))) as {
-          files?: SapFileMeta[];
-          error?: string;
-          message?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) {
-          setDocs([]);
-          setError(json?.error ?? `SAP attachments failed (HTTP ${res.status})`);
+        const deadline = Date.now() + 5 * 60 * 1000;
+        let refresh = forceRefresh;
+        // SAP can take minutes; the server answers 202 while it keeps working, so poll.
+        for (;;) {
+          const token = await authToken();
+          const res = await fetch("/api/public/enfa-attachments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              attachment: { reffld: enfaNumber },
+              endpoint,
+              mode: "list",
+              ...(refresh ? { refresh: true } : {}),
+            }),
+          });
+          refresh = false;
+          const json = (await res.json().catch(() => ({}))) as {
+            files?: SapFileMeta[];
+            error?: string;
+            message?: string;
+            pending?: boolean;
+          };
+          if (cancelled) return;
+          if (res.status === 202 || json.pending) {
+            if (Date.now() > deadline) {
+              setDocs([]);
+              setError("SAP is still not responding for this eNFA. Please try again.");
+              return;
+            }
+            await new Promise((r) => setTimeout(r, 2500));
+            if (cancelled) return;
+            continue;
+          }
+          if (!res.ok) {
+            setDocs([]);
+            setError(json?.error ?? `SAP attachments failed (HTTP ${res.status})`);
+            return;
+          }
+          setDocs(Array.isArray(json.files) ? json.files : []);
+          setError(json.files?.length ? null : (json.message ?? null));
           return;
         }
-        setDocs(Array.isArray(json.files) ? json.files : []);
-        setError(json.files?.length ? null : (json.message ?? null));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "SAP attachments failed");
       } finally {
@@ -87,18 +105,26 @@ async function fetchSapDocContent(
   endpoint: "report" | "my",
   index: number,
 ): Promise<{ filename: string; mime: string; base64: string }> {
-  const token = await authToken();
-  const res = await fetch("/api/public/enfa-attachments", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
-  });
-  const json = (await res.json().catch(() => ({}))) as {
-    file?: { filename: string; mime: string; base64: string };
-    error?: string;
-  };
-  if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
-  return json.file;
+  const deadline = Date.now() + 5 * 60 * 1000;
+  for (;;) {
+    const token = await authToken();
+    const res = await fetch("/api/public/enfa-attachments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      file?: { filename: string; mime: string; base64: string };
+      error?: string;
+      pending?: boolean;
+    };
+    if ((res.status === 202 || json.pending) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      continue;
+    }
+    if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
+    return json.file;
+  }
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
@@ -190,7 +216,9 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
   const [text, setText] = useState<string | null>(null);
   const [sheets, setSheets] = useState<{ name: string; html: string }[] | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
-  const kind = resolveKind(mime, name);
+  const declared = resolveKind(mime, name);
+  const [sniffed, setSniffed] = useState<DocKind | null>(null);
+  const kind = declared === "none" ? (sniffed ?? "none") : declared;
   const isPdf = kind === "pdf";
 
   useEffect(() => {
@@ -198,8 +226,42 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
     setHtml(null);
     setText(null);
     setSheets(null);
+    setSniffed(null);
     setActiveSheet(0);
   }, [url]);
+
+  // SAP sometimes returns files without a usable name or MIME — look at the bytes.
+  useEffect(() => {
+    if (declared !== "none") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        if (cancelled) return;
+        const sig = String.fromCharCode(...buf.slice(0, 4));
+        if (sig.startsWith("%PDF")) return setSniffed("pdf");
+        if (buf[0] === 0x89 && sig.slice(1, 4) === "PNG") return setSniffed("image");
+        if (buf[0] === 0xff && buf[1] === 0xd8) return setSniffed("image");
+        if (sig.startsWith("GIF8")) return setSniffed("image");
+        if (sig.startsWith("PK")) {
+          const head = new TextDecoder().decode(buf.slice(0, 4000));
+          if (head.includes("word/")) return setSniffed("docx");
+          if (head.includes("xl/")) return setSniffed("sheet");
+          return;
+        }
+        // Printable ASCII start → treat as text.
+        const sample = buf.slice(0, 256);
+        if (sample.length && sample.every((b) => b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127))) {
+          setSniffed("text");
+        }
+      } catch {
+        /* leave as unsupported */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url, declared]);
 
   useEffect(() => {
     if (kind === "image" || kind === "none") return;

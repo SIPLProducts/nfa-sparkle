@@ -780,9 +780,9 @@ export async function callEnfaAttachments(
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
-    // The tunnel in front of the on-prem middleware gives up at ~100 s (HTTP 524),
-    // so stay inside that window and return our own clear message instead.
-    timeoutMs: 85_000,
+    // The HTTP request no longer waits for this call — the proxy route runs it as a
+    // background job and the client polls — so give SAP the full window it needs.
+    timeoutMs: 170_000,
   });
 
   if (!result.ok && (result.status === null || result.status >= 500)) {
