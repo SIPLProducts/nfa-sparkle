@@ -19,23 +19,7 @@ interface CacheEntry {
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 20;
 const cache = new Map<string, CacheEntry>();
-/** Concurrent requests for the same record share one SAP round-trip. */
-const inFlight = new Map<string, Promise<CacheEntry>>();
-/** Failures of a background job, picked up by the next poll. */
-const failures = new Map<string, { error: string; status: number | null; at: number }>();
-/** How long a single request waits before telling the client to poll again. */
-const WAIT_MS = 20_000;
-const FAILURE_TTL_MS = 60_000;
 
-function readFailure(key: string) {
-  const hit = failures.get(key);
-  if (!hit) return null;
-  if (Date.now() - hit.at > FAILURE_TTL_MS) {
-    failures.delete(key);
-    return null;
-  }
-  return hit;
-}
 
 function readCache(key: string): CacheEntry | null {
   const hit = cache.get(key);
@@ -227,8 +211,6 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const cacheKey = `${target}:${reffld}`;
         if (input["refresh"] === true) {
           cache.delete(cacheKey);
-          inFlight.delete(cacheKey);
-          failures.delete(cacheKey);
           await clearDbCache(cacheKey);
         }
 
@@ -242,89 +224,44 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         if (entry) writeCache(cacheKey, entry);
 
         if (!entry) {
-          const failed = readFailure(cacheKey);
-          if (failed) {
-            failures.delete(cacheKey);
-            return new Response(JSON.stringify({ error: failed.error, status: failed.status }), {
-              status: failed.status && failed.status >= 400 && failed.status < 500 ? failed.status : 502,
-              headers: { ...baseHeaders, "x-sap-status": String(failed.status ?? "") },
+          const result = await callEnfaAttachments(reffld, target);
+          if (!result.ok) {
+            const status = result.status ?? null;
+            const message =
+              status !== null && status >= 500
+                ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
+                : (result.error || "SAP request failed");
+            console.error("[enfa-attachments] SAP call failed:", status, result.error);
+            return new Response(JSON.stringify({ error: message, status }), {
+              status: status && status >= 400 && status < 500 ? status : 502,
+              headers: { ...baseHeaders, "x-sap-status": String(status ?? "") },
             });
           }
 
-          let job = inFlight.get(cacheKey);
-          if (!job) {
-            job = (async () => {
-              const result = await callEnfaAttachments(reffld, target);
-              if (!result.ok) {
-                const err = new Error(result.error ?? "SAP request failed") as Error & {
-                  sapStatus?: number | null;
-                  latencyMs?: number;
-                };
-                err.sapStatus = result.status ?? null;
-                err.latencyMs = result.latencyMs ?? 0;
-                throw err;
-              }
-
-              // Unwrap the middleware envelope if it slipped through.
-              let body = result.body || "";
-              try {
-                const parsed = JSON.parse(body);
-                if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
-                  const inner = (parsed as { body: unknown }).body;
-                  body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
-                }
-              } catch {
-                /* raw body */
-              }
-
-              const { files, message } = extractFiles(body);
-              const fresh: CacheEntry = {
-                files,
-                message,
-                status: result.status ?? null,
-                latencyMs: result.latencyMs ?? 0,
-                at: Date.now(),
-              };
-              writeCache(cacheKey, fresh);
-              await writeDbCache(cacheKey, fresh);
-              return fresh;
-            })();
-            // The job outlives this request; failures are recorded for the next poll.
-            job.catch((e) => {
-              const err = e as Error & { sapStatus?: number | null };
-              const status = err.sapStatus ?? null;
-              console.error("[enfa-attachments] SAP call failed:", status, err.message);
-              failures.set(cacheKey, {
-                error:
-                  status !== null && status >= 500
-                    ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
-                    : (err.message || "SAP request failed"),
-                status,
-                at: Date.now(),
-              });
-            }).finally(() => inFlight.delete(cacheKey));
-            inFlight.set(cacheKey, job);
-          }
-
-          // Wait only briefly — if SAP is still working, tell the client to poll again
-          // instead of holding the connection open until the edge times out.
-          entry = await Promise.race([
-            job.catch(() => null),
-            new Promise<null>((r) => setTimeout(() => r(null), WAIT_MS)),
-          ]);
-
-          if (!entry) {
-            const failed = readFailure(cacheKey);
-            if (failed) {
-              failures.delete(cacheKey);
-              return new Response(JSON.stringify({ error: failed.error, status: failed.status }), {
-                status: failed.status && failed.status >= 400 && failed.status < 500 ? failed.status : 502,
-                headers: { ...baseHeaders, "x-sap-status": String(failed.status ?? "") },
-              });
+          // Unwrap the middleware envelope if it slipped through.
+          let body = result.body || "";
+          try {
+            const parsed = JSON.parse(body);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+              const inner = (parsed as { body: unknown }).body;
+              body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
             }
-            return new Response(JSON.stringify({ pending: true }), { status: 202, headers: baseHeaders });
+          } catch {
+            /* raw body */
           }
+
+          const { files, message } = extractFiles(body);
+          entry = {
+            files,
+            message,
+            status: result.status ?? null,
+            latencyMs: result.latencyMs ?? 0,
+            at: Date.now(),
+          };
+          writeCache(cacheKey, entry);
+          await writeDbCache(cacheKey, entry);
         }
+
 
 
         const headers: Record<string, string> = {
