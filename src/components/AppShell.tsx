@@ -175,37 +175,23 @@ export function AppShell({
           </div>
           <div
             className={cn(
-              "flex min-w-0 flex-1 items-center justify-between overflow-hidden transition-all duration-300",
-              sidebarCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+              "flex min-w-0 flex-col justify-center overflow-hidden transition-all duration-300",
+              sidebarCollapsed ? "w-0 flex-[0] opacity-0" : "w-auto flex-1 opacity-100"
             )}
           >
-            <div className="min-w-0">
-              <div className="font-display text-base font-bold tracking-tight text-white">NFA Portal</div>
-              <div className="truncate text-[11px] uppercase tracking-[0.14em] text-white/55">SAP Integrated</div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-white/70 hover:bg-sidebar-accent hover:text-white"
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              onClick={() => setSidebarCollapsed((c) => !c)}
-            >
-              {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
+            <div className="font-display text-base font-bold tracking-tight text-white">NFA Portal</div>
+            <div className="truncate text-[11px] uppercase tracking-[0.14em] text-white/55">SAP Integrated</div>
           </div>
-          {sidebarCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-white/70 hover:bg-sidebar-accent hover:text-white"
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-              onClick={() => setSidebarCollapsed((c) => !c)}
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-white/70 hover:bg-sidebar-accent hover:text-white"
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={() => setSidebarCollapsed((c) => !c)}
+          >
+            {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">{navList(sidebarCollapsed)}</nav>
         <div
