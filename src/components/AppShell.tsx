@@ -247,16 +247,6 @@ export function AppShell({
                   <nav className="overflow-y-auto px-3 pb-6">{navList(false)}</nav>
                 </SheetContent>
               </Sheet>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:inline-flex -ml-2"
-                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                onClick={() => setSidebarCollapsed((c) => !c)}
-              >
-                {sidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-              </Button>
               <div className="hidden md:flex min-w-0 flex-col">
                 {title && <h1 className="font-display truncate text-lg font-bold">{title}</h1>}
                 {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
