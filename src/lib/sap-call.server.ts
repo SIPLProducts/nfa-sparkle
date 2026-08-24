@@ -105,7 +105,11 @@ export async function callSap(opts: {
   timeoutMs?: number;
 }): Promise<SapCallResult> {
   const db = await admin();
-  const { data: mw } = await db.from("sap_middleware_config").select("*").limit(1).maybeSingle();
+  // Fetch the middleware config and its shared secret concurrently — one round-trip instead of two.
+  const [{ data: mw }, secretValue] = await Promise.all([
+    db.from("sap_middleware_config").select("*").limit(1).maybeSingle(),
+    getSecret("middleware_secret"),
+  ]);
   const viaProxy =
     mw?.connection_mode === "proxy" && !!mw?.url && (opts.system?.route_via_middleware ?? true);
 
@@ -118,7 +122,8 @@ export async function callSap(opts: {
   }
 
   if (viaProxy) {
-    const secret = (await getSecret("middleware_secret")) ?? "";
+    const secret = secretValue ?? "";
+
     const limit = opts.maxBytes ?? 4000;
     const timeoutMs = opts.timeoutMs ?? 20000;
     const url = `${mw!.url.replace(/\/+$/, "")}/sap/call`;
