@@ -38,48 +38,30 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
     setError(null);
     (async () => {
       try {
-        const deadline = Date.now() + 5 * 60 * 1000;
-        let refresh = forceRefresh;
-        // SAP can take minutes; the server answers 202 while it keeps working, so poll.
-        for (;;) {
-          const token = await authToken();
-          const res = await fetch("/api/public/enfa-attachments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              attachment: { reffld: enfaNumber },
-              endpoint,
-              mode: "list",
-              ...(refresh ? { refresh: true } : {}),
-            }),
-          });
-          refresh = false;
-          const json = (await res.json().catch(() => ({}))) as {
-            files?: SapFileMeta[];
-            error?: string;
-            message?: string;
-            pending?: boolean;
-          };
-          if (cancelled) return;
-          if (res.status === 202 || json.pending) {
-            if (Date.now() > deadline) {
-              setDocs([]);
-              setError("SAP is still not responding for this eNFA. Please try again.");
-              return;
-            }
-            await new Promise((r) => setTimeout(r, 2500));
-            if (cancelled) return;
-            continue;
-          }
-          if (!res.ok) {
-            setDocs([]);
-            setError(json?.error ?? `SAP attachments failed (HTTP ${res.status})`);
-            return;
-          }
-          setDocs(Array.isArray(json.files) ? json.files : []);
-          setError(json.files?.length ? null : (json.message ?? null));
+        const token = await authToken();
+        const res = await fetch("/api/public/enfa-attachments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            attachment: { reffld: enfaNumber },
+            endpoint,
+            mode: "list",
+            ...(forceRefresh ? { refresh: true } : {}),
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          files?: SapFileMeta[];
+          error?: string;
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setDocs([]);
+          setError(json?.error ?? `SAP attachments failed (HTTP ${res.status})`);
           return;
         }
+        setDocs(Array.isArray(json.files) ? json.files : []);
+        setError(json.files?.length ? null : (json.message ?? null));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "SAP attachments failed");
       } finally {
@@ -90,6 +72,7 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
       cancelled = true;
     };
   }, [enfaNumber, endpoint, nonce]);
+
 
   const refresh = useCallback((force = false) => {
     if (force) refreshingRef.current = true;
