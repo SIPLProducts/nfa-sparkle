@@ -216,7 +216,9 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
   const [text, setText] = useState<string | null>(null);
   const [sheets, setSheets] = useState<{ name: string; html: string }[] | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
-  const kind = resolveKind(mime, name);
+  const declared = resolveKind(mime, name);
+  const [sniffed, setSniffed] = useState<DocKind | null>(null);
+  const kind = declared === "none" ? (sniffed ?? "none") : declared;
   const isPdf = kind === "pdf";
 
   useEffect(() => {
@@ -224,8 +226,42 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
     setHtml(null);
     setText(null);
     setSheets(null);
+    setSniffed(null);
     setActiveSheet(0);
   }, [url]);
+
+  // SAP sometimes returns files without a usable name or MIME — look at the bytes.
+  useEffect(() => {
+    if (declared !== "none") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        if (cancelled) return;
+        const sig = String.fromCharCode(...buf.slice(0, 4));
+        if (sig.startsWith("%PDF")) return setSniffed("pdf");
+        if (buf[0] === 0x89 && sig.slice(1, 4) === "PNG") return setSniffed("image");
+        if (buf[0] === 0xff && buf[1] === 0xd8) return setSniffed("image");
+        if (sig.startsWith("GIF8")) return setSniffed("image");
+        if (sig.startsWith("PK")) {
+          const head = new TextDecoder().decode(buf.slice(0, 4000));
+          if (head.includes("word/")) return setSniffed("docx");
+          if (head.includes("xl/")) return setSniffed("sheet");
+          return;
+        }
+        // Printable ASCII start → treat as text.
+        const sample = buf.slice(0, 256);
+        if (sample.length && sample.every((b) => b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127))) {
+          setSniffed("text");
+        }
+      } catch {
+        /* leave as unsupported */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url, declared]);
 
   useEffect(() => {
     if (kind === "image" || kind === "none") return;
