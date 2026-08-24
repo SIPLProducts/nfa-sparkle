@@ -226,6 +226,15 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         if (entry) writeCache(cacheKey, entry);
 
         if (!entry) {
+          const failed = readFailure(cacheKey);
+          if (failed) {
+            failures.delete(cacheKey);
+            return new Response(JSON.stringify({ error: failed.error, status: failed.status }), {
+              status: failed.status && failed.status >= 400 && failed.status < 500 ? failed.status : 502,
+              headers: { ...baseHeaders, "x-sap-status": String(failed.status ?? "") },
+            });
+          }
+
           let job = inFlight.get(cacheKey);
           if (!job) {
             job = (async () => {
