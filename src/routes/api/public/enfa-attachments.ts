@@ -8,6 +8,38 @@ interface SapFile {
 
 const B64 = /^[A-Za-z0-9+/\r\n=]+$/;
 
+interface CacheEntry {
+  files: SapFile[];
+  message: string | null;
+  status: number | null;
+  latencyMs: number;
+  at: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX = 20;
+const cache = new Map<string, CacheEntry>();
+
+function readCache(key: string): CacheEntry | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return hit;
+}
+
+function writeCache(key: string, entry: CacheEntry) {
+  cache.set(key, entry);
+  while (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+
 function sniffMime(name: string, base64: string): string {
   const n = name.toLowerCase();
   if (n.endsWith(".pdf")) return "application/pdf";
@@ -123,40 +155,79 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         }
 
         const target = input["endpoint"] === "my" ? "my" : "report";
-        const result = await callEnfaAttachments(reffld, target);
+        const mode = input["mode"] === "content" ? "content" : "list";
+        const wantIndex = Number(input["index"] ?? -1);
+        const cacheKey = `${target}:${reffld}`;
+        if (input["refresh"] === true) cache.delete(cacheKey);
 
-        const headers: Record<string, string> = {
+        const baseHeaders: Record<string, string> = {
           "content-type": "application/json",
           "cache-control": "no-store",
-          "x-sap-status": String(result.status ?? ""),
-          "x-sap-latency-ms": String(result.latencyMs ?? 0),
         };
 
-        if (!result.ok) {
-          console.error("[enfa-attachments] SAP call failed:", result.status, result.error);
+        let entry = readCache(cacheKey);
+        if (!entry) {
+          const result = await callEnfaAttachments(reffld, target);
+
+          const headers: Record<string, string> = {
+            ...baseHeaders,
+            "x-sap-status": String(result.status ?? ""),
+            "x-sap-latency-ms": String(result.latencyMs ?? 0),
+          };
+
+          if (!result.ok) {
+            console.error("[enfa-attachments] SAP call failed:", result.status, result.error);
+            return new Response(
+              JSON.stringify({ error: result.error ?? "SAP request failed", status: result.status }),
+              { status: result.status && result.status >= 400 ? result.status : 502, headers },
+            );
+          }
+
+          // Unwrap the middleware envelope if it slipped through.
+          let body = result.body || "";
+          try {
+            const parsed = JSON.parse(body);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+              const inner = (parsed as { body: unknown }).body;
+              body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+            }
+          } catch {
+            /* raw body */
+          }
+
+          const { files, message } = extractFiles(body);
+          entry = { files, message, status: result.status ?? null, latencyMs: result.latencyMs ?? 0, at: Date.now() };
+          writeCache(cacheKey, entry);
+        }
+
+        const headers: Record<string, string> = {
+          ...baseHeaders,
+          "x-sap-status": String(entry.status ?? ""),
+          "x-sap-latency-ms": String(entry.latencyMs ?? 0),
+        };
+
+        if (mode === "content") {
+          const file = entry.files[wantIndex];
+          if (!file) {
+            return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers });
+          }
           return new Response(
-            JSON.stringify({ error: result.error ?? "SAP request failed", status: result.status }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
+            JSON.stringify({ file: { filename: file.filename, mime: file.mime, base64: file.base64 } }),
+            { status: 200, headers },
           );
         }
 
-        // Unwrap the middleware envelope if it slipped through.
-        let body = result.body || "";
-        try {
-          const parsed = JSON.parse(body);
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
-            const inner = (parsed as { body: unknown }).body;
-            body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
-          }
-        } catch {
-          /* raw body */
-        }
-
-        const { files, message } = extractFiles(body);
+        const files = entry.files.map((f, index) => ({
+          index,
+          filename: f.filename,
+          mime: f.mime,
+          size: Math.round((f.base64.length * 3) / 4),
+        }));
         return new Response(
-          JSON.stringify({ status: result.status, latencyMs: result.latencyMs, files, message }),
+          JSON.stringify({ status: entry.status, latencyMs: entry.latencyMs, files, message: entry.message }),
           { status: 200, headers },
         );
+
       },
     },
   },

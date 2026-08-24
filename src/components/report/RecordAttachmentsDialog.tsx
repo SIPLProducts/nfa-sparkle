@@ -5,18 +5,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download, Eye, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
 
-interface SapFile {
+interface SapFileMeta {
+  index: number;
   filename: string;
-  base64: string;
   mime: string;
+  size: number;
+}
+
+async function authToken() {
+  const { data: sess } = await supabase.auth.getSession();
+  return sess.session?.access_token ?? "";
 }
 
 /** Live documents attached to the eNFA in SAP (endpoint configured in Admin → SAP API Settings). */
 function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
-  const [docs, setDocs] = useState<SapFile[]>([]);
+  const [docs, setDocs] = useState<SapFileMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
     if (!enfaNumber) {
@@ -25,19 +32,25 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
       return;
     }
     let cancelled = false;
+    const forceRefresh = refreshingRef.current;
+    refreshingRef.current = false;
     setLoading(true);
     setError(null);
     (async () => {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token ?? "";
+        const token = await authToken();
         const res = await fetch("/api/public/enfa-attachments", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint }),
+          body: JSON.stringify({
+            attachment: { reffld: enfaNumber },
+            endpoint,
+            mode: "list",
+            ...(forceRefresh ? { refresh: true } : {}),
+          }),
         });
         const json = (await res.json().catch(() => ({}))) as {
-          files?: SapFile[];
+          files?: SapFileMeta[];
           error?: string;
           message?: string;
         };
@@ -60,15 +73,45 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
     };
   }, [enfaNumber, endpoint, nonce]);
 
-  return { docs, loading, error, refresh: useCallback(() => setNonce((n) => n + 1), []) };
+  const refresh = useCallback((force = false) => {
+    if (force) refreshingRef.current = true;
+    setNonce((n) => n + 1);
+  }, []);
+
+  return { docs, loading, error, refresh };
+}
+
+/** Fetches one document's base64 content on demand (served from the server-side SAP cache). */
+async function fetchSapDocContent(
+  enfaNumber: string,
+  endpoint: "report" | "my",
+  index: number,
+): Promise<{ filename: string; mime: string; base64: string }> {
+  const token = await authToken();
+  const res = await fetch("/api/public/enfa-attachments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    file?: { filename: string; mime: string; base64: string };
+    error?: string;
+  };
+  if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
+  return json.file;
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes.slice()], { type: mime || "application/octet-stream" }));
+  const CHUNK = 32768;
+  for (let start = 0; start < bin.length; start += CHUNK) {
+    const end = Math.min(start + CHUNK, bin.length);
+    for (let i = start; i < end; i++) bytes[i] = bin.charCodeAt(i);
+  }
+  return URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
 }
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -336,6 +379,12 @@ export function RecordAttachmentsDialog({
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const contentCache = useRef(new Map<number, { filename: string; mime: string; base64: string }>());
+
+  useEffect(() => {
+    contentCache.current.clear();
+  }, [enfaNumber, endpoint]);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? []);
@@ -345,7 +394,8 @@ export function RecordAttachmentsDialog({
     try {
       const message = await uploadToSap(enfaNumber, list, endpoint);
       toast.success(message);
-      refreshSap();
+      contentCache.current.clear();
+      refreshSap(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -353,18 +403,34 @@ export function RecordAttachmentsDialog({
     }
   }
 
-  function openSapDoc(d: SapFile, download = false) {
-    const url = base64ToBlobUrl(d.base64, d.mime);
-    if (download) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = d.filename || "document";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      return;
+  async function openSapDoc(d: SapFileMeta, download = false) {
+    if (!enfaNumber) return;
+    const key = `${d.index}:${download ? "d" : "v"}`;
+    setPending(key);
+    try {
+      let file = contentCache.current.get(d.index);
+      if (!file) {
+        file = await fetchSapDocContent(enfaNumber, endpoint, d.index);
+        contentCache.current.set(d.index, file);
+      }
+      const mime = file.mime || d.mime;
+      const url = base64ToBlobUrl(file.base64, mime);
+      if (download) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = d.filename || file.filename || "document";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        return;
+      }
+      setSapPreview({ name: d.filename || file.filename, url, mime });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load the document");
+    } finally {
+      setPending(null);
     }
-    setSapPreview({ name: d.filename, url, mime: d.mime });
   }
+
 
   return (
     <>
@@ -401,23 +467,41 @@ export function RecordAttachmentsDialog({
                       <div className="min-w-0">
                         <div className="truncate font-medium">{d.filename}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {d.mime} · {Math.round((d.base64.length * 3) / 4 / 1024)} KB · from SAP
+                          {d.mime} · {Math.max(1, Math.round(d.size / 1024))} KB · from SAP
                         </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
-                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => openSapDoc(d)}>
-                        <Eye className="h-3.5 w-3.5" /> View
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        disabled={pending === `${d.index}:v`}
+                        onClick={() => openSapDoc(d)}
+                      >
+                        {pending === `${d.index}:v` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}{" "}
+                        View
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 gap-1 text-xs"
+                        disabled={pending === `${d.index}:d`}
                         onClick={() => openSapDoc(d, true)}
                       >
-                        <Download className="h-3.5 w-3.5" /> Download
+                        {pending === `${d.index}:d` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}{" "}
+                        Download
                       </Button>
                     </div>
+
                   </li>
                 ))}
               </ul>
