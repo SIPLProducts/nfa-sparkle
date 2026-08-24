@@ -297,7 +297,9 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const cacheKey = `${target}:${reffld}`;
         if (input["refresh"] === true) {
           cache.delete(cacheKey);
+          inFlight.delete(cacheKey);
           await clearDbCache(cacheKey);
+          await writeJob(cacheKey, "idle", null);
         }
 
         const baseHeaders: Record<string, string> = {
@@ -310,43 +312,28 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         if (entry) writeCache(cacheKey, entry);
 
         if (!entry) {
-          const result = await callEnfaAttachments(reffld, target);
-          if (!result.ok) {
-            const status = result.status ?? null;
-            const message =
-              status !== null && status >= 500
-                ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
-                : (result.error || "SAP request failed");
-            console.error("[enfa-attachments] SAP call failed:", status, result.error);
-            return new Response(JSON.stringify({ error: message, status }), {
-              status: status && status >= 400 && status < 500 ? status : 502,
-              headers: { ...baseHeaders, "x-sap-status": String(status ?? "") },
+          // The SAP attachments service can take ~95 s for large records — far beyond the
+          // edge request window. Run it as a background job and let the client poll.
+          const job = await readJob(cacheKey);
+          if (job?.state === "error" && !inFlight.has(cacheKey)) {
+            await writeJob(cacheKey, "idle", null);
+            return new Response(JSON.stringify({ error: job.error || "SAP request failed" }), {
+              status: 502,
+              headers: baseHeaders,
             });
           }
-
-          // Unwrap the middleware envelope if it slipped through.
-          let body = result.body || "";
-          try {
-            const parsed = JSON.parse(body);
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
-              const inner = (parsed as { body: unknown }).body;
-              body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
-            }
-          } catch {
-            /* raw body */
+          if (!jobIsRunning(job) && !inFlight.has(cacheKey)) {
+            await writeJob(cacheKey, "running", null, new Date().toISOString());
+            const task = runAttachmentJob(cacheKey, reffld, target).finally(() =>
+              inFlight.delete(cacheKey),
+            );
+            inFlight.set(cacheKey, task);
+            keepAlive(context, task);
           }
-
-          const { files, message } = extractFiles(body);
-          entry = {
-            files,
-            message,
-            status: result.status ?? null,
-            latencyMs: result.latencyMs ?? 0,
-            at: Date.now(),
-          };
-          writeCache(cacheKey, entry);
-          await writeDbCache(cacheKey, entry);
+          return new Response(JSON.stringify({ pending: true }), { status: 202, headers: baseHeaders });
         }
+
+
 
 
 
