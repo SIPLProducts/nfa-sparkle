@@ -466,8 +466,12 @@ export function RecordAttachmentsDialog({
             </div>
             {sapLoading ? (
               <p className="flex items-center gap-2 rounded-md border border-border px-3 py-4 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Fetching documents from SAP…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {elapsed >= 8
+                  ? `Still fetching documents from SAP… (${elapsed}s)`
+                  : "Fetching documents from SAP…"}
               </p>
+
             ) : sapDocs.length ? (
               <ul className="divide-y divide-border rounded-md border border-border">
                 {sapDocs.map((d, i) => (
