@@ -187,7 +187,7 @@ export function AppShell({
         <div
           className={cn(
             "border-t border-sidebar-border px-4 py-3 text-[11px] text-white/50 transition-all duration-300",
-            collapsed ? "h-0 overflow-hidden border-0 py-0 opacity-0" : "block"
+            sidebarCollapsed ? "h-0 overflow-hidden border-0 py-0 opacity-0" : "block"
           )}
         >
           v1.0 · © {new Date().getFullYear()} Your Company
