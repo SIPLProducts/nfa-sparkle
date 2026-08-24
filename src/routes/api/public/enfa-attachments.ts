@@ -16,9 +16,11 @@ interface CacheEntry {
   at: number;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 20;
 const cache = new Map<string, CacheEntry>();
+/** Concurrent requests for the same record share one SAP round-trip. */
+const inFlight = new Map<string, Promise<CacheEntry>>();
 
 function readCache(key: string): CacheEntry | null {
   const hit = cache.get(key);
@@ -38,6 +40,56 @@ function writeCache(key: string, entry: CacheEntry) {
     cache.delete(oldest);
   }
 }
+
+/** Shared cache row so a warm result survives cold starts and other server instances. */
+async function readDbCache(key: string): Promise<CacheEntry | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("sap_attachment_cache")
+      .select("payload, status, latency_ms, fetched_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (!data) return null;
+    const at = new Date(data.fetched_at).getTime();
+    if (!Number.isFinite(at) || Date.now() - at > CACHE_TTL_MS) return null;
+    const payload = data.payload as { files?: SapFile[]; message?: string | null };
+    return {
+      files: Array.isArray(payload?.files) ? payload.files : [],
+      message: payload?.message ?? null,
+      status: data.status ?? null,
+      latencyMs: data.latency_ms ?? 0,
+      at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeDbCache(key: string, entry: CacheEntry) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("sap_attachment_cache").upsert({
+      cache_key: key,
+      payload: { files: entry.files, message: entry.message },
+      status: entry.status,
+      latency_ms: entry.latencyMs,
+      fetched_at: new Date(entry.at).toISOString(),
+    });
+  } catch {
+    /* cache writes are best-effort */
+  }
+}
+
+async function clearDbCache(key: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("sap_attachment_cache").delete().eq("cache_key", key);
+  } catch {
+    /* best effort */
+  }
+}
+
 
 
 function sniffMime(name: string, base64: string): string {
