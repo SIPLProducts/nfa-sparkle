@@ -228,6 +228,7 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         if (input["refresh"] === true) {
           cache.delete(cacheKey);
           inFlight.delete(cacheKey);
+          failures.delete(cacheKey);
           await clearDbCache(cacheKey);
         }
 
