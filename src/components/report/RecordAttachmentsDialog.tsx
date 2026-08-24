@@ -109,18 +109,90 @@ export async function uploadToSap(
   return json.message ?? `Uploaded to SAP against ENFA ${json.enfaNo ?? enfaNumber}`;
 }
 
+type DocKind = "pdf" | "image" | "docx" | "sheet" | "text" | "none";
+
+function resolveKind(mime: string, name: string): DocKind {
+  const m = (mime || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  if (m === "application/pdf" || n.endsWith(".pdf")) return "pdf";
+  if (m.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(n)) return "image";
+  if (m.includes("wordprocessingml") || n.endsWith(".docx")) return "docx";
+  if (m.includes("spreadsheetml") || m.includes("ms-excel") || m === "text/csv" || /\.(xlsx|xlsm|xls|csv)$/.test(n))
+    return "sheet";
+  if (m.startsWith("text/") || m === "application/json" || m === "application/xml" || /\.(txt|json|xml|log|md)$/.test(n))
+    return "text";
+  return "none";
+}
+
+/** Strips scripts, inline handlers and javascript: URLs from HTML produced out of a SAP-sourced file. */
+function sanitizeHtml(html: string): string {
+  if (typeof window === "undefined") return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script,style,iframe,object,embed,link").forEach((el) => el.remove());
+  doc.querySelectorAll("*").forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      const an = attr.name.toLowerCase();
+      const av = attr.value.trim().toLowerCase();
+      if (an.startsWith("on")) el.removeAttribute(attr.name);
+      else if ((an === "href" || an === "src") && av.startsWith("javascript:")) el.removeAttribute(attr.name);
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
-  const isPdf = mime === "application/pdf";
-  const isImage = mime.startsWith("image/");
+  const [html, setHtml] = useState<string | null>(null);
+  const [text, setText] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<{ name: string; html: string }[] | null>(null);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const kind = resolveKind(mime, name);
+  const isPdf = kind === "pdf";
 
   useEffect(() => {
-    if (!isPdf) return;
+    setErr(null);
+    setHtml(null);
+    setText(null);
+    setSheets(null);
+    setActiveSheet(0);
+  }, [url]);
+
+  useEffect(() => {
+    if (kind === "image" || kind === "none") return;
     let cancelled = false;
     (async () => {
       try {
         const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        if (cancelled) return;
+
+        if (kind === "text") {
+          setText(new TextDecoder().decode(bytes));
+          return;
+        }
+
+        if (kind === "docx") {
+          const mammoth = await import("mammoth/mammoth.browser");
+          const result = await (mammoth as any).convertToHtml({ arrayBuffer: bytes.buffer.slice(0) });
+          if (cancelled) return;
+          setHtml(sanitizeHtml(result?.value || "<p>(empty document)</p>"));
+          return;
+        }
+
+        if (kind === "sheet") {
+          const XLSX = await import("xlsx");
+          const wb = XLSX.read(bytes, { type: "array" });
+          if (cancelled) return;
+          setSheets(
+            wb.SheetNames.map((sn) => ({
+              name: sn,
+              html: sanitizeHtml(XLSX.utils.sheet_to_html(wb.Sheets[sn]!, { editable: false })),
+            })),
+          );
+          return;
+        }
+
+        // pdf
         const pdfjs = await import("pdfjs-dist");
         const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
         pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -155,27 +227,86 @@ function SapDocViewer({ url, mime, name }: { url: string; mime: string; name: st
     return () => {
       cancelled = true;
     };
-  }, [url, isPdf]);
+  }, [url, kind]);
 
-  if (isImage) {
+  const downloadFallback = (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+      {err ? <span className="text-destructive">{err}</span> : null}
+      <span>This file type cannot be previewed in the browser — it can still be downloaded.</span>
+      <Button asChild size="sm" variant="outline">
+        <a href={url} download={name}>
+          <Download className="mr-1.5 h-3.5 w-3.5" /> Download
+        </a>
+      </Button>
+    </div>
+  );
+
+  if (kind === "image") {
     return (
       <div className="flex h-full w-full items-center justify-center overflow-auto p-4">
         <img src={url} alt={name} className="max-h-full max-w-full object-contain" />
       </div>
     );
   }
-  if (!isPdf) {
+  if (kind === "none" || (err && !isPdf)) return downloadFallback;
+
+  if (kind === "text") {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
-        This file type cannot be previewed in the browser.
-        <Button asChild size="sm" variant="outline">
-          <a href={url} download={name}>
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Download
-          </a>
-        </Button>
+      <div className="h-full overflow-auto p-4">
+        <pre className="whitespace-pre-wrap break-words rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground">
+          {text ?? "Loading…"}
+        </pre>
       </div>
     );
   }
+
+  if (kind === "docx") {
+    return (
+      <div className="h-full overflow-auto p-4">
+        {html === null ? (
+          <p className="text-sm text-muted-foreground">Loading document…</p>
+        ) : (
+          <div
+            className="sap-doc-html mx-auto max-w-3xl rounded-lg border border-border bg-card p-6 text-sm leading-relaxed text-foreground [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_img]:max-w-full [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:mb-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (kind === "sheet") {
+    return (
+      <div className="flex h-full flex-col">
+        {sheets && sheets.length > 1 ? (
+          <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-2">
+            {sheets.map((s, i) => (
+              <Button
+                key={s.name}
+                size="sm"
+                variant={i === activeSheet ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => setActiveSheet(i)}
+              >
+                {s.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        <div className="flex-1 overflow-auto p-4">
+          {sheets === null ? (
+            <p className="text-sm text-muted-foreground">Loading spreadsheet…</p>
+          ) : (
+            <div
+              className="overflow-auto rounded-lg border border-border bg-card text-xs [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:px-2 [&_th]:py-1"
+              dangerouslySetInnerHTML={{ __html: sheets[activeSheet]?.html ?? "" }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto p-4">
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
