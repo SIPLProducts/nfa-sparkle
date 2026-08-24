@@ -379,6 +379,12 @@ export function RecordAttachmentsDialog({
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const contentCache = useRef(new Map<number, { filename: string; mime: string; base64: string }>());
+
+  useEffect(() => {
+    contentCache.current.clear();
+  }, [enfaNumber, endpoint]);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? []);
@@ -388,7 +394,8 @@ export function RecordAttachmentsDialog({
     try {
       const message = await uploadToSap(enfaNumber, list, endpoint);
       toast.success(message);
-      refreshSap();
+      contentCache.current.clear();
+      refreshSap(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -396,18 +403,34 @@ export function RecordAttachmentsDialog({
     }
   }
 
-  function openSapDoc(d: SapFile, download = false) {
-    const url = base64ToBlobUrl(d.base64, d.mime);
-    if (download) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = d.filename || "document";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      return;
+  async function openSapDoc(d: SapFileMeta, download = false) {
+    if (!enfaNumber) return;
+    const key = `${d.index}:${download ? "d" : "v"}`;
+    setPending(key);
+    try {
+      let file = contentCache.current.get(d.index);
+      if (!file) {
+        file = await fetchSapDocContent(enfaNumber, endpoint, d.index);
+        contentCache.current.set(d.index, file);
+      }
+      const mime = file.mime || d.mime;
+      const url = base64ToBlobUrl(file.base64, mime);
+      if (download) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = d.filename || file.filename || "document";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        return;
+      }
+      setSapPreview({ name: d.filename || file.filename, url, mime });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load the document");
+    } finally {
+      setPending(null);
     }
-    setSapPreview({ name: d.filename, url, mime: d.mime });
   }
+
 
   return (
     <>
