@@ -210,7 +210,11 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const mode = input["mode"] === "content" ? "content" : "list";
         const wantIndex = Number(input["index"] ?? -1);
         const cacheKey = `${target}:${reffld}`;
-        if (input["refresh"] === true) cache.delete(cacheKey);
+        if (input["refresh"] === true) {
+          cache.delete(cacheKey);
+          inFlight.delete(cacheKey);
+          await clearDbCache(cacheKey);
+        }
 
         const baseHeaders: Record<string, string> = {
           "content-type": "application/json",
@@ -218,39 +222,72 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         };
 
         let entry = readCache(cacheKey);
+        if (!entry) entry = await readDbCache(cacheKey);
+        if (entry) writeCache(cacheKey, entry);
+
         if (!entry) {
-          const result = await callEnfaAttachments(reffld, target);
+          let job = inFlight.get(cacheKey);
+          if (!job) {
+            job = (async () => {
+              const result = await callEnfaAttachments(reffld, target);
+              if (!result.ok) {
+                const err = new Error(result.error ?? "SAP request failed") as Error & {
+                  sapStatus?: number | null;
+                  latencyMs?: number;
+                };
+                err.sapStatus = result.status ?? null;
+                err.latencyMs = result.latencyMs ?? 0;
+                throw err;
+              }
 
-          const headers: Record<string, string> = {
-            ...baseHeaders,
-            "x-sap-status": String(result.status ?? ""),
-            "x-sap-latency-ms": String(result.latencyMs ?? 0),
-          };
+              // Unwrap the middleware envelope if it slipped through.
+              let body = result.body || "";
+              try {
+                const parsed = JSON.parse(body);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
+                  const inner = (parsed as { body: unknown }).body;
+                  body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+                }
+              } catch {
+                /* raw body */
+              }
 
-          if (!result.ok) {
-            console.error("[enfa-attachments] SAP call failed:", result.status, result.error);
-            return new Response(
-              JSON.stringify({ error: result.error ?? "SAP request failed", status: result.status }),
-              { status: result.status && result.status >= 400 ? result.status : 502, headers },
-            );
+              const { files, message } = extractFiles(body);
+              const fresh: CacheEntry = {
+                files,
+                message,
+                status: result.status ?? null,
+                latencyMs: result.latencyMs ?? 0,
+                at: Date.now(),
+              };
+              writeCache(cacheKey, fresh);
+              await writeDbCache(cacheKey, fresh);
+              return fresh;
+            })().finally(() => inFlight.delete(cacheKey));
+            inFlight.set(cacheKey, job);
           }
 
-          // Unwrap the middleware envelope if it slipped through.
-          let body = result.body || "";
           try {
-            const parsed = JSON.parse(body);
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "body" in parsed) {
-              const inner = (parsed as { body: unknown }).body;
-              body = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
-            }
-          } catch {
-            /* raw body */
+            entry = await job;
+          } catch (e) {
+            const err = e as Error & { sapStatus?: number | null; latencyMs?: number };
+            console.error("[enfa-attachments] SAP call failed:", err.sapStatus, err.message);
+            const status = err.sapStatus ?? null;
+            const friendly =
+              status !== null && status >= 500
+                ? "SAP took too long to return the documents for this eNFA. Please try again in a moment."
+                : (err.message || "SAP request failed");
+            return new Response(JSON.stringify({ error: friendly, status }), {
+              status: status && status >= 400 && status < 500 ? status : 504,
+              headers: {
+                ...baseHeaders,
+                "x-sap-status": String(status ?? ""),
+                "x-sap-latency-ms": String(err.latencyMs ?? 0),
+              },
+            });
           }
-
-          const { files, message } = extractFiles(body);
-          entry = { files, message, status: result.status ?? null, latencyMs: result.latencyMs ?? 0, at: Date.now() };
-          writeCache(cacheKey, entry);
         }
+
 
         const headers: Record<string, string> = {
           ...baseHeaders,
