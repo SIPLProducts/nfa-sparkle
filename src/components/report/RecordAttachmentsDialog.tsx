@@ -5,18 +5,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download, Eye, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
 
-interface SapFile {
+interface SapFileMeta {
+  index: number;
   filename: string;
-  base64: string;
   mime: string;
+  size: number;
+}
+
+async function authToken() {
+  const { data: sess } = await supabase.auth.getSession();
+  return sess.session?.access_token ?? "";
 }
 
 /** Live documents attached to the eNFA in SAP (endpoint configured in Admin → SAP API Settings). */
 function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
-  const [docs, setDocs] = useState<SapFile[]>([]);
+  const [docs, setDocs] = useState<SapFileMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
     if (!enfaNumber) {
@@ -25,19 +32,25 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
       return;
     }
     let cancelled = false;
+    const forceRefresh = refreshingRef.current;
+    refreshingRef.current = false;
     setLoading(true);
     setError(null);
     (async () => {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token ?? "";
+        const token = await authToken();
         const res = await fetch("/api/public/enfa-attachments", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint }),
+          body: JSON.stringify({
+            attachment: { reffld: enfaNumber },
+            endpoint,
+            mode: "list",
+            ...(forceRefresh ? { refresh: true } : {}),
+          }),
         });
         const json = (await res.json().catch(() => ({}))) as {
-          files?: SapFile[];
+          files?: SapFileMeta[];
           error?: string;
           message?: string;
         };
@@ -60,15 +73,45 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
     };
   }, [enfaNumber, endpoint, nonce]);
 
-  return { docs, loading, error, refresh: useCallback(() => setNonce((n) => n + 1), []) };
+  const refresh = useCallback((force = false) => {
+    if (force) refreshingRef.current = true;
+    setNonce((n) => n + 1);
+  }, []);
+
+  return { docs, loading, error, refresh };
+}
+
+/** Fetches one document's base64 content on demand (served from the server-side SAP cache). */
+async function fetchSapDocContent(
+  enfaNumber: string,
+  endpoint: "report" | "my",
+  index: number,
+): Promise<{ filename: string; mime: string; base64: string }> {
+  const token = await authToken();
+  const res = await fetch("/api/public/enfa-attachments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ attachment: { reffld: enfaNumber }, endpoint, mode: "content", index }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    file?: { filename: string; mime: string; base64: string };
+    error?: string;
+  };
+  if (!res.ok || !json.file) throw new Error(json?.error ?? `Could not load the document (HTTP ${res.status})`);
+  return json.file;
 }
 
 function base64ToBlobUrl(base64: string, mime: string) {
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes.slice()], { type: mime || "application/octet-stream" }));
+  const CHUNK = 32768;
+  for (let start = 0; start < bin.length; start += CHUNK) {
+    const end = Math.min(start + CHUNK, bin.length);
+    for (let i = start; i < end; i++) bytes[i] = bin.charCodeAt(i);
+  }
+  return URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
 }
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
