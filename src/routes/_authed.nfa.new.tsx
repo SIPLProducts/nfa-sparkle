@@ -458,7 +458,7 @@ function NewNfaPage() {
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
             </Button>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => submit(true)} disabled={busy}>
-              <Save className="h-4 w-4" /> <span className="hidden sm:inline">Save </span>Draft
+              <Save className="h-4 w-4" /> Save
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit<span className="hidden sm:inline"> for Approval</span>
