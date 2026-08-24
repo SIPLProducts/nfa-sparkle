@@ -469,6 +469,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sap_attachment_job: {
+        Row: {
+          cache_key: string
+          error: string | null
+          started_at: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          error?: string | null
+          started_at?: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          error?: string | null
+          started_at?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sap_connection: {
         Row: {
           base_url: string
