@@ -27,6 +27,8 @@ export interface ManagedUser {
   last_name: string | null;
   employee_id: string | null;
   department: string | null;
+  contact: string | null;
+  status: string;
   roles: RoleKey[];
   is_active: boolean;
   created_at: string;
@@ -61,11 +63,24 @@ function slugify(name: string) {
     .slice(0, 40);
 }
 
+function normalizeContact(raw?: string) {
+  const c = (raw ?? "").trim();
+  if (!c) throw new Error("Contact is required");
+  if (!/^\d{10}$/.test(c)) throw new Error("Contact must be 10 digits");
+  return c;
+}
+
+function normalizeStatus(raw?: string) {
+  const s = (raw ?? "ACTIVE").trim().toUpperCase();
+  if (s !== "ACTIVE" && s !== "INACTIVE") throw new Error("Status must be ACTIVE or INACTIVE");
+  return s;
+}
+
 function normalizeUsername(raw: string) {
-  const u = (raw ?? "").trim().toLowerCase();
+  const u = (raw ?? "").trim();
   if (!u) throw new Error("User ID is required");
-  if (u.length < 3 || u.length > 40) throw new Error("User ID must be 3-40 characters");
-  if (!/^[a-z0-9._-]+$/.test(u)) {
+  if (u.length < 3 || u.length > 12) throw new Error("User ID must be 3-12 characters");
+  if (!/^[A-Za-z0-9._-]+$/.test(u)) {
     throw new Error("User ID may only contain letters, numbers, dot, underscore or hyphen");
   }
   return u;
@@ -183,7 +198,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, department").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, department, contact, status").in("id", ids),
       db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
@@ -208,6 +223,8 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           last_name: p?.last_name ?? null,
           employee_id: p?.employee_id ?? null,
           department: p?.department ?? null,
+          contact: p?.contact ?? null,
+          status: (p?.status as string) ?? "ACTIVE",
           roles: rmap.get(u.id) ?? [],
           is_active: p?.is_active !== false && !u.banned_until,
           created_at: u.created_at,
@@ -241,11 +258,17 @@ export const createManagedUser = createServerFn({ method: "POST" })
     last_name: string;
     employee_id?: string;
     department?: string;
+    contact?: string;
+    status?: string;
     roles: RoleKey[];
   }) => {
     if (!d.email?.trim()) throw new Error("Email is required");
     d.username = normalizeUsername(d.username);
-    if (!d.password || d.password.length < 8) throw new Error("Password must be at least 8 characters");
+    d.contact = normalizeContact(d.contact);
+    d.status = normalizeStatus(d.status);
+    if (!d.password || d.password.length < 8 || d.password.length > 10) {
+      throw new Error("Password must be 8-10 characters");
+    }
     if (d.password !== d.confirm_password) throw new Error("Passwords do not match");
     if (!d.first_name?.trim()) throw new Error("First name is required");
     if (!d.last_name?.trim()) throw new Error("Last name is required");
@@ -278,7 +301,13 @@ export const createManagedUser = createServerFn({ method: "POST" })
         username: data.username,
         employee_id: data.employee_id?.trim() || null,
         department: data.department?.trim() || null,
+        contact: data.contact || null,
+        status: data.status ?? "ACTIVE",
+        is_active: (data.status ?? "ACTIVE") === "ACTIVE",
       });
+    if ((data.status ?? "ACTIVE") !== "ACTIVE") {
+      await db.auth.admin.updateUserById(id, { ban_duration: "876000h" });
+    }
     await applyRoles(db, id, data.roles);
     return { id };
   });
@@ -292,11 +321,15 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     username: string;
     employee_id?: string;
     department?: string;
+    contact?: string;
+    status?: string;
     roles: RoleKey[];
   }) => {
     if (!d.first_name?.trim()) throw new Error("First name is required");
     if (!d.last_name?.trim()) throw new Error("Last name is required");
     d.username = normalizeUsername(d.username);
+    d.contact = normalizeContact(d.contact);
+    d.status = normalizeStatus(d.status);
     if (!d.roles?.length) throw new Error("Select at least one role");
     return d;
   })
@@ -319,9 +352,15 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         username: data.username,
         employee_id: data.employee_id?.trim() || null,
         department: data.department?.trim() || null,
+        contact: data.contact || null,
+        status: data.status ?? "ACTIVE",
+        is_active: (data.status ?? "ACTIVE") === "ACTIVE",
       })
       .eq("id", data.id);
-    await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: fullName } });
+    await db.auth.admin.updateUserById(data.id, {
+      user_metadata: { full_name: fullName },
+      ban_duration: (data.status ?? "ACTIVE") === "ACTIVE" ? "none" : "876000h",
+    });
     await applyRoles(db, data.id, data.roles);
     return { ok: true };
   });
@@ -351,7 +390,10 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
       ban_duration: data.active ? "none" : "876000h",
     });
     if (error) throw new Error(error.message);
-    await db.from("profiles").update({ is_active: data.active }).eq("id", data.id);
+    await db
+      .from("profiles")
+      .update({ is_active: data.active, status: data.active ? "ACTIVE" : "INACTIVE" })
+      .eq("id", data.id);
     return { ok: true };
   });
 
