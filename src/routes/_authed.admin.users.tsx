@@ -24,6 +24,7 @@ import {
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +175,6 @@ function UsersTab() {
   const fetchUsers = useServerFn(listManagedUsers);
   const { data: roleDefs } = useRoleDefs();
   const roleName = (k: string) => roleDefs?.find((r) => r.key === k)?.name ?? k;
-  const createFn = useServerFn(createManagedUser);
   const updateFn = useServerFn(updateManagedUser);
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
@@ -325,8 +325,23 @@ function UsersTab() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={async (v) => {
-          await createFn({ data: v });
-          toast.success("User created");
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (!token) throw new Error("Sign in again before creating a user");
+
+          const response = await fetch("/api/public/create-user", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(v),
+          });
+          const result = (await response.json().catch(() => ({}))) as { ok?: boolean; id?: string; message?: string; error?: string };
+          if (!response.ok || result.ok === false) {
+            throw new Error(result.error ?? "Create user failed");
+          }
+          toast.success(result.message ?? "User created successfully");
           invalidate();
         }}
       />
