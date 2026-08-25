@@ -539,14 +539,16 @@ function EditUserDialog({
   onClose: () => void;
   onSubmit: (v: {
     id: string;
-    full_name: string;
+    first_name: string;
+    last_name: string;
     username: string;
     employee_id: string;
     department: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [department, setDepartment] = useState("");
@@ -555,7 +557,8 @@ function EditUserDialog({
 
   useEffect(() => {
     if (user) {
-      setFullName(user.full_name);
+      setFirstName(user.first_name ?? "");
+      setLastName(user.last_name ?? "");
       setUsername(user.username ?? "");
       setEmployeeId(user.employee_id ?? "");
       setDepartment(user.department ?? "");
@@ -569,7 +572,8 @@ function EditUserDialog({
     try {
       await onSubmit({
         id: user.id,
-        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         username,
         employee_id: employeeId,
         department,
@@ -592,8 +596,12 @@ function EditUserDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Full name *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <Label>First name *</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Last name *</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>User ID *</Label>
