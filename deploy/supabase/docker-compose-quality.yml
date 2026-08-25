@@ -83,10 +83,28 @@ services:
       - type: volume
         source: nfa-quality-db-data
         target: /var/lib/postgresql/data
+      # Bootstrap SQL - runs ONLY on a fresh (empty) data volume.
+      - type: bind
+        source: ./volumes/db/roles.sql
+        target: /docker-entrypoint-initdb.d/init-scripts/10-roles.sql
+        read_only: true
+      - type: bind
+        source: ./volumes/db/realtime.sql
+        target: /docker-entrypoint-initdb.d/init-scripts/20-realtime.sql
+        read_only: true
+      - type: bind
+        source: ./volumes/db/webhooks.sql
+        target: /docker-entrypoint-initdb.d/init-scripts/30-webhooks.sql
+        read_only: true
+      - type: bind
+        source: ./volumes/db/logs.sql
+        target: /docker-entrypoint-initdb.d/init-scripts/40-logs.sql
+        read_only: true
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: postgres
+      POSTGRES_HOST: /var/run/postgresql
     shm_size: 1gb
     networks:
       - nfa-quality-net
