@@ -204,6 +204,8 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           email: u.email ?? p?.email ?? "",
           username: p?.username ?? null,
           full_name: p?.full_name ?? (u.user_metadata?.full_name as string) ?? "",
+          first_name: p?.first_name ?? null,
+          last_name: p?.last_name ?? null,
           employee_id: p?.employee_id ?? null,
           department: p?.department ?? null,
           roles: rmap.get(u.id) ?? [],
