@@ -19,6 +19,7 @@ import {
   Shield,
   Eye,
   EyeOff,
+  X,
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
@@ -395,9 +396,14 @@ function CreateUserDialog({
 
   const closeDialog = () => onOpenChange(false);
 
-  const handleDialogOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) onOpenChange(true);
-  };
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeDialog();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   const submit = async () => {
     if (password !== confirmPassword) {
@@ -428,23 +434,32 @@ function CreateUserDialog({
     }
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent
-        className="sm:max-w-lg"
-        onCloseButtonClick={closeDialog}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          closeDialog();
-        }}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onFocusOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="presentation">
+      <div
+        aria-labelledby="create-user-title"
+        aria-modal="true"
+        className="relative grid w-full max-w-lg gap-4 rounded-lg border bg-background p-6 shadow-lg"
+        role="dialog"
       >
-        <DialogHeader>
-          <DialogTitle>Create user</DialogTitle>
-          <DialogDescription>The account is confirmed immediately and can sign in right away.</DialogDescription>
-        </DialogHeader>
+        <Button
+          aria-label="Close"
+          className="absolute right-3 top-3 h-8 w-8 p-0"
+          onClick={closeDialog}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+          <h2 id="create-user-title" className="text-lg font-semibold leading-none tracking-tight">
+            Create user
+          </h2>
+          <p className="text-sm text-muted-foreground">The account is confirmed immediately and can sign in right away.</p>
+        </div>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>User ID *</Label>
@@ -573,8 +588,8 @@ function CreateUserDialog({
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create user
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
