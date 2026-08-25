@@ -53,7 +53,10 @@ import {
   setManagedUserActive,
   updateManagedUser,
   updateRoleDef,
+  type CreateUserPayload,
+  type UpdateUserPayload,
   type ManagedUser,
+
   type RoleDef,
   type RolePermissionRow,
 } from "@/lib/user-admin.functions";
@@ -398,18 +401,19 @@ function CreateUserDialog({
     setBusy(true);
     try {
       await onSubmit({
-        email,
-        username,
-        password,
-        confirm_password: confirmPassword,
-        first_name: firstName,
-        last_name: lastName,
-        employee_id: employeeId,
-        department,
-        contact,
-        status,
-        roles,
+        USER_ID: username,
+        FIRST_NAME: firstName,
+        LAST_NAME: lastName,
+        EMAIL: email,
+        STATUS: status,
+        CONTACT: contact,
+        PASSWORD: password,
+        CONFPWRD: confirmPassword,
+        ROLE: roles.join(","),
+        EMP_ID: employeeId,
+        DEPT: department,
       });
+
       onOpenChange(false);
     } catch (e) {
       toast.error(errMsg(e));
