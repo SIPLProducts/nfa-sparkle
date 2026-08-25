@@ -2,6 +2,15 @@
 
 The previous query was only partially executed: it ended at `is_syst` and therefore never reached the closing `end $$;`. The SQL editor then appended unrelated text, producing the unterminated dollar-quote error.
 
+## Screenshot result
+
+The latest screenshot confirms the corrected SQL completed successfully: **“Success. No rows returned”** is the normal result for a `DO` block. The two red notifications are separate self-hosted Studio issues:
+
+- `SNIPPETS_MANAGEMENT_FOLDER env var is not set` only disables saved SQL snippets. It does not affect the query or application login.
+- `API error happened while trying to communicate with the server` is a Studio dashboard request failure. Since the SQL result says Success, it did not roll back this query.
+
+Run the verification query in step 3 next. If it returns the expected Admin row, database setup is complete. The remaining login `405 Not Allowed` is caused by the missing application server/proxy route, not by these Studio notifications.
+
 Use this safer two-step method. It avoids direct manipulation of auth internals and contains no dollar-quoted block.
 
 ## 1. Create the login account
