@@ -16,8 +16,12 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
-    // Emit a static index.html shell so the built folder can be served directly by nginx.
-    spa: { enabled: true },
+    // Self-hosted build: emit a static index.html shell so nginx can serve dist/ directly.
+    ...(isLovableBuild
+      ? {}
+      : { spa: { enabled: true, prerender: { outputPath: "/index.html" } } }),
   },
+  // Self-hosted build: skip the Cloudflare/wrangler bundling step.
   ...(isLovableBuild ? {} : { nitro: false as const }),
 });
+
