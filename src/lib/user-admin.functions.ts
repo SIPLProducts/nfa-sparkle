@@ -1,13 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  applyRoles,
+  assertAdmin,
+  assertUsernameFree,
+  getAdminClient as admin,
+  isSystemRole,
+  normalizeContact,
+  normalizeStatus,
+  normalizeUsername,
+  parseRoleKeys,
+  slugify,
+} from "./user-admin.server";
 
 export type SystemRole = "initiator" | "approver" | "admin" | "viewer";
 export type RoleKey = string;
 /** Kept for backwards compatibility with existing imports. */
 export type Role = RoleKey;
-
-export const SYSTEM_ROLE_KEYS: SystemRole[] = ["initiator", "approver", "admin", "viewer"];
-const isSystemRole = (k: string): k is SystemRole => (SYSTEM_ROLE_KEYS as string[]).includes(k);
 
 export interface RoleDef {
   key: string;
@@ -39,57 +48,6 @@ export interface RolePermissionRow {
   role_key: string;
   screen: string;
   allowed: boolean;
-}
-
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin role required");
-}
-
-async function admin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin as any;
-}
-
-function slugify(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
-}
-
-function normalizeContact(raw?: string) {
-  const c = (raw ?? "").trim();
-  if (!c) throw new Error("Contact is required");
-  if (!/^\d{10}$/.test(c)) throw new Error("Contact must be 10 digits");
-  return c;
-}
-
-function normalizeStatus(raw?: string) {
-  const s = (raw ?? "ACTIVE").trim().toUpperCase();
-  if (s !== "ACTIVE" && s !== "INACTIVE") throw new Error("Status must be ACTIVE or INACTIVE");
-  return s;
-}
-
-function normalizeUsername(raw: string) {
-  const u = (raw ?? "").trim();
-  if (!u) throw new Error("User ID is required");
-  if (u.length < 3 || u.length > 12) throw new Error("User ID must be 3-12 characters");
-  if (!/^[A-Za-z0-9._-]+$/.test(u)) {
-    throw new Error("User ID may only contain letters, numbers, dot, underscore or hyphen");
-  }
-  return u;
-}
-
-async function assertUsernameFree(db: any, username: string, exceptId?: string) {
-  const { data } = await db.from("profiles").select("id").ilike("username", username);
-  const clash = (data ?? []).find((r: any) => r.id !== exceptId);
-  if (clash) throw new Error("That User ID is already taken");
 }
 
 /* --------------------------------- roles -------------------------------- */
@@ -233,26 +191,6 @@ export const listManagedUsers = createServerFn({ method: "GET" })
       })
       .sort((a: ManagedUser, b: ManagedUser) => (a.created_at < b.created_at ? 1 : -1));
   });
-
-async function applyRoles(db: any, userId: string, roles: RoleKey[]) {
-  const system = roles.filter(isSystemRole);
-  const custom = roles.filter((r) => !isSystemRole(r));
-  await db.from("user_roles").delete().eq("user_id", userId);
-  if (system.length) {
-    await db.from("user_roles").insert(system.map((role) => ({ user_id: userId, role })));
-  }
-  await db.from("user_role_assignment").delete().eq("user_id", userId);
-  if (custom.length) {
-    await db.from("user_role_assignment").insert(custom.map((role_key) => ({ user_id: userId, role_key })));
-  }
-}
-
-function parseRoleKeys(raw: string | undefined | null): RoleKey[] {
-  return (raw ?? "")
-    .split(",")
-    .map((r) => r.trim())
-    .filter(Boolean);
-}
 
 export interface CreateUserPayload {
   USER_ID: string;

@@ -393,6 +393,12 @@ function CreateUserDialog({
     }
   }, [open]);
 
+  const closeDialog = () => onOpenChange(false);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) onOpenChange(true);
+  };
+
   const submit = async () => {
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
@@ -414,7 +420,7 @@ function CreateUserDialog({
         DEPT: department,
       });
 
-      onOpenChange(false);
+      closeDialog();
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -423,10 +429,16 @@ function CreateUserDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="sm:max-w-lg"
+        onCloseButtonClick={closeDialog}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          closeDialog();
+        }}
         onPointerDownOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -554,7 +566,7 @@ function CreateUserDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={closeDialog}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={busy} className="gap-2">
