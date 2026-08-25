@@ -1,6 +1,20 @@
 export type AdminContext = { supabase: any; userId: string };
 export type SystemRole = "initiator" | "approver" | "admin" | "viewer";
 
+export interface CreateManagedUserInput {
+  USER_ID: string;
+  FIRST_NAME: string;
+  LAST_NAME: string;
+  EMAIL: string;
+  STATUS: string;
+  CONTACT: string;
+  PASSWORD: string;
+  CONFPWRD: string;
+  ROLE: string;
+  EMP_ID: string;
+  DEPT: string;
+}
+
 const SYSTEM_ROLE_KEYS: SystemRole[] = ["initiator", "approver", "admin", "viewer"];
 
 export function isSystemRole(k: string): k is SystemRole {
@@ -76,4 +90,57 @@ export function parseRoleKeys(raw: string | undefined | null): string[] {
     .split(",")
     .map((r) => r.trim())
     .filter(Boolean);
+}
+
+function validateCreateManagedUserInput(raw: CreateManagedUserInput): CreateManagedUserInput {
+  const data = { ...raw };
+  if (!data.EMAIL?.trim()) throw new Error("Email is required");
+  data.USER_ID = normalizeUsername(data.USER_ID);
+  data.CONTACT = normalizeContact(data.CONTACT);
+  data.STATUS = normalizeStatus(data.STATUS);
+  if (!data.PASSWORD || data.PASSWORD.length < 8 || data.PASSWORD.length > 10) {
+    throw new Error("Password must be 8-10 characters");
+  }
+  if (data.PASSWORD !== data.CONFPWRD) throw new Error("Passwords do not match");
+  if (!data.FIRST_NAME?.trim()) throw new Error("First name is required");
+  if (!data.LAST_NAME?.trim()) throw new Error("Last name is required");
+  if (!parseRoleKeys(data.ROLE).length) throw new Error("Select at least one role");
+  return data;
+}
+
+export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateManagedUserInput) {
+  await assertAdmin(ctx);
+  const data = validateCreateManagedUserInput(raw);
+  const db = await getAdminClient();
+  await assertUsernameFree(db, data.USER_ID);
+  const firstName = data.FIRST_NAME.trim();
+  const lastName = data.LAST_NAME.trim();
+  const fullName = `${firstName} ${lastName}`;
+  const email = data.EMAIL.trim().toLowerCase();
+  const { data: created, error } = await db.auth.admin.createUser({
+    email,
+    password: data.PASSWORD,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+  if (error) throw new Error(error.message);
+  const id = created.user.id;
+  await db.from("profiles").upsert({
+    id,
+    email,
+    full_name: fullName,
+    first_name: firstName,
+    last_name: lastName,
+    username: data.USER_ID,
+    employee_id: data.EMP_ID?.trim() || null,
+    department: data.DEPT?.trim() || null,
+    contact: data.CONTACT || null,
+    status: data.STATUS,
+    is_active: data.STATUS === "ACTIVE",
+  });
+  if (data.STATUS !== "ACTIVE") {
+    await db.auth.admin.updateUserById(id, { ban_duration: "876000h" });
+  }
+  await applyRoles(db, id, parseRoleKeys(data.ROLE));
+  return { id };
 }

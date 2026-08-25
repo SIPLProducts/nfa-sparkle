@@ -4,6 +4,7 @@ import {
   applyRoles,
   assertAdmin,
   assertUsernameFree,
+  createManagedUserForAdmin,
   getAdminClient as admin,
   isSystemRole,
   normalizeContact,
@@ -212,54 +213,9 @@ export interface UpdateUserPayload extends Omit<CreateUserPayload, "PASSWORD" | 
 
 export const createManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: CreateUserPayload) => {
-    if (!d.EMAIL?.trim()) throw new Error("Email is required");
-    d.USER_ID = normalizeUsername(d.USER_ID);
-    d.CONTACT = normalizeContact(d.CONTACT);
-    d.STATUS = normalizeStatus(d.STATUS);
-    if (!d.PASSWORD || d.PASSWORD.length < 8 || d.PASSWORD.length > 10) {
-      throw new Error("Password must be 8-10 characters");
-    }
-    if (d.PASSWORD !== d.CONFPWRD) throw new Error("Passwords do not match");
-    if (!d.FIRST_NAME?.trim()) throw new Error("First name is required");
-    if (!d.LAST_NAME?.trim()) throw new Error("Last name is required");
-    if (!parseRoleKeys(d.ROLE).length) throw new Error("Select at least one role");
-    return d;
-  })
+  .inputValidator((d: CreateUserPayload) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
-    const db = await admin();
-    await assertUsernameFree(db, data.USER_ID);
-    const firstName = data.FIRST_NAME.trim();
-    const lastName = data.LAST_NAME.trim();
-    const fullName = `${firstName} ${lastName}`;
-    const email = data.EMAIL.trim().toLowerCase();
-    const { data: created, error } = await db.auth.admin.createUser({
-      email,
-      password: data.PASSWORD,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    });
-    if (error) throw new Error(error.message);
-    const id = created.user.id;
-    await db.from("profiles").upsert({
-      id,
-      email,
-      full_name: fullName,
-      first_name: firstName,
-      last_name: lastName,
-      username: data.USER_ID,
-      employee_id: data.EMP_ID?.trim() || null,
-      department: data.DEPT?.trim() || null,
-      contact: data.CONTACT || null,
-      status: data.STATUS,
-      is_active: data.STATUS === "ACTIVE",
-    });
-    if (data.STATUS !== "ACTIVE") {
-      await db.auth.admin.updateUserById(id, { ban_duration: "876000h" });
-    }
-    await applyRoles(db, id, parseRoleKeys(data.ROLE));
-    return { id };
+    return createManagedUserForAdmin(context as any, data);
   });
 
 export const updateManagedUser = createServerFn({ method: "POST" })

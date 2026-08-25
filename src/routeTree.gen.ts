@@ -30,6 +30,7 @@ import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enf
 import { Route as ApiPublicEnfaAttachmentsRouteImport } from './routes/api/public/enfa-attachments'
 import { Route as ApiPublicEnfaApproveRouteImport } from './routes/api/public/enfa-approve'
 import { Route as ApiPublicEnfaApprovalRouteImport } from './routes/api/public/enfa-approval'
+import { Route as ApiPublicCreateUserRouteImport } from './routes/api/public/create-user'
 import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
@@ -144,6 +145,11 @@ const ApiPublicEnfaApprovalRoute = ApiPublicEnfaApprovalRouteImport.update({
   path: '/api/public/enfa-approval',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCreateUserRoute = ApiPublicCreateUserRouteImport.update({
+  id: '/api/public/create-user',
+  path: '/api/public/create-user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
   id: '/nfa/new',
   path: '/nfa/new',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/create-user': typeof ApiPublicCreateUserRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
   '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
   '/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/create-user': typeof ApiPublicCreateUserRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
   '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
   '/_authed/nfa/new': typeof AuthedNfaNewRoute
+  '/api/public/create-user': typeof ApiPublicCreateUserRoute
   '/api/public/enfa-approval': typeof ApiPublicEnfaApprovalRoute
   '/api/public/enfa-approve': typeof ApiPublicEnfaApproveRoute
   '/api/public/enfa-attachments': typeof ApiPublicEnfaAttachmentsRoute
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/api/public/create-user'
     | '/api/public/enfa-approval'
     | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/nfa/$id'
     | '/nfa/my'
     | '/nfa/new'
+    | '/api/public/create-user'
     | '/api/public/enfa-approval'
     | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
@@ -339,6 +350,7 @@ export interface FileRouteTypes {
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
     | '/_authed/nfa/new'
+    | '/api/public/create-user'
     | '/api/public/enfa-approval'
     | '/api/public/enfa-approve'
     | '/api/public/enfa-attachments'
@@ -364,6 +376,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicCreateUserRoute: typeof ApiPublicCreateUserRoute
   ApiPublicEnfaApprovalRoute: typeof ApiPublicEnfaApprovalRoute
   ApiPublicEnfaApproveRoute: typeof ApiPublicEnfaApproveRoute
   ApiPublicEnfaAttachmentsRoute: typeof ApiPublicEnfaAttachmentsRoute
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEnfaApprovalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/create-user': {
+      id: '/api/public/create-user'
+      path: '/api/public/create-user'
+      fullPath: '/api/public/create-user'
+      preLoaderRoute: typeof ApiPublicCreateUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/nfa/new': {
       id: '/_authed/nfa/new'
       path: '/nfa/new'
@@ -624,6 +644,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicCreateUserRoute: ApiPublicCreateUserRoute,
   ApiPublicEnfaApprovalRoute: ApiPublicEnfaApprovalRoute,
   ApiPublicEnfaApproveRoute: ApiPublicEnfaApproveRoute,
   ApiPublicEnfaAttachmentsRoute: ApiPublicEnfaAttachmentsRoute,
