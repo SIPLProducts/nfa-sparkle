@@ -1,64 +1,73 @@
-# Quality server: wire the new self-hosted Supabase keys
+# Standalone Supabase Docker Compose for the NFA Quality server
 
-Your pasted block mixes two environments: the `SUPABASE_*` / `VITE_SUPABASE_*` lines still point at the Lovable-hosted project (`https://nhrwogdnwtkmbygwlrkv.supabase.co` and its old anon key), while `ANON_KEY` / `SERVICE_ROLE_KEY` are the new keys you just minted from your own `JWT_SECRET`. On the quality server the app must use only the self-hosted values, otherwise the browser will keep talking to the cloud project.
+Today `deploy/supabase/docker-compose-quality.yml` is only an *override* — it assumes you already cloned `supabase/docker` and run it with `-f docker-compose.yml -f docker-compose-quality.yml`. On its own it defines no images, so it cannot start anything. This replaces it with one complete, self-contained stack that runs with a single `docker compose up -d`, fully isolated from your existing VMS DEV/PROD stacks.
 
-## What to change
+## What changes
 
-### 1. Supabase stack env — `/opt/enfa/supabase/.env`
-Keep the values you already generated:
+### 1. `deploy/supabase/docker-compose-quality.yml` (rewritten, standalone)
 
+A full Supabase stack with pinned images and no dependency on the upstream repo:
+
+| Service | Image | Purpose |
+| --- | --- | --- |
+| db | supabase/postgres | database (127.0.0.1:5432) |
+| kong | kong:2.8.1 | API gateway (127.0.0.1:54321) |
+| auth | supabase/gotrue | authentication |
+| rest | postgrest/postgrest | Data API |
+| realtime | supabase/realtime | live subscriptions |
+| storage | supabase/storage-api | file storage |
+| imgproxy | darthsim/imgproxy | image transforms |
+| meta | supabase/postgres-meta | schema API for Studio |
+| studio | supabase/studio | dashboard (127.0.0.1:54323) |
+| vector + analytics | timberio/vector, supabase/logflare | logs (optional profile) |
+
+Isolation details:
+- Explicit `name: nfa-quality` project name and a dedicated `nfa-quality-net` bridge network, so nothing collides with VMS DEV/PROD containers or networks.
+- Every container name prefixed `nfa-quality-`.
+- Named volumes prefixed the same way (`nfa-quality-db-data`, `-storage-data`).
+- All published ports bound to `127.0.0.1` only, on the ports your nginx already expects (54321 Kong, 54323 Studio, 5432 Postgres); nginx keeps publishing 8001/8082/8081/3004.
+- `restart: unless-stopped` and healthchecks with `depends_on: condition: service_healthy` so the stack comes up in the right order.
+
+### 2. Supporting config files (new)
+
+Self-hosting needs a few files the upstream repo normally ships:
+- `deploy/supabase/volumes/api/kong.yml` — Kong declarative routes for `/auth/v1`, `/rest/v1`, `/realtime/v1`, `/storage/v1`, `/pg`, with the anon/service_role key consumers.
+- `deploy/supabase/volumes/db/init/*.sql` — the roles/schema bootstrap Supabase expects (`_supabase` database, `supabase_admin`, `authenticator`, `anon`, `authenticated`, `service_role`, realtime/storage schemas).
+- `deploy/supabase/volumes/logs/vector.yml` — only if you keep the analytics profile.
+
+### 3. `deploy/supabase/.env.quality.example` (corrected)
+
+Rewritten to match exactly the variables the new compose file reads — no unused keys, no missing ones. Includes `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, `SECRET_KEY_BASE`, `VAULT_ENC_KEY`, `LOGFLARE_*`, dashboard credentials, `SITE_URL` / `API_EXTERNAL_URL` / `SUPABASE_PUBLIC_URL` pointing at `http://<SERVER_IP>:8001`, and pooler/port settings.
+
+### 4. `deploy/supabase/README.md` (rewritten)
+
+Copy-paste Ubuntu runbook:
+
+```text
+1. secrets      -> generate JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY, others
+2. .env         -> cp .env.quality.example .env; edit; chmod 600
+3. start        -> docker compose -p nfa-quality up -d
+4. verify       -> docker compose ps; curl Kong health
+5. migrations   -> deploy/scripts/run-migrations.sh
+6. admin user   -> Studio + deploy/scripts/seed-admin.sql
+7. app env      -> /opt/enfa/app.env, then rebuild the app
 ```
-POSTGRES_PASSWORD=95453b...        (as-is)
-JWT_SECRET=9fa0091b...             (as-is)
-ANON_KEY=<the new anon JWT>
-SERVICE_ROLE_KEY=<the new service-role JWT>
-SECRET_KEY_BASE=18f8d863...
-VAULT_ENC_KEY=fd3c1999...
-API_EXTERNAL_URL=http://<SERVER_IP>:8001
-SUPABASE_PUBLIC_URL=http://<SERVER_IP>:8001
-SITE_URL=http://<SERVER_IP>:8081
+
+### Secret generation commands (included verbatim in the README)
+
+```bash
+openssl rand -hex 24                     # POSTGRES_PASSWORD
+openssl rand -hex 32                     # JWT_SECRET (40+ chars)
+openssl rand -hex 32                     # SECRET_KEY_BASE
+openssl rand -hex 16                     # VAULT_ENC_KEY
+openssl rand -hex 16                     # LOGFLARE tokens (x2)
+openssl rand -hex 32                     # middleware PROXY_SECRET
 ```
 
-`ANON_KEY` and `SERVICE_ROLE_KEY` must be signed with this exact `JWT_SECRET`, or every request returns "Invalid API key".
+ANON_KEY / SERVICE_ROLE_KEY are HS256 JWTs signed with that same `JWT_SECRET` — a small Python snippet (stdlib only, no pip installs) that prints both keys with `iss=supabase`, `ref=nfa-quality`, 10-year expiry, ready to paste into `.env`.
 
-### 2. App env — `/opt/enfa/app.env`
-Replace the cloud values entirely:
+## Notes
 
-```
-HOST=127.0.0.1
-PORT=3000
-NODE_ENV=production
-
-SUPABASE_URL=http://<SERVER_IP>:8001
-SUPABASE_PUBLISHABLE_KEY=<new ANON_KEY>
-SUPABASE_SERVICE_ROLE_KEY=<new SERVICE_ROLE_KEY>
-SUPABASE_PROJECT_ID=self-hosted-quality
-
-VITE_SUPABASE_URL=http://<SERVER_IP>:8001
-VITE_SUPABASE_PUBLISHABLE_KEY=<new ANON_KEY>
-VITE_SUPABASE_PROJECT_ID=self-hosted-quality
-```
-
-Notes:
-- `<SERVER_IP>` must be an address the **browser** can reach, not `127.0.0.1`.
-- Never put the service-role key in a `VITE_` variable.
-- `VITE_*` values are baked in at build time, so the app must be rebuilt after any change here, not just restarted.
-
-### 3. Middleware env — `/opt/enfa/middleware/.env`
-```
-PORT=3005
-PROXY_SECRET=<openssl rand -hex 32>
-ALLOW_IPS=
-TIMEOUT_MS=180000
-```
-Then enter the same `PROXY_SECRET` in the app under Admin -> SAP API Settings -> Middleware Configuration.
-
-### 4. Apply order
-1. `docker compose --env-file .env -f docker-compose.yml -f deploy/supabase/docker-compose-quality.yml up -d`
-2. `deploy/scripts/run-migrations.sh` against the local Postgres
-3. `deploy/scripts/seed-admin.sql` to grant the admin role to your login
-4. Build and restart the app: `set -a; . /opt/enfa/app.env; set +a; npm ci && npm run build`, then `systemctl restart enfa-app enfa-middleware`
-5. `sudo nginx -t && sudo systemctl reload nginx`
-
-## Repo change proposed
-Update `deploy/env/app.env.quality.example` and `deploy/README.md` so the project id reads `self-hosted-quality` and add an explicit warning that no `nhrwogdnwtkmbygwlrkv` / `*.supabase.co` value may remain in the quality env. No application code changes.
+- No application source code changes; everything lands under `deploy/`.
+- Images pinned to known-good tags so a later upstream change cannot break the quality server.
+- `.env` holds only placeholders in the repo — real secrets stay on the server.
