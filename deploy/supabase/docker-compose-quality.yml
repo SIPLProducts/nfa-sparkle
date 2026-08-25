@@ -207,11 +207,8 @@ services:
     container_name: nfa-quality-rest
     image: postgrest/postgrest:v14.8
     restart: unless-stopped
-    healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:3000/ready || exit 1
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    # NOTE: the postgrest image is minimal (no wget/curl), so it has no
+    # healthcheck. Dependents use `service_started` instead.
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
