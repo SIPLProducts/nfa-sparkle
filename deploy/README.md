@@ -244,8 +244,8 @@ git pull
 set -a; . /opt/enfa/app.env; set +a
 npm ci
 npm run build
-# new migrations, if any
-for f in supabase/migrations/*.sql; do PGPASSWORD='<pw>' psql -h 127.0.0.1 -U postgres -d postgres -f "$f"; done
+# new migrations, if any (defaults to quality port 54322)
+PGPASSWORD='<pw>' ./deploy/scripts/run-migrations.sh
 exit
 sudo systemctl restart enfa-app
 ```
