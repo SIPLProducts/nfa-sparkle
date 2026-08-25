@@ -1,6 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { createManagedUserForAdmin, type CreateManagedUserInput } from "@/lib/user-admin.server";
+
+interface CreateManagedUserInput {
+  USER_ID: string;
+  FIRST_NAME: string;
+  LAST_NAME: string;
+  EMAIL: string;
+  STATUS: string;
+  CONTACT: string;
+  PASSWORD: string;
+  CONFPWRD: string;
+  ROLE: string;
+  EMP_ID: string;
+  DEPT: string;
+}
 
 function json(data: unknown, status = 200) {
   return Response.json(data, {
@@ -62,6 +75,7 @@ export const Route = createFileRoute("/api/public/create-user")({
             return json({ ok: false, error: "Invalid create user payload" }, 400);
           }
 
+          const { createManagedUserForAdmin } = await import("@/lib/user-admin.server");
           const result = await createManagedUserForAdmin(
             { supabase, userId: userData.user.id },
             body as CreateManagedUserInput,
