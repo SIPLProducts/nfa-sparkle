@@ -247,101 +247,104 @@ async function applyRoles(db: any, userId: string, roles: RoleKey[]) {
   }
 }
 
+function parseRoleKeys(raw: string | undefined | null): RoleKey[] {
+  return (raw ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean);
+}
+
+export interface CreateUserPayload {
+  USER_ID: string;
+  FIRST_NAME: string;
+  LAST_NAME: string;
+  EMAIL: string;
+  STATUS: string;
+  CONTACT: string;
+  PASSWORD: string;
+  CONFPWRD: string;
+  ROLE: string;
+  EMP_ID: string;
+  DEPT: string;
+}
+
+export interface UpdateUserPayload extends Omit<CreateUserPayload, "PASSWORD" | "CONFPWRD"> {
+  ID: string;
+}
+
 export const createManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    email: string;
-    username: string;
-    password: string;
-    confirm_password: string;
-    first_name: string;
-    last_name: string;
-    employee_id?: string;
-    department?: string;
-    contact?: string;
-    status?: string;
-    roles: RoleKey[];
-  }) => {
-    if (!d.email?.trim()) throw new Error("Email is required");
-    d.username = normalizeUsername(d.username);
-    d.contact = normalizeContact(d.contact);
-    d.status = normalizeStatus(d.status);
-    if (!d.password || d.password.length < 8 || d.password.length > 10) {
+  .inputValidator((d: CreateUserPayload) => {
+    if (!d.EMAIL?.trim()) throw new Error("Email is required");
+    d.USER_ID = normalizeUsername(d.USER_ID);
+    d.CONTACT = normalizeContact(d.CONTACT);
+    d.STATUS = normalizeStatus(d.STATUS);
+    if (!d.PASSWORD || d.PASSWORD.length < 8 || d.PASSWORD.length > 10) {
       throw new Error("Password must be 8-10 characters");
     }
-    if (d.password !== d.confirm_password) throw new Error("Passwords do not match");
-    if (!d.first_name?.trim()) throw new Error("First name is required");
-    if (!d.last_name?.trim()) throw new Error("Last name is required");
-    if (!d.roles?.length) throw new Error("Select at least one role");
+    if (d.PASSWORD !== d.CONFPWRD) throw new Error("Passwords do not match");
+    if (!d.FIRST_NAME?.trim()) throw new Error("First name is required");
+    if (!d.LAST_NAME?.trim()) throw new Error("Last name is required");
+    if (!parseRoleKeys(d.ROLE).length) throw new Error("Select at least one role");
     return d;
   })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const db = await admin();
-    await assertUsernameFree(db, data.username);
-    const firstName = data.first_name.trim();
-    const lastName = data.last_name.trim();
+    await assertUsernameFree(db, data.USER_ID);
+    const firstName = data.FIRST_NAME.trim();
+    const lastName = data.LAST_NAME.trim();
     const fullName = `${firstName} ${lastName}`;
+    const email = data.EMAIL.trim().toLowerCase();
     const { data: created, error } = await db.auth.admin.createUser({
-      email: data.email.trim().toLowerCase(),
-      password: data.password,
+      email,
+      password: data.PASSWORD,
       email_confirm: true,
       user_metadata: { full_name: fullName },
     });
     if (error) throw new Error(error.message);
     const id = created.user.id;
-    await db
-      .from("profiles")
-      .upsert({
-        id,
-        email: data.email.trim().toLowerCase(),
-        full_name: fullName,
-        first_name: firstName,
-        last_name: lastName,
-        username: data.username,
-        employee_id: data.employee_id?.trim() || null,
-        department: data.department?.trim() || null,
-        contact: data.contact || null,
-        status: data.status ?? "ACTIVE",
-        is_active: (data.status ?? "ACTIVE") === "ACTIVE",
-      });
-    if ((data.status ?? "ACTIVE") !== "ACTIVE") {
+    await db.from("profiles").upsert({
+      id,
+      email,
+      full_name: fullName,
+      first_name: firstName,
+      last_name: lastName,
+      username: data.USER_ID,
+      employee_id: data.EMP_ID?.trim() || null,
+      department: data.DEPT?.trim() || null,
+      contact: data.CONTACT || null,
+      status: data.STATUS,
+      is_active: data.STATUS === "ACTIVE",
+    });
+    if (data.STATUS !== "ACTIVE") {
       await db.auth.admin.updateUserById(id, { ban_duration: "876000h" });
     }
-    await applyRoles(db, id, data.roles);
+    await applyRoles(db, id, parseRoleKeys(data.ROLE));
     return { id };
   });
 
 export const updateManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    username: string;
-    employee_id?: string;
-    department?: string;
-    contact?: string;
-    status?: string;
-    roles: RoleKey[];
-  }) => {
-    if (!d.first_name?.trim()) throw new Error("First name is required");
-    if (!d.last_name?.trim()) throw new Error("Last name is required");
-    d.username = normalizeUsername(d.username);
-    d.contact = normalizeContact(d.contact);
-    d.status = normalizeStatus(d.status);
-    if (!d.roles?.length) throw new Error("Select at least one role");
+  .inputValidator((d: UpdateUserPayload) => {
+    if (!d.FIRST_NAME?.trim()) throw new Error("First name is required");
+    if (!d.LAST_NAME?.trim()) throw new Error("Last name is required");
+    d.USER_ID = normalizeUsername(d.USER_ID);
+    d.CONTACT = normalizeContact(d.CONTACT);
+    d.STATUS = normalizeStatus(d.STATUS);
+    if (!parseRoleKeys(d.ROLE).length) throw new Error("Select at least one role");
     return d;
   })
   .handler(async ({ data, context }) => {
     await assertAdmin(context as any);
     const db = await admin();
-    if (data.id === context.userId && !data.roles.includes("admin")) {
+    const roles = parseRoleKeys(data.ROLE);
+    if (data.ID === context.userId && !roles.includes("admin")) {
       throw new Error("You cannot remove your own admin role");
     }
-    await assertUsernameFree(db, data.username, data.id);
-    const firstName = data.first_name.trim();
-    const lastName = data.last_name.trim();
+    await assertUsernameFree(db, data.USER_ID, data.ID);
+    const firstName = data.FIRST_NAME.trim();
+    const lastName = data.LAST_NAME.trim();
     const fullName = `${firstName} ${lastName}`;
     await db
       .from("profiles")
@@ -349,21 +352,22 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         full_name: fullName,
         first_name: firstName,
         last_name: lastName,
-        username: data.username,
-        employee_id: data.employee_id?.trim() || null,
-        department: data.department?.trim() || null,
-        contact: data.contact || null,
-        status: data.status ?? "ACTIVE",
-        is_active: (data.status ?? "ACTIVE") === "ACTIVE",
+        username: data.USER_ID,
+        employee_id: data.EMP_ID?.trim() || null,
+        department: data.DEPT?.trim() || null,
+        contact: data.CONTACT || null,
+        status: data.STATUS,
+        is_active: data.STATUS === "ACTIVE",
       })
-      .eq("id", data.id);
-    await db.auth.admin.updateUserById(data.id, {
+      .eq("id", data.ID);
+    await db.auth.admin.updateUserById(data.ID, {
       user_metadata: { full_name: fullName },
-      ban_duration: (data.status ?? "ACTIVE") === "ACTIVE" ? "none" : "876000h",
+      ban_duration: data.STATUS === "ACTIVE" ? "none" : "876000h",
     });
-    await applyRoles(db, data.id, data.roles);
+    await applyRoles(db, data.ID, roles);
     return { ok: true };
   });
+
 
 export const resetManagedUserPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

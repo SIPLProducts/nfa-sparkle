@@ -1,7 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveLoginId } from "@/lib/auth-login.functions";
 import { ensureDemoUser } from "@/lib/demo-user.functions";
+
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +25,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
+  const resolveLogin = useServerFn(resolveLoginId);
+
 
   useEffect(() => {
     if (!loading && user) nav({ to: "/", replace: true });
@@ -31,21 +36,24 @@ function AuthPage() {
     setBusy(true);
     try {
       const login = email.trim();
-      let loginEmail = login;
-      if (login && !login.includes("@")) {
-        const { data } = await supabase.rpc("resolve_login_email", { _login: login });
-        loginEmail = (data as string | null) ?? "";
+      if (!login) {
+        toast.error("Enter your User ID or Email");
+        return;
       }
-      if (!loginEmail) {
+      const { EMAIL } = await resolveLogin({ data: { LOGIN_ID: login } });
+      if (!EMAIL) {
         toast.error("Invalid login credentials");
         return;
       }
-      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: pwd });
+      const { error } = await supabase.auth.signInWithPassword({ email: EMAIL, password: pwd });
       if (error) toast.error(error.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Sign-in failed");
     } finally {
       setBusy(false);
     }
   }
+
 
   async function signInDemo() {
     setBusy(true);

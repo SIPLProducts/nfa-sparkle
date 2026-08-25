@@ -53,7 +53,10 @@ import {
   setManagedUserActive,
   updateManagedUser,
   updateRoleDef,
+  type CreateUserPayload,
+  type UpdateUserPayload,
   type ManagedUser,
+
   type RoleDef,
   type RolePermissionRow,
 } from "@/lib/user-admin.functions";
@@ -354,19 +357,8 @@ function CreateUserDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: {
-    email: string;
-    username: string;
-    password: string;
-    confirm_password: string;
-    first_name: string;
-    last_name: string;
-    employee_id: string;
-    department: string;
-    contact: string;
-    status: string;
-    roles: Role[];
-  }) => Promise<void>;
+  onSubmit: (v: CreateUserPayload) => Promise<void>;
+
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -409,18 +401,19 @@ function CreateUserDialog({
     setBusy(true);
     try {
       await onSubmit({
-        email,
-        username,
-        password,
-        confirm_password: confirmPassword,
-        first_name: firstName,
-        last_name: lastName,
-        employee_id: employeeId,
-        department,
-        contact,
-        status,
-        roles,
+        USER_ID: username,
+        FIRST_NAME: firstName,
+        LAST_NAME: lastName,
+        EMAIL: email,
+        STATUS: status,
+        CONTACT: contact,
+        PASSWORD: password,
+        CONFPWRD: confirmPassword,
+        ROLE: roles.join(","),
+        EMP_ID: employeeId,
+        DEPT: department,
       });
+
       onOpenChange(false);
     } catch (e) {
       toast.error(errMsg(e));
@@ -576,17 +569,8 @@ function EditUserDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onSubmit: (v: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    username: string;
-    employee_id: string;
-    department: string;
-    contact: string;
-    status: string;
-    roles: Role[];
-  }) => Promise<void>;
+  onSubmit: (v: UpdateUserPayload) => Promise<void>;
+
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -616,16 +600,18 @@ function EditUserDialog({
     setBusy(true);
     try {
       await onSubmit({
-        id: user.id,
-        first_name: firstName,
-        last_name: lastName,
-        username,
-        employee_id: employeeId,
-        department,
-        contact,
-        status,
-        roles,
+        ID: user.id,
+        USER_ID: username,
+        FIRST_NAME: firstName,
+        LAST_NAME: lastName,
+        EMAIL: user.email,
+        STATUS: status,
+        CONTACT: contact,
+        ROLE: roles.join(","),
+        EMP_ID: employeeId,
+        DEPT: department,
       });
+
       onClose();
     } catch (e) {
       toast.error(errMsg(e));
