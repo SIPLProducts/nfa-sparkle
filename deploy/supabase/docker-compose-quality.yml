@@ -95,7 +95,7 @@ services:
     container_name: nfa-quality-kong
     image: kong/kong:3.9.1
     restart: unless-stopped
-    entrypoint: ["bash", "-c", "kong migrations bootstrap --force || true; kong start"]
+    entrypoint: ["bash", "-c", "kong start"]
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
