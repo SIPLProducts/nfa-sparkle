@@ -48,26 +48,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    let cancelled = false;
+
+    async function bootstrap(s: Session | null) {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        setTimeout(() => {
-          void loadRoles(s.user.id);
-        }, 0);
+        await loadRoles(s.user.id);
       } else {
         setRoles([]);
       }
+      if (!cancelled) setLoading(false);
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setLoading(true);
+      void bootstrap(s);
     });
+
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-      if (data.session?.user) {
-        void loadRoles(data.session.user.id);
-      }
+      void bootstrap(data.session);
     });
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const value: AuthCtx = {
