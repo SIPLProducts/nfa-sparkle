@@ -355,9 +355,11 @@ export type Database = {
           department: string | null
           email: string | null
           employee_id: string | null
+          first_name: string | null
           full_name: string | null
           id: string
           is_active: boolean
+          last_name: string | null
           username: string | null
         }
         Insert: {
@@ -365,9 +367,11 @@ export type Database = {
           department?: string | null
           email?: string | null
           employee_id?: string | null
+          first_name?: string | null
           full_name?: string | null
           id: string
           is_active?: boolean
+          last_name?: string | null
           username?: string | null
         }
         Update: {
@@ -375,9 +379,11 @@ export type Database = {
           department?: string | null
           email?: string | null
           employee_id?: string | null
+          first_name?: string | null
           full_name?: string | null
           id?: string
           is_active?: boolean
+          last_name?: string | null
           username?: string | null
         }
         Relationships: []

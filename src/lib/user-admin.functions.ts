@@ -23,6 +23,8 @@ export interface ManagedUser {
   email: string;
   username: string | null;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   employee_id: string | null;
   department: string | null;
   roles: RoleKey[];
@@ -181,7 +183,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, email, is_active, username, employee_id, department").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, department").in("id", ids),
       db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
@@ -202,6 +204,8 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           email: u.email ?? p?.email ?? "",
           username: p?.username ?? null,
           full_name: p?.full_name ?? (u.user_metadata?.full_name as string) ?? "",
+          first_name: p?.first_name ?? null,
+          last_name: p?.last_name ?? null,
           employee_id: p?.employee_id ?? null,
           department: p?.department ?? null,
           roles: rmap.get(u.id) ?? [],
@@ -232,7 +236,9 @@ export const createManagedUser = createServerFn({ method: "POST" })
     email: string;
     username: string;
     password: string;
-    full_name: string;
+    confirm_password: string;
+    first_name: string;
+    last_name: string;
     employee_id?: string;
     department?: string;
     roles: RoleKey[];
@@ -240,7 +246,9 @@ export const createManagedUser = createServerFn({ method: "POST" })
     if (!d.email?.trim()) throw new Error("Email is required");
     d.username = normalizeUsername(d.username);
     if (!d.password || d.password.length < 8) throw new Error("Password must be at least 8 characters");
-    if (!d.full_name?.trim()) throw new Error("Full name is required");
+    if (d.password !== d.confirm_password) throw new Error("Passwords do not match");
+    if (!d.first_name?.trim()) throw new Error("First name is required");
+    if (!d.last_name?.trim()) throw new Error("Last name is required");
     if (!d.roles?.length) throw new Error("Select at least one role");
     return d;
   })
@@ -248,11 +256,14 @@ export const createManagedUser = createServerFn({ method: "POST" })
     await assertAdmin(context as any);
     const db = await admin();
     await assertUsernameFree(db, data.username);
+    const firstName = data.first_name.trim();
+    const lastName = data.last_name.trim();
+    const fullName = `${firstName} ${lastName}`;
     const { data: created, error } = await db.auth.admin.createUser({
       email: data.email.trim().toLowerCase(),
       password: data.password,
       email_confirm: true,
-      user_metadata: { full_name: data.full_name.trim() },
+      user_metadata: { full_name: fullName },
     });
     if (error) throw new Error(error.message);
     const id = created.user.id;
@@ -261,7 +272,9 @@ export const createManagedUser = createServerFn({ method: "POST" })
       .upsert({
         id,
         email: data.email.trim().toLowerCase(),
-        full_name: data.full_name.trim(),
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         username: data.username,
         employee_id: data.employee_id?.trim() || null,
         department: data.department?.trim() || null,
@@ -274,13 +287,15 @@ export const updateManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: {
     id: string;
-    full_name: string;
+    first_name: string;
+    last_name: string;
     username: string;
     employee_id?: string;
     department?: string;
     roles: RoleKey[];
   }) => {
-    if (!d.full_name?.trim()) throw new Error("Full name is required");
+    if (!d.first_name?.trim()) throw new Error("First name is required");
+    if (!d.last_name?.trim()) throw new Error("Last name is required");
     d.username = normalizeUsername(d.username);
     if (!d.roles?.length) throw new Error("Select at least one role");
     return d;
@@ -292,16 +307,21 @@ export const updateManagedUser = createServerFn({ method: "POST" })
       throw new Error("You cannot remove your own admin role");
     }
     await assertUsernameFree(db, data.username, data.id);
+    const firstName = data.first_name.trim();
+    const lastName = data.last_name.trim();
+    const fullName = `${firstName} ${lastName}`;
     await db
       .from("profiles")
       .update({
-        full_name: data.full_name.trim(),
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         username: data.username,
         employee_id: data.employee_id?.trim() || null,
         department: data.department?.trim() || null,
       })
       .eq("id", data.id);
-    await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: data.full_name.trim() } });
+    await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: fullName } });
     await applyRoles(db, data.id, data.roles);
     return { ok: true };
   });

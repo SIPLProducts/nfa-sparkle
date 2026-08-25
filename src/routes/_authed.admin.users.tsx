@@ -16,6 +16,8 @@ import {
   Save,
   Trash2,
   Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
@@ -354,41 +356,57 @@ function CreateUserDialog({
     email: string;
     username: string;
     password: string;
-    full_name: string;
+    confirm_password: string;
+    first_name: string;
+    last_name: string;
     employee_id: string;
     department: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [roles, setRoles] = useState<Role[]>(["initiator"]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setFullName("");
+      setFirstName("");
+      setLastName("");
       setUsername("");
       setEmployeeId("");
       setDepartment("");
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setRoles(["initiator"]);
     }
   }, [open]);
 
   const submit = async () => {
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
     setBusy(true);
     try {
       await onSubmit({
         email,
         username,
         password,
-        full_name: fullName,
+        confirm_password: confirmPassword,
+        first_name: firstName,
+        last_name: lastName,
         employee_id: employeeId,
         department,
         roles,
@@ -410,8 +428,12 @@ function CreateUserDialog({
         </DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
-            <Label>Full name *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" />
+            <Label>First name *</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Last name *</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" />
           </div>
           <div className="space-y-1.5">
             <Label>User ID *</Label>
@@ -452,12 +474,43 @@ function CreateUserDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Password *</Label>
-            <Input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Minimum 8 characters"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirm password *</Label>
+            <div className="relative">
+              <Input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Roles *</Label>
@@ -486,14 +539,16 @@ function EditUserDialog({
   onClose: () => void;
   onSubmit: (v: {
     id: string;
-    full_name: string;
+    first_name: string;
+    last_name: string;
     username: string;
     employee_id: string;
     department: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [department, setDepartment] = useState("");
@@ -502,7 +557,8 @@ function EditUserDialog({
 
   useEffect(() => {
     if (user) {
-      setFullName(user.full_name);
+      setFirstName(user.first_name ?? "");
+      setLastName(user.last_name ?? "");
       setUsername(user.username ?? "");
       setEmployeeId(user.employee_id ?? "");
       setDepartment(user.department ?? "");
@@ -516,7 +572,8 @@ function EditUserDialog({
     try {
       await onSubmit({
         id: user.id,
-        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         username,
         employee_id: employeeId,
         department,
@@ -539,8 +596,12 @@ function EditUserDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Full name *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <Label>First name *</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Last name *</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>User ID *</Label>
