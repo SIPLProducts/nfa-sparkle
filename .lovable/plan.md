@@ -1,116 +1,153 @@
-# Exact changes: frontend .env, nginx, backend
+# Start the missing application server on port 3000
 
-## 1. Frontend/app `.env` changes
-
-Your current file is missing values the server side needs, and it is missing the app server port settings.
-
-Keep as-is (these are correct, because nginx on 8081 proxies `/auth/v1` and `/rest/v1` to 8001):
+## Confirmed status
 
 ```text
-SUPABASE_PROJECT_ID="self-hosted-quality"
-VITE_SUPABASE_PROJECT_ID="self-hosted-quality"
-SUPABASE_URL="http://10.200.1.7:8081"
-VITE_SUPABASE_URL="http://10.200.1.7:8081"
-VITE_SUPABASE_PUBLISHABLE_KEY="<quality ANON_KEY>"
-SUPABASE_PUBLISHABLE_KEY="<quality ANON_KEY>"
+127.0.0.1:3000/auth -> connection refused
+10.200.1.7:8081/auth/v1/health -> 200 OK
+nginx -t -> successful
 ```
 
-Add these missing lines:
+Therefore:
+
+- Backend authentication is running correctly.
+- nginx is valid and can reach the auth backend.
+- The **TanStack Node application server is not running**.
+- `/_serverFn/*` login requests and `/api/public/create-user` cannot work until port 3000 is online.
+
+This is the direct cause of the current User ID login/Create User failure. It is not caused by SAP or a missing role.
+
+## 1. Complete the backend `.env`
+
+In:
+
+```text
+/opt/Ramky_Applications/NFA-Approval/Quality/backend/.env
+```
+
+ensure these exist:
 
 ```text
 HOST=127.0.0.1
 PORT=3000
 NODE_ENV=production
-SUPABASE_SERVICE_ROLE_KEY="<quality SERVICE_ROLE_KEY>"
+
+SUPABASE_URL=http://10.200.1.7:8081
+SUPABASE_PUBLISHABLE_KEY=<quality ANON_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<quality SERVICE_ROLE_KEY>
+SUPABASE_PROJECT_ID=self-hosted-quality
+
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+VITE_SUPABASE_PUBLISHABLE_KEY=<same quality ANON_KEY>
+VITE_SUPABASE_PROJECT_ID=self-hosted-quality
 ```
 
-Why the service role key is required:
+Do not put the service role key in a `VITE_` variable.
 
-- `resolveLoginId` (User ID login) uses the privileged client to map User ID to email.
-- `/api/public/create-user` uses it to create the auth account and write profile and role rows.
+Using 8081 here is valid with your current nginx because `/auth/v1`, `/rest/v1`, `/storage/v1`, and `/realtime/v1` are proxied from 8081 to the backend on 8001.
 
-Without it, User-ID login fails and Create User fails.
-
-Two checks on the keys themselves:
-
-- `ANON_KEY` and `SERVICE_ROLE_KEY` must both be generated from the quality stack's own `JWT_SECRET`.
-- The `ref` inside the token is irrelevant for self-hosted; the signature is what matters.
-
-Never expose the service role key with a `VITE_` prefix.
-
-## 2. nginx changes
-
-Your latest config is structurally correct. Only add resilience settings.
-
-In the `/_serverFn/` and `/api/public/` blocks add:
-
-```nginx
-proxy_connect_timeout  30s;
-proxy_send_timeout    200s;
-proxy_read_timeout    200s;
-proxy_buffering off;
-```
-
-In the `/rest/v1` and `/storage/v1` blocks add:
-
-```nginx
-client_max_body_size 50m;
-proxy_read_timeout 120s;
-```
-
-Leave ordering unchanged. `/api/public/` correctly takes priority over `/api/` because nginx prefers the longer prefix.
-
-No other nginx changes are needed.
-
-## 3. Backend/server-side changes
-
-- Ensure the built app server actually runs on `127.0.0.1:3000` (PM2 or systemd). If nothing listens there, `/_serverFn/` returns 502 and login fails.
-- Ensure the static build output is deployed to `/opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist`.
-- Rebuild after any `VITE_*` change:
+## 2. Build the server bundle
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-set -a; . ./.env; set +a
+set -a
+. ./.env
+set +a
 npm ci
 npm run build
+ls -l .output/server/server.js dist/index.html
 ```
 
-- Restart the app process, then `sudo nginx -t && sudo systemctl reload nginx`.
+Both files must exist.
 
-## 4. Application code change
+## 3. Start the app with systemd
 
-Update `src/lib/auth-context.tsx` so `role_permission` is loaded only after a session exists, and reloaded when the signed-in user changes. Currently it is requested on the login page with no session, which produces the `401 Unauthorized` you saw and can leave permissions empty after sign-in.
+Create `/etc/systemd/system/enfa-app.service` using the actual server path:
 
-No other application logic changes.
+```ini
+[Unit]
+Description=eNFA Portal TanStack Server
+After=network-online.target docker.service
+Wants=network-online.target
 
-## 5. User creation on the server
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Ramky_Applications/NFA-Approval/Quality/backend
+EnvironmentFile=/opt/Ramky_Applications/NFA-Approval/Quality/backend/.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/bin/node .output/server/server.js
+Restart=always
+RestartSec=5
 
-Users must be created from **User Management → Create user**, which writes:
-
-```text
-auth.users                  login account
-public.profiles             User ID, name, contact, dept, status
-public.user_roles           built-in roles
-public.user_role_assignment custom roles
+[Install]
+WantedBy=multi-user.target
 ```
 
-A user added only through the Authentication → Users screen has no User ID and no role, so User-ID login and screen access will not work.
+Then run:
 
-If the server has no admin yet, grant `admin` in `public.user_roles` for one existing auth user, then manage everyone else through User Management.
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now enfa-app
+sudo systemctl status enfa-app --no-pager
+sudo journalctl -u enfa-app -n 100 --no-pager
+```
 
-## 6. Verification
+For production hardening, this can later run under a dedicated `enfa` user. Using `root` here matches the current deployment ownership and avoids a path-permission failure while restoring service.
+
+## 4. Verify port 3000 and nginx
 
 ```bash
 curl -i http://127.0.0.1:3000/auth
-curl -i http://10.200.1.7:8081/auth/v1/health
+curl -i http://10.200.1.7:8081/_serverFn/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-In DevTools after hard refresh:
+The first request must return an HTTP response rather than `connection refused`. The second may return 404/405 without a specific server-function ID, but it must no longer be an nginx static-file response or 502.
+
+## 5. Deploy frontend files
+
+Your nginx root is:
 
 ```text
-POST /_serverFn/...           -> 200 (not 405/502)
-POST /auth/v1/token?...       -> 200
-GET  /rest/v1/user_roles?...  -> 200 with a role row
-GET  /rest/v1/role_permission -> 200 only after sign-in
+/opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist
+```
+
+After build, sync the generated static output there:
+
+```bash
+sudo mkdir -p /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist
+sudo rsync -a --delete dist/ /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/
+sudo systemctl reload nginx
+```
+
+## 6. Application code adjustment
+
+Update `src/lib/auth-context.tsx` so `role_permission` is requested only after a valid session exists and reloaded when the signed-in user changes. This removes the anonymous `401 Unauthorized` request seen on the login page.
+
+## 7. User creation and tables
+
+After the server starts, create users through **User Management → Create user**. It writes all required records:
+
+```text
+auth.users                  email/password login
+public.profiles             User ID and profile details
+public.user_roles           built-in role assignment
+public.user_role_assignment custom role assignment
+```
+
+Creating a user only in the Authentication screen does not create the complete User Management record.
+
+## Final browser verification
+
+After a hard refresh:
+
+```text
+POST /_serverFn/...                 -> 200
+POST /auth/v1/token?...             -> 200
+POST /api/public/create-user        -> 200 when admin creates a user
+GET  /rest/v1/user_roles?...        -> 200 with assigned role
+GET  /rest/v1/role_permission?...   -> 200 after sign-in
 ```
