@@ -192,6 +192,7 @@ function UsersTab() {
         (u.username ?? "").toLowerCase().includes(term) ||
         (u.employee_id ?? "").toLowerCase().includes(term) ||
         (u.department ?? "").toLowerCase().includes(term) ||
+        (u.contact ?? "").toLowerCase().includes(term) ||
         (u.full_name ?? "").toLowerCase().includes(term),
     );
   }, [data, q]);
@@ -252,9 +253,9 @@ function UsersTab() {
                       <div className="font-medium">{u.full_name || "—"}</div>
                       <div className="text-xs font-medium text-primary">{u.username ?? "—"}</div>
                       <div className="text-xs text-muted-foreground">{u.email}</div>
-                      {(u.employee_id || u.department) && (
+                      {(u.employee_id || u.department || u.contact) && (
                         <div className="text-xs text-muted-foreground">
-                          {[u.employee_id, u.department].filter(Boolean).join(" · ")}
+                          {[u.employee_id, u.department, u.contact].filter(Boolean).join(" · ")}
                         </div>
                       )}
                     </td>
@@ -361,6 +362,8 @@ function CreateUserDialog({
     last_name: string;
     employee_id: string;
     department: string;
+    contact: string;
+    status: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
@@ -369,6 +372,8 @@ function CreateUserDialog({
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [department, setDepartment] = useState("");
+  const [contact, setContact] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -384,6 +389,8 @@ function CreateUserDialog({
       setUsername("");
       setEmployeeId("");
       setDepartment("");
+      setContact("");
+      setStatus("ACTIVE");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
@@ -409,6 +416,8 @@ function CreateUserDialog({
         last_name: lastName,
         employee_id: employeeId,
         department,
+        contact,
+        status,
         roles,
       });
       onOpenChange(false);
@@ -428,40 +437,25 @@ function CreateUserDialog({
         </DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
-            <Label>First name *</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Last name *</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" />
-          </div>
-          <div className="space-y-1.5">
             <Label>User ID *</Label>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="jane.doe"
+              placeholder="SHARVI_RSSPL"
+              maxLength={12}
               autoComplete="off"
             />
-            <p className="text-xs text-muted-foreground">Used to sign in. Letters, numbers, dot, underscore or hyphen.</p>
+            <p className="text-xs text-muted-foreground">
+              Used to sign in. Up to 12 characters: letters, numbers, dot, underscore or hyphen.
+            </p>
           </div>
           <div className="space-y-1.5">
-            <Label>Employee ID</Label>
-            <Input
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              placeholder="EMP-1024"
-              autoComplete="off"
-            />
+            <Label>First name *</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="SAI" />
           </div>
           <div className="space-y-1.5">
-            <Label>Department</Label>
-            <Input
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="Projects"
-              autoComplete="off"
-            />
+            <Label>Last name *</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="SAMPATH" />
           </div>
           <div className="space-y-1.5">
             <Label>Email *</Label>
@@ -472,6 +466,50 @@ function CreateUserDialog({
               placeholder="jane@company.com"
             />
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Contact *</Label>
+              <Input
+                value={contact}
+                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="9876543212"
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status *</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Employee ID</Label>
+              <Input
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="EMP-1024"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Input
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="Projects"
+                autoComplete="off"
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label>Password *</Label>
             <div className="relative">
@@ -479,7 +517,7 @@ function CreateUserDialog({
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 8 characters"
+                placeholder="8-10 characters"
                 className="pr-10"
               />
               <button
@@ -544,6 +582,8 @@ function EditUserDialog({
     username: string;
     employee_id: string;
     department: string;
+    contact: string;
+    status: string;
     roles: Role[];
   }) => Promise<void>;
 }) {
@@ -552,6 +592,8 @@ function EditUserDialog({
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [department, setDepartment] = useState("");
+  const [contact, setContact] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
   const [roles, setRoles] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -562,6 +604,8 @@ function EditUserDialog({
       setUsername(user.username ?? "");
       setEmployeeId(user.employee_id ?? "");
       setDepartment(user.department ?? "");
+      setContact(user.contact ?? "");
+      setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
       setRoles(user.roles);
     }
   }, [user]);
@@ -577,6 +621,8 @@ function EditUserDialog({
         username,
         employee_id: employeeId,
         department,
+        contact,
+        status,
         roles,
       });
       onClose();
@@ -615,6 +661,29 @@ function EditUserDialog({
             <div className="space-y-1.5">
               <Label>Department</Label>
               <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Contact *</Label>
+              <Input
+                value={contact}
+                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status *</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-1.5">
