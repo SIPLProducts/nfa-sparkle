@@ -1,0 +1,3 @@
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS contact text,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'ACTIVE';

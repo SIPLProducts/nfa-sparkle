@@ -351,6 +351,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          contact: string | null
           created_at: string
           department: string | null
           email: string | null
@@ -360,9 +361,11 @@ export type Database = {
           id: string
           is_active: boolean
           last_name: string | null
+          status: string
           username: string | null
         }
         Insert: {
+          contact?: string | null
           created_at?: string
           department?: string | null
           email?: string | null
@@ -372,9 +375,11 @@ export type Database = {
           id: string
           is_active?: boolean
           last_name?: string | null
+          status?: string
           username?: string | null
         }
         Update: {
+          contact?: string | null
           created_at?: string
           department?: string | null
           email?: string | null
@@ -384,6 +389,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string | null
+          status?: string
           username?: string | null
         }
         Relationships: []
