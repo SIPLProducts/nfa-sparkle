@@ -1,28 +1,28 @@
 # Make `npm run build` produce a `dist/` folder
 
-Right now `npm run build` writes `.output/` in a Cloudflare/wrangler layout. After this change, `npm run build` writes a single `dist/` folder containing `index.html`, `assets/`, `favicon.png`, `manifest.webmanifest`, `sw.js`, `robots.txt`, etc. — exactly the folder listing you shared. You copy that folder to the server and point nginx at it. No second script, no extra output folder.
+Goal: one command, one output folder. After this change `npm run build` writes `dist/` containing `index.html`, hashed `assets/`, and everything from `public/` copied as-is (`favicon.png`, `manifest.webmanifest`, `templates/`, `robots.txt`, `sitemap.xml`, `sw.js`, `ramky-logo.png`) — exactly the listing in your screenshot. Copy that folder to the server, point nginx at it, done.
 
 ## What will change
 
 1. **`vite.config.ts`**
-   - Turn on SPA mode so a static `index.html` shell is generated instead of per-request server HTML.
-   - Set the build output directory to `dist/`, so client JS/CSS land in `dist/assets/` and everything in `public/` is copied to the root of `dist/`.
+   - Enable SPA mode so a static `index.html` shell is emitted instead of server-rendered HTML per request.
+   - Set the client build output to `dist/`.
+   - The React plugin, the `@/` → `./src` alias, Tailwind, and asset hashing are already provided by the shared Lovable Vite config, so they don't need to be re-added (adding them again breaks the build with duplicate plugins).
 
 2. **`package.json`**
-   - `npm run build` stays the only build command; it now produces `dist/`. `.output/` is no longer created.
+   - `npm run build` remains the single build command and now emits `dist/` instead of the `.output/` wrangler layout.
 
-3. **nginx (`deploy/nginx/nfa-quality.conf`)**
-   - Port 8081 serves the copied `dist/` folder directly: `root /opt/enfa/frontend; try_files $uri /index.html;`
-   - The dynamic paths the app calls (`/_serverFn/*`, `/api/*`) keep proxying to the Node process on `127.0.0.1:3000`, since SAP calls and admin APIs run there.
+3. **`deploy/nginx/nfa-quality.conf`**
+   - Port 8081 serves the copied folder: `root /opt/enfa/frontend; try_files $uri /index.html;`
+   - `/_serverFn/*` and `/api/*` keep proxying to the Node service on `127.0.0.1:3000`.
 
-4. **Docs**
-   - `deploy/README.md` updated: build → copy `dist/` to `/opt/enfa/frontend` → reload nginx.
+4. **`deploy/README.md`**
+   - Steps: `npm run build` → copy `dist/` to `/opt/enfa/frontend` → `nginx -s reload`.
 
 ## One thing to be aware of
 
-`dist/` is only the frontend. The SAP integration, login-protected data and `/api/public/*` endpoints are server code — they cannot run from static files. So the existing Node service (`enfa-app`) stays running exactly as it does today; nginx just serves the HTML/JS from `dist/` instead of asking Node for it. Nothing new to install.
+`dist/` is only the frontend. SAP calls, login-protected data and `/api/public/*` are server code and can't run from static files, so the existing Node service keeps running as today — nginx just serves HTML/JS from `dist/` instead of asking Node for it. Nothing new to install.
 
-## Technical details
+## Verification
 
-- `vite.config.ts`: enable `tanstackStart.spa`, and override the client build `outDir` to `dist`.
-- Verify after the change that `dist/index.html`, `dist/assets/*`, and the copied `public/` files exist and the app loads from the built folder.
+After the change, confirm `dist/index.html`, hashed files under `dist/assets/`, and all copied `public/` files exist, and that the built folder loads the app.
