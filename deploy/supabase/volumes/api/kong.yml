@@ -1,0 +1,135 @@
+_format_version: "3.0"
+_transform: true
+
+### Consumers / API keys
+# The ANON_KEY and SERVICE_ROLE_KEY values are injected by the compose file
+# as environment variables. They are HS256 JWTs and also act as Kong key-auth
+# credentials.
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: ${ANON_KEY}
+  - username: service_role
+    keyauth_credentials:
+      - key: ${SERVICE_ROLE_KEY}
+
+### Global plugins
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - apikey
+        - authorization
+        - content-type
+        - x-client-info
+        - x-supabase-api-version
+      exposed_headers:
+        - "*"
+      max_age: 7200
+      credentials: true
+
+### Upstream services
+services:
+  - name: auth-v1
+    _comment: "GoTrue: /auth/v1"
+    url: http://nfa-quality-auth:9999
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1
+    plugins:
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:http"
+
+  - name: rest-v1
+    _comment: "PostgREST: /rest/v1"
+    url: http://nfa-quality-rest:3000
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: true
+          key_names:
+            - apikey
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:http"
+
+  - name: realtime-v1
+    _comment: "Realtime: /realtime/v1"
+    url: http://nfa-quality-realtime:4000
+    routes:
+      - name: realtime-v1-all
+        strip_path: true
+        paths:
+          - /realtime/v1
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: true
+          key_names:
+            - apikey
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:http"
+
+  - name: storage-v1
+    _comment: "Storage API: /storage/v1"
+    url: http://nfa-quality-storage:5000
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: true
+          key_names:
+            - apikey
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:http"
+
+  - name: pg-meta
+    _comment: "Postgres Meta: /pg"
+    url: http://nfa-quality-meta:8080
+    routes:
+      - name: pg-meta-all
+        strip_path: true
+        paths:
+          - /pg
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: true
+          key_names:
+            - apikey
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:http"

@@ -22,7 +22,9 @@ Directory layout used throughout: `/opt/enfa/app`, `/opt/enfa/middleware`,
 | File in this repo | Install to | Purpose |
 | ----------------- | ---------- | ------- |
 | `deploy/nginx/nfa-quality.conf` | `/etc/nginx/sites-available/nfa-quality.conf` (symlink into `sites-enabled`) | self-contained nginx config with upstreams for all four vhosts: 8081, 8001, 8082, 3004 |
-| `deploy/supabase/docker-compose-quality.yml` | `/opt/enfa/supabase/docker-compose-quality.yml` | compose override: containers bound to 127.0.0.1, restart policies |
+| `deploy/supabase/docker-compose-quality.yml` | `/opt/enfa/supabase/docker-compose-quality.yml` | **standalone** Supabase stack, no upstream repo needed |
+| `deploy/supabase/volumes/api/kong.yml` | `/opt/enfa/supabase/volumes/api/kong.yml` | Kong declarative routes |
+| `deploy/supabase/volumes/logs/vector.yml` | `/opt/enfa/supabase/volumes/logs/vector.yml` | Log shipper (optional analytics profile) |
 | `deploy/supabase/.env.quality.example` | `/opt/enfa/supabase/.env` | Supabase stack secrets, ports, public URLs |
 | `deploy/env/app.env.quality.example` | `/opt/enfa/app.env` | app build + runtime env |
 | `deploy/env/middleware.env.quality.example` | `/opt/enfa/middleware/.env` | middleware port, proxy secret, SAP timeout |
@@ -34,11 +36,12 @@ Directory layout used throughout: `/opt/enfa/app`, `/opt/enfa/middleware`,
 Order to run:
 
 ```bash
-# 1. Supabase stack
+# 1. Supabase stack (standalone, isolated from DEV/PROD)
 cd /opt/enfa/supabase
 cp /opt/enfa/app/deploy/supabase/docker-compose-quality.yml .
+cp -r /opt/enfa/app/deploy/supabase/volumes ./
 cp /opt/enfa/app/deploy/supabase/.env.quality.example .env && nano .env
-docker compose -f docker-compose.yml -f docker-compose-quality.yml up -d
+docker compose -p nfa-quality -f docker-compose-quality.yml up -d
 
 # 2. Schema
 cd /opt/enfa/app
@@ -47,7 +50,7 @@ chmod +x deploy/scripts/*.sh
 PGPASSWORD='<POSTGRES_PASSWORD>' ./deploy/scripts/run-migrations.sh
 
 # 3. Admin login: create the user in Studio (Auto Confirm), then
-PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -U postgres -d postgres \
+PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
   -v admin_email="'admin@ramky.com'" -f deploy/scripts/seed-admin.sql
 
 # 4. App + middleware
@@ -241,8 +244,8 @@ git pull
 set -a; . /opt/enfa/app.env; set +a
 npm ci
 npm run build
-# new migrations, if any
-for f in supabase/migrations/*.sql; do PGPASSWORD='<pw>' psql -h 127.0.0.1 -U postgres -d postgres -f "$f"; done
+# new migrations, if any (defaults to quality port 54322)
+PGPASSWORD='<pw>' ./deploy/scripts/run-migrations.sh
 exit
 sudo systemctl restart enfa-app
 ```

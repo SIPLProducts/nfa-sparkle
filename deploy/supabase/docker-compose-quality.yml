@@ -1,57 +1,414 @@
-# eNFA QUALITY - Supabase self-hosted overrides
+############################################################
+# eNFA QUALITY - standalone Supabase self-hosted stack
 #
-# Use together with the official stack from https://github.com/supabase/supabase (docker/):
+# This is a COMPLETE docker-compose file. It does NOT require cloning the
+# official supabase/docker repo. It is isolated from the existing VMS DEV/PROD
+# stacks by name, network, ports and volumes.
 #
-#   cd /opt/enfa/supabase
-#   cp /opt/enfa/app/deploy/supabase/docker-compose-quality.yml ./docker-compose-quality.yml
-#   cp /opt/enfa/app/deploy/supabase/.env.quality.example ./.env    # then edit it
-#   docker compose -f docker-compose.yml -f docker-compose-quality.yml up -d
+# Copy this file to your quality backend folder, e.g.:
+#   /opt/Ramky_Applications/NFA-Approval/Quality/backend/docker-compose-quality.yml
 #
-# Purpose of this override: keep every container bound to 127.0.0.1 so nginx
-# (ports 8001 / 8082) is the only publicly reachable surface, and make the
-# stack survive reboots.
+# Start:
+#   docker compose -p nfa-quality -f docker-compose-quality.yml up -d
+#
+# Stop:
+#   docker compose -p nfa-quality -f docker-compose-quality.yml down
+#
+# View logs:
+#   docker compose -p nfa-quality -f docker-compose-quality.yml logs -f
+############################################################
+
+name: nfa-quality
+
+x-common-env: &common-env
+  # Database
+  POSTGRES_HOST: ${POSTGRES_HOST:-db}
+  POSTGRES_DB: ${POSTGRES_DB:-postgres}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  # JWT
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_EXPIRY: ${JWT_EXPIRY:-3600}
+  # API keys
+  ANON_KEY: ${ANON_KEY}
+  SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+  # URLs seen by browsers / other containers
+  SITE_URL: ${SITE_URL:-http://localhost:8081}
+  API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8001}
+  SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8001}
+  # Dashboard
+  STUDIO_DEFAULT_ORGANIZATION: ${STUDIO_DEFAULT_ORGANIZATION:-Ramky}
+  STUDIO_DEFAULT_PROJECT: ${STUDIO_DEFAULT_PROJECT:-eNFA Quality}
+  DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-enfa-admin}
+  DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+  # Auth
+  DISABLE_SIGNUP: ${DISABLE_SIGNUP:-true}
+  ENABLE_EMAIL_SIGNUP: ${ENABLE_EMAIL_SIGNUP:-true}
+  ENABLE_EMAIL_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+  ENABLE_ANONYMOUS_USERS: ${ENABLE_ANONYMOUS_USERS:-false}
+  ENABLE_PHONE_SIGNUP: ${ENABLE_PHONE_SIGNUP:-false}
+  ENABLE_PHONE_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM:-false}
+  MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+  MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+  MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+  MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+  SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+  SMTP_HOST: ${SMTP_HOST:-supabase-mail}
+  SMTP_PORT: ${SMTP_PORT:-2500}
+  SMTP_USER: ${SMTP_USER:-fake_mail_user}
+  SMTP_PASS: ${SMTP_PASS:-fake_mail_password}
+  SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-eNFA Quality}
+  # Storage / REST
+  PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
+  STORAGE_BACKEND: ${STORAGE_BACKEND:-file}
+  FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-52428800}
+  IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
+  # Analytics (only used when analytics profile is enabled)
+  LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
+  LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
 
 services:
-  kong:
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:54321:8000/tcp"
-      - "127.0.0.1:54322:8443/tcp"
-
-  studio:
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:54323:3000/tcp"
-
   db:
+    container_name: nfa-quality-db
+    image: supabase/postgres:15.8.1.085
     restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 10
     ports:
-      # psql from the host only (used by the migration script)
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT_HOST:-54322}:5432"
     volumes:
-      - ./volumes/db/data:/var/lib/postgresql/data:Z
+      - type: volume
+        source: nfa-quality-db-data
+        target: /var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: postgres
     shm_size: 1gb
+    networks:
+      - nfa-quality-net
+
+  kong:
+    container_name: nfa-quality-kong
+    image: kong/kong:3.9.1
+    restart: unless-stopped
+    entrypoint: ["bash", "-c", "kong start"]
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,rate-limiting,response-transformer,file-log
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    ports:
+      - "127.0.0.1:${KONG_HTTP_PORT:-54321}:8000/tcp"
+      - "127.0.0.1:${KONG_HTTPS_PORT:-54322}:8443/tcp"
+    volumes:
+      - type: bind
+        source: ./volumes/api/kong.yml
+        target: /home/kong/kong.yml
+        read_only: true
+    depends_on:
+      analytics:
+        condition: service_healthy
+        required: false
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      meta:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   auth:
+    container_name: nfa-quality-auth
+    image: supabase/gotrue:v2.186.0
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:9999/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      <<: *common-env
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8001}
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8081}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-true}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+      GOTRUE_MAILER_EXTERNAL_ENABLED: "false"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Confirm your signup"
+      GOTRUE_MAILER_SUBJECTS_INVITE: "You have been invited"
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Reset your password"
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: "Confirm your email change"
+      GOTRUE_MAILER_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_MAILER_SMTP_HOST: ${SMTP_HOST:-supabase-mail}
+      GOTRUE_MAILER_SMTP_PORT: ${SMTP_PORT:-2500}
+      GOTRUE_MAILER_SMTP_USER: ${SMTP_USER:-fake_mail_user}
+      GOTRUE_MAILER_SMTP_PASS: ${SMTP_PASS:-fake_mail_password}
+      GOTRUE_MAILER_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-eNFA Quality}
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      GOTRUE_SMS_MAX_FREQUENCY: "5s"
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-supabase-mail}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-2500}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-fake_mail_user}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-fake_mail_password}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-eNFA Quality}
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: "true"
+      GOTRUE_LOG_LEVEL: INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   rest:
+    container_name: nfa-quality-rest
+    image: postgrest/postgrest:v14.8
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:3000/ready || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
+      PGRST_DB_EXTRA_SEARCH_PATH: ${PGRST_DB_EXTRA_SEARCH_PATH:-extensions}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_OPENAPI_SERVER_PROXY_URI: ${API_EXTERNAL_URL:-http://localhost:8001}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   realtime:
+    container_name: nfa-quality-realtime
+    image: supabase/realtime:v2.76.5
     restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:4000/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      PORT: 4000
+      DB_HOST: ${POSTGRES_HOST:-db}
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_SSL: "false"
+      SECURE_CHANNELS: "true"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_CLAIMS_VALIDATORS: "{\"iss\": \"supabase\", \"iat\": \"\"}"
+      EXTERNAL_ID: realtime-dev
+      API_JWT_SECRET: ${JWT_SECRET}
+      FLY_REGION: local
+      FLY_ALLOC_ID: realtime-dev
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   storage:
+    container_name: nfa-quality-storage
+    image: supabase/storage-api:v1.48.26
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5000/status || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://nfa-quality-rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-52428800}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-file}
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: ${POOLER_TENANT_ID:-enfa-quality}
+      REGION: local
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://nfa-quality-imgproxy:8080
+    volumes:
+      - type: volume
+        source: nfa-quality-storage-data
+        target: /var/lib/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      imgproxy:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   imgproxy:
+    container_name: nfa-quality-imgproxy
+    image: darthsim/imgproxy:v3.30.1
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      IMGPROXY_BIND: :8080
+      IMGPROXY_USE_WEBP: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
+    networks:
+      - nfa-quality-net
 
   meta:
+    container_name: nfa-quality-meta
+    image: supabase/postgres-meta:v0.96.3
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: ${POSTGRES_HOST:-db}
+      PG_META_DB_PORT: ${POSTGRES_PORT:-5432}
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
-  analytics:
+  studio:
+    container_name: nfa-quality-studio
+    image: supabase/studio:2026.04.27-sha-5f60601
     restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:3000/api/profile || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      STUDIO_DEFAULT_ORGANIZATION: ${STUDIO_DEFAULT_ORGANIZATION:-Ramky}
+      STUDIO_DEFAULT_PROJECT: ${STUDIO_DEFAULT_PROJECT:-eNFA Quality}
+      SUPABASE_URL: http://nfa-quality-kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8001}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      STUDIO_PORT: 3000
+      STUDIO_PG_META_URL: http://nfa-quality-meta:8080
+      STUDIO_LOGFLARE_PUBLIC_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
+      STUDIO_LOGFLARE_URL: http://nfa-quality-analytics:4000
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      STUDIO_AUTH_JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "127.0.0.1:${STUDIO_PORT:-54323}:3000"
+    depends_on:
+      kong:
+        condition: service_healthy
+      meta:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 
   vector:
+    container_name: nfa-quality-vector
+    image: timberio/vector:0.53.0-alpine
     restart: unless-stopped
+    healthcheck:
+      test: vector validate /etc/vector/vector.yml || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - type: bind
+        source: ./volumes/logs/vector.yml
+        target: /etc/vector/vector.yml
+        read_only: true
+      - type: bind
+        source: ${DOCKER_SOCKET_LOCATION:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        read_only: true
+    depends_on:
+      analytics:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
+    profiles:
+      - analytics
+
+  analytics:
+    container_name: nfa-quality-analytics
+    image: supabase/logflare:1.36.1
+    restart: unless-stopped
+    healthcheck:
+      test: curl -f http://localhost:4000/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      LOGFLARE_NODE_HOST: 127.0.0.1
+      LOGFLARE_API_KEY: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
+      LOGFLARE_MIN_CLUSTER_SIZE: 1
+      LOGFLARE_SINGLE_TENANT: "true"
+      LOGFLARE_SUPABASE_MODE: "true"
+      LOGFLARE_SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HTTP_PORT: 4000
+      PHX_CHECK_ORIGIN: "false"
+      DB_DATABASE: ${POSTGRES_DB:-postgres}
+      DB_HOSTNAME: ${POSTGRES_HOST:-db}
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_USERNAME: supabase_admin
+      DB_SCHEMA: _analytics
+      POSTGRES_BACKEND_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      POSTGRES_BACKEND_SCHEMA: _analytics
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
+    profiles:
+      - analytics
+
+volumes:
+  nfa-quality-db-data:
+  nfa-quality-storage-data:
+
+networks:
+  nfa-quality-net:
+    name: nfa-quality-net
+    driver: bridge

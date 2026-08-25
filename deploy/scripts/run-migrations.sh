@@ -9,7 +9,7 @@
 #   PGPASSWORD='<POSTGRES_PASSWORD>' ./deploy/scripts/run-migrations.sh
 #
 # Optional env:
-#   PGHOST (default 127.0.0.1)  PGPORT (5432)  PGUSER (postgres)  PGDATABASE (postgres)
+#   PGHOST (default 127.0.0.1)  PGPORT (54322) PGUSER (postgres)  PGDATABASE (postgres)
 #   MIGRATIONS_DIR (default <repo>/supabase/migrations)
 #   DRY_RUN=1   -> only list what would be applied
 
@@ -19,7 +19,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-$REPO_ROOT/supabase/migrations}"
 
 export PGHOST="${PGHOST:-127.0.0.1}"
-export PGPORT="${PGPORT:-5432}"
+export PGPORT="${PGPORT:-54322}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-postgres}"
 
