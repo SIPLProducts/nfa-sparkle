@@ -1,57 +1,97 @@
-# Fix deployed login 405 on Ubuntu quality server
+# Fix deployed login on Ubuntu quality server
 
-## What is happening
+## Confirmed issue
 
-The login page now calls a backend server function before password sign-in so it can resolve either **User ID** or **Email ID**.
-
-On the Ubuntu deployment, the error shown in the screenshot is an **nginx 405 Not Allowed** HTML page. That means the POST request is being handled by nginx/static files instead of the Node app server.
-
-The current quality nginx config only proxies:
+The failing request is:
 
 ```text
-/_serverFn/*
-/api/*
+http://10.200.1.7:8081/rest/v1/role_permission?... 401 Unauthorized
 ```
 
-If the deployed TanStack server-function request uses a different internal path, nginx will not proxy it and will return 405 for POST requests.
+That URL is wrong for the deployed setup. Port **8081** is the frontend/app port. Database/auth REST requests must go to the backend API port **8001**.
+
+So the deployed browser bundle was likely built with:
+
+```text
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+```
+
+or an equivalent wrong value. It should be:
+
+```text
+VITE_SUPABASE_URL=http://10.200.1.7:8001
+```
+
+Because `VITE_*` values are embedded during build, changing the env file alone is not enough. The app must be rebuilt and redeployed after fixing the value.
 
 ## Plan
 
-1. Confirm the exact failed login request path from DevTools Network on the deployed server.
-   - Expected symptom: a POST request during login returns nginx HTML `405 Not Allowed`.
-
-2. Update the Ubuntu nginx app server block so all backend/runtime POST routes are proxied to the Node app, while static assets still serve from `/opt/enfa/frontend`.
-   - Keep `/assets/` cached as static files.
-   - Keep `/api/` proxied.
-   - Add the missing TanStack server-function/internal route prefix once confirmed.
-   - Ensure POST requests never fall through to `try_files /index.html`.
-
-3. Update the deployment nginx template(s) in the repo so future deployments keep the fix.
-   - Primary target: `deploy/nginx/nfa-quality.conf`.
-   - Also align `deploy/nginx/enfa-qa.conf` if it is still used on the server.
-
-4. Add a short troubleshooting note to the deployment README with the exact commands to apply on Ubuntu:
-
-```text
-sudo nginx -t
-sudo systemctl reload nginx
-pm2 restart <app-name>
-```
-
-5. Verify after reload:
-   - Login with Email ID works.
-   - Login with User ID works.
-   - DevTools Network no longer shows nginx `405 Not Allowed` for the login resolve request.
-   - The login either succeeds or returns a proper JSON/auth error.
-
-## Server-side checks for you to run now
-
-Before changing code, please run these on the Ubuntu server to confirm the diagnosis:
+1. Update the server env file used for build and runtime.
 
 ```bash
-sudo tail -n 80 /var/log/nginx/nfa-quality-app.error.log
-sudo tail -n 80 /var/log/nginx/nfa-quality-app.access.log
-pm2 logs --lines 80
+sudo nano /opt/enfa/app.env
 ```
 
-In DevTools Network, click the failing request and check the **Request URL**. If it is not under `/api/` or `/_serverFn/`, that is the route nginx is currently not proxying.
+Set these values:
+
+```text
+SUPABASE_URL=http://10.200.1.7:8001
+VITE_SUPABASE_URL=http://10.200.1.7:8001
+```
+
+Keep the publishable/anon key values unchanged unless they are also wrong.
+
+2. Rebuild the frontend bundle with the corrected env loaded.
+
+From the app source folder:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+set -a
+. /opt/enfa/app.env
+set +a
+npm run build
+```
+
+3. Copy the rebuilt static frontend and server output to the paths used by nginx/systemd/PM2.
+
+Use the same copy commands from your deployment process, making sure:
+
+```text
+frontend files -> /opt/enfa/frontend
+server bundle  -> app server folder used by PM2/systemd
+```
+
+4. Restart the app process.
+
+If PM2 is managing the app:
+
+```bash
+pm2 restart <NFA app process name>
+pm2 save
+```
+
+If systemd is managing it:
+
+```bash
+sudo systemctl restart enfa-app
+```
+
+5. Verify in browser DevTools Network.
+
+After hard refresh, login again and confirm database/auth requests now go to:
+
+```text
+http://10.200.1.7:8001/rest/v1/...
+http://10.200.1.7:8001/auth/v1/...
+```
+
+They should no longer go to:
+
+```text
+http://10.200.1.7:8081/rest/v1/...
+```
+
+## Optional repo update
+
+Add a clear deployment note to the repo docs emphasizing that `VITE_SUPABASE_URL` must point to port **8001**, not **8081**, and that a rebuild is required after any `VITE_*` change.
