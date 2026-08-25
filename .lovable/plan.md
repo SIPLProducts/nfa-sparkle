@@ -1,223 +1,96 @@
-# Fix deployed login 405 on Ubuntu quality server
+# Fix quality-server login and role loading
 
-## Confirmed issue
+## Confirmed diagnosis
 
-Your nginx config serves the frontend as static files on port **8081**:
+This is **not primarily a missing-role problem**.
 
-```nginx
-root /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist;
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
+### 1. Login is blocked by nginx serving only static files
 
-But the login page now uses a TanStack server function to resolve **User ID / Email ID** before signing in. That request goes to an internal path like:
+The login code calls `resolveLoginId` through a TanStack server function before password authentication. That creates a POST to `/_serverFn/...`.
 
-```text
-/_serverFn/...
-```
+Your nginx sends that POST to the static SPA fallback, which returns the visible **405 Not Allowed**. The repository's intended deployment instead runs the application server on `127.0.0.1:3000` and proxies all port-8081 app traffic to it.
 
-Your nginx does not proxy `/_serverFn/*`, so the POST request falls into the static `location /` block. Static nginx cannot handle that POST and returns:
+### 2. The `role_permission` 401 happens before role assignment is checked
 
-```text
-405 Not Allowed
-nginx/1.18.0
-```
+`AuthProvider` currently requests `role_permission` immediately when `/auth` opens, before the user has signed in. The quality database allows that table only to authenticated users, so the anonymous request is rejected.
 
-The backend REST/auth proxy locations are not enough for this login flow.
+A user without an assigned role would normally authenticate successfully and then receive an empty role result. It would not explain nginx's 405 response.
 
-## Important note about your `.env`
+### 3. The `.env` does not match the repository's quality deployment design
 
-Your current values point the browser to port **8081**:
+The project deployment files define:
 
 ```text
-SUPABASE_URL="http://10.200.1.7:8081"
-VITE_SUPABASE_URL="http://10.200.1.7:8081"
+8081 = TanStack app through nginx
+8001 = backend API
+3000 = private TanStack Node server
+3004 = SAP middleware public port
+3005 = private SAP middleware process
 ```
 
-This can work only because nginx forwards `/auth/v1`, `/rest/v1`, `/storage/v1`, and `/realtime/v1` from **8081** to **8001**.
+Therefore the browser and server backend URLs should use port **8001**, while users open the app on **8081**.
 
-So the immediate 405 issue is not only the database URL. The missing piece is proxying the TanStack app runtime routes to the Node app server.
+## Implementation plan
 
-## Plan
+1. **Use the repository's server deployment architecture**
+   - Run the built TanStack server on `127.0.0.1:3000` using `deploy/systemd/enfa-app.service` or an equivalent PM2 process.
+   - Replace the static-only 8081 server block with the app proxy pattern already present in `deploy/nginx/enfa-qa.conf`.
+   - Proxy all `location /` traffic on 8081 to port 3000. This handles pages, assets, `/_serverFn/*`, and app-owned `/api/public/*` routes correctly.
+   - Keep backend API on its separate 8001 nginx server and SAP middleware on 3004; do not send all `/api/*` traffic to SAP middleware from the app vhost.
 
-1. Make sure the TanStack app server is running on its own local port.
+2. **Correct the application environment**
 
-Use a dedicated port, for example:
+Use:
 
 ```text
-127.0.0.1:3000
+HOST=127.0.0.1
+PORT=3000
+SUPABASE_URL=http://10.200.1.7:8001
+VITE_SUPABASE_URL=http://10.200.1.7:8001
 ```
 
-This is separate from:
+Keep `SUPABASE_PUBLISHABLE_KEY` and `VITE_SUPABASE_PUBLISHABLE_KEY` identical to the self-hosted quality stack's current `ANON_KEY`. Do not reuse a key from another environment. The quality `ANON_KEY` and `SERVICE_ROLE_KEY` must both have been generated from that quality stack's `JWT_SECRET`.
 
-```text
-8001 = backend API/Kong
-3004/3005 = SAP middleware
-8081 = public frontend nginx port
-```
-
-2. Add nginx proxy rules for TanStack runtime routes before `location /`.
-
-Add these blocks:
-
-```nginx
-# TanStack server functions used by login and other app actions
-location /_serverFn/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-
-# App-owned API routes, for example /api/public/create-user
-location /api/public/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-3. Keep SAP middleware on a different path so it does not capture app APIs.
-
-Your current block sends all `/api/` traffic to SAP middleware:
-
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:3005/;
-}
-```
-
-That can break app routes like `/api/public/create-user`. Keep `/api/public/` above it, or move SAP middleware to a clearer prefix such as:
-
-```nginx
-location /sap-api/ {
-    proxy_pass http://127.0.0.1:3005/;
-}
-```
-
-4. Keep your backend API proxy blocks as they are.
-
-These can remain proxied from 8081 to 8001:
-
-```nginx
-/auth/v1     -> 127.0.0.1:8001
-/rest/v1     -> 127.0.0.1:8001
-/storage/v1  -> 127.0.0.1:8001
-/realtime/v1 -> 127.0.0.1:8001
-```
-
-5. Test and reload nginx.
+3. **Rebuild after correcting `VITE_*` values**
 
 ```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+set -a
+. /opt/enfa/app.env
+set +a
+npm ci
+npm run build
+```
+
+Then restart the app process and reload nginx.
+
+4. **Adjust frontend role-permission loading**
+   - Do not query `role_permission` anonymously when the login page mounts.
+   - Load permissions only after a valid session is available.
+   - Reload permissions whenever the signed-in identity changes so the first anonymous 401 cannot leave permissions empty for the rest of the session.
+   - Preserve the current role model: `user_roles` plus `user_role_assignment`.
+
+5. **Verify the user's application role separately**
+   - After login works, check that this auth user's UUID has a row in either `public.user_roles` or `public.user_role_assignment`.
+   - If no row exists, assign the intended application role through User Management or an approved database operation. The Authentication Users screen only confirms the auth account exists; it does not assign an app role.
+
+## Server checks
+
+Run these on Ubuntu before retrying:
+
+```bash
+curl -i http://127.0.0.1:3000/auth
+curl -i http://10.200.1.7:8001/auth/v1/health
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-6. Verify in DevTools Network.
-
-After hard refresh and login:
+After a hard refresh, verify in DevTools:
 
 ```text
-POST http://10.200.1.7:8081/_serverFn/... should return 200, not 405
-GET/POST http://10.200.1.7:8081/auth/v1/... should proxy to backend
-GET http://10.200.1.7:8081/rest/v1/... should proxy to backend
+POST http://10.200.1.7:8081/_serverFn/... -> 200, not 405
+POST http://10.200.1.7:8001/auth/v1/token?... -> 200 for valid credentials
+GET  http://10.200.1.7:8001/rest/v1/role_permission?... -> 200 after sign-in
 ```
 
-## Recommended final nginx structure
-
-```nginx
-server {
-    listen 8081;
-    server_name _;
-
-    root /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist;
-    index index.html;
-
-    client_max_body_size 25m;
-
-    location /_serverFn/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/public/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /auth/v1 {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /rest/v1 {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /realtime/v1 {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    location /storage/v1 {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3005/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|woff|woff2|ttf|eot)$ {
-        try_files $uri =404;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-## One thing to confirm on the server
-
-Check which port the TanStack app server is actually running on. Replace `3000` in the nginx config with the real app server port.
-
-If you only copied `dist` static files and did not run the TanStack server bundle, then server functions cannot work. In that case, login will keep failing until the app server process is started and proxied.
+If `/_serverFn` still returns 405, the Node app is not running/proxied. If `/auth/v1/token` returns `Invalid API key`, the frontend publishable key does not match the quality stack's `ANON_KEY`. If role queries return `200` but empty, then assign the user an application role.
