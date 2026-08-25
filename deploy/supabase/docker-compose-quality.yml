@@ -1,0 +1,57 @@
+# eNFA QUALITY - Supabase self-hosted overrides
+#
+# Use together with the official stack from https://github.com/supabase/supabase (docker/):
+#
+#   cd /opt/enfa/supabase
+#   cp /opt/enfa/app/deploy/supabase/docker-compose-quality.yml ./docker-compose-quality.yml
+#   cp /opt/enfa/app/deploy/supabase/.env.quality.example ./.env    # then edit it
+#   docker compose -f docker-compose.yml -f docker-compose-quality.yml up -d
+#
+# Purpose of this override: keep every container bound to 127.0.0.1 so nginx
+# (ports 8001 / 8082) is the only publicly reachable surface, and make the
+# stack survive reboots.
+
+services:
+  kong:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:54321:8000/tcp"
+      - "127.0.0.1:54322:8443/tcp"
+
+  studio:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:54323:3000/tcp"
+
+  db:
+    restart: unless-stopped
+    ports:
+      # psql from the host only (used by the migration script)
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./volumes/db/data:/var/lib/postgresql/data:Z
+    shm_size: 1gb
+
+  auth:
+    restart: unless-stopped
+
+  rest:
+    restart: unless-stopped
+
+  realtime:
+    restart: unless-stopped
+
+  storage:
+    restart: unless-stopped
+
+  imgproxy:
+    restart: unless-stopped
+
+  meta:
+    restart: unless-stopped
+
+  analytics:
+    restart: unless-stopped
+
+  vector:
+    restart: unless-stopped
