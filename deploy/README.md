@@ -17,6 +17,57 @@ Directory layout used throughout: `/opt/enfa/app`, `/opt/enfa/middleware`,
 
 ---
 
+## 0. Quality-server file kit (quick reference)
+
+| File in this repo | Install to | Purpose |
+| ----------------- | ---------- | ------- |
+| `deploy/nginx/nfa-quality.conf` | `/etc/nginx/sites-available/nfa-quality.conf` (symlink into `sites-enabled`) | all four vhosts: 8081, 8001, 8082, 3004 |
+| `deploy/supabase/docker-compose-quality.yml` | `/opt/enfa/supabase/docker-compose-quality.yml` | compose override: containers bound to 127.0.0.1, restart policies |
+| `deploy/supabase/.env.quality.example` | `/opt/enfa/supabase/.env` | Supabase stack secrets, ports, public URLs |
+| `deploy/env/app.env.quality.example` | `/opt/enfa/app.env` | app build + runtime env |
+| `deploy/env/middleware.env.quality.example` | `/opt/enfa/middleware/.env` | middleware port, proxy secret, SAP timeout |
+| `deploy/scripts/run-migrations.sh` | run from `/opt/enfa/app` | applies `supabase/migrations/*.sql`, idempotent |
+| `deploy/scripts/seed-admin.sql` | run with `psql` | grants the `admin` role to the first login |
+| `deploy/scripts/deploy-quality.sh` | run from `/opt/enfa/app` | pull → build → migrate → restart → health check |
+| `deploy/systemd/enfa-app.service` / `enfa-middleware.service` | `/etc/systemd/system/` | services |
+
+Order to run:
+
+```bash
+# 1. Supabase stack
+cd /opt/enfa/supabase
+cp /opt/enfa/app/deploy/supabase/docker-compose-quality.yml .
+cp /opt/enfa/app/deploy/supabase/.env.quality.example .env && nano .env
+docker compose -f docker-compose.yml -f docker-compose-quality.yml up -d
+
+# 2. Schema
+cd /opt/enfa/app
+cp deploy/env/app.env.quality.example /opt/enfa/app.env && nano /opt/enfa/app.env
+chmod +x deploy/scripts/*.sh
+PGPASSWORD='<POSTGRES_PASSWORD>' ./deploy/scripts/run-migrations.sh
+
+# 3. Admin login: create the user in Studio (Auto Confirm), then
+PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -U postgres -d postgres \
+  -v admin_email="'admin@ramky.com'" -f deploy/scripts/seed-admin.sql
+
+# 4. App + middleware
+cp deploy/env/middleware.env.quality.example /opt/enfa/middleware/.env && nano /opt/enfa/middleware/.env
+./deploy/scripts/deploy-quality.sh
+
+# 5. nginx
+sudo cp deploy/nginx/nfa-quality.conf /etc/nginx/sites-available/
+sudo ln -sf /etc/nginx/sites-available/nfa-quality.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+The sections below explain each step in detail. `deploy/nginx/enfa-qa.conf` is the
+earlier equivalent of `nfa-quality.conf` — install only one of the two.
+
+---
+
+## 1. Prerequisites
+
+
 ## 1. Prerequisites
 
 Ubuntu 22.04 or 24.04, root/sudo access.
