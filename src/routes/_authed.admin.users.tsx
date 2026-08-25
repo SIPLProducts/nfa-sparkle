@@ -354,19 +354,8 @@ function CreateUserDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (v: {
-    email: string;
-    username: string;
-    password: string;
-    confirm_password: string;
-    first_name: string;
-    last_name: string;
-    employee_id: string;
-    department: string;
-    contact: string;
-    status: string;
-    roles: Role[];
-  }) => Promise<void>;
+  onSubmit: (v: CreateUserPayload) => Promise<void>;
+
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
