@@ -19,15 +19,5 @@ export default defineConfig({
     // Emit a static index.html shell so the built folder can be served directly by nginx.
     spa: { enabled: true },
   },
-  ...(isLovableBuild
-    ? {}
-    : {
-        nitro: {
-          output: {
-            dir: ".output",
-            publicDir: "dist",
-            serverDir: ".output/server",
-          },
-        },
-      }),
+  ...(isLovableBuild ? {} : { nitro: false as const }),
 });
