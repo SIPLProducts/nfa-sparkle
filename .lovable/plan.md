@@ -1,97 +1,223 @@
-# Fix deployed login on Ubuntu quality server
+# Fix deployed login 405 on Ubuntu quality server
 
 ## Confirmed issue
 
-The failing request is:
+Your nginx config serves the frontend as static files on port **8081**:
 
-```text
-http://10.200.1.7:8081/rest/v1/role_permission?... 401 Unauthorized
+```nginx
+root /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist;
+location / {
+    try_files $uri $uri/ /index.html;
+}
 ```
 
-That URL is wrong for the deployed setup. Port **8081** is the frontend/app port. Database/auth REST requests must go to the backend API port **8001**.
-
-So the deployed browser bundle was likely built with:
+But the login page now uses a TanStack server function to resolve **User ID / Email ID** before signing in. That request goes to an internal path like:
 
 ```text
-VITE_SUPABASE_URL=http://10.200.1.7:8081
+/_serverFn/...
 ```
 
-or an equivalent wrong value. It should be:
+Your nginx does not proxy `/_serverFn/*`, so the POST request falls into the static `location /` block. Static nginx cannot handle that POST and returns:
 
 ```text
-VITE_SUPABASE_URL=http://10.200.1.7:8001
+405 Not Allowed
+nginx/1.18.0
 ```
 
-Because `VITE_*` values are embedded during build, changing the env file alone is not enough. The app must be rebuilt and redeployed after fixing the value.
+The backend REST/auth proxy locations are not enough for this login flow.
+
+## Important note about your `.env`
+
+Your current values point the browser to port **8081**:
+
+```text
+SUPABASE_URL="http://10.200.1.7:8081"
+VITE_SUPABASE_URL="http://10.200.1.7:8081"
+```
+
+This can work only because nginx forwards `/auth/v1`, `/rest/v1`, `/storage/v1`, and `/realtime/v1` from **8081** to **8001**.
+
+So the immediate 405 issue is not only the database URL. The missing piece is proxying the TanStack app runtime routes to the Node app server.
 
 ## Plan
 
-1. Update the server env file used for build and runtime.
+1. Make sure the TanStack app server is running on its own local port.
 
-```bash
-sudo nano /opt/enfa/app.env
-```
-
-Set these values:
+Use a dedicated port, for example:
 
 ```text
-SUPABASE_URL=http://10.200.1.7:8001
-VITE_SUPABASE_URL=http://10.200.1.7:8001
+127.0.0.1:3000
 ```
 
-Keep the publishable/anon key values unchanged unless they are also wrong.
-
-2. Rebuild the frontend bundle with the corrected env loaded.
-
-From the app source folder:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-set -a
-. /opt/enfa/app.env
-set +a
-npm run build
-```
-
-3. Copy the rebuilt static frontend and server output to the paths used by nginx/systemd/PM2.
-
-Use the same copy commands from your deployment process, making sure:
+This is separate from:
 
 ```text
-frontend files -> /opt/enfa/frontend
-server bundle  -> app server folder used by PM2/systemd
+8001 = backend API/Kong
+3004/3005 = SAP middleware
+8081 = public frontend nginx port
 ```
 
-4. Restart the app process.
+2. Add nginx proxy rules for TanStack runtime routes before `location /`.
 
-If PM2 is managing the app:
+Add these blocks:
+
+```nginx
+# TanStack server functions used by login and other app actions
+location /_serverFn/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# App-owned API routes, for example /api/public/create-user
+location /api/public/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+3. Keep SAP middleware on a different path so it does not capture app APIs.
+
+Your current block sends all `/api/` traffic to SAP middleware:
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:3005/;
+}
+```
+
+That can break app routes like `/api/public/create-user`. Keep `/api/public/` above it, or move SAP middleware to a clearer prefix such as:
+
+```nginx
+location /sap-api/ {
+    proxy_pass http://127.0.0.1:3005/;
+}
+```
+
+4. Keep your backend API proxy blocks as they are.
+
+These can remain proxied from 8081 to 8001:
+
+```nginx
+/auth/v1     -> 127.0.0.1:8001
+/rest/v1     -> 127.0.0.1:8001
+/storage/v1  -> 127.0.0.1:8001
+/realtime/v1 -> 127.0.0.1:8001
+```
+
+5. Test and reload nginx.
 
 ```bash
-pm2 restart <NFA app process name>
-pm2 save
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
-If systemd is managing it:
+6. Verify in DevTools Network.
 
-```bash
-sudo systemctl restart enfa-app
-```
-
-5. Verify in browser DevTools Network.
-
-After hard refresh, login again and confirm database/auth requests now go to:
+After hard refresh and login:
 
 ```text
-http://10.200.1.7:8001/rest/v1/...
-http://10.200.1.7:8001/auth/v1/...
+POST http://10.200.1.7:8081/_serverFn/... should return 200, not 405
+GET/POST http://10.200.1.7:8081/auth/v1/... should proxy to backend
+GET http://10.200.1.7:8081/rest/v1/... should proxy to backend
 ```
 
-They should no longer go to:
+## Recommended final nginx structure
 
-```text
-http://10.200.1.7:8081/rest/v1/...
+```nginx
+server {
+    listen 8081;
+    server_name _;
+
+    root /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist;
+    index index.html;
+
+    client_max_body_size 25m;
+
+    location /_serverFn/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/public/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /auth/v1 {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /rest/v1 {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /realtime/v1 {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /storage/v1 {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3005/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|woff|woff2|ttf|eot)$ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
 ```
 
-## Optional repo update
+## One thing to confirm on the server
 
-Add a clear deployment note to the repo docs emphasizing that `VITE_SUPABASE_URL` must point to port **8001**, not **8081**, and that a rebuild is required after any `VITE_*` change.
+Check which port the TanStack app server is actually running on. Replace `3000` in the nginx config with the real app server port.
+
+If you only copied `dist` static files and did not run the TanStack server bundle, then server functions cannot work. In that case, login will keep failing until the app server process is started and proxied.
