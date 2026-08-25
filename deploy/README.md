@@ -21,7 +21,7 @@ Directory layout used throughout: `/opt/enfa/app`, `/opt/enfa/middleware`,
 
 | File in this repo | Install to | Purpose |
 | ----------------- | ---------- | ------- |
-| `deploy/nginx/nfa-quality.conf` | `/etc/nginx/sites-available/nfa-quality.conf` (symlink into `sites-enabled`) | all four vhosts: 8081, 8001, 8082, 3004 |
+| `deploy/nginx/nfa-quality.conf` | `/etc/nginx/sites-available/nfa-quality.conf` (symlink into `sites-enabled`) | self-contained nginx config with upstreams for all four vhosts: 8081, 8001, 8082, 3004 |
 | `deploy/supabase/docker-compose-quality.yml` | `/opt/enfa/supabase/docker-compose-quality.yml` | compose override: containers bound to 127.0.0.1, restart policies |
 | `deploy/supabase/.env.quality.example` | `/opt/enfa/supabase/.env` | Supabase stack secrets, ports, public URLs |
 | `deploy/env/app.env.quality.example` | `/opt/enfa/app.env` | app build + runtime env |
