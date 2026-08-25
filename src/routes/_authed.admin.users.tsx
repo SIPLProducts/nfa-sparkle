@@ -569,17 +569,8 @@ function EditUserDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onSubmit: (v: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    username: string;
-    employee_id: string;
-    department: string;
-    contact: string;
-    status: string;
-    roles: Role[];
-  }) => Promise<void>;
+  onSubmit: (v: UpdateUserPayload) => Promise<void>;
+
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
