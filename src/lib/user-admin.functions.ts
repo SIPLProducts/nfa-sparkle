@@ -287,13 +287,15 @@ export const updateManagedUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: {
     id: string;
-    full_name: string;
+    first_name: string;
+    last_name: string;
     username: string;
     employee_id?: string;
     department?: string;
     roles: RoleKey[];
   }) => {
-    if (!d.full_name?.trim()) throw new Error("Full name is required");
+    if (!d.first_name?.trim()) throw new Error("First name is required");
+    if (!d.last_name?.trim()) throw new Error("Last name is required");
     d.username = normalizeUsername(d.username);
     if (!d.roles?.length) throw new Error("Select at least one role");
     return d;
@@ -305,16 +307,21 @@ export const updateManagedUser = createServerFn({ method: "POST" })
       throw new Error("You cannot remove your own admin role");
     }
     await assertUsernameFree(db, data.username, data.id);
+    const firstName = data.first_name.trim();
+    const lastName = data.last_name.trim();
+    const fullName = `${firstName} ${lastName}`;
     await db
       .from("profiles")
       .update({
-        full_name: data.full_name.trim(),
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         username: data.username,
         employee_id: data.employee_id?.trim() || null,
         department: data.department?.trim() || null,
       })
       .eq("id", data.id);
-    await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: data.full_name.trim() } });
+    await db.auth.admin.updateUserById(data.id, { user_metadata: { full_name: fullName } });
     await applyRoles(db, data.id, data.roles);
     return { ok: true };
   });
