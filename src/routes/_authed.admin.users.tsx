@@ -600,16 +600,18 @@ function EditUserDialog({
     setBusy(true);
     try {
       await onSubmit({
-        id: user.id,
-        first_name: firstName,
-        last_name: lastName,
-        username,
-        employee_id: employeeId,
-        department,
-        contact,
-        status,
-        roles,
+        ID: user.id,
+        USER_ID: username,
+        FIRST_NAME: firstName,
+        LAST_NAME: lastName,
+        EMAIL: user.email,
+        STATUS: status,
+        CONTACT: contact,
+        ROLE: roles.join(","),
+        EMP_ID: employeeId,
+        DEPT: department,
       });
+
       onClose();
     } catch (e) {
       toast.error(errMsg(e));
