@@ -6,10 +6,28 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Inside the Lovable build environment the output layout is pinned by the platform.
+// For self-hosted (Ubuntu/nginx) builds we emit the static frontend into `dist/`
+// and keep the Node server bundle in `.output/server`.
+const isLovableBuild = process.env.LOVABLE_SANDBOX === "1" || !!process.env.SANDBOX;
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Emit a static index.html shell so the built folder can be served directly by nginx.
+    spa: { enabled: true },
   },
+  ...(isLovableBuild
+    ? {}
+    : {
+        nitro: {
+          output: {
+            dir: ".output",
+            publicDir: "dist",
+            serverDir: ".output/server",
+          },
+        },
+      }),
 });
