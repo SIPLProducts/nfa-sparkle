@@ -19,7 +19,12 @@ DEV/PROD already use 8000/8443 and 8010/9443 for Kong, plus 5433/6543 and 5434/6
 | `docker-compose-quality.yml` | Full standalone stack |
 | `.env.quality.example` | Environment template |
 | `volumes/api/kong.yml` | Kong declarative routes |
+| `volumes/db/*.sql` | Database bootstrap (role passwords + internal schemas), runs once on a fresh volume |
 | `volumes/logs/vector.yml` | Log shipper (only with `--profile analytics`) |
+
+> Copy the whole `volumes/` folder next to `docker-compose-quality.yml`. Without
+> `volumes/db/roles.sql` the internal roles have no password and PostgREST (`rest`)
+> never becomes healthy.
 
 ## Quick start
 
@@ -209,3 +214,19 @@ Schedule this in cron for daily backups.
 | `401 Unauthorized` from app | App env still points at the old cloud Supabase URL/key. Update `/opt/enfa/app.env` and rebuild. |
 | Studio shows `An error has occurred` | Kong or meta is not healthy. Check `docker compose ... logs kong meta`. |
 | Postgres port 5432 clashes | You changed `POSTGRES_PORT_HOST` to 5432. Set it back to 54322. |
+| `container nfa-quality-rest is unhealthy` / `dependency failed to start` | The `volumes/db/*.sql` bootstrap did not run, so `authenticator` has no password. Copy the `volumes/db/` folder, then reset the volume (see below) and start again. |
+| `password authentication failed for user "authenticator"` | Same cause as above — bootstrap SQL only runs on an **empty** data directory. |
+
+### Resetting the Quality database volume
+
+Init scripts run only once, on a fresh data directory. If the first start-up
+failed, wipe the Quality volumes and start again (this affects **only** the
+`nfa-quality` project — DEV/PROD are untouched):
+
+```bash
+docker compose -p nfa-quality -f docker-compose-quality.yml down -v
+docker compose -p nfa-quality -f docker-compose-quality.yml up -d
+docker compose -p nfa-quality -f docker-compose-quality.yml ps
+```
+
+Then apply the app schema with `deploy/scripts/run-migrations.sh`.
