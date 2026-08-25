@@ -183,7 +183,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, email, is_active, username, employee_id, department").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, department").in("id", ids),
       db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
