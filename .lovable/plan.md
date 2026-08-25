@@ -1,36 +1,28 @@
-# Build a deployable `dist/` frontend folder
+# Make `npm run build` produce a `dist/` folder
 
-Today `npm run build` emits `.output/` in a Cloudflare/wrangler layout, which is awkward to copy onto the Ubuntu server. The goal: `npm run build` produces a plain `dist/` folder containing `index.html`, `assets/`, `favicon.png`, `manifest.webmanifest`, `sw.js` etc. — exactly like the folder listing you shared — so you can copy it into your `frontend` folder and let nginx serve it.
+Right now `npm run build` writes `.output/` in a Cloudflare/wrangler layout. After this change, `npm run build` writes a single `dist/` folder containing `index.html`, `assets/`, `favicon.png`, `manifest.webmanifest`, `sw.js`, `robots.txt`, etc. — exactly the folder listing you shared. You copy that folder to the server and point nginx at it. No second script, no extra output folder.
 
 ## What will change
 
-1. **SPA/static client output**
-   - Enable TanStack Start's SPA mode so a static `index.html` shell is emitted instead of per-request SSR HTML.
-   - Point the client build output at `dist/` (root-level), so `dist/index.html` + `dist/assets/*` are produced, with `public/` files copied alongside.
+1. **`vite.config.ts`**
+   - Turn on SPA mode so a static `index.html` shell is generated instead of per-request server HTML.
+   - Set the build output directory to `dist/`, so client JS/CSS land in `dist/assets/` and everything in `public/` is copied to the root of `dist/`.
 
-2. **`package.json` scripts**
-   - `npm run build` → produces both the `dist/` frontend and the Node server bundle.
-   - `npm run build:frontend` → frontend-only, writes `dist/`.
+2. **`package.json`**
+   - `npm run build` stays the only build command; it now produces `dist/`. `.output/` is no longer created.
 
-3. **Deployment wiring**
-   - `deploy/nginx/nfa-quality.conf`: the 8081 vhost serves `root /opt/enfa/frontend;` with `try_files $uri /index.html;` for static assets, and still proxies the dynamic paths (`/_serverFn/*`, `/api/*`) to the Node process on `127.0.0.1:3000`.
-   - `deploy/scripts/deploy-quality.sh`: after build, rsync `dist/` into the frontend folder, then restart the app + middleware as today.
-   - `deploy/README.md`: updated steps and the new folder layout.
+3. **nginx (`deploy/nginx/nfa-quality.conf`)**
+   - Port 8081 serves the copied `dist/` folder directly: `root /opt/enfa/frontend; try_files $uri /index.html;`
+   - The dynamic paths the app calls (`/_serverFn/*`, `/api/*`) keep proxying to the Node process on `127.0.0.1:3000`, since SAP calls and admin APIs run there.
 
-## Important note on the backend half
+4. **Docs**
+   - `deploy/README.md` updated: build → copy `dist/` to `/opt/enfa/frontend` → reload nginx.
 
-The app's SAP calls, login-gated data and admin APIs run as server functions and `/api/public/*` routes. A `dist/` folder alone cannot serve those — the Node service (`.output/server/index.mjs`, systemd `enfa-app`) must keep running, and nginx forwards `/_serverFn` and `/api` to it. So the deployment becomes:
+## One thing to be aware of
 
-```text
-nginx :8081
-  ├── /            → static files from /opt/enfa/frontend  (dist/)
-  ├── /_serverFn/* → 127.0.0.1:3000  (Node)
-  └── /api/*       → 127.0.0.1:3000  (Node)
-```
-
-If you'd rather nginx serve everything with no Node process, the SAP integration would have to move entirely into the standalone middleware — say the word and I'll plan that separately.
+`dist/` is only the frontend. The SAP integration, login-protected data and `/api/public/*` endpoints are server code — they cannot run from static files. So the existing Node service (`enfa-app`) stays running exactly as it does today; nginx just serves the HTML/JS from `dist/` instead of asking Node for it. Nothing new to install.
 
 ## Technical details
 
-- `vite.config.ts`: add `tanstackStart: { spa: { enabled: true }, ... }` and a `vite: { build: { outDir: 'dist' } }` override for the client environment; keep the existing `server: { entry: "server" }` for the Node bundle.
-- Verify after the change that `dist/index.html`, `dist/assets/`, and the copied `public/` files all exist, and that the Node bundle still builds.
+- `vite.config.ts`: enable `tanstackStart.spa`, and override the client build `outDir` to `dist`.
+- Verify after the change that `dist/index.html`, `dist/assets/*`, and the copied `public/` files exist and the app loads from the built folder.
