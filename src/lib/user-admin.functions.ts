@@ -23,6 +23,8 @@ export interface ManagedUser {
   email: string;
   username: string | null;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   employee_id: string | null;
   department: string | null;
   roles: RoleKey[];
