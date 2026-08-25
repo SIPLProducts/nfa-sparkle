@@ -396,15 +396,6 @@ function CreateUserDialog({
 
   const closeDialog = () => onOpenChange(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeDialog();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
-
   const submit = async () => {
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
@@ -426,7 +417,6 @@ function CreateUserDialog({
         DEPT: department,
       });
 
-      closeDialog();
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
