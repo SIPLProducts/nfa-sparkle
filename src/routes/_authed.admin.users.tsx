@@ -44,7 +44,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { SCREENS, type Role, type ScreenKey } from "@/lib/screens";
 import {
-  createManagedUser,
   createRoleDef,
   deleteRoleDef,
   listManagedUsers,
