@@ -25,6 +25,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
+  const resolveLogin = useServerFn(resolveLoginId);
+
 
   useEffect(() => {
     if (!loading && user) nav({ to: "/", replace: true });
