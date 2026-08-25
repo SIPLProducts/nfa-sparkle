@@ -139,7 +139,11 @@ the shell during the build:
 cd /opt/enfa/app
 set -a; . /opt/enfa/app.env; set +a
 npm ci
-npm run build          # output: .output/server/index.mjs
+npm run build          # output: dist/ (static frontend) + .output/server/server.js (Node)
+
+# publish the static frontend nginx serves on 8081
+sudo mkdir -p /opt/enfa/frontend
+sudo rsync -a --delete dist/ /opt/enfa/frontend/
 ```
 
 **Service:**
@@ -244,6 +248,7 @@ git pull
 set -a; . /opt/enfa/app.env; set +a
 npm ci
 npm run build
+sudo rsync -a --delete dist/ /opt/enfa/frontend/
 # new migrations, if any (defaults to quality port 54322)
 PGPASSWORD='<pw>' ./deploy/scripts/run-migrations.sh
 exit
