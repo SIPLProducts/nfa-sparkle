@@ -121,26 +121,28 @@ services:
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,rate-limiting,response-transformer,file-log
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
     ports:
       - "127.0.0.1:${KONG_HTTP_PORT:-54321}:8000/tcp"
-      - "127.0.0.1:${KONG_HTTPS_PORT:-54322}:8443/tcp"
+      - "127.0.0.1:${KONG_HTTPS_PORT:-54324}:8443/tcp"
     volumes:
       - type: bind
         source: ./volumes/api/kong.yml
         target: /home/kong/kong.yml
         read_only: true
     depends_on:
-      analytics:
-        condition: service_healthy
-        required: false
       auth:
         condition: service_healthy
       rest:
-        condition: service_healthy
+        condition: service_started
       realtime:
         condition: service_healthy
       storage:
-        condition: service_healthy
+        condition: service_started
       meta:
         condition: service_healthy
     networks:
