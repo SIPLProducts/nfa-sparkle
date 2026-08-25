@@ -1,54 +1,48 @@
-# Server login via User Management: tables + nginx review
+# Exact changes: frontend .env, nginx, backend
 
-## Where users are stored
+## 1. Frontend/app `.env` changes
 
-Login is handled by the app's own auth/database stack, not SAP. Creating a user in **User Management** writes to four places:
+Your current file is missing values the server side needs, and it is missing the app server port settings.
 
-```text
-auth.users                  -> the login account (email + password)
-public.profiles             -> User ID, first/last name, contact, dept, status
-public.user_roles           -> built-in roles: initiator, approver, admin, viewer
-public.user_role_assignment -> custom roles created in the Roles tab
-```
-
-Screen access is then resolved from:
+Keep as-is (these are correct, because nginx on 8081 proxies `/auth/v1` and `/rest/v1` to 8001):
 
 ```text
-public.role_permission      -> role_key + screen + allowed
+SUPABASE_PROJECT_ID="self-hosted-quality"
+VITE_SUPABASE_PROJECT_ID="self-hosted-quality"
+SUPABASE_URL="http://10.200.1.7:8081"
+VITE_SUPABASE_URL="http://10.200.1.7:8081"
+VITE_SUPABASE_PUBLISHABLE_KEY="<quality ANON_KEY>"
+SUPABASE_PUBLISHABLE_KEY="<quality ANON_KEY>"
 ```
 
-Login flow:
-
-1. User types **User ID or Email**.
-2. Server function `resolveLoginId` maps the User ID to the account email through `profiles`.
-3. Password sign-in runs against `auth.users`.
-4. Roles are read from `user_roles` + `user_role_assignment`.
-
-So a user must be created through **User Management** (not only the Authentication → Users screen), because only User Management fills `profiles` and role tables. A user created directly in Authentication has no User ID and no role, so User-ID login and screen access will fail.
-
-## Is the nginx config correct?
-
-Mostly yes. It now proxies the pieces that were missing before.
-
-Correct parts:
+Add these missing lines:
 
 ```text
-/_serverFn/    -> 127.0.0.1:3000   (login + app server functions)
-/api/public/   -> 127.0.0.1:3000   (create-user JSON endpoint)
-/auth/v1       -> 127.0.0.1:8001   (sign-in)
-/rest/v1       -> 127.0.0.1:8001   (roles, permissions, app tables)
-/storage/v1    -> 127.0.0.1:8001
-/realtime/v1   -> 127.0.0.1:8001
-/api/          -> 127.0.0.1:3005   (SAP middleware)
+HOST=127.0.0.1
+PORT=3000
+NODE_ENV=production
+SUPABASE_SERVICE_ROLE_KEY="<quality SERVICE_ROLE_KEY>"
 ```
 
-`/api/public/` correctly wins over `/api/` because nginx prefers the longer prefix match.
+Why the service role key is required:
 
-Three things to fix:
+- `resolveLoginId` (User ID login) uses the privileged client to map User ID to email.
+- `/api/public/create-user` uses it to create the auth account and write profile and role rows.
 
-1. **Body size for uploads through the app server.** The app server block allows 25m, but the backend API block is separate; keep 25m here and make sure the 8001 listener also allows large bodies.
+Without it, User-ID login fails and Create User fails.
 
-2. **Timeouts for SAP-backed calls.** Attachment fetches can run 95-170s. Add to the `/_serverFn/` and `/api/public/` blocks:
+Two checks on the keys themselves:
+
+- `ANON_KEY` and `SERVICE_ROLE_KEY` must both be generated from the quality stack's own `JWT_SECRET`.
+- The `ref` inside the token is irrelevant for self-hosted; the signature is what matters.
+
+Never expose the service role key with a `VITE_` prefix.
+
+## 2. nginx changes
+
+Your latest config is structurally correct. Only add resilience settings.
+
+In the `/_serverFn/` and `/api/public/` blocks add:
 
 ```nginx
 proxy_connect_timeout  30s;
@@ -57,59 +51,66 @@ proxy_read_timeout    200s;
 proxy_buffering off;
 ```
 
-3. **Websocket header on realtime.** Add `proxy_set_header Connection "upgrade";` consistently, and avoid sending the upgrade header on plain REST blocks.
+In the `/rest/v1` and `/storage/v1` blocks add:
 
-Everything else in your file is fine.
-
-## Required environment values
-
-The browser must reach the backend API on port 8001:
-
-```text
-SUPABASE_URL=http://10.200.1.7:8001
-VITE_SUPABASE_URL=http://10.200.1.7:8001
+```nginx
+client_max_body_size 50m;
+proxy_read_timeout 120s;
 ```
 
-The publishable/anon key must be the one generated for this quality stack. After changing any `VITE_*` value, rebuild:
+Leave ordering unchanged. `/api/public/` correctly takes priority over `/api/` because nginx prefers the longer prefix.
+
+No other nginx changes are needed.
+
+## 3. Backend/server-side changes
+
+- Ensure the built app server actually runs on `127.0.0.1:3000` (PM2 or systemd). If nothing listens there, `/_serverFn/` returns 502 and login fails.
+- Ensure the static build output is deployed to `/opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist`.
+- Rebuild after any `VITE_*` change:
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-set -a; . /opt/enfa/app.env; set +a
+set -a; . ./.env; set +a
 npm ci
 npm run build
 ```
 
-Then copy the build output to the frontend dist path, restart the Node app on port 3000, and reload nginx.
+- Restart the app process, then `sudo nginx -t && sudo systemctl reload nginx`.
 
-## App change in this plan
+## 4. Application code change
 
-Adjust `src/lib/auth-context.tsx` so `role_permission` is fetched **after** a session exists rather than on page load. Today it runs while the login page is open with no session, producing the `401 Unauthorized` you saw, and can leave permissions empty afterwards. Permissions will reload whenever the signed-in user changes.
+Update `src/lib/auth-context.tsx` so `role_permission` is loaded only after a session exists, and reloaded when the signed-in user changes. Currently it is requested on the login page with no session, which produces the `401 Unauthorized` you saw and can leave permissions empty after sign-in.
 
 No other application logic changes.
 
-## How to create a working server user
+## 5. User creation on the server
 
-1. Sign in on the server as an admin user.
-2. Open **User Management → Users → Create user**.
-3. Fill User ID, first/last name, email, contact, status, password, and at least one role.
-4. Submit; the request goes to `/api/public/create-user` and creates the auth account, profile, and role rows together.
-5. Sign in with that User ID or email.
+Users must be created from **User Management → Create user**, which writes:
 
-If no admin exists yet on the server, create the first admin by assigning the `admin` role to an existing auth user directly in the database, then use User Management for all later users.
+```text
+auth.users                  login account
+public.profiles             User ID, name, contact, dept, status
+public.user_roles           built-in roles
+public.user_role_assignment custom roles
+```
 
-## Verification
+A user added only through the Authentication → Users screen has no User ID and no role, so User-ID login and screen access will not work.
+
+If the server has no admin yet, grant `admin` in `public.user_roles` for one existing auth user, then manage everyone else through User Management.
+
+## 6. Verification
 
 ```bash
 curl -i http://127.0.0.1:3000/auth
-curl -i http://10.200.1.7:8001/auth/v1/health
+curl -i http://10.200.1.7:8081/auth/v1/health
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-In DevTools after a hard refresh:
+In DevTools after hard refresh:
 
 ```text
-POST /_serverFn/...            -> 200
-POST /auth/v1/token?...        -> 200
-GET  /rest/v1/user_roles?...   -> 200 with a role row
-GET  /rest/v1/role_permission  -> 200 (only after sign-in)
+POST /_serverFn/...           -> 200 (not 405/502)
+POST /auth/v1/token?...       -> 200
+GET  /rest/v1/user_roles?...  -> 200 with a role row
+GET  /rest/v1/role_permission -> 200 only after sign-in
 ```
