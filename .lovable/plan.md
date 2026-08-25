@@ -1,94 +1,106 @@
-# Create an admin login user directly in the Quality database
+# Create an admin login user on the Quality server
 
-Run this in the self-hosted SQL editor (port 8001 → SQL Editor) on the Quality server. It creates a real auth account, fills the app profile, and grants the Admin role so the user can sign in with **User ID or Email**.
+The previous query was only partially executed: it ended at `is_syst` and therefore never reached the closing `end $$;`. The SQL editor then appended unrelated text, producing the unterminated dollar-quote error.
 
-## What it does
+Use this safer two-step method. It avoids direct manipulation of auth internals and contains no dollar-quoted block.
 
-- Creates the sign-in account (email + password, already confirmed — no email needed).
-- Fills the app profile: User ID, first/last name, contact, active status.
-- Grants the `admin` role in both role tables the app checks.
+## 1. Create the login account
 
-## The query
+In the Quality backend console, open **Authentication → Users → Add user** and create:
 
-Edit the four values at the top, then run the whole block once.
+- Email: `masteradmin@sharviinfotech.com`
+- Password: choose a new strong password
+- Auto confirm user: enabled
+
+This creates the valid login record, including the required auth identity. Do not insert directly into the internal auth tables.
+
+## 2. Assign the application profile and Admin role
+
+Open **SQL Editor**, paste the complete query below, and run it as one query:
 
 ```sql
--- pgcrypto is needed to hash the password
-create extension if not exists pgcrypto;
-
-do $$
+-- Stop with no changes if the Authentication user does not exist.
+do $admin_setup$
 declare
-  v_email    text := 'masteradmin@sharviinfotech.com';  -- login email
-  v_password text := 'Admin@12345';                     -- login password
-  v_userid   text := 'MASTERADMIN';                     -- User ID used on the login screen
-  v_first    text := 'Master';
-  v_last     text := 'Admin';
-  v_contact  text := '9999999999';
-  v_id       uuid;
+  v_id uuid;
 begin
-  select id into v_id from auth.users where lower(email) = lower(v_email);
+  select id
+    into v_id
+    from auth.users
+   where lower(email) = lower('masteradmin@sharviinfotech.com')
+   limit 1;
 
   if v_id is null then
-    v_id := gen_random_uuid();
-    insert into auth.users (
-      instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, created_at, updated_at,
-      raw_app_meta_data, raw_user_meta_data
-    ) values (
-      '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
-      lower(v_email), crypt(v_password, gen_salt('bf')),
-      now(), now(), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      jsonb_build_object('full_name', v_first || ' ' || v_last)
-    );
-  else
-    update auth.users
-       set encrypted_password = crypt(v_password, gen_salt('bf')),
-           email_confirmed_at = coalesce(email_confirmed_at, now()),
-           updated_at = now()
-     where id = v_id;
+    raise exception 'Create masteradmin@sharviinfotech.com in Authentication > Users first';
   end if;
 
-  insert into public.profiles (id, email, full_name, username, first_name, last_name, contact, status, is_active)
-  values (v_id, lower(v_email), v_first || ' ' || v_last, v_userid, v_first, v_last, v_contact, 'ACTIVE', true)
-  on conflict (id) do update
-    set email = excluded.email,
-        full_name = excluded.full_name,
-        username = excluded.username,
-        first_name = excluded.first_name,
-        last_name = excluded.last_name,
-        contact = excluded.contact,
-        status = 'ACTIVE',
-        is_active = true;
+  insert into public.profiles (
+    id, email, full_name, username, first_name, last_name,
+    contact, status, is_active
+  ) values (
+    v_id,
+    'masteradmin@sharviinfotech.com',
+    'Master Admin',
+    'MASTERADMIN',
+    'Master',
+    'Admin',
+    '9999999999',
+    'ACTIVE',
+    true
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    username = excluded.username,
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    contact = excluded.contact,
+    status = excluded.status,
+    is_active = excluded.is_active;
 
-  insert into public.user_roles (user_id, role) values (v_id, 'admin') on conflict do nothing;
+  -- Remove the default Initiator role added by the new-user trigger.
+  delete from public.user_roles where user_id = v_id;
+  insert into public.user_roles (user_id, role)
+  values (v_id, 'admin');
 
-  insert into public.app_role_def (key, name, is_system)
-  values ('admin', 'Admin', true) on conflict (key) do nothing;
+  insert into public.app_role_def (key, name, description, is_system)
+  values ('admin', 'Admin', 'Full application administration', true)
+  on conflict (key) do update set name = excluded.name;
 
+  delete from public.user_role_assignment where user_id = v_id;
   insert into public.user_role_assignment (user_id, role_key)
-  values (v_id, 'admin') on conflict do nothing;
-end $$;
+  values (v_id, 'admin');
+end
+$admin_setup$;
 ```
 
-Verify:
+Do not run only a highlighted portion. The final two lines must be included exactly:
 
 ```sql
-select p.username, p.email, p.status, ur.role
+end
+$admin_setup$;
+```
+
+## 3. Verify the result
+
+```sql
+select
+  p.username,
+  p.email,
+  p.status,
+  p.is_active,
+  ur.role,
+  ura.role_key
 from public.profiles p
 left join public.user_roles ur on ur.user_id = p.id
+left join public.user_role_assignment ura on ura.user_id = p.id
 where lower(p.email) = lower('masteradmin@sharviinfotech.com');
 ```
 
-## Tables involved
+Expected values: `MASTERADMIN`, `ACTIVE`, `true`, `admin`, `admin`.
 
-| Table | Purpose |
-| --- | --- |
-| `auth.users` | the actual login credentials |
-| `public.profiles` | User ID (`username`), name, contact, status |
-| `public.user_roles` | enum role (`admin`) |
-| `public.user_role_assignment` + `app_role_def` | named role used by screen permissions |
+## Login and server requirement
 
-## Note on login still failing
-
-Password sign-in goes straight to the auth service, so this user will work for **Email + Password** immediately. **User ID** login also needs the app server (port 3000) reachable through Nginx at `/_serverFn/`, which is the separate deployment fix already outlined.
+- Email login works through the auth service after the user is created and confirmed.
+- User ID login (`MASTERADMIN`) additionally requires the application server to run on port 3000 and Nginx to proxy `/_serverFn/` to it.
+- The database/API secrets pasted in chat should be treated as exposed. Rotate the database password, JWT secret and generated API keys before production use, then update all dependent services together.
