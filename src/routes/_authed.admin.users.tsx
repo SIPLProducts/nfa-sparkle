@@ -16,6 +16,8 @@ import {
   Save,
   Trash2,
   Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
