@@ -19,7 +19,12 @@ DEV/PROD already use 8000/8443 and 8010/9443 for Kong, plus 5433/6543 and 5434/6
 | `docker-compose-quality.yml` | Full standalone stack |
 | `.env.quality.example` | Environment template |
 | `volumes/api/kong.yml` | Kong declarative routes |
+| `volumes/db/*.sql` | Database bootstrap (role passwords + internal schemas), runs once on a fresh volume |
 | `volumes/logs/vector.yml` | Log shipper (only with `--profile analytics`) |
+
+> Copy the whole `volumes/` folder next to `docker-compose-quality.yml`. Without
+> `volumes/db/roles.sql` the internal roles have no password and PostgREST (`rest`)
+> never becomes healthy.
 
 ## Quick start
 
