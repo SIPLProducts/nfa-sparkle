@@ -43,6 +43,12 @@ npm run build
 [[ -f .output/server/server.js ]] || { echo "Build output .output/server/server.js not found"; exit 1; }
 [[ -f dist/index.html ]] || { echo "Static build dist/index.html not found"; exit 1; }
 
+step "Publishing static frontend to /opt/enfa/frontend"
+sudo mkdir -p /opt/enfa/frontend
+sudo rsync -a --delete dist/ /opt/enfa/frontend/
+
+
+
 if [[ "${SKIP_MIGRATIONS:-0}" != "1" ]]; then
   step "Applying database migrations"
   ./deploy/scripts/run-migrations.sh
