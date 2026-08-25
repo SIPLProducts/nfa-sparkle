@@ -1,46 +1,36 @@
-# Middleware .env — why there are no SAP settings in it
+# Build a deployable `dist/` frontend folder
 
-Your `.env` is correct as-is. The middleware `.env` only holds how the proxy itself runs:
+Today `npm run build` emits `.output/` in a Cloudflare/wrangler layout, which is awkward to copy onto the Ubuntu server. The goal: `npm run build` produces a plain `dist/` folder containing `index.html`, `assets/`, `favicon.png`, `manifest.webmanifest`, `sw.js` etc. — exactly like the folder listing you shared — so you can copy it into your `frontend` folder and let nginx serve it.
 
-- `PORT` — the port Node listens on (3005; nginx publishes it as 3004)
-- `PROXY_SECRET` — shared secret; the same value goes in Admin → SAP API Settings → Middleware Configuration
-- `TIMEOUT_MS` — upstream SAP timeout (180000 for slow attachment calls)
-- `ALLOW_IPS` — optional IP allow-list (empty = allow all)
+## What will change
 
-SAP host / port / client / user / password are deliberately **not** in `.env`. They live in `systems.json` next to `server.js`, because the middleware supports several SAP systems at once and `.env` can only hold one set of values.
+1. **SPA/static client output**
+   - Enable TanStack Start's SPA mode so a static `index.html` shell is emitted instead of per-request SSR HTML.
+   - Point the client build output at `dist/` (root-level), so `dist/index.html` + `dist/assets/*` are produced, with `public/` files copied alongside.
 
-## What to add on the server
+2. **`package.json` scripts**
+   - `npm run build` → produces both the `dist/` frontend and the Node server bundle.
+   - `npm run build:frontend` → frontend-only, writes `dist/`.
 
-Create `/opt/Ramky_Applications/NFA-Approval/Quality/middleware/systems.json`:
+3. **Deployment wiring**
+   - `deploy/nginx/nfa-quality.conf`: the 8081 vhost serves `root /opt/enfa/frontend;` with `try_files $uri /index.html;` for static assets, and still proxies the dynamic paths (`/_serverFn/*`, `/api/*`) to the Node process on `127.0.0.1:3000`.
+   - `deploy/scripts/deploy-quality.sh`: after build, rsync `dist/` into the frontend folder, then restart the app + middleware as today.
+   - `deploy/README.md`: updated steps and the new folder layout.
 
-```json
-[
-  {
-    "key": "QAS300",
-    "label": "SAP Quality (client 300)",
-    "host": "10.200.1.2",
-    "port": 8000,
-    "client": "300",
-    "useHttps": false,
-    "defaultUser": "<sap service user>",
-    "defaultPassword": "<sap password>",
-    "default": true
-  }
-]
+## Important note on the backend half
+
+The app's SAP calls, login-gated data and admin APIs run as server functions and `/api/public/*` routes. A `dist/` folder alone cannot serve those — the Node service (`.output/server/index.mjs`, systemd `enfa-app`) must keep running, and nginx forwards `/_serverFn` and `/api` to it. So the deployment becomes:
+
+```text
+nginx :8081
+  ├── /            → static files from /opt/enfa/frontend  (dist/)
+  ├── /_serverFn/* → 127.0.0.1:3000  (Node)
+  └── /api/*       → 127.0.0.1:3000  (Node)
 ```
 
-Then `chmod 600 systems.json` and restart: `systemctl restart enfa-middleware`.
+If you'd rather nginx serve everything with no Node process, the SAP integration would have to move entirely into the standalone middleware — say the word and I'll plan that separately.
 
-Verify: `curl -s http://127.0.0.1:3005/health` should list the system under `systems`.
+## Technical details
 
-## One important note
-
-The app already sends `baseUrl` and `auth` on every `/sap/call` from what you saved in Admin → SAP API Settings → SAP Systems. So if those fields are filled in the portal, `systems.json` is only a fallback — but keep it present and correct so `/health` and any call without an explicit target still resolve.
-
-## Change I propose in the repo
-
-Only documentation: update `deploy/env/middleware.env.quality.example` and `middleware/README.md` with a short "SAP credentials live in systems.json, not .env" note plus the quality-server path, so this is not confusing next time. No application or middleware code changes.
-
-## Also worth doing
-
-`PROXY_SECRET=123456` is weak and the middleware is reachable through nginx on port 3004. Replace it with `openssl rand -hex 32` and paste the same value into the portal's Middleware Configuration.
+- `vite.config.ts`: add `tanstackStart: { spa: { enabled: true }, ... }` and a `vite: { build: { outDir: 'dist' } }` override for the client environment; keep the existing `server: { entry: "server" }` for the Node bundle.
+- Verify after the change that `dist/index.html`, `dist/assets/`, and the copied `public/` files all exist, and that the Node bundle still builds.
