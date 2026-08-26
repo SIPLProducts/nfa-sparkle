@@ -85,53 +85,60 @@ cut -d. -f2 <<<"$SUPABASE_PUBLISHABLE_KEY" | base64 -d 2>/dev/null | grep -o '"r
 It must **not** print `nhrwogdnwtkmbygwlrkv`.
 
 
-## 2. Upgrade the application runtime to Node 22
+## 2. Install Node 22 alongside Node 20 and isolate it to this app
 
-Check the current executable first:
+The server-wide `/usr/bin/node` can remain at Node 20. Do **not** change the default Node version, kill PM2, or reinstall PM2; doing so could restart or alter the other projects.
 
-```bash
-node --version
-which node
-```
-
-If it reports Node 20, install/select Node 22 using the server's existing Node version manager or package-management standard. With `nvm`:
+Install Node 22 alongside Node 20 with `nvm`:
 
 ```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 nvm install 22
-nvm alias default 22
-nvm use 22
-node --version
+NODE22="$(nvm which 22)"
+"$NODE22" --version
 ```
 
-Expected: `v22.x.x`. If PM2 was installed under Node 20, reinstall it under the active Node 22 environment so its daemon and startup command use the same executable:
+Expected: `v22.x.x`. `/usr/bin/node` remains Node 20, while only `NFA-Portal-App` will receive the explicit Node 22 interpreter path.
 
-```bash
-npm install -g pm2
-pm2 kill
-```
+Why this project differs: its current realtime client checks for native WebSocket support during server-client initialization. Node 20 does not provide that global API, while Node 22 does. Existing projects that do not initialize this dependency can continue working normally on Node 20.
 
-Do not add a browser WebSocket polyfill. This is the Node application server, not a frontend browser issue.
+Do not add a browser WebSocket polyfill. This is a Node application-server runtime requirement, not a frontend browser issue.
 
 ## 3. Rebuild and restart PM2 with the environment
 
 The `VITE_*` values are embedded during build; the server values are read at runtime. Load the same file for both:
 
 ```bash
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+NODE22="$(nvm which 22)"
+
 cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 set -a
 . ../frontend.env
 set +a
 
-npm run build
+"$(dirname "$NODE22")/npm" run build
 test -f dist/server/index.mjs && echo 'build ready'
 
 pm2 delete NFA-Portal-App 2>/dev/null || true
 pm2 start /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/server/index.mjs \
   --name NFA-Portal-App \
   --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
+  --interpreter "$NODE22" \
   --update-env
 pm2 save
 ```
+
+Verify only this process uses Node 22:
+
+```bash
+pm2 show NFA-Portal-App | grep -E 'interpreter|node.js version'
+pm2 ls
+```
+
+The other PM2 processes are not deleted or restarted and retain their existing interpreters.
 
 Verify variable **presence only** without printing secret values:
 
