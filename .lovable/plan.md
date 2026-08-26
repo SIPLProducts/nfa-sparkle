@@ -1,76 +1,158 @@
-# Fix login on the Quality server
+# Restore Quality-server login and migrate local users
 
-The admin user is now correct in the database (verified: `MASTERADMIN`, `ACTIVE`, role `admin`). The remaining failures are deployment issues, and there are exactly two.
+## Confirmed diagnosis
 
-## Diagnosis
+1. **The app server is not running.** `curl 127.0.0.1:3000/auth` is refused and PM2 contains only middleware processes. This causes the `/_serverFn/*` 502.
+2. **The Quality API keys now match.** The frontend publishable key is the same as `ANON_KEY` in the backend environment, so no further key replacement is needed.
+3. **The 401 is likely an old browser session.** The browser can retain a token issued by the cloud environment after the frontend is changed to Quality. Clear site data for `10.200.1.7:8081` after rebuilding/restarting.
+4. **The Master Admin account is complete.** Screenshots verify its auth account, active profile, and `admin` role in both role tables.
 
-**1. `502 Bad Gateway` on `POST /_serverFn/...`**
+## 1. Correct the app environment
 
-Nginx now forwards this path correctly (a 405 became a 502), but nothing answers on the upstream port. The application server is not running, so User ID resolution and Create User cannot execute.
+Use a separate app environment file, not the backend Docker `.env`:
 
-**2. `401 Invalid authentication credentials` on `GET /rest/v1/role_permission`**
-
-This message comes from the API gateway rejecting the API key itself, not from a missing session. The frontend build is using an API key that was not signed by this server's `JWT_SECRET`. The Quality stack's own `ANON_KEY` from `backend/.env` must be the one baked into the frontend build.
-
-Both must be fixed; fixing only one leaves login broken.
-
-## Step 1 - Frontend environment
-
-In the frontend `.env` used for the build, the publishable/anon key must be the `ANON_KEY` value from `backend/.env` (the one beginning `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...MqeMZKSY`), and the URL must be the address the browser uses:
-
-```
-VITE_SUPABASE_URL=http://10.200.1.7:8081
-VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
-```
-
-Vite bakes these in at build time, so the frontend must be rebuilt and the output re-synced to the Nginx root after any change here.
-
-## Step 2 - Server-side environment
-
-The app server process needs these variables (never with a `VITE_` prefix):
-
-```
+```env
+SUPABASE_PROJECT_ID=self-hosted-quality
+SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
 SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
-SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from backend/.env>
+SUPABASE_SERVICE_ROLE_KEY=<Quality SERVICE_ROLE_KEY>
+
+VITE_SUPABASE_PROJECT_ID=self-hosted-quality
+VITE_SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+
 HOST=127.0.0.1
 PORT=3000
+NODE_ENV=production
 ```
 
-Without the service role key, User ID login and Create User fail even when the process is running.
+Use `127.0.0.1:8001` for server-side calls and `10.200.1.7:8081` only for browser-side calls. Do not use `NODE_ENV=quality`; Node expects `production` for the production server.
 
-## Step 3 - Run the application server
+## 2. Build and start the missing app process
 
-Build the app, then run the server output as a managed service so it survives reboots, listening on `127.0.0.1:3000`. Either a systemd unit or a PM2 entry alongside the existing middleware processes is acceptable — PM2 is already in use on this host, so it is the lower-friction choice.
+From the deployed application source directory (the directory containing `package.json`):
 
-Confirm before continuing:
-
-```
+```bash
+npm ci
+npm run build
+ls -l .output/server/server.js
+pm2 start .output/server/server.js --name NFA-Portal-App --time
+pm2 save
+pm2 ls
 curl -i http://127.0.0.1:3000/auth
 ```
 
-This must return `200`, not `Connection refused`. While it refuses, every `/_serverFn/` request stays a 502.
+The environment file must be loaded before `pm2 start`; alternatively define it in a PM2 ecosystem file. The expected final PM2 list includes both:
 
-## Step 4 - Nginx
+- `NFA-Portal-App` on port 3000
+- `NFA-Middleware` on port 3005
 
-Keep the existing proxy blocks and confirm `/_serverFn/` and `/api/public/` both point at `127.0.0.1:3000`, with `proxy_read_timeout 200s` and `proxy_buffering off` so long SAP-backed calls are not cut off. Reload after any edit.
+If `.output/server/server.js` does not exist, stop and send the output of `ls -la` plus `cat package.json`; do not guess another entry path.
 
-## Step 5 - Verify in order
+## 3. Clear the stale browser session
 
-1. `curl -i http://127.0.0.1:3000/auth` returns 200.
-2. Sign in with **email** `masteradmin@sharviinfotech.com` and its password.
-3. Confirm `/rest/v1/role_permission` returns rows instead of 401.
-4. Sign in with **User ID** `MASTERADMIN` and confirm `/_serverFn/` returns 200.
-5. Confirm the Admin sidebar section is visible.
+After the app starts and the frontend is rebuilt:
 
-## What I need from you
+1. Open Chrome DevTools on `http://10.200.1.7:8081`.
+2. Application → Storage → **Clear site data**.
+3. Close and reopen the login page.
+4. First test with `masteradmin@sharviinfotech.com` and its password.
+5. Then test with User ID `MASTERADMIN`.
 
-To produce the exact files rather than generic instructions, send:
+This removes the old cloud-issued access token that the Quality gateway rejects.
 
-- the frontend `.env` currently used for the build on the server,
-- the output of `pm2 ls` after you attempt to start the app,
-- the directory listing of the deployed frontend folder (so I can confirm the built server entry path).
+## 4. Create the local users in Quality
 
-## Security note
+Auth passwords cannot be recovered or recreated from the public user-management tables. For each user, first use **Authentication → Users → Add user**, set a temporary password, and enable auto-confirm. Create these known local accounts:
 
-The database password, JWT secret and both API keys were pasted into chat and should be treated as exposed. Plan a rotation of `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY` and `SERVICE_ROLE_KEY`, updating the stack and the frontend build together, once login is working.
+| Email | User ID | Name | Role |
+| --- | --- | --- | --- |
+| `kvvkkunchala@gmail.com` | `kvvk` | kvvk kunchala | initiator |
+| `pradeep.p@sharviinfotech.com` | `pradeep` | pradeep ammisetty | initiator |
+| `prasad.kvvk@sharviinfotech.com` | `prasad` | kvvk kunchala | admin |
+| `demo@nfa.local` | `demo` | Demo User | admin |
+
+After those four auth accounts exist, run this complete SQL block once to create/update their profiles and role assignments:
+
+```sql
+do $user_migration$
+declare
+  r record;
+  v_id uuid;
+begin
+  for r in
+    select * from (values
+      ('kvvkkunchala@gmail.com',           'kvvk',    'kvvk',    'kunchala',  '8519954889', 'initiator'),
+      ('pradeep.p@sharviinfotech.com',     'pradeep', 'pradeep', 'ammisetty', '7013584342', 'initiator'),
+      ('prasad.kvvk@sharviinfotech.com',   'prasad',  'kvvk',    'kunchala',  '8519954889', 'admin'),
+      ('demo@nfa.local',                   'demo',    'Demo',    'User',      null,         'admin')
+    ) as x(email, username, first_name, last_name, contact, role_key)
+  loop
+    select id into v_id
+      from auth.users
+     where lower(email) = lower(r.email)
+     limit 1;
+
+    if v_id is null then
+      raise exception 'Create auth user % first', r.email;
+    end if;
+
+    insert into public.profiles (
+      id, email, full_name, username, first_name, last_name,
+      contact, status, is_active
+    ) values (
+      v_id, lower(r.email), r.first_name || ' ' || r.last_name,
+      r.username, r.first_name, r.last_name, r.contact, 'ACTIVE', true
+    )
+    on conflict (id) do update set
+      email = excluded.email,
+      full_name = excluded.full_name,
+      username = excluded.username,
+      first_name = excluded.first_name,
+      last_name = excluded.last_name,
+      contact = excluded.contact,
+      status = 'ACTIVE',
+      is_active = true;
+
+    delete from public.user_roles where user_id = v_id;
+    insert into public.user_roles (user_id, role)
+    values (v_id, r.role_key::public.app_role);
+
+    delete from public.user_role_assignment where user_id = v_id;
+    insert into public.user_role_assignment (user_id, role_key)
+    values (v_id, r.role_key);
+  end loop;
+end
+$user_migration$;
+```
+
+Do not run only highlighted lines; include the final `$user_migration$;` delimiter.
+
+## 5. Verify migrated users
+
+```sql
+select
+  p.username,
+  p.email,
+  p.status,
+  p.is_active,
+  ur.role,
+  ura.role_key
+from public.profiles p
+left join public.user_roles ur on ur.user_id = p.id
+left join public.user_role_assignment ura on ura.user_id = p.id
+where lower(p.email) in (
+  'kvvkkunchala@gmail.com',
+  'pradeep.p@sharviinfotech.com',
+  'prasad.kvvk@sharviinfotech.com',
+  'demo@nfa.local',
+  'masteradmin@sharviinfotech.com'
+)
+order by p.email;
+```
+
+Then log in with each user's email and temporary password. User ID login will work only after `NFA-Portal-App` is online, because User ID resolution uses `/_serverFn/`.
+
+## Security follow-up
+
+The database password, JWT secret and both API keys were pasted into chat. After login is restored, rotate them together and rebuild/restart every dependent service. Do not paste the replacement values into chat.
