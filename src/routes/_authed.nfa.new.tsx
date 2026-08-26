@@ -567,7 +567,7 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="Function" className="md:col-span-2">
+              <Field label="Function">
                 <Select value={func} onValueChange={setFunc} disabled={!nfaType || functionsLoading || functions.length === 0}>
                   <SelectTrigger>
                     <SelectValue
