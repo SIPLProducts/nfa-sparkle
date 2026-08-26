@@ -1,19 +1,19 @@
-# Fix Quality-server login with the required app server
+# Fix Quality-server build and restore login
 
-## Confirmed architecture
+## Confirmed root cause
 
-The suggested “pure static SPA” diagnosis is incorrect for this project.
+The project is not a pure static SPA: login calls the `resolveLoginId` server function, and Create User plus `/api/public/*` also require the app server.
 
-The build intentionally produces two outputs:
+The current Ubuntu build produces `dist/index.html` but no server entry because `vite.config.ts` explicitly sets `nitro: false` outside Lovable. Consequently, `scripts/pack-dist.mjs` has no `dist/server` bundle to move, and `.output/server/server.js` cannot exist.
+
+The installed Node deployment preset produces this entry:
 
 ```text
 dist/                    static browser files served by Nginx
-.output/server/server.js Node app server for /_serverFn/* and /api/public/*
+.output/server/index.mjs Node app server for /_serverFn/* and /api/public/*
 ```
 
-`scripts/pack-dist.mjs` moves `dist/server` into the hidden `.output/server` directory. Therefore, running `ls dist` only shows static files by design; it does not prove that the app is static-only.
-
-Login calls `resolveLoginId`, which is a TanStack server function. User creation and SAP-facing APIs also use server routes. They cannot run from `index.html` or the SAP middleware.
+This explains the complete failure chain: no server bundle → no process on port 3000 → Nginx returns 502 for `/_serverFn/*` → User ID/email resolution does not complete → authenticated role requests fail.
 
 ## Do not apply the proposed Nginx workaround
 
@@ -27,20 +27,25 @@ That converts failed POST requests into fake `200` responses containing HTML. Th
 
 Also do not send every `/api/` request to port 3005. `/api/public/*` belongs to the app server on port 3000; port 3005 is only the SAP proxy middleware.
 
-## Step 1 — Check the hidden server output
+## Step 1 — Correct the self-hosted build configuration
 
-From the application source folder, not inside `dist`:
+Update `vite.config.ts` so self-hosted builds enable the Node server preset instead of setting `nitro: false`:
 
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
-ls -la .output/server/server.js
+```ts
+nitro: { preset: "node-server" }
 ```
 
-If it exists, continue to Step 3.
+Lovable builds retain their platform-managed setting. Ubuntu builds retain SPA/static `index.html` generation while also producing the required Node runtime.
 
-If it does not exist, continue to Step 2.
+Update `scripts/pack-dist.mjs` so it continues flattening browser output into `dist/` without replacing or deleting Nitro's `.output/server` result.
 
-## Step 2 — Rebuild both outputs
+Update every deployment reference from the nonexistent `.output/server/server.js` to the Node preset's actual entry, `.output/server/index.mjs`:
+
+- `deploy/scripts/deploy-quality.sh`
+- `deploy/systemd/enfa-app.service`
+- deployment documentation and environment comments that name the old entry
+
+## Step 2 — Deploy the corrected files and rebuild
 
 First ensure the app `.env` in this same source folder has:
 
@@ -66,10 +71,12 @@ cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 npm ci
 npm run build
 ls -la dist/index.html
-ls -la .output/server/server.js
+ls -la .output/server/index.mjs
 ```
 
-Both final files must exist. The Quality keys shown in the latest environment already match the backend keys; do not replace them with the cloud-project keys from the repository `.env`.
+Both final files must exist. If `index.mjs` is still missing, capture the full output of `npm run build`; do not continue to PM2 or modify Nginx.
+
+The Quality `.env` must keep the Quality backend URL and keys. Do not use the cloud values from the repository `.env`, and never place the service-role key in a `VITE_*` variable.
 
 ## Step 3 — Start the missing app process with PM2
 
@@ -80,7 +87,7 @@ cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 set -a
 . ./.env
 set +a
-pm2 start .output/server/server.js \
+pm2 start .output/server/index.mjs \
   --name NFA-Portal-App \
   --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
   --time
@@ -97,7 +104,7 @@ pm2 logs NFA-Portal-App --lines 100
 
 Expected: port 3000 answers and PM2 shows `NFA-Portal-App` as `online`. If it exits, the 100 log lines identify the exact startup error.
 
-## Step 4 — Use the correct Nginx routing
+## Step 4 — Keep the correct Nginx routing
 
 Keep static assets in `dist`, but route runtime requests separately:
 
@@ -111,7 +118,7 @@ server {
     client_max_body_size 50m;
 
     # TanStack server functions and application APIs
-    location ~ ^/(_serverFn|api/public)/ {
+    location ~ ^/(_serverFn|api)/ {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -157,6 +164,8 @@ systemctl reload nginx
 curl -i http://127.0.0.1:3000/auth
 curl -i http://10.200.1.7:8081/auth
 ```
+
+The repository’s `deploy/nginx/nfa-quality.conf` already follows this structure: static browser files are served from `dist`, while `/_serverFn/*` and `/api/*` go to port 3000. Do not add `error_page 405 =200` and do not proxy the application `/auth` page to the backend gateway.
 
 ## Step 5 — Clear the old session and sign in
 
