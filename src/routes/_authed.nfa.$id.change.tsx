@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { AttachmentList } from "@/components/AttachmentList";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
+import { ArrowLeft, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id/change")({
   component: ChangeRequestPage,
@@ -182,9 +182,6 @@ function ChangeRequestPage() {
             <Link to="/nfa/$id" params={{ id: nfa.id }}>
               <Button variant="ghost" size="sm" className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Back to NFA</Button>
             </Link>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => save(false)} disabled={busy || !canEdit}>
-              <Save className="h-4 w-4" /> Save Changes
-            </Button>
             <Button size="sm" className="gap-1.5" onClick={() => save(true)} disabled={busy || !canEdit}>
               <Send className="h-4 w-4" /> Submit for Approval
             </Button>
