@@ -1,55 +1,45 @@
-# Fix PM2 startup path for the packaged server
+# Restore sidebar screens and User Management on the Quality server
 
-## Confirmed cause
+## What the screenshot shows
 
-The shell is currently inside:
+After login the sidebar is empty and there is no Admin section, and the user badge reads `INITIATOR` for `masteradmin@sharviinfotech.com`.
 
-```text
-/opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist
-```
+How the app decides what to show (verified in code):
 
-From that directory, `pm2 start dist/server/index.mjs` expands to:
+- `src/lib/auth-context.tsx` reads `role_permission` (`role_key, screen, allowed`) once, and reads the signed-in user's roles from `user_roles` + `user_role_assignment`.
+- `src/components/AppShell.tsx` renders each menu item only when `canAccess(screen)` is true.
+- If the `role_permission` read returns nothing (empty or blocked), the fallback only shows menus when the user's role list contains `admin`.
 
-```text
-.../frontend/dist/dist/server/index.mjs
-```
+So an empty sidebar plus an `INITIATOR` badge means both: the permission rows are not reaching the browser, and the master user is not carrying the `admin` role in the tables the app reads.
 
-That path does not exist. The generated server is expected at `.../frontend/dist/server/index.mjs`.
+## Migration content (verified in the repo)
 
-## Immediate server recovery
+The repo already contains everything needed — nothing has to be authored:
 
-1. Confirm the packaged server exists:
+- `role_permission` is created and seeded with all 7 screens for `initiator`, `approver`, `viewer`, `admin` — including `('admin','user_management',true)` and `('admin','sap_api',true)`.
+- A later migration adds `role_permission.role_key` and backfills it from `role`. The app reads `role_key`, so if that later migration did not run, every row has `role_key = NULL` and the app sees zero permissions — exactly the observed blank sidebar.
+- `app_role_def`, `user_role_assignment`, and the `profiles` columns (`first_name`, `last_name`, `contact`, `status`) used by the Create User form come from the newest migrations.
 
-```bash
-test -f /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/server/index.mjs && echo "Server bundle OK"
-```
+Conclusion to confirm on the server: the Quality database is behind on migrations, most likely missing the `role_key` migration and the newest `profiles` columns.
 
-2. Start it using an absolute path, so the command works from any directory:
+## Steps
 
-```bash
-pm2 start /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/server/index.mjs \
-  --name NFA-Portal-App \
-  --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
-  --update-env
-pm2 save
-```
+1. Diagnose on the Quality database (read-only), to confirm before changing anything:
+   - Does `role_permission.role_key` exist and is it populated?
+   - Do `app_role_def` and `user_role_assignment` exist?
+   - Do `profiles.first_name`, `last_name`, `contact`, `status` exist?
+   - Which roles does the master user hold in `user_roles` and `user_role_assignment`?
+2. Apply the missing migrations with the existing idempotent runner `deploy/scripts/run-migrations.sh` against the Quality database.
+3. Backfill in case an older database already had rows: set `role_key = role::text` wherever it is null, and insert any missing screen rows for the four built-in roles.
+4. Grant the master user the `admin` role in both `user_roles` and `user_role_assignment` so the sidebar, Admin section, and the admin checks used by user creation all agree.
+5. Sign out and back in on the server so the roles and permissions are re-read.
 
-3. Verify the process and local application port:
+## Code hardening (in this repo)
 
-```bash
-pm2 status NFA-Portal-App
-pm2 logs NFA-Portal-App --lines 50
-curl -I http://127.0.0.1:3000/
-```
+- In `src/lib/auth-context.tsx`, capture the `role_permission` query error instead of ignoring it, and log a clear console warning when permissions fail to load, so this situation shows a diagnosable message instead of a silently empty sidebar.
+- Keep the existing behaviour otherwise; no change to the permission model.
 
-The `restart` failure is expected because `NFA-Portal-App` has not been created in PM2 yet. After the first successful `pm2 start`, future deployments can use:
+## Deliverables
 
-```bash
-pm2 restart NFA-Portal-App --update-env
-```
-
-## Repository update
-
-- Change PM2 examples in the deployment guide to use the absolute server entry and explicit working directory.
-- Add a PM2-first-start versus later-restart section to prevent repeating the `dist/dist` path issue.
-- Keep `dist/server/index.mjs` as the stable generated entry point; no build-layout change is required.
+- A single SQL script under `deploy/scripts/` that runs the diagnosis, the backfill, and the master-admin grant, safe to re-run.
+- A short section in `deploy/README.md` describing this check as part of every deployment.
