@@ -108,8 +108,8 @@ kong:
   command:
     - |
       sed \
-        -e 's|$${ANON_KEY}|'[31m"$${ANON_KEY}"[0m'|g' \
-        -e 's|$${SERVICE_ROLE_KEY}|'[31m"$${SERVICE_ROLE_KEY}"[0m'|g' \
+        -e "s|\$${ANON_KEY}|$${ANON_KEY}|g" \
+        -e "s|\$${SERVICE_ROLE_KEY}|$${SERVICE_ROLE_KEY}|g" \
         /var/lib/kong/kong.template.yml > /tmp/kong.yml
       exec /docker-entrypoint.sh kong docker-start
   environment:
@@ -123,14 +123,7 @@ kong:
     - ./volumes/api/kong.yml:/var/lib/kong/kong.template.yml:ro
 ```
 
-In the two `sed` lines above, the intended shell syntax around each replacement is a single quote, a double-quoted variable, then another single quote. Use this copy-safe complete command block if the editor displays any formatting artifacts:
-
-```yaml
-  command:
-    - |
-      sed -e 's|$${ANON_KEY}|'[31m"$${ANON_KEY}"[0m'|g' -e 's|$${SERVICE_ROLE_KEY}|'[31m"$${SERVICE_ROLE_KEY}"[0m'|g' /var/lib/kong/kong.template.yml > /tmp/kong.yml
-      exec /docker-entrypoint.sh kong docker-start
-```
+The doubled dollar signs are required in Compose: Compose reduces `$$` to a literal `$`, then the container shell expands the two key values while leaving the template placeholders as the `sed` search patterns.
 
 Then recreate only Kong:
 
