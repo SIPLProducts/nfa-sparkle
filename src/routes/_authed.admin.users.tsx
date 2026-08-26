@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
+import { useScreenState } from "@/lib/screen-state";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -179,7 +180,7 @@ function UsersTab() {
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
 
-  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers() });
+  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000 });
   const [q, setQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
