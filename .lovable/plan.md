@@ -1,54 +1,83 @@
-# Fix the Quality API 401 first
+# Diagnose and fix the Quality REST 401
 
-## Confirmed issue
+## Current confirmed state
 
-The failing `/rest/v1/role_permission` call is rejected by the API gateway before it reaches the database. This is why the response is:
+- The Nginx rule is correct: `/auth/v1/` and `/rest/v1/` are proxied to the Quality API gateway on port `8001`.
+- The browser reaches that gateway, which returns `{"message":"Invalid authentication credentials"}` before the database can evaluate roles or permissions.
+- The database already contains Admin screen permissions, so no role migration should be run for this gateway error.
+- The Compose stack is located at:
 
-```json
-{"message":"Invalid authentication credentials"}
+```text
+/opt/Ramky_Applications/NFA-Approval/Quality/backend/docker-compose-quality.yml
 ```
 
-This is **not** caused by missing user roles, permissions, or migrations.
+- The expected `/home/kong/kong.yml` does not exist in the running container. This means the running Kong container does not match the assumed mount/config path. The exact gateway cause must now be confirmed from the container rather than guessed.
 
-The Quality gateway configuration contains literal placeholders:
+## 1. Inspect the running Kong configuration without exposing keys
 
-```yaml
-key: ${ANON_KEY}
-key: ${SERVICE_ROLE_KEY}
-```
-
-but the gateway container starts directly with `kong start`. That startup command does not render the placeholders. The browser sends the real Quality `apikey`, while the gateway expects the literal placeholder, so every protected `/rest/v1/*` request receives 401.
-
-The Auth route does not use the gateway's `key-auth` plugin, which explains why Auth and REST can behave differently. The separate `Invalid login credentials` message must be checked only after the gateway API-key problem is fixed.
-
-## 1. Confirm the unrendered gateway config
-
-Run this on the Ubuntu server:
-
-```bash
-docker exec nfa-quality-kong grep -Fq '${ANON_KEY}' /home/kong/kong.yml \
-  && echo 'CONFIRMED: gateway config is unrendered' \
-  || echo 'Gateway config is rendered; inspect container logs'
-```
-
-If it prints `CONFIRMED`, no role SQL or migration should be run for this 401.
-
-## 2. Locate the exact Compose stack
-
-Do not guess its folder. Read it from the running container:
+Run these commands exactly:
 
 ```bash
 docker inspect nfa-quality-kong --format \
-'dir={{index .Config.Labels "com.docker.compose.project.working_dir"}}
-file={{index .Config.Labels "com.docker.compose.project.config_files"}}
-project={{index .Config.Labels "com.docker.compose.project"}}'
+'entrypoint={{json .Config.Entrypoint}}
+cmd={{json .Config.Cmd}}
+{{range .Config.Env}}{{if eq (index (split . "=") 0) "KONG_DECLARATIVE_CONFIG"}}{{println .}}{{end}}{{end}}'
+
+docker inspect nfa-quality-kong --format \
+'{{range .Mounts}}{{println .Source " -> " .Destination}}{{end}}'
+
+docker exec nfa-quality-kong sh -lc '
+  printf "KONG_DECLARATIVE_CONFIG=%s\n" "${KONG_DECLARATIVE_CONFIG:-NOT_SET}"
+  p="${KONG_DECLARATIVE_CONFIG:-/etc/kong/kong.yml}"
+  if [ -f "$p" ]; then
+    echo "CONFIG_FOUND=$p"
+  else
+    echo "CONFIG_MISSING=$p"
+  fi
+'
 ```
 
-Use the printed directory and Compose filename in the next step.
+These outputs identify:
 
-## 3. Render the gateway config at container startup
+1. the path Kong was actually told to load,
+2. the host file mounted into the container,
+3. whether the container was created from the current Compose definition.
 
-Update the gateway service in the actual Compose file so it renders environment variables before starting Kong:
+Do not print the content of the config or environment because it may contain API keys.
+
+## 2. Compare the running container with the Compose definition
+
+From the confirmed backend folder:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+
+docker compose -p nfa-quality -f docker-compose-quality.yml config --services
+
+docker compose -p nfa-quality -f docker-compose-quality.yml config \
+  | sed -n '/^[[:space:]]*kong:/,/^[[:space:]]*[a-zA-Z0-9_-]*:/p' \
+  | grep -E 'entrypoint|KONG_DECLARATIVE_CONFIG|source:|target:'
+```
+
+Only the filtered structural lines should be shown; do not share a full rendered Compose file because it can include secrets.
+
+## 3. Fix according to the inspection result
+
+### Case A — mount/config path differs from the Compose file
+
+Recreate only Kong from the confirmed Compose file:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+docker compose -p nfa-quality -f docker-compose-quality.yml up -d --force-recreate kong
+docker logs nfa-quality-kong --tail 80
+```
+
+This does not restart the database or alter users, roles, or permissions.
+
+### Case B — config exists but contains unrendered `${ANON_KEY}` placeholders
+
+The gateway startup must render the template before Kong starts. Update the Kong service to mount the source as a template, explicitly provide the two key variables, render to `/tmp/kong.yml`, and point `KONG_DECLARATIVE_CONFIG` there:
 
 ```yaml
 kong:
@@ -57,7 +86,7 @@ kong:
     - -c
     - |
       eval "echo \"$(cat /home/kong/kong.template.yml)\"" > /tmp/kong.yml
-      exec kong start -c /etc/kong/kong.conf --conf /dev/null
+      exec kong start
   environment:
     KONG_DATABASE: "off"
     KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
@@ -69,70 +98,63 @@ kong:
     - ./volumes/api/kong.yml:/home/kong/kong.template.yml:ro
 ```
 
-Technical requirement: `ANON_KEY` and `SERVICE_ROLE_KEY` must be explicitly present in the gateway container environment. The source template remains read-only; the rendered file is created only inside the container.
+Then recreate only Kong using the Case A command.
 
-Before recreating it, confirm the stack `.env` has the matching values without printing them:
+### Case C — config is rendered, but the API key is still rejected
+
+Compare the Quality backend key with the frontend build key using hashes only:
 
 ```bash
-cd <working directory printed above>
-grep -cE '^(ANON_KEY|SERVICE_ROLE_KEY)=' .env
+BACKEND_HASH=$(sed -n 's/^ANON_KEY=//p' \
+  /opt/Ramky_Applications/NFA-Approval/Quality/backend/.env \
+  | sha256sum | cut -d' ' -f1)
+
+FRONTEND_HASH=$(sed -n 's/^VITE_SUPABASE_PUBLISHABLE_KEY=//p' \
+  /opt/Ramky_Applications/NFA-Approval/Quality/frontend.env \
+  | sha256sum | cut -d' ' -f1)
+
+printf 'Backend ANON hash: %s\nFrontend publishable hash: %s\n' \
+  "$BACKEND_HASH" "$FRONTEND_HASH"
 ```
 
-Expected result: `2`.
+The hashes must be identical. If they differ, update `frontend.env` with the Quality `ANON_KEY`, rebuild the frontend because `VITE_*` values are embedded at build time, and restart only `NFA-Portal-App` with `--update-env`.
 
-## 4. Recreate only the gateway
+## 4. Verify the REST gateway before testing roles
 
-From the real Compose working directory:
-
-```bash
-docker compose -f <compose filename printed above> up -d --force-recreate kong
-docker logs nfa-quality-kong --tail 50
-```
-
-This does not restart the database and does not affect users or role data.
-
-Confirm that the running config no longer contains placeholders:
+After the gateway fix:
 
 ```bash
-docker exec nfa-quality-kong grep -Fq '${ANON_KEY}' /tmp/kong.yml \
-  && echo 'FAILED: placeholder remains' \
-  || echo 'OK: gateway config rendered'
-```
-
-## 5. Verify the API before testing login
-
-First verify that the gateway accepts the anon key. Load the Quality backend `.env` without displaying its values:
-
-```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
 set -a
 . ./.env
 set +a
+
 curl -i 'http://127.0.0.1:8001/rest/v1/role_permission?select=role_key,screen,allowed&limit=1' \
   -H "apikey: $ANON_KEY"
 ```
 
-A database/RLS response such as `200`, `401` with a PostgREST JSON error, or `403` proves the gateway credential check passed. The exact gateway body `{"message":"Invalid authentication credentials"}` must be gone.
+The exact gateway response `{"message":"Invalid authentication credentials"}` must be gone. A later database/RLS response is a separate layer and can then be diagnosed accurately.
 
-Then clear site data for `10.200.1.7:8081`, reload, and sign in again. A signed-in REST request should contain:
+Clear browser site data for `10.200.1.7:8081`, reload, and sign in again. For a signed-in REST request:
 
-- `apikey`: the Quality anon key
-- `Authorization: Bearer ...`: the newly issued **user access token**, not the same anon key
+- `apikey` should be the Quality anon key.
+- `Authorization` should be the newly issued user access token, not the same value as `apikey`.
 
-## 6. Handle login credentials separately
+## 5. Diagnose User ID `0056` only after the API gateway passes
 
-If the login form still says `Invalid login credentials` after the REST gateway is fixed, verify the account exists and identify whether User ID resolution is working:
+The `Invalid login credentials` message is separate from the REST gateway 401. Verify that `0056` resolves to an existing auth account:
 
 ```sql
 select u.id, u.email, u.email_confirmed_at,
        p.username, p.status
 from auth.users u
 left join public.profiles p on p.id = u.id
-where lower(u.email) = lower('masteradmin@sharviinfotech.com')
-   or lower(p.username) = lower('masteradmin');
+where lower(p.username) = lower('0056')
+   or lower(u.email) = lower('0056');
 ```
 
-If the row exists and is active, reset the password through the supported admin flow rather than inserting another user or editing password hashes manually.
+If no row is returned, `0056` is not currently a valid User ID in this Quality database. Create the user through User Management after the gateway/server functions are healthy. If a row is returned, validate/reset that account’s password through the supported admin flow rather than inserting a duplicate user or manually editing password hashes.
 
 ## Project hardening
 
-After the server is restored, update the deployment kit in the project with the same rendered gateway startup so future deployments do not recreate this 401. The previously pasted Quality keys should also be rotated after service recovery; do not paste replacement keys into chat.
+After recovery, apply the confirmed Kong mount/startup correction to the deployment kit so future Quality deployments reproduce the working gateway. Rotate the previously exposed Quality keys afterward and do not paste the replacements into chat.
