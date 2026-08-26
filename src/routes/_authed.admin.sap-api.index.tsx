@@ -52,6 +52,7 @@ import {
   CONNECTION_MODES,
   DEPLOYMENT_MODES,
 } from "@/lib/sap-api-constants";
+import { useScreenState } from "@/lib/screen-state";
 import {
   createSapEndpoint,
   deleteSapEndpoint,
@@ -92,6 +93,7 @@ function SapApiSettings() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
   const isAdmin = hasRole("admin");
+  const [tab, setTab] = useScreenState<string>("sap-api.tab", "apis");
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -109,7 +111,7 @@ function SapApiSettings() {
         title="SAP API Settings"
         subtitle="Register dynamic SAP/REST endpoints and configure the shared Node.js middleware."
       />
-      <Tabs defaultValue="apis" className="space-y-5">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <TabsList className="h-auto flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="apis" className="gap-2">
             <Plug className="h-4 w-4" /> APIs
@@ -155,9 +157,9 @@ function EndpointsTab() {
     system_id: "",
   });
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list() });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list(), staleTime: 60_000 });
   const listSystems = useServerFn(listSapSystems);
-  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems() });
+  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems(), staleTime: 60_000 });
 
   const createMut = useMutation({
     mutationFn: () => create({ data: { ...form, system_id: form.system_id || null } }),
@@ -507,11 +509,11 @@ function SystemsTab() {
   const remove = useServerFn(deleteSapSystem);
   const test = useServerFn(testSapSystem);
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list() });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list(), staleTime: 60_000 });
   const systems = data ?? [];
 
   const [form, setForm] = useState(BLANK_SYSTEM);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useScreenState<string | null>("sap-api.system.selected", null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -536,10 +538,10 @@ function SystemsTab() {
 
   useEffect(() => {
     if (loaded || !data) return;
-    const active = data.find((s) => s.is_active) ?? data[0];
+    const active = (selectedId ? data.find((s) => s.id === selectedId) : null) ?? data.find((s) => s.is_active) ?? data[0];
     if (active) load(active);
     setLoaded(true);
-  }, [data, loaded]);
+  }, [data, loaded, selectedId]);
 
   const saveMut = useMutation({
     mutationFn: () => {
@@ -808,7 +810,7 @@ function MiddlewareTab() {
   const get = useServerFn(getSapSettings);
   const save = useServerFn(saveMiddlewareConfig);
   const test = useServerFn(testMiddleware);
-  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get() });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get(), staleTime: 60_000 });
   const [form, setForm] = useState({
     connection_mode: "proxy",
     deployment_mode: "lovable_cloud",
