@@ -225,7 +225,7 @@ group by p.email, p.username, p.status;
 
 ## Technical note
 
-No schema migration is required for either error shown. The recovery is to use the Quality-signed keys, point the server at the local gateway, run on Node 22, rebuild so the browser bundle carries the correct URL/key, restart PM2 with `--update-env`, and clear the old browser session.
+No schema migration is required for either error shown. First verify that Auth and REST use the same JWT secret and recreate only those backend services if their hashes differ. Then use the matching Quality key set, point the server at the local gateway, run only this app on Node 22, rebuild, restart its PM2 process with `--update-env`, and clear the old browser session.
 
 ## Security follow-up
 
