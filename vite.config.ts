@@ -7,8 +7,8 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // Inside the Lovable build environment the output layout is pinned by the platform.
-// For self-hosted (Ubuntu/nginx) builds we emit the static frontend into `dist/`
-// and keep the Node server bundle in `.output/server`.
+// For self-hosted (Ubuntu/nginx) builds we emit one self-contained `dist/`
+// release folder: static frontend at the root, Node server in `dist/server`.
 const isLovableBuild = process.env.LOVABLE_SANDBOX === "1" || !!process.env.SANDBOX;
 
 export default defineConfig({
