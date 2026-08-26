@@ -21,7 +21,8 @@ export default defineConfig({
       ? {}
       : { spa: { enabled: true, prerender: { outputPath: "/index.html" } } }),
   },
-  // Self-hosted build: skip the Cloudflare/wrangler bundling step.
-  ...(isLovableBuild ? {} : { nitro: false as const }),
+  // Self-hosted build: emit a standalone Node server for server functions and API routes.
+  // Lovable builds keep the platform-managed deployment preset.
+  ...(isLovableBuild ? {} : { nitro: { preset: "node-server" } }),
 });
 

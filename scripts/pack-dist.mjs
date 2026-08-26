@@ -1,8 +1,9 @@
 // Post-build step for self-hosted (Ubuntu/nginx) deployments.
 //
-// Vite/TanStack Start writes:
-//   dist/client/**  -> static frontend (index.html, hashed assets, public/ files)
-//   dist/server/**  -> Node server bundle (server functions, /api routes, SSR)
+// Vite/TanStack Start writes the browser frontend under dist/client. Nitro's
+// node-server preset writes the runnable server to .output/server/index.mjs.
+// Older builds may still leave a dist/server directory, which is moved only
+// when Nitro has not already produced .output/server.
 //
 // For deployment we want a flat `dist/` holding only the static frontend, and
 // the server bundle kept aside in `.output/server`. Inside the Lovable build
@@ -26,14 +27,19 @@ if (!existsSync(client)) {
   process.exit(0);
 }
 
-// 1. Move the server bundle out of dist/ into .output/server
+// 1. Preserve Nitro's Node output. Move a legacy dist/server bundle only when
+// there is no existing .output/server; otherwise discard only the duplicate.
 if (existsSync(server)) {
   const output = join(root, ".output");
   const outputServer = join(output, "server");
-  rmSync(outputServer, { recursive: true, force: true });
-  mkdirSync(output, { recursive: true });
-  renameSync(server, outputServer);
-  console.log("[pack-dist] Server bundle -> .output/server");
+  if (!existsSync(outputServer)) {
+    mkdirSync(output, { recursive: true });
+    renameSync(server, outputServer);
+    console.log("[pack-dist] Legacy server bundle -> .output/server");
+  } else {
+    rmSync(server, { recursive: true, force: true });
+    console.log("[pack-dist] Keeping Nitro server bundle in .output/server");
+  }
 }
 
 // 2. Move everything from dist/client up into dist/
