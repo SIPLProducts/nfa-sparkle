@@ -1,117 +1,135 @@
-# Create a user + roles directly in the Quality database
+# Restore User Management and create users on Quality
 
-The role_permission rows are correct (admin has `user_management`, `report`, `sap_api`, `nfa_my`, `nfa_new` = true). So the remaining need is: create a login user in the self-hosted database, with profile fields and roles, using SQL only.
+## Confirmed diagnosis
 
-Run everything in the SQL Editor (or `psql -h 127.0.0.1 -p 5435 -U postgres -d postgres`).
+The latest response identifies the immediate failure:
 
-## 1. One-shot script: create user + profile + roles
+```text
+Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+```
 
-Edit only the six values in the first block.
+The login request succeeds (`token?grant_type=password` = 200), but the following role reads return 401. The Admin permission rows also exist and include `user_management = true`. Therefore this is **not a missing role-permission migration**.
+
+The Node/PM2 application was started without its required server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
+
+## 1. Create the Quality runtime environment file
+
+On the Ubuntu server, create the file expected by the deployment layout:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality
+cp frontend/deploy/env/app.env.quality.example frontend.env
+chmod 600 frontend.env
+nano frontend.env
+```
+
+Set these values using the keys from the Quality backend `.env` (do not use the cloud values from the repository):
+
+```env
+HOST=127.0.0.1
+PORT=3000
+NODE_ENV=production
+
+SUPABASE_URL=http://127.0.0.1:8001
+SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<Quality SERVICE_ROLE_KEY>
+SUPABASE_PROJECT_ID=enfa-quality
+
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+VITE_SUPABASE_PUBLISHABLE_KEY=<same Quality ANON_KEY>
+VITE_SUPABASE_PROJECT_ID=enfa-quality
+```
+
+Never put the service-role key in a `VITE_` variable.
+
+## 2. Rebuild and restart PM2 with the environment
+
+The `VITE_*` values are embedded during build; the server values are read at runtime. Load the same file for both:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
+set -a
+. ../frontend.env
+set +a
+
+npm run build
+test -f dist/server/index.mjs && echo 'build ready'
+
+pm2 delete NFA-Portal-App 2>/dev/null || true
+pm2 start /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/server/index.mjs \
+  --name NFA-Portal-App \
+  --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
+  --update-env
+pm2 save
+```
+
+Verify variable **presence only** without printing secret values:
+
+```bash
+pm2 env "$(pm2 pid NFA-Portal-App)" | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY):' | sed 's/:.*/: SET/'
+pm2 logs NFA-Portal-App --lines 50 --nostream
+```
+
+All three names must show `SET`, and the missing-environment error must be absent.
+
+## 3. Clear the stale browser session
+
+Because the screenshot shows login 200 followed by four 401 responses:
+
+1. Sign out.
+2. Chrome DevTools → Application → Storage → Clear site data for `10.200.1.7:8081`.
+3. Hard refresh and sign in again.
+4. Confirm `user_roles`, `user_role_assignment`, `nfa`, and `nfa_approver` no longer return 401.
+
+## 4. Create users through User Management
+
+Once the server environment is restored, use **Admin → User Management → Create User**. This is safer than inserting directly into authentication system tables and automatically creates:
+
+- the authentication account and password,
+- the `profiles` row,
+- system roles in `user_roles`,
+- custom roles in `user_role_assignment`.
+
+## 5. SQL query to assign roles to an existing user
+
+If the user already exists in Authentication and `profiles`, assign system roles with this SQL. Change only the email and role list:
 
 ```sql
--- pgcrypto is needed to hash the password the same way GoTrue does
-create extension if not exists pgcrypto;
-
 do $$
 declare
-  v_email    text := 'john.doe@sharviinfotech.com';  -- login email
-  v_username text := 'JOHN_RSSPL';                   -- User ID used on the login page
-  v_password text := 'Test@1234';                    -- 8-10 chars
-  v_first    text := 'John';
-  v_last     text := 'Doe';
-  v_contact  text := '9876543210';                   -- 10 digits
-  v_roles    text[] := array['admin','initiator'];   -- any of initiator/approver/admin/viewer
-  v_uid      uuid;
-  r          text;
+  v_email text := 'user@example.com';
+  v_roles public.app_role[] := array['initiator','approver']::public.app_role[];
+  v_uid uuid;
 begin
-  select id into v_uid from auth.users where lower(email) = lower(v_email);
+  select id into v_uid
+  from public.profiles
+  where lower(email) = lower(v_email);
 
   if v_uid is null then
-    v_uid := gen_random_uuid();
-    insert into auth.users (
-      instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, created_at, updated_at,
-      raw_app_meta_data, raw_user_meta_data
-    ) values (
-      '00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
-      lower(v_email), crypt(v_password, gen_salt('bf')),
-      now(), now(), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      jsonb_build_object('full_name', v_first || ' ' || v_last)
-    );
-    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-    values (gen_random_uuid(), v_uid, v_uid::text,
-            jsonb_build_object('sub', v_uid::text, 'email', lower(v_email)),
-            'email', now(), now(), now());
-  else
-    update auth.users
-       set encrypted_password = crypt(v_password, gen_salt('bf')),
-           email_confirmed_at = coalesce(email_confirmed_at, now()),
-           banned_until = null,
-           updated_at = now()
-     where id = v_uid;
+    raise exception 'No profile exists for %; create the user in User Management first', v_email;
   end if;
 
-  -- profile row the app reads (User ID login + User Management list)
-  insert into public.profiles (id, email, full_name, first_name, last_name, username, contact, status, is_active)
-  values (v_uid, lower(v_email), v_first || ' ' || v_last, v_first, v_last, v_username, v_contact, 'ACTIVE', true)
-  on conflict (id) do update
-     set email = excluded.email,
-         full_name = excluded.full_name,
-         first_name = excluded.first_name,
-         last_name = excluded.last_name,
-         username = excluded.username,
-         contact = excluded.contact,
-         status = 'ACTIVE',
-         is_active = true;
-
-  -- roles
   delete from public.user_roles where user_id = v_uid;
-  foreach r in array v_roles loop
-    insert into public.user_roles (user_id, role) values (v_uid, r::public.app_role)
-    on conflict do nothing;
-  end loop;
 
-  raise notice 'user ready: % (%)', v_email, v_uid;
+  insert into public.user_roles (user_id, role)
+  select v_uid, unnest(v_roles)
+  on conflict (user_id, role) do nothing;
 end $$;
 ```
 
-## 2. Verify
+Valid system roles are `initiator`, `approver`, `admin`, and `viewer`.
+
+Verify:
 
 ```sql
 select p.email, p.username, p.status,
        array_agg(ur.role::text order by ur.role) as roles
 from public.profiles p
 left join public.user_roles ur on ur.user_id = p.id
-group by p.email, p.username, p.status
-order by p.email;
+where lower(p.email) = lower('user@example.com')
+group by p.email, p.username, p.status;
 ```
 
-## 3. Custom roles (only if you use non-system roles)
+## Technical note
 
-System roles are `initiator`, `approver`, `admin`, `viewer` and live in `user_roles`.
-Custom roles live in `app_role_def` + `user_role_assignment`:
-
-```sql
--- define the role
-insert into public.app_role_def (key, name, description, is_system)
-values ('finance_reviewer', 'Finance Reviewer', 'Reviews budget impact', false)
-on conflict (key) do nothing;
-
--- screen access for it (screen keys: dashboard, nfa_new, nfa_my, approvals, report, sap_api, user_management)
-insert into public.role_permission (role_key, screen, allowed)
-values ('finance_reviewer','dashboard',true),
-       ('finance_reviewer','report',true)
-on conflict (role_key, screen) do update set allowed = excluded.allowed;
-
--- assign it to a user
-insert into public.user_role_assignment (user_id, role_key)
-select id, 'finance_reviewer' from public.profiles where lower(email) = 'john.doe@sharviinfotech.com'
-on conflict do nothing;
-```
-
-## Notes
-
-- After changing roles, the affected user must sign out and back in — roles and screen permissions are loaded once at sign-in.
-- Login works with either the User ID (`JOHN_RSSPL`) or the email, plus the password.
-- No application code changes are part of this plan; it is database work only.
+No schema migration is required for the error shown. The fix is to supply the existing Node server with the correct Quality environment, rebuild with the correct browser URL/key, restart PM2 using `--update-env`, and then refresh the browser session.
