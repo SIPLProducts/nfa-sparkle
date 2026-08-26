@@ -1,87 +1,29 @@
-# Restore the Quality-server application roles and sidebar
+# Retain screen data and tab state when navigating between screens
 
-## Confirmed current state
+## Problem (verified)
 
-The latest password login succeeds and the authenticated REST request returns `HTTP 200`. The earlier gateway 401 and `role "" does not exist` failures are therefore no longer active for this newly minted session.
+Every screen keeps its state in plain `useState` inside the route component:
 
-The response body is `[]` because the request checks only `user_role_assignment` for the hard-coded UUID `38722bbc-c804-40bf-aead-059366c0063f`. It does not prove the logged-in token belongs to that UUID, and it does not check the built-in roles stored in `user_roles`.
+- Dashboard (`src/routes/index.tsx`): `tab` (Ongoing/Completed), search, department/status filters, date range, loaded rows.
+- E-NFA Report (`src/routes/_authed.report.tsx`): filter values, fetched rows, "has run" flag, selected row.
+- My NFAs (`src/routes/_authed.nfa.my.tsx`): fetched rows, search text, selected row.
+- User Management (`src/routes/_authed.admin.users.tsx`): active tab is uncontrolled (`defaultValue="users"`).
 
-The application intentionally loads both role sources:
+TanStack Router unmounts the route component on navigation, so all of that is discarded and every screen refetches and resets to its default tab when you come back.
 
-- `user_roles.role` for built-in roles such as `admin` and `initiator`
-- `user_role_assignment.role_key` for custom roles
+## What changes for the user
 
-## 1. Resolve and repair the exact login account
+- Switching to another screen and returning restores the screen exactly as you left it: same tab, same filters/search, same result rows, same selected record.
+- Lists no longer re-run their SAP/database call on every return; data shows instantly and refreshes in the background only when it is older than a short freshness window (or when you press Refresh / Execute).
+- State survives a browser refresh within the same session; closing the tab clears it.
+- No visual changes.
 
-Run one transaction against the Quality database. Resolve the UUID from the email rather than reusing a UUID from another account or environment, keep the JWT database role as `authenticated`, and assign the application administrator role in `user_roles`:
+## Technical notes
 
-```sql
-DO $$
-DECLARE
-  v_uid uuid;
-BEGIN
-  SELECT id INTO v_uid
-  FROM auth.users
-  WHERE lower(email) = lower('sunilkumar@sharviinfotech.com');
-
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Login account not found';
-  END IF;
-
-  UPDATE auth.users
-  SET aud = 'authenticated', role = 'authenticated', updated_at = now()
-  WHERE id = v_uid;
-
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (v_uid, 'admin'::public.app_role)
-  ON CONFLICT (user_id, role) DO NOTHING;
-END $$;
-
-SELECT u.id, u.email, u.aud, u.role AS jwt_database_role,
-       array_remove(array_agg(DISTINCT ur.role::text), NULL) AS built_in_roles,
-       array_remove(array_agg(DISTINCT ura.role_key), NULL) AS custom_roles
-FROM auth.users u
-LEFT JOIN public.user_roles ur ON ur.user_id = u.id
-LEFT JOIN public.user_role_assignment ura ON ura.user_id = u.id
-WHERE lower(u.email) = lower('sunilkumar@sharviinfotech.com')
-GROUP BY u.id, u.email, u.aud, u.role;
-```
-
-An empty `custom_roles` array is valid when `built_in_roles` contains `admin`. Never put `admin` into `auth.users.role`; that field must remain `authenticated`.
-
-## 2. Revoke the exposed credentials and mint a clean session
-
-- Change the password pasted into chat, sign out, and clear site data for `10.200.1.7:8081`.
-- Sign in again with the replacement password so Auth issues a fresh token.
-- Confirm the token response shows the same UUID returned by the SQL query, with `aud: "authenticated"` and `role: "authenticated"`.
-- Query `user_roles` using that UUID; it must return `admin`. `user_role_assignment` may legitimately remain empty.
-- Query `role_permission?role_key=eq.admin`; verify the expected sidebar screens are allowed.
-
-Do not paste the replacement password, access token, or refresh token into chat.
-
-## 3. Correct the overly broad temporary RLS changes
-
-The temporary expressions `user_id = auth.uid() OR auth.uid() IS NOT NULL` and `id = auth.uid() OR auth.uid() IS NOT NULL` allow every signed-in user to read every row. Replace them with the intended own-row/admin policies, and remove anonymous profile access because `profiles` contains email and contact data. Keep only the specific grants required by those policies.
-
-Do not change RLS again to solve an empty role query; application-role assignment and RLS are separate concerns.
-
-## 4. Prevent future empty JWT claims
-
-The application user-creation flow should continue using the supported Auth admin API and separately writing business roles. Any manual SQL that creates `auth.users` rows on the Quality server must set:
-
-Any manual SQL used to create users on the Quality server must set both fields below:
-
-```sql
-aud = 'authenticated'
-role = 'authenticated'
-```
-
-Update the Quality-server manual creation script that produced the malformed account so future users receive these JWT claims. Continue assigning business roles only through `public.user_roles` or `public.user_role_assignment`.
-
-## Success criteria
-
-- The login response UUID matches the database account UUID.
-- A fresh token contains `aud=authenticated` and `role=authenticated`.
-- `user_roles` returns `admin`; an empty custom-role response does not block access.
-- `role_permission` returns the admin screen permissions and the sidebar appears.
-- Profiles and role assignments are no longer broadly readable by every authenticated or anonymous user.
+- Add `src/lib/screen-state.ts` — a `useScreenState<T>(key, initial)` hook backed by a module-level `Map` plus `sessionStorage`, with the same API shape as `useState`. Module cache keeps navigation fast; sessionStorage covers reloads. Only serialisable UI state goes in (tab, filters, search, selection, row arrays).
+- Dashboard: replace `tab`, `search`, `deptFilter`, `statusFilter`, `dateFrom`, `dateTo`, `filtersOpen` with `useScreenState("dashboard.*")`; move the row load into TanStack Query (`queryKey: ["dashboard-nfas", userId]`, `staleTime` 60s) so returning uses cache and revalidates in the background instead of showing the loading skeleton.
+- Report: persist `f` (filters), `rows`, `ran`, `selected` under `report.*`. The Execute action still triggers a fresh call; no automatic refetch on mount.
+- My NFAs: persist `rows`, `q`, `selected` under `nfa-my.*`; on mount, render cached rows immediately and refetch in the background only if the cache is empty or older than 60s. The existing Refresh button and post-upload/post-edit refresh keep forcing a live call.
+- User Management: make `Tabs` controlled with `value` from `useScreenState("admin-users.tab", "users")`; the existing `useQuery` caches already survive if `staleTime` is set (add 60s to the `managed-users`, `role-defs`, `approval-chains` queries).
+- Dialog open/close flags stay local — they should not persist.
+- No schema or backend changes.
