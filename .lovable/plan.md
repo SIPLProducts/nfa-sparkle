@@ -32,13 +32,34 @@ REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{pri
 printf 'Auth JWT hash: %s\nREST JWT hash: %s\n' "$AUTH_HASH" "$REST_HASH"
 ```
 
-The two hashes must be identical. If they differ, recreate the Auth and REST services from the same Quality backend `.env`; merely restarting the existing containers will preserve their old environment:
+The two hashes must be identical.
+
+If they differ, Auth and REST must be recreated so they pick up the same value; a plain restart keeps their existing environment. The compose file is **not** in `backend/`, so locate it from the running containers instead of guessing:
 
 ```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-docker compose up -d --force-recreate auth rest kong
-docker compose ps
+docker compose ls
+docker inspect nfa-quality-db --format \
+  'dir={{index .Config.Labels "com.docker.compose.project.working_dir"}}
+file={{index .Config.Labels "com.docker.compose.project.config_files"}}
+project={{index .Config.Labels "com.docker.compose.project"}}'
 ```
+
+This prints the directory, compose file path, and project name actually used to start the stack. Then recreate from that location:
+
+```bash
+cd <dir printed above>
+docker compose ps
+docker compose up -d --force-recreate auth rest kong
+```
+
+If the printed config file is a specific filename, target it directly:
+
+```bash
+docker compose -f <file printed above> up -d --force-recreate auth rest kong
+```
+
+Service names in that file may not be `auth`, `rest`, `kong`; use the `SERVICE` column from `docker compose ps` if a name is rejected.
+
 
 Then clear the browser's old session and sign in again so Auth issues a fresh token.
 
