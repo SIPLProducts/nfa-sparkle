@@ -1,253 +1,138 @@
-# Restore User Management and create users on Quality
+# Fix the Quality API 401 first
 
-## Confirmed diagnosis
+## Confirmed issue
 
-The latest response identifies the immediate failure:
+The failing `/rest/v1/role_permission` call is rejected by the API gateway before it reaches the database. This is why the response is:
 
-```text
-Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+```json
+{"message":"Invalid authentication credentials"}
 ```
 
-The login request succeeds (`token?grant_type=password` = 200), but the following role reads return 401. The Admin permission rows also exist and include `user_management = true`. Therefore this is **not a missing role-permission migration**.
+This is **not** caused by missing user roles, permissions, or migrations.
 
-The Node/PM2 application was started without a usable server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
+The Quality gateway configuration contains literal placeholders:
 
-### Verify token signing consistency before replacing keys
-
-The values in the current environment file decode to a payload containing:
-
-```text
-"ref": "nhrwogdnwtkmbygwlrkv"
+```yaml
+key: ${ANON_KEY}
+key: ${SERVICE_ROLE_KEY}
 ```
 
-That reference came from the hosted project, but the `ref` claim by itself does not determine whether a JWT is valid. A self-hosted gateway can accept it if all Quality services use the same signing secret. The successful password-token request proves the gateway accepts the anon key for the Auth endpoint.
+but the gateway container starts directly with `kong start`. That startup command does not render the placeholders. The browser sends the real Quality `apikey`, while the gateway expects the literal placeholder, so every protected `/rest/v1/*` request receives 401.
 
-The important symptom is: Auth issues a session successfully, then REST rejects that new access token with 401. This most strongly indicates that the Auth and REST containers may not share the same JWT secret. Confirm this without printing any secrets:
+The Auth route does not use the gateway's `key-auth` plugin, which explains why Auth and REST can behave differently. The separate `Invalid login credentials` message must be checked only after the gateway API-key problem is fixed.
+
+## 1. Confirm the unrendered gateway config
+
+Run this on the Ubuntu server:
 
 ```bash
-AUTH_HASH=$(docker inspect nfa-quality-auth --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | sed -n 's/^GOTRUE_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
-REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | sed -n 's/^PGRST_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
-printf 'Auth JWT hash: %s\nREST JWT hash: %s\n' "$AUTH_HASH" "$REST_HASH"
+docker exec nfa-quality-kong grep -Fq '${ANON_KEY}' /home/kong/kong.yml \
+  && echo 'CONFIRMED: gateway config is unrendered' \
+  || echo 'Gateway config is rendered; inspect container logs'
 ```
 
-The two hashes must be identical.
+If it prints `CONFIRMED`, no role SQL or migration should be run for this 401.
 
-If they differ, Auth and REST must be recreated so they pick up the same value; a plain restart keeps their existing environment. The compose file is **not** in `backend/`, so locate it from the running containers instead of guessing:
+## 2. Locate the exact Compose stack
+
+Do not guess its folder. Read it from the running container:
 
 ```bash
-docker compose ls
-docker inspect nfa-quality-db --format \
-  'dir={{index .Config.Labels "com.docker.compose.project.working_dir"}}
+docker inspect nfa-quality-kong --format \
+'dir={{index .Config.Labels "com.docker.compose.project.working_dir"}}
 file={{index .Config.Labels "com.docker.compose.project.config_files"}}
 project={{index .Config.Labels "com.docker.compose.project"}}'
 ```
 
-This prints the directory, compose file path, and project name actually used to start the stack. Then recreate from that location:
+Use the printed directory and Compose filename in the next step.
+
+## 3. Render the gateway config at container startup
+
+Update the gateway service in the actual Compose file so it renders environment variables before starting Kong:
+
+```yaml
+kong:
+  entrypoint:
+    - bash
+    - -c
+    - |
+      eval "echo \"$(cat /home/kong/kong.template.yml)\"" > /tmp/kong.yml
+      exec kong start -c /etc/kong/kong.conf --conf /dev/null
+  environment:
+    KONG_DATABASE: "off"
+    KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
+    KONG_DNS_ORDER: LAST,A,CNAME
+    KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,rate-limiting,response-transformer,file-log
+    ANON_KEY: ${ANON_KEY}
+    SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+  volumes:
+    - ./volumes/api/kong.yml:/home/kong/kong.template.yml:ro
+```
+
+Technical requirement: `ANON_KEY` and `SERVICE_ROLE_KEY` must be explicitly present in the gateway container environment. The source template remains read-only; the rendered file is created only inside the container.
+
+Before recreating it, confirm the stack `.env` has the matching values without printing them:
 
 ```bash
-cd <dir printed above>
-docker compose ps
-docker compose up -d --force-recreate auth rest kong
+cd <working directory printed above>
+grep -cE '^(ANON_KEY|SERVICE_ROLE_KEY)=' .env
 ```
 
-If the printed config file is a specific filename, target it directly:
+Expected result: `2`.
+
+## 4. Recreate only the gateway
+
+From the real Compose working directory:
 
 ```bash
-docker compose -f <file printed above> up -d --force-recreate auth rest kong
+docker compose -f <compose filename printed above> up -d --force-recreate kong
+docker logs nfa-quality-kong --tail 50
 ```
 
-Service names in that file may not be `auth`, `rest`, `kong`; use the `SERVICE` column from `docker compose ps` if a name is rejected.
+This does not restart the database and does not affect users or role data.
 
-
-Then clear the browser's old session and sign in again so Auth issues a fresh token.
-
-The Quality backend environment must contain `JWT_SECRET`, `ANON_KEY`, and `SERVICE_ROLE_KEY` generated as one matching set. The `.env` used by the stack sits next to the compose file found above, which may not be `backend/.env`:
+Confirm that the running config no longer contains placeholders:
 
 ```bash
-grep -cE '^(JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY)=' <dir printed above>/.env
+docker exec nfa-quality-kong grep -Fq '${ANON_KEY}' /tmp/kong.yml \
+  && echo 'FAILED: placeholder remains' \
+  || echo 'OK: gateway config rendered'
 ```
 
+## 5. Verify the API before testing login
 
-The result must be `3`. Use the matching Quality `ANON_KEY` and `SERVICE_ROLE_KEY` in `frontend.env`. Do not regenerate only one key; all three values must remain a matching set.
-
-### The server URL should be the local gateway
-
-`SUPABASE_URL` is used by the Node process on the same machine, so it should point directly at the Quality API gateway (`http://127.0.0.1:8001`) instead of looping back through the public web port. Only `VITE_SUPABASE_URL` uses the browser-visible address.
-
-The second error is an independent runtime mismatch:
-
-```text
-Node.js 20 detected without native WebSocket support
-```
-
-The installed backend client version expects native WebSocket support when a client is created. Node 20 does not provide it. The fix is to run the generated server bundle on Node 22; no realtime code change is required.
-
-## 1. Create the Quality runtime environment file
-
-On the Ubuntu server, create the file expected by the deployment layout:
+First verify that the gateway accepts the anon key. Load the Quality backend `.env` without displaying its values:
 
 ```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality
-cp frontend/deploy/env/app.env.quality.example frontend.env
-chmod 600 frontend.env
-nano frontend.env
-```
-
-Set these values using the keys from the Quality backend `.env`:
-
-```env
-HOST=127.0.0.1
-PORT=3000
-NODE_ENV=production
-
-SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from the Quality backend .env>
-SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from the Quality backend .env>
-SUPABASE_PROJECT_ID=enfa-quality
-
-VITE_SUPABASE_URL=http://10.200.1.7:8081
-VITE_SUPABASE_PUBLISHABLE_KEY=<same Quality ANON_KEY>
-VITE_SUPABASE_PROJECT_ID=enfa-quality
-```
-
-Never put the service-role key in a `VITE_` variable.
-
-The decoded `ref` is informational only and is not the validation test. Validate the complete setup by requesting a new login session and confirming an authenticated `/rest/v1/user_roles` request no longer returns 401.
-
-## 2. Install Node 22 alongside Node 20 and isolate it to this app
-
-The server-wide `/usr/bin/node` can remain at Node 20. Do **not** change the default Node version, kill PM2, or reinstall PM2; doing so could restart or alter the other projects.
-
-Install Node 22 alongside Node 20 with `nvm`:
-
-```bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-nvm install 22
-NODE22="$(nvm which 22)"
-"$NODE22" --version
-```
-
-Expected: `v22.x.x`. `/usr/bin/node` remains Node 20, while only `NFA-Portal-App` will receive the explicit Node 22 interpreter path.
-
-Why this project differs: its current realtime client checks for native WebSocket support during server-client initialization. Node 20 does not provide that global API, while Node 22 does. Existing projects that do not initialize this dependency can continue working normally on Node 20.
-
-Do not add a browser WebSocket polyfill. This is a Node application-server runtime requirement, not a frontend browser issue.
-
-## 3. Rebuild and restart PM2 with the environment
-
-The `VITE_*` values are embedded during build; the server values are read at runtime. Load the same file for both:
-
-```bash
-export NVM_DIR="$HOME/.nvm"
-. "$NVM_DIR/nvm.sh"
-NODE22="$(nvm which 22)"
-
-cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 set -a
-. ../frontend.env
+. ./.env
 set +a
-
-"$(dirname "$NODE22")/npm" run build
-test -f dist/server/index.mjs && echo 'build ready'
-
-pm2 delete NFA-Portal-App 2>/dev/null || true
-pm2 start /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist/server/index.mjs \
-  --name NFA-Portal-App \
-  --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
-  --interpreter "$NODE22" \
-  --update-env
-pm2 save
+curl -i 'http://127.0.0.1:8001/rest/v1/role_permission?select=role_key,screen,allowed&limit=1' \
+  -H "apikey: $ANON_KEY"
 ```
 
-Verify only this process uses Node 22:
+A database/RLS response such as `200`, `401` with a PostgREST JSON error, or `403` proves the gateway credential check passed. The exact gateway body `{"message":"Invalid authentication credentials"}` must be gone.
 
-```bash
-pm2 show NFA-Portal-App | grep -E 'interpreter|node.js version'
-pm2 ls
-```
+Then clear site data for `10.200.1.7:8081`, reload, and sign in again. A signed-in REST request should contain:
 
-The other PM2 processes are not deleted or restarted and retain their existing interpreters.
+- `apikey`: the Quality anon key
+- `Authorization: Bearer ...`: the newly issued **user access token**, not the same anon key
 
-Verify variable **presence only** without printing secret values:
+## 6. Handle login credentials separately
 
-```bash
-pm2 env "$(pm2 pid NFA-Portal-App)" | grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY):' | sed 's/:.*/: SET/'
-pm2 logs NFA-Portal-App --lines 50 --nostream
-```
-
-All three names must show `SET`, and the missing-environment error must be absent.
-
-Also confirm PM2 is now using Node 22:
-
-```bash
-pm2 describe NFA-Portal-App | grep -E 'node.js version|interpreter'
-```
-
-## 4. Clear the stale browser session
-
-Because the screenshot shows login 200 followed by four 401 responses:
-
-1. Sign out.
-2. Chrome DevTools → Application → Storage → Clear site data for `10.200.1.7:8081`.
-3. Hard refresh and sign in again.
-4. Confirm `user_roles`, `user_role_assignment`, `nfa`, and `nfa_approver` no longer return 401.
-
-## 5. Create users through User Management
-
-Once the server environment is restored, use **Admin → User Management → Create User**. This is safer than inserting directly into authentication system tables and automatically creates:
-
-- the authentication account and password,
-- the `profiles` row,
-- system roles in `user_roles`,
-- custom roles in `user_role_assignment`.
-
-## 6. SQL query to assign roles to an existing user
-
-If the user already exists in Authentication and `profiles`, assign system roles with this SQL. Change only the email and role list:
+If the login form still says `Invalid login credentials` after the REST gateway is fixed, verify the account exists and identify whether User ID resolution is working:
 
 ```sql
-do $$
-declare
-  v_email text := 'user@example.com';
-  v_roles public.app_role[] := array['initiator','approver']::public.app_role[];
-  v_uid uuid;
-begin
-  select id into v_uid
-  from public.profiles
-  where lower(email) = lower(v_email);
-
-  if v_uid is null then
-    raise exception 'No profile exists for %; create the user in User Management first', v_email;
-  end if;
-
-  delete from public.user_roles where user_id = v_uid;
-
-  insert into public.user_roles (user_id, role)
-  select v_uid, unnest(v_roles)
-  on conflict (user_id, role) do nothing;
-end $$;
+select u.id, u.email, u.email_confirmed_at,
+       p.username, p.status
+from auth.users u
+left join public.profiles p on p.id = u.id
+where lower(u.email) = lower('masteradmin@sharviinfotech.com')
+   or lower(p.username) = lower('masteradmin');
 ```
 
-Valid system roles are `initiator`, `approver`, `admin`, and `viewer`.
+If the row exists and is active, reset the password through the supported admin flow rather than inserting another user or editing password hashes manually.
 
-Verify:
+## Project hardening
 
-```sql
-select p.email, p.username, p.status,
-       array_agg(ur.role::text order by ur.role) as roles
-from public.profiles p
-left join public.user_roles ur on ur.user_id = p.id
-where lower(p.email) = lower('user@example.com')
-group by p.email, p.username, p.status;
-```
-
-## Technical note
-
-No schema migration is required for either error shown. First verify that Auth and REST use the same JWT secret and recreate only those backend services if their hashes differ. Then use the matching Quality key set, point the server at the local gateway, run only this app on Node 22, rebuild, restart its PM2 process with `--update-env`, and clear the old browser session.
-
-## Security follow-up
-
-The service-role and anon keys pasted into chat must be treated as exposed. After login is working, rotate the Quality `JWT_SECRET` and regenerate its `ANON_KEY` and `SERVICE_ROLE_KEY`, restart the backend containers, update `frontend.env`, and rebuild. Do not paste the replacements into chat.
+After the server is restored, update the deployment kit in the project with the same rendered gateway startup so future deployments do not recreate this 401. The previously pasted Quality keys should also be rotated after service recovery; do not paste replacement keys into chat.
