@@ -1,29 +1,24 @@
 // Post-build step for self-hosted (Ubuntu/nginx) deployments.
 //
-// Vite/TanStack Start writes the browser frontend under dist/client. Nitro's
-// node-server preset writes the runnable server to .output/server/index.mjs.
-// Older builds may still leave a dist/server directory, which is moved only
-// when Nitro has not already produced .output/server.
+// Nitro's node-server preset writes the runnable server to
+// .output/server/index.mjs and its public browser assets to .output/public.
+// Older TanStack builds may instead leave browser assets under dist/client.
 //
 // For deployment we want a flat `dist/` holding only the static frontend, and
 // the server bundle kept aside in `.output/server`. Inside the Lovable build
 // environment the platform owns the layout, so this script does nothing there.
 
-import { existsSync, rmSync, mkdirSync, renameSync, readdirSync } from "node:fs";
+import { existsSync, rmSync, mkdirSync, renameSync, readdirSync, cpSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(process.cwd());
 const dist = join(root, "dist");
 const client = join(dist, "client");
 const server = join(dist, "server");
+const nitroPublic = join(root, ".output", "public");
 
 if (process.env.LOVABLE_SANDBOX === "1" || process.env.SANDBOX) {
   console.log("[pack-dist] Lovable build environment detected — leaving output layout untouched.");
-  process.exit(0);
-}
-
-if (!existsSync(client)) {
-  console.log("[pack-dist] dist/client not found — nothing to flatten.");
   process.exit(0);
 }
 
@@ -42,18 +37,25 @@ if (existsSync(server)) {
   }
 }
 
-// 2. Move everything from dist/client up into dist/
-for (const entry of readdirSync(client)) {
-  const target = join(dist, entry);
-  rmSync(target, { recursive: true, force: true });
-  renameSync(join(client, entry), target);
+// 2. Keep a deployable static-assets directory for nginx. The application HTML
+// itself is rendered by the Node server; an SSR build intentionally has no
+// dist/index.html.
+mkdirSync(dist, { recursive: true });
+if (existsSync(nitroPublic)) {
+  cpSync(nitroPublic, dist, { recursive: true, force: true });
+} else if (existsSync(client)) {
+  for (const entry of readdirSync(client)) {
+    const target = join(dist, entry);
+    rmSync(target, { recursive: true, force: true });
+    renameSync(join(client, entry), target);
+  }
+  rmSync(client, { recursive: true, force: true });
 }
-rmSync(client, { recursive: true, force: true });
 
 // 3. Drop any leftover build metadata that should not be served publicly
 for (const junk of ["nitro.json", "package.json", "package-lock.json"]) {
   rmSync(join(dist, junk), { force: true });
 }
 
-console.log("[pack-dist] Static frontend ready in dist/ :");
+console.log("[pack-dist] Public assets ready in dist/ (HTML is served by the Node app):");
 for (const entry of readdirSync(dist).sort()) console.log("  -", entry);

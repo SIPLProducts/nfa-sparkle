@@ -16,10 +16,6 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
-    // Self-hosted build: emit a static index.html shell so nginx can serve dist/ directly.
-    ...(isLovableBuild
-      ? {}
-      : { spa: { enabled: true, prerender: { outputPath: "/index.html" } } }),
   },
   // Self-hosted build: emit a standalone Node server for server functions and API routes.
   // Lovable builds keep the platform-managed deployment preset.
