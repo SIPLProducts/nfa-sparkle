@@ -40,12 +40,12 @@ npm ci
 
 step "Building (VITE_* baked in now)"
 npm run build
-[[ -f .output/server/index.mjs ]] || { echo "Build output .output/server/index.mjs not found"; exit 1; }
+[[ -f dist/server/index.mjs ]] || { echo "Build output dist/server/index.mjs not found"; exit 1; }
 [[ -d dist ]] || { echo "Public assets directory dist/ not found"; exit 1; }
 
 step "Publishing static frontend to /opt/enfa/frontend"
 sudo mkdir -p /opt/enfa/frontend
-sudo rsync -a --delete dist/ /opt/enfa/frontend/
+sudo rsync -a --delete --exclude "server/" dist/ /opt/enfa/frontend/
 
 
 

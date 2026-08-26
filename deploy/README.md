@@ -139,12 +139,12 @@ the shell during the build:
 cd /opt/enfa/app
 set -a; . /opt/enfa/app.env; set +a
 npm ci
-npm run build          # output: dist/ (public assets) + .output/server/index.mjs (Node)
-test -d dist && test -f .output/server/index.mjs
+npm run build          # output: dist/ (public assets) + dist/server/index.mjs (Node server)
+test -d dist && test -f dist/server/index.mjs
 
 # publish the static assets; nginx proxies application pages to the Node app
 sudo mkdir -p /opt/enfa/frontend
-sudo rsync -a --delete dist/ /opt/enfa/frontend/
+sudo rsync -a --delete --exclude "server/" dist/ /opt/enfa/frontend/
 ```
 
 For the Quality same-origin setup, set `VITE_SUPABASE_URL` to
@@ -254,7 +254,7 @@ git pull
 set -a; . /opt/enfa/app.env; set +a
 npm ci
 npm run build
-sudo rsync -a --delete dist/ /opt/enfa/frontend/
+sudo rsync -a --delete --exclude "server/" dist/ /opt/enfa/frontend/
 # new migrations, if any (defaults to quality port 54322)
 PGPASSWORD='<pw>' ./deploy/scripts/run-migrations.sh
 exit
@@ -271,7 +271,7 @@ Middleware update: copy the new `middleware/server.js`, then
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
 | 502 on 8081 | Node app not running | `systemctl status enfa-app`, check `journalctl -u enfa-app` |
-| `.output/server/index.mjs` missing | server build was skipped or an old `vite.config.ts` is deployed | update the project files, run `npm ci && npm run build`, and stop if the file is still absent |
+| `dist/server/index.mjs` missing | server build was skipped or an old `vite.config.ts` is deployed | update the project files, run `npm ci && npm run build`, and stop if the file is still absent |
 | Login page loads but auth fails | `VITE_SUPABASE_*` baked with wrong URL/key | fix `/opt/enfa/app.env` and **rebuild** |
 | `Invalid proxy secret` | secret mismatch | make API Settings match `/opt/enfa/middleware/.env` |
 | SAP calls time out at ~85s | slow SAP record | expected for large attachment sets; results are cached after the first success. nginx is set to 200s so it is SAP, not the proxy |
