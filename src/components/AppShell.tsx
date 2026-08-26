@@ -49,7 +49,7 @@ export function AppShell({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  const { user, canAccess, signOut } = useAuth();
+  const { user, roles, accessError, canAccess, signOut } = useAuth();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
@@ -59,6 +59,11 @@ export function AppShell({
   const sections = Array.from(new Set(visibleNav.map((n) => n.section)));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const roleLabel = roles.includes("admin")
+    ? "Admin"
+    : roles[0]
+      ? roles[0].replaceAll("_", " ")
+      : "No role";
 
   const navList = (collapsed: boolean) => (
     <>
@@ -259,7 +264,7 @@ export function AppShell({
                 </div>
                 <div className="leading-tight">
                   <div className="max-w-[160px] truncate text-xs font-medium">{user?.email}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Initiator</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{roleLabel}</div>
                 </div>
               </div>
               <Button
@@ -283,6 +288,11 @@ export function AppShell({
                 {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
               </div>
               {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+            </div>
+          )}
+          {accessError && (
+            <div role="alert" className="border-t border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive sm:px-6">
+              {accessError}. Sign out and sign in again; if this continues, verify the Quality backend URL and public key.
             </div>
           )}
           {actions && (

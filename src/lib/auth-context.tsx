@@ -8,6 +8,7 @@ interface AuthCtx {
   session: Session | null;
   loading: boolean;
   roles: Role[];
+  accessError: string | null;
   hasRole: (r: Role) => boolean;
   canAccess: (s: ScreenKey) => boolean;
   signOut: () => Promise<void>;
@@ -21,17 +22,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [perms, setPerms] = useState<Record<string, boolean>>({});
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from("role_permission")
       .select("role_key, screen, allowed")
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Unable to load screen permissions", error);
+          setAccessError(`Unable to load screen permissions: ${error.message}`);
+          return;
+        }
         const m: Record<string, boolean> = {};
         for (const r of (data ?? []) as { role_key: string | null; screen: string; allowed: boolean }[]) {
           if (r.role_key) m[`${r.role_key}:${r.screen}`] = r.allowed;
         }
         setPerms(m);
+        setAccessError(null);
       });
   }, []);
 
@@ -40,6 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase.from("user_role_assignment").select("role_key").eq("user_id", userId),
     ]);
+    const errors = [sys.error, custom.error].filter(Boolean);
+    if (errors.length > 0) {
+      console.error("Unable to load user roles", errors);
+      setAccessError(`Unable to load user roles: ${errors.map((error) => error?.message).join("; ")}`);
+      setRoles([]);
+      return;
+    }
     const list = [
       ...((sys.data ?? []) as { role: string }[]).map((r) => r.role),
       ...((custom.data ?? []) as { role_key: string }[]).map((r) => r.role_key),
@@ -81,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
     roles,
+    accessError,
     hasRole: (r) => roles.includes(r),
     canAccess: (s) => {
       if (roles.length === 0) return false;

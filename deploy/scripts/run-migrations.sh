@@ -9,17 +9,23 @@
 #   PGPASSWORD='<POSTGRES_PASSWORD>' ./deploy/scripts/run-migrations.sh
 #
 # Optional env:
-#   PGHOST (default 127.0.0.1)  PGPORT (54322) PGUSER (postgres)  PGDATABASE (postgres)
-#   MIGRATIONS_DIR (default <repo>/supabase/migrations)
+#   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 5435)
+#   PGUSER (postgres)  PGDATABASE (postgres)
+#   MIGRATIONS_DIR (default <quality-root>/backend/migrations)
 #   DRY_RUN=1   -> only list what would be applied
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MIGRATIONS_DIR="${MIGRATIONS_DIR:-$REPO_ROOT/supabase/migrations}"
+QUALITY_ROOT="${QUALITY_ROOT:-$REPO_ROOT}"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-$QUALITY_ROOT/backend/migrations}"
 
 export PGHOST="${PGHOST:-127.0.0.1}"
-export PGPORT="${PGPORT:-54322}"
+if [[ -z "${PGPORT:-}" ]] && command -v docker >/dev/null 2>&1; then
+  detected_port="$(docker port nfa-quality-db 5432/tcp 2>/dev/null | head -n1 | awk -F: '{print $NF}')"
+  PGPORT="${detected_port:-5435}"
+fi
+export PGPORT="${PGPORT:-5435}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-postgres}"
 
@@ -32,15 +38,16 @@ fi
 command -v psql >/dev/null || { echo "psql not found. sudo apt install -y postgresql-client"; exit 1; }
 [[ -d "$MIGRATIONS_DIR" ]] || { echo "No migrations directory at $MIGRATIONS_DIR"; exit 1; }
 
+echo "Quality root: $QUALITY_ROOT"
+echo "Database    : $PGUSER@$PGHOST:$PGPORT/$PGDATABASE"
+echo "Migrations  : $MIGRATIONS_DIR"
+echo
+
 psql -v ON_ERROR_STOP=1 -q -c "
   CREATE TABLE IF NOT EXISTS public.schema_migrations_applied (
     filename   text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()
   );" >/dev/null
-
-echo "Database : $PGUSER@$PGHOST:$PGPORT/$PGDATABASE"
-echo "Migrations: $MIGRATIONS_DIR"
-echo
 
 applied=0
 skipped=0
