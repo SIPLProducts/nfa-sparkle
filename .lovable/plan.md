@@ -23,6 +23,12 @@ Interpret the result:
 
 This localhost test bypasses Nginx and the browser, so it establishes whether port `8001` itself is healthy.
 
+### Confirmed result
+
+The direct request to `127.0.0.1:8001` returned Kong `401 Invalid authentication credentials`. This proves the failure is in Kong's API-key validation, before REST, RLS, role permissions, Nginx, or the browser.
+
+The preceding `command not found` messages also show that the backend `.env` contains lines that are not valid shell assignments. Do not source that file for the next check; extract only the required values without printing them.
+
 ## Current confirmed state
 
 - The Nginx rule is correct: `/auth/v1/` and `/rest/v1/` are proxied to the Quality API gateway on port `8001`.
@@ -46,7 +52,7 @@ KONG_DECLARATIVE_CONFIG=/var/lib/kong/kong.yml
 
 ## 1. Compare the three API-key sources without exposing keys
 
-Run this exact block. It prints only SHA-256 hashes, never the keys:
+Run this exact block. It does not source either environment file and prints only SHA-256 hashes, never the keys:
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
@@ -57,30 +63,34 @@ else
   echo 'KONG_MODE=CONCRETE_KEY'
 fi
 
-KONG_HASH=$(awk '
+KONG_HASH=$(docker exec nfa-quality-kong awk '
   /username:[[:space:]]*anon/{found=1; next}
   found && /key:[[:space:]]*/ {
     sub(/^[^:]*:[[:space:]]*/, "");
     gsub(/^['\"']|['\"']$/, "");
     print; exit
   }
-' volumes/api/kong.yml | sha256sum | cut -d' ' -f1)
+' /var/lib/kong/kong.yml | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
 
-BACKEND_HASH=$(bash -c '
-  set -a; . ./.env; set +a
-  printf %s "$ANON_KEY" | sha256sum | cut -d" " -f1
-')
+BACKEND_HASH=$(awk -F= '
+  $1 == "ANON_KEY" {
+    sub(/^[^=]*=/, ""); gsub(/\r/, "");
+    gsub(/^[\x27\"]|[\x27\"]$/, ""); print; exit
+  }
+' .env | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
 
-FRONTEND_HASH=$(bash -c '
-  set -a; . ../frontend.env; set +a
-  printf %s "$VITE_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d" " -f1
-')
+FRONTEND_HASH=$(awk -F= '
+  $1 == "VITE_SUPABASE_PUBLISHABLE_KEY" {
+    sub(/^[^=]*=/, ""); gsub(/\r/, "");
+    gsub(/^[\x27\"]|[\x27\"]$/, ""); print; exit
+  }
+' ../frontend.env | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
 
 printf 'Kong config: %s\nBackend env: %s\nFrontend env: %s\n' \
   "$KONG_HASH" "$BACKEND_HASH" "$FRONTEND_HASH"
 ```
 
-All three hashes must be identical. Their values can safely be compared, but the underlying keys must not be pasted into chat.
+All three hashes must be identical. Their values can safely be compared, but the underlying keys must not be pasted into chat. If any command reports a missing file or produces the empty-value hash `e3b0c442...`, stop and correct that file path or variable name first.
 
 ## 2. Fix the exact mismatch shown by the hashes
 
