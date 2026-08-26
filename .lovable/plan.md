@@ -1,139 +1,120 @@
-# Restore User Management access on the Quality server
+# Fix empty sidebar and restore User Management on Quality
 
-## Confirmed diagnosis
+## Confirmed facts
 
-The latest server output confirms:
+- The Quality database is healthy and published at `127.0.0.1:5435`.
+- The master account has `admin` in `public.user_roles`.
+- The header text **Initiator is hardcoded** in `AppShell.tsx`; it does not reflect the logged-in user's actual role.
+- Sidebar items are filtered from browser-loaded roles and `role_permission` rows. An empty sidebar means those browser queries are failing or returning no usable roles.
+- The server's installed migration script does not match the repository version: it ignores `MIGRATIONS_DIR` and calculates `/Quality/supabase/migrations`.
 
-- The Quality database is healthy.
-- Its actual host connection is `127.0.0.1:5435`, not port `54322`.
-- `.env` now says `POSTGRES_PORT_HOST=54322`, but changing `.env` does not alter an already-created container's published port. The running container retains `0.0.0.0:5435->5432` until recreated.
-- The master account already has the `admin` role.
-- The server's `run-migrations.sh` is an older/different copy because it ignores `MIGRATIONS_DIR`.
-- The unhealthy Studio container is a separate issue; the SQL Editor is currently usable and it does not explain the empty application sidebar.
+Do not rerun `seed-admin.sql`; the admin role already exists.
 
-The remaining likely blocker is missing/failed screen permission loading, not authentication or the master role.
+## Diagnose before migrating
 
-## 1. Rotate the exposed password
+In browser DevTools → Network, sign out and sign back in, then inspect:
 
-The database password was pasted into chat. Change it and update backend services that use it. Never place the replacement in frontend/VITE variables or paste it into chat.
-
-## 2. Use the real database port now
-
-Do not recreate the database container merely to change the port during this recovery. Connect to its current published port:
-
-```bash
-read -rsp 'Database password: ' PGPASSWORD; echo
-export PGPASSWORD
-
-psql -h 127.0.0.1 -p 5435 -U postgres -d postgres \
-  -c 'select current_database(), current_user;'
-
-unset PGPASSWORD
+```text
+/rest/v1/user_roles?select=role&user_id=eq...
+/rest/v1/user_role_assignment?select=role_key&user_id=eq...
+/rest/v1/role_permission?select=role_key%2Cscreen%2Callowed
 ```
 
-The equivalent container command is:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-docker compose -f docker-compose-quality.yml exec db \
-  psql -U postgres -d postgres -c 'select current_database(), current_user;'
-```
-
-Do not run `docker compose down -v`; it deletes database data.
-
-## 3. Verify the exact User Management requirements
+Record the status and response body for each. They must return HTTP 200. A 401 means the built frontend key/session does not match the Quality backend; an empty 200 response points to RLS/policy visibility.
 
 Run this in the working SQL Editor:
 
 ```sql
-SELECT
-  to_regclass('public.role_permission') AS role_permission,
-  to_regclass('public.app_role_def') AS app_role_def,
-  to_regclass('public.user_role_assignment') AS user_role_assignment;
-
-SELECT column_name
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'profiles'
-  AND column_name IN (
-    'username', 'employee_id', 'department',
-    'first_name', 'last_name', 'contact', 'status', 'is_active'
-  )
-ORDER BY column_name;
-
 SELECT role_key, screen, allowed
 FROM public.role_permission
 WHERE role_key = 'admin'
 ORDER BY screen;
 
-SELECT grantee, privilege_type
+SELECT schemaname, tablename, policyname, roles, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN ('user_roles', 'user_role_assignment', 'role_permission')
+ORDER BY tablename, policyname;
+
+SELECT table_name, grantee, privilege_type
 FROM information_schema.role_table_grants
 WHERE table_schema = 'public'
-  AND table_name IN ('role_permission', 'user_roles', 'user_role_assignment')
-  AND grantee IN ('authenticated', 'service_role')
-ORDER BY table_name, grantee, privilege_type;
+  AND table_name IN ('user_roles', 'user_role_assignment', 'role_permission')
+  AND grantee = 'authenticated'
+ORDER BY table_name, privilege_type;
 ```
 
-Required results:
+Required:
 
-- All three table names are non-null.
-- All eight profile columns are returned.
-- An `admin / user_management / true` row exists.
-- `authenticated` has `SELECT` on all three role/permission tables.
+- `admin / user_management / true` exists.
+- Authenticated users can read their own role rows.
+- `role_permission` is readable by authenticated users.
+- `authenticated` has `SELECT` on all three tables.
 
-If the `admin / user_management` row is missing, run this data repair in the SQL Editor:
+## Repair only the confirmed database gap
+
+If only the permission row is missing:
 
 ```sql
 INSERT INTO public.role_permission (role, role_key, screen, allowed)
 VALUES ('admin', 'admin', 'user_management', true)
 ON CONFLICT (role_key, screen)
-DO UPDATE SET allowed = EXCLUDED.allowed;
+DO UPDATE SET allowed = true;
 ```
 
-If an authenticated SELECT grant is missing, run:
+If grants are missing:
 
 ```sql
-GRANT SELECT ON public.role_permission TO authenticated;
 GRANT SELECT ON public.user_roles TO authenticated;
 GRANT SELECT ON public.user_role_assignment TO authenticated;
+GRANT SELECT ON public.role_permission TO authenticated;
 ```
 
-Then sign out of the application, clear site data for `10.200.1.7:8081`, and sign in again. The app loads role and permission rows during authentication bootstrap.
+Do not add broad anonymous access and do not disable RLS.
 
-## 4. Test the browser requests after fresh login
+## Correct frontend backend configuration if requests return 401
 
-In browser DevTools → Network, inspect these requests:
+Create the missing runtime/build env file at:
 
 ```text
-/rest/v1/user_roles
-/rest/v1/user_role_assignment
-/rest/v1/role_permission
+/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env
 ```
 
-Each must return HTTP 200. If any returns 401, the frontend was built with a backend URL/key that does not match this Quality backend. In that case:
+Use the Quality API URL on port `8001` and the matching Quality public/anon key for both server and `VITE_*` public configuration. Never place the service-role key in a `VITE_` variable.
 
-- Correct `/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env`.
-- Use the Quality API URL on port `8001` and its matching public/anon key.
-- Never use the service-role key in a `VITE_` variable.
-- Rebuild the frontend because `VITE_*` values are baked into `dist`.
-- Restart `NFA-Portal-App` with updated environment and sign in again.
+Rebuild because `VITE_*` values are baked into `dist`, then restart the Node app with updated environment. Sign out, clear site data for `10.200.1.7:8081`, and sign in again.
 
-## 5. Fix the migration script path before applying migrations
+## Fix the application diagnostics and role label
 
-Confirm the installed script is stale:
+Update the frontend to:
 
-```bash
-grep -n 'MIGRATIONS_DIR' \
-  /opt/Ramky_Applications/NFA-Approval/Quality/scripts/run-migrations.sh
-```
+- Show the actual loaded role instead of the hardcoded `Initiator` header text.
+- Log and surface failures from `user_roles`, `user_role_assignment`, and `role_permission` queries instead of silently producing an empty sidebar.
+- Keep the admin fallback only after a verified admin role has loaded.
+- Avoid changing existing access rules or exposing admin navigation to non-admin users.
 
-Update it from the current repository version or change its default migration folder to:
+## Fix deployment scripts permanently
+
+Update repository deployment tooling for the actual Quality layout:
 
 ```text
+/opt/Ramky_Applications/NFA-Approval/Quality/frontend
 /opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations
+/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env
 ```
 
-Only if Step 3 shows missing tables or profile columns, run migrations using port `5435`:
+The migration runner will:
+
+- Preserve `MIGRATIONS_DIR` and `PGPORT` overrides.
+- Default Quality database access to the currently published port `5435`, or detect it from Docker.
+- Print resolved paths and database endpoint before doing work.
+- Fail clearly if a stale deployed script ignores the override.
+
+The deploy helper will pass the resolved migration path/port explicitly and use the Quality frontend/env paths.
+
+## Migration safety
+
+Only apply migrations if the SQL checks prove required tables or profile columns are absent. First deploy the corrected migration script, then use:
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/scripts
@@ -147,17 +128,8 @@ MIGRATIONS_DIR=/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations \
 unset PGPASSWORD
 ```
 
-Stop at the first migration error. Do not recreate existing tables or reset the volume.
+Stop on the first error. Never run `docker compose down -v`, recreate tables, or reset the database volume.
 
-## 6. Permanent repository fixes
+## Security cleanup
 
-Update deployment tooling to:
-
-- Resolve the frontend at `/Quality/frontend`.
-- Resolve migrations at `/Quality/backend/migrations` while preserving overrides.
-- Detect the actual Docker-published database port instead of assuming 54322.
-- Print resolved app, migrations, environment, and database values in preflight.
-- Add clear errors when a stale installed script ignores overrides.
-- Log role and permission query failures in the app rather than silently showing an empty sidebar.
-
-The Studio `SNIPPETS_MANAGEMENT_FOLDER` and unhealthy status can be handled separately after User Management access is restored.
+Rotate the database password that was pasted into chat and update backend services that use it. Do not place the replacement in chat, screenshots, shell history, or frontend variables.
