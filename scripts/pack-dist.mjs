@@ -4,9 +4,10 @@
 // .output/server/index.mjs and its public browser assets to .output/public.
 // Older TanStack builds may instead leave browser assets under dist/client.
 //
-// For deployment we want a flat `dist/` holding only the static frontend, and
-// the server bundle kept aside in `.output/server`. Inside the Lovable build
-// environment the platform owns the layout, so this script does nothing there.
+// For deployment we assemble ONE self-contained release folder: `dist/` holds
+// the static frontend at its root and the runnable Node server in
+// `dist/server/index.mjs`. `.output/` is then only build scratch. Inside the
+// Lovable build environment the platform owns the layout, so this does nothing.
 
 import { existsSync, rmSync, mkdirSync, renameSync, readdirSync, cpSync } from "node:fs";
 import { join, resolve } from "node:path";
