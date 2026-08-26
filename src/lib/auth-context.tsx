@@ -106,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return roles.some((r) => perms[`${r}:${s}`]);
     },
     signOut: async () => {
+      clearScreenState();
       await supabase.auth.signOut();
     },
   };
