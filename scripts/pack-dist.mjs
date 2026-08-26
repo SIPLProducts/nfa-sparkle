@@ -52,10 +52,19 @@ if (existsSync(nitroPublic)) {
   rmSync(client, { recursive: true, force: true });
 }
 
-// 3. Drop any leftover build metadata that should not be served publicly
+// 3. Ship the Node server bundle inside dist/ so the release is one folder.
+const nitroServer = join(root, ".output", "server");
+const distServer = join(dist, "server");
+if (existsSync(nitroServer)) {
+  rmSync(distServer, { recursive: true, force: true });
+  cpSync(nitroServer, distServer, { recursive: true });
+  console.log("[pack-dist] Node server bundle -> dist/server (PM2 entry: dist/server/index.mjs)");
+}
+
+// 4. Drop any leftover build metadata that should not be served publicly
 for (const junk of ["nitro.json", "package.json", "package-lock.json"]) {
   rmSync(join(dist, junk), { force: true });
 }
 
-console.log("[pack-dist] Public assets ready in dist/ (HTML is served by the Node app):");
+console.log("[pack-dist] Release folder ready in dist/ (static assets + dist/server/index.mjs):");
 for (const entry of readdirSync(dist).sort()) console.log("  -", entry);

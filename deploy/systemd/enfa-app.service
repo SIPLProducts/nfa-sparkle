@@ -12,7 +12,7 @@ EnvironmentFile=/opt/enfa/app.env
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=3000
-ExecStart=/usr/bin/node .output/server/index.mjs
+ExecStart=/usr/bin/node dist/server/index.mjs
 Restart=always
 RestartSec=5
 StandardOutput=journal
