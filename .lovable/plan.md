@@ -208,4 +208,8 @@ group by p.email, p.username, p.status;
 
 ## Technical note
 
-No schema migration is required for either error shown. The recovery is to use Node 22, supply the correct Quality environment, rebuild with the correct browser URL/key, restart PM2 using `--update-env`, and then refresh the browser session. This addresses the missing environment error, the Node 20 WebSocket error, the User Management server-function 500s, and the post-login role request failures as separate verified runtime/configuration issues.
+No schema migration is required for either error shown. The recovery is to use the Quality-signed keys, point the server at the local gateway, run on Node 22, rebuild so the browser bundle carries the correct URL/key, restart PM2 with `--update-env`, and clear the old browser session.
+
+## Security follow-up
+
+The service-role and anon keys pasted into chat must be treated as exposed. After login is working, rotate the Quality `JWT_SECRET` and regenerate its `ANON_KEY` and `SERVICE_ROLE_KEY`, restart the backend containers, update `frontend.env`, and rebuild. Do not paste the replacements into chat.
