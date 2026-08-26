@@ -49,6 +49,8 @@ KONG_DECLARATIVE_CONFIG=/var/lib/kong/kong.yml
 ```
 
 - The host file `/opt/Ramky_Applications/NFA-Approval/Quality/backend/volumes/api/kong.yml` is mounted at that path and exists. The earlier `/home/kong/kong.yml` check used the wrong path; it did not prove the config was unrendered.
+- The hash comparison now confirms `KONG_MODE=UNRENDERED_PLACEHOLDER`. Kong's configured key hash differs, while the backend and frontend key hashes are identical. This is the exact cause of the local and browser 401 responses.
+- The `awk` quote warnings do not change that conclusion; all three hashes were produced successfully.
 
 ## 1. Compare the three API-key sources without exposing keys
 
@@ -96,15 +98,19 @@ All three hashes must be identical. Their values can safely be compared, but the
 
 ### Result A — `KONG_MODE=UNRENDERED_PLACEHOLDER`
 
-The mounted YAML was never rendered, so Kong registered the placeholder rather than the real Quality anon key. Update the Kong service to render the mounted template before startup:
+This is the confirmed result. The mounted YAML was never rendered, so Kong registered the placeholder rather than the real Quality anon key. In `docker-compose-quality.yml`, replace the Kong service's existing `entrypoint`, `command`, declarative-config environment value, and Kong config mount with the following while preserving its other existing environment values, ports, networks, healthcheck, and dependencies:
 
 ```yaml
 kong:
   entrypoint:
-    - bash
+    - /bin/sh
     - -c
+  command:
     - |
-      eval "echo \"$(cat /home/kong/kong.template.yml)\"" > /tmp/kong.yml
+      sed \
+        -e 's|$${ANON_KEY}|'[31m"$${ANON_KEY}"[0m'|g' \
+        -e 's|$${SERVICE_ROLE_KEY}|'[31m"$${SERVICE_ROLE_KEY}"[0m'|g' \
+        /var/lib/kong/kong.template.yml > /tmp/kong.yml
       exec /docker-entrypoint.sh kong docker-start
   environment:
     KONG_DATABASE: "off"
@@ -114,7 +120,16 @@ kong:
     ANON_KEY: ${ANON_KEY}
     SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
   volumes:
-    - ./volumes/api/kong.yml:/home/kong/kong.template.yml:ro
+    - ./volumes/api/kong.yml:/var/lib/kong/kong.template.yml:ro
+```
+
+In the two `sed` lines above, the intended shell syntax around each replacement is a single quote, a double-quoted variable, then another single quote. Use this copy-safe complete command block if the editor displays any formatting artifacts:
+
+```yaml
+  command:
+    - |
+      sed -e 's|$${ANON_KEY}|'[31m"$${ANON_KEY}"[0m'|g' -e 's|$${SERVICE_ROLE_KEY}|'[31m"$${SERVICE_ROLE_KEY}"[0m'|g' /var/lib/kong/kong.template.yml > /tmp/kong.yml
+      exec /docker-entrypoint.sh kong docker-start
 ```
 
 Then recreate only Kong:
