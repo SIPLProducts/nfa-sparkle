@@ -11,73 +11,59 @@
 /opt/Ramky_Applications/NFA-Approval/Quality/backend/docker-compose-quality.yml
 ```
 
-- The expected `/home/kong/kong.yml` does not exist in the running container. This means the running Kong container does not match the assumed mount/config path. The exact gateway cause must now be confirmed from the container rather than guessed.
+- The running Kong container is healthy and uses its standard startup:
 
-## 1. Inspect the running Kong configuration without exposing keys
-
-Run these commands exactly:
-
-```bash
-docker inspect nfa-quality-kong --format \
-'entrypoint={{json .Config.Entrypoint}}
-cmd={{json .Config.Cmd}}
-{{range .Config.Env}}{{if eq (index (split . "=") 0) "KONG_DECLARATIVE_CONFIG"}}{{println .}}{{end}}{{end}}'
-
-docker inspect nfa-quality-kong --format \
-'{{range .Mounts}}{{println .Source " -> " .Destination}}{{end}}'
-
-docker exec nfa-quality-kong sh -lc '
-  printf "KONG_DECLARATIVE_CONFIG=%s\n" "${KONG_DECLARATIVE_CONFIG:-NOT_SET}"
-  p="${KONG_DECLARATIVE_CONFIG:-/etc/kong/kong.yml}"
-  if [ -f "$p" ]; then
-    echo "CONFIG_FOUND=$p"
-  else
-    echo "CONFIG_MISSING=$p"
-  fi
-'
+```text
+entrypoint=/docker-entrypoint.sh
+cmd=kong docker-start
+KONG_DECLARATIVE_CONFIG=/var/lib/kong/kong.yml
 ```
 
-These outputs identify:
+- The host file `/opt/Ramky_Applications/NFA-Approval/Quality/backend/volumes/api/kong.yml` is mounted at that path and exists. The earlier `/home/kong/kong.yml` check used the wrong path; it did not prove the config was unrendered.
 
-1. the path Kong was actually told to load,
-2. the host file mounted into the container,
-3. whether the container was created from the current Compose definition.
+## 1. Compare the three API-key sources without exposing keys
 
-Do not print the content of the config or environment because it may contain API keys.
-
-## 2. Compare the running container with the Compose definition
-
-From the confirmed backend folder:
+Run this exact block. It prints only SHA-256 hashes, never the keys:
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
 
-docker compose -p nfa-quality -f docker-compose-quality.yml config --services
+if grep -Fq '${ANON_KEY}' volumes/api/kong.yml; then
+  echo 'KONG_MODE=UNRENDERED_PLACEHOLDER'
+else
+  echo 'KONG_MODE=CONCRETE_KEY'
+fi
 
-docker compose -p nfa-quality -f docker-compose-quality.yml config \
-  | sed -n '/^[[:space:]]*kong:/,/^[[:space:]]*[a-zA-Z0-9_-]*:/p' \
-  | grep -E 'entrypoint|KONG_DECLARATIVE_CONFIG|source:|target:'
+KONG_HASH=$(awk '
+  /username:[[:space:]]*anon/{found=1; next}
+  found && /key:[[:space:]]*/ {
+    sub(/^[^:]*:[[:space:]]*/, "");
+    gsub(/^['\"']|['\"']$/, "");
+    print; exit
+  }
+' volumes/api/kong.yml | sha256sum | cut -d' ' -f1)
+
+BACKEND_HASH=$(bash -c '
+  set -a; . ./.env; set +a
+  printf %s "$ANON_KEY" | sha256sum | cut -d" " -f1
+')
+
+FRONTEND_HASH=$(bash -c '
+  set -a; . ../frontend.env; set +a
+  printf %s "$VITE_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d" " -f1
+')
+
+printf 'Kong config: %s\nBackend env: %s\nFrontend env: %s\n' \
+  "$KONG_HASH" "$BACKEND_HASH" "$FRONTEND_HASH"
 ```
 
-Only the filtered structural lines should be shown; do not share a full rendered Compose file because it can include secrets.
+All three hashes must be identical. Their values can safely be compared, but the underlying keys must not be pasted into chat.
 
-## 3. Fix according to the inspection result
+## 2. Fix the exact mismatch shown by the hashes
 
-### Case A — mount/config path differs from the Compose file
+### Result A — `KONG_MODE=UNRENDERED_PLACEHOLDER`
 
-Recreate only Kong from the confirmed Compose file:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-docker compose -p nfa-quality -f docker-compose-quality.yml up -d --force-recreate kong
-docker logs nfa-quality-kong --tail 80
-```
-
-This does not restart the database or alter users, roles, or permissions.
-
-### Case B — config exists but contains unrendered `${ANON_KEY}` placeholders
-
-The gateway startup must render the template before Kong starts. Update the Kong service to mount the source as a template, explicitly provide the two key variables, render to `/tmp/kong.yml`, and point `KONG_DECLARATIVE_CONFIG` there:
+The mounted YAML was never rendered, so Kong registered the placeholder rather than the real Quality anon key. Update the Kong service to render the mounted template before startup:
 
 ```yaml
 kong:
@@ -86,7 +72,7 @@ kong:
     - -c
     - |
       eval "echo \"$(cat /home/kong/kong.template.yml)\"" > /tmp/kong.yml
-      exec kong start
+      exec /docker-entrypoint.sh kong docker-start
   environment:
     KONG_DATABASE: "off"
     KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
@@ -98,28 +84,39 @@ kong:
     - ./volumes/api/kong.yml:/home/kong/kong.template.yml:ro
 ```
 
-Then recreate only Kong using the Case A command.
-
-### Case C — config is rendered, but the API key is still rejected
-
-Compare the Quality backend key with the frontend build key using hashes only:
+Then recreate only Kong:
 
 ```bash
-BACKEND_HASH=$(sed -n 's/^ANON_KEY=//p' \
-  /opt/Ramky_Applications/NFA-Approval/Quality/backend/.env \
-  | sha256sum | cut -d' ' -f1)
-
-FRONTEND_HASH=$(sed -n 's/^VITE_SUPABASE_PUBLISHABLE_KEY=//p' \
-  /opt/Ramky_Applications/NFA-Approval/Quality/frontend.env \
-  | sha256sum | cut -d' ' -f1)
-
-printf 'Backend ANON hash: %s\nFrontend publishable hash: %s\n' \
-  "$BACKEND_HASH" "$FRONTEND_HASH"
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+docker compose -p nfa-quality -f docker-compose-quality.yml up -d --force-recreate kong
+docker logs nfa-quality-kong --tail 80
 ```
 
-The hashes must be identical. If they differ, update `frontend.env` with the Quality `ANON_KEY`, rebuild the frontend because `VITE_*` values are embedded at build time, and restart only `NFA-Portal-App` with `--update-env`.
+This does not restart the database or alter users, roles, or permissions.
 
-## 4. Verify the REST gateway before testing roles
+### Result B — Kong hash and backend hash match, but frontend hash differs
+
+The deployed browser bundle contains the wrong API key. Update `frontend.env` with the Quality `ANON_KEY`, rebuild because `VITE_*` values are embedded at build time, and restart only `NFA-Portal-App` with `--update-env`.
+
+### Result C — Kong hash differs from backend hash
+
+The gateway config contains an old/static key. Use the same template-rendering fix from Result A so Kong receives the current `ANON_KEY` and `SERVICE_ROLE_KEY` from the Quality backend `.env`, then recreate only Kong.
+
+### Result D — all three hashes match
+
+The key-auth credentials are consistent. Check Kong's error log for the rejected request and then compare Auth/REST JWT-secret hashes; do not change roles or migrations:
+
+```bash
+docker logs nfa-quality-kong --tail 100
+
+AUTH_HASH=$(docker inspect nfa-quality-auth --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | sed -n 's/^GOTRUE_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
+REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | sed -n 's/^PGRST_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
+printf 'Auth JWT: %s\nREST JWT: %s\n' "$AUTH_HASH" "$REST_HASH"
+```
+
+## 3. Verify the REST gateway before testing roles
 
 After the gateway fix:
 
@@ -140,7 +137,7 @@ Clear browser site data for `10.200.1.7:8081`, reload, and sign in again. For a 
 - `apikey` should be the Quality anon key.
 - `Authorization` should be the newly issued user access token, not the same value as `apikey`.
 
-## 5. Diagnose User ID `0056` only after the API gateway passes
+## 4. Diagnose User ID `0056` only after the API gateway passes
 
 The `Invalid login credentials` message is separate from the REST gateway 401. Verify that `0056` resolves to an existing auth account:
 
