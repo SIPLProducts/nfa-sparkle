@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Save, Send } from "lucide-react";
+import { FileText, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 interface DraftState {
@@ -79,7 +79,6 @@ export function RecordEditDialog({
   const enfa = row?.REFFLD ?? "";
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
   const [detail, setDetail] = useState<SapDetail | null>(null);
@@ -160,33 +159,6 @@ export function RecordEditDialog({
   }, [open, enfa, row, endpoint]);
 
   const set = (k: keyof DraftState) => (v: string) => setDraft((p) => ({ ...p, [k]: v }));
-
-  async function save() {
-    if (!enfa) return;
-    setSaving(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("You must be signed in");
-      const { error } = await supabase.from("sap_record_draft").upsert(
-        {
-          enfa_number: enfa,
-          subject: draft.subject || null,
-          scope_impact: draft.scope_impact || null,
-          budget_impact: draft.budget_impact ? Number(draft.budget_impact) : null,
-          timeline_days: draft.timeline_days ? Number(draft.timeline_days) : null,
-          detailed_description: draft.detailed_description || null,
-          updated_by: u.user.id,
-        },
-        { onConflict: "enfa_number" },
-      );
-      if (error) throw new Error(error.message);
-      toast.success("Changes saved");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function sendToSap() {
     if (!enfa) return;
@@ -336,9 +308,6 @@ export function RecordEditDialog({
 
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button variant="secondary" className="gap-1.5" onClick={save} disabled={saving || loading}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
-            </Button>
             <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
               {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Update in SAP
             </Button>
