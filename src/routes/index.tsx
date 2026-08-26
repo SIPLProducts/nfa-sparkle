@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useScreenState } from "@/lib/screen-state";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,16 +41,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
-  const [mine, setMine] = useState<NfaRow[]>([]);
-  const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
-  const [tab, setTab] = useState<"ongoing" | "completed">("ongoing");
-  const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [mine, setMine] = useScreenState<NfaRow[]>("dashboard.mine", []);
+  const [pending, setPending] = useScreenState<{ nfa: NfaRow; ap: ApproverRow }[]>("dashboard.pending", []);
+  const [fetchedAt, setFetchedAt] = useScreenState<number>("dashboard.fetchedAt", 0);
+  const [tab, setTab] = useScreenState<"ongoing" | "completed">("dashboard.tab", "ongoing");
+  const [search, setSearch] = useScreenState<string>("dashboard.search", "");
+  const [deptFilter, setDeptFilter] = useScreenState<string>("dashboard.dept", "all");
+  const [statusFilter, setStatusFilter] = useScreenState<string>("dashboard.status", "all");
+  const [dateFrom, setDateFrom] = useScreenState<string>("dashboard.dateFrom", "");
+  const [dateTo, setDateTo] = useScreenState<string>("dashboard.dateTo", "");
+  const [filtersOpen, setFiltersOpen] = useScreenState<boolean>("dashboard.filtersOpen", false);
+  const [dataLoading, setDataLoading] = useState(mine.length === 0);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -57,8 +59,14 @@ function Index() {
 
   useEffect(() => {
     if (!user) return;
+    // Cached rows render immediately; refresh only when the cache is stale.
+    const fresh = mine.length > 0 && Date.now() - fetchedAt < 60_000;
+    if (fresh) {
+      setDataLoading(false);
+      return;
+    }
     (async () => {
-      setDataLoading(true);
+      setDataLoading(mine.length === 0);
       const { data: mineRows } = await supabase
         .from("nfa")
         .select("*")
@@ -68,6 +76,7 @@ function Index() {
 
       const { data: aps } = await supabase.from("nfa_approver").select("*").eq("approver_id", user.id).eq("status", "pending");
       const list = (aps as ApproverRow[]) ?? [];
+      setPending([]);
       if (list.length) {
         const { data: nfas } = await supabase.from("nfa").select("*").in("id", list.map((l) => l.nfa_id));
         const map = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
@@ -77,8 +86,10 @@ function Index() {
             .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level),
         );
       }
+      setFetchedAt(Date.now());
       setDataLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   if (loading || !user) {

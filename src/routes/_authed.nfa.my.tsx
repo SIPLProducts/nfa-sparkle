@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useScreenState } from "@/lib/screen-state";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,11 +51,12 @@ function val(row: SapReportRow, key: string): string {
 }
 
 function MyNfas() {
-  const [rows, setRows] = useState<SapReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useScreenState<SapReportRow[]>("nfa-my.rows", []);
+  const [fetchedAt, setFetchedAt] = useScreenState<number>("nfa-my.fetchedAt", 0);
+  const [loading, setLoading] = useState(rows.length === 0);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [q, setQ] = useScreenState<string>("nfa-my.q", "");
+  const [selected, setSelected] = useScreenState<number | null>("nfa-my.selected", null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -97,6 +99,7 @@ function MyNfas() {
         return;
       }
       setRows(normaliseRows(parsed));
+      setFetchedAt(Date.now());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
       setRows([]);
@@ -107,7 +110,16 @@ function MyNfas() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  // Restore cached rows instantly; only hit SAP when the cache is empty or stale.
+  const hasRows = rows.length > 0;
+  useEffect(() => {
+    if (hasRows && Date.now() - fetchedAt < 60_000) {
+      setLoading(false);
+      return;
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;

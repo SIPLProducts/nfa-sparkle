@@ -53,8 +53,8 @@ export function ApprovalChainTab() {
   const save = useServerFn(saveApprovalChain);
   const remove = useServerFn(deleteApprovalChain);
 
-  const chains = useQuery({ queryKey: ["approval-chains"], queryFn: () => fetchChains() });
-  const users = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers() });
+  const chains = useQuery({ queryKey: ["approval-chains"], queryFn: () => fetchChains(), staleTime: 60_000 });
+  const users = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000 });
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);

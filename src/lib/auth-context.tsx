@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Role, ScreenKey } from "@/lib/screens";
+import { clearScreenState } from "@/lib/screen-state";
 
 interface AuthCtx {
   user: User | null;
@@ -106,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return roles.some((r) => perms[`${r}:${s}`]);
     },
     signOut: async () => {
+      clearScreenState();
       await supabase.auth.signOut();
     },
   };

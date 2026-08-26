@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
+import { useScreenState } from "@/lib/screen-state";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -85,13 +86,14 @@ function errMsg(e: unknown) {
 
 function useRoleDefs() {
   const fetchRoles = useServerFn(listRoleDefs);
-  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles() });
+  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000 });
 }
 
 function UserManagement() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
   const isAdmin = hasRole("admin");
+  const [tab, setTab] = useScreenState<string>("admin-users.tab", "users");
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -109,7 +111,7 @@ function UserManagement() {
         title="User Management"
         subtitle="Create users, assign roles and decide which screens each role can open."
       />
-      <Tabs defaultValue="users" className="space-y-5">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <TabsList className="h-auto flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="users" className="gap-2">
             <UserCog className="h-4 w-4" /> Users
@@ -178,7 +180,7 @@ function UsersTab() {
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
 
-  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers() });
+  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000 });
   const [q, setQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
