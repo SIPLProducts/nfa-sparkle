@@ -8,7 +8,7 @@ nginx; the Node processes and the Supabase containers bind to localhost only.
 | Public port | Service | Backend |
 | ----------- | ------- | ------- |
 | 8081 | eNFA portal | Node `127.0.0.1:3000` |
-| 8001 | Supabase API (Kong) | docker `127.0.0.1:54321` |
+| 8001 | Supabase API (Kong; direct/administration) | docker `127.0.0.1:54321` |
 | 8082 | Supabase Studio | docker `127.0.0.1:54323` |
 | 3004 | SAP middleware | Node `127.0.0.1:3005` |
 
@@ -146,6 +146,11 @@ test -f dist/index.html && test -f .output/server/index.mjs
 sudo mkdir -p /opt/enfa/frontend
 sudo rsync -a --delete dist/ /opt/enfa/frontend/
 ```
+
+For the Quality same-origin setup, set `VITE_SUPABASE_URL` to
+`http://<SERVER_IP>:8081`. Nginx forwards only `/auth/v1/`, `/rest/v1/`,
+`/realtime/v1/`, and `/storage/v1/` to the Quality backend; `/auth` remains
+the application login page.
 
 **Service:**
 
