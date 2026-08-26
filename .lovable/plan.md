@@ -1,158 +1,178 @@
-# Restore Quality-server login and migrate local users
+# Fix Quality-server login with the required app server
 
-## Confirmed diagnosis
+## Confirmed architecture
 
-1. **The app server is not running.** `curl 127.0.0.1:3000/auth` is refused and PM2 contains only middleware processes. This causes the `/_serverFn/*` 502.
-2. **The Quality API keys now match.** The frontend publishable key is the same as `ANON_KEY` in the backend environment, so no further key replacement is needed.
-3. **The 401 is likely an old browser session.** The browser can retain a token issued by the cloud environment after the frontend is changed to Quality. Clear site data for `10.200.1.7:8081` after rebuilding/restarting.
-4. **The Master Admin account is complete.** Screenshots verify its auth account, active profile, and `admin` role in both role tables.
+The suggested “pure static SPA” diagnosis is incorrect for this project.
 
-## 1. Correct the app environment
+The build intentionally produces two outputs:
 
-Use a separate app environment file, not the backend Docker `.env`:
+```text
+dist/                    static browser files served by Nginx
+.output/server/server.js Node app server for /_serverFn/* and /api/public/*
+```
+
+`scripts/pack-dist.mjs` moves `dist/server` into the hidden `.output/server` directory. Therefore, running `ls dist` only shows static files by design; it does not prove that the app is static-only.
+
+Login calls `resolveLoginId`, which is a TanStack server function. User creation and SAP-facing APIs also use server routes. They cannot run from `index.html` or the SAP middleware.
+
+## Do not apply the proposed Nginx workaround
+
+Do **not** add:
+
+```nginx
+error_page 405 =200 $uri;
+```
+
+That converts failed POST requests into fake `200` responses containing HTML. The browser expects a server-function response and will fail while hiding the true error.
+
+Also do not send every `/api/` request to port 3005. `/api/public/*` belongs to the app server on port 3000; port 3005 is only the SAP proxy middleware.
+
+## Step 1 — Check the hidden server output
+
+From the application source folder, not inside `dist`:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
+ls -la .output/server/server.js
+```
+
+If it exists, continue to Step 3.
+
+If it does not exist, continue to Step 2.
+
+## Step 2 — Rebuild both outputs
+
+First ensure the app `.env` in this same source folder has:
 
 ```env
-SUPABASE_PROJECT_ID=self-hosted-quality
-SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
-SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_SERVICE_ROLE_KEY=<Quality SERVICE_ROLE_KEY>
-
-VITE_SUPABASE_PROJECT_ID=self-hosted-quality
-VITE_SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
-VITE_SUPABASE_URL=http://10.200.1.7:8081
-
 HOST=127.0.0.1
 PORT=3000
 NODE_ENV=production
+
+SUPABASE_PROJECT_ID=self-hosted-quality
+SUPABASE_URL=http://127.0.0.1:8001
+SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<Quality SERVICE_ROLE_KEY>
+
+VITE_SUPABASE_PROJECT_ID=self-hosted-quality
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+VITE_SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
 ```
 
-Use `127.0.0.1:8001` for server-side calls and `10.200.1.7:8081` only for browser-side calls. Do not use `NODE_ENV=quality`; Node expects `production` for the production server.
-
-## 2. Build and start the missing app process
-
-From the deployed application source directory (the directory containing `package.json`):
+Then rebuild from the source folder:
 
 ```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 npm ci
 npm run build
-ls -l .output/server/server.js
-pm2 start .output/server/server.js --name NFA-Portal-App --time
+ls -la dist/index.html
+ls -la .output/server/server.js
+```
+
+Both final files must exist. The Quality keys shown in the latest environment already match the backend keys; do not replace them with the cloud-project keys from the repository `.env`.
+
+## Step 3 — Start the missing app process with PM2
+
+PM2 currently contains only three middleware processes. Start the app server as a fourth process:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
+set -a
+. ./.env
+set +a
+pm2 start .output/server/server.js \
+  --name NFA-Portal-App \
+  --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
+  --time
 pm2 save
 pm2 ls
+```
+
+Then verify:
+
+```bash
 curl -i http://127.0.0.1:3000/auth
+pm2 logs NFA-Portal-App --lines 100
 ```
 
-The environment file must be loaded before `pm2 start`; alternatively define it in a PM2 ecosystem file. The expected final PM2 list includes both:
+Expected: port 3000 answers and PM2 shows `NFA-Portal-App` as `online`. If it exits, the 100 log lines identify the exact startup error.
 
-- `NFA-Portal-App` on port 3000
-- `NFA-Middleware` on port 3005
+## Step 4 — Use the correct Nginx routing
 
-If `.output/server/server.js` does not exist, stop and send the output of `ls -la` plus `cat package.json`; do not guess another entry path.
+Keep static assets in `dist`, but route runtime requests separately:
 
-## 3. Clear the stale browser session
+```nginx
+server {
+    listen 8081;
+    server_name 10.200.1.7;
 
-After the app starts and the frontend is rebuilt:
+    root /opt/Ramky_Applications/NFA-Approval/Quality/frontend/dist;
+    index index.html;
+    client_max_body_size 50m;
 
-1. Open Chrome DevTools on `http://10.200.1.7:8081`.
-2. Application → Storage → **Clear site data**.
-3. Close and reopen the login page.
-4. First test with `masteradmin@sharviinfotech.com` and its password.
-5. Then test with User ID `MASTERADMIN`.
+    # TanStack server functions and application APIs
+    location ~ ^/(_serverFn|api/public)/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 200s;
+        proxy_send_timeout 200s;
+        proxy_buffering off;
+    }
 
-This removes the old cloud-issued access token that the Quality gateway rejects.
+    # Quality backend API through its gateway
+    location ~ ^/(auth|rest|realtime|storage)/v1/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_buffering off;
+    }
 
-## 4. Create the local users in Quality
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+    }
 
-Auth passwords cannot be recovered or recreated from the public user-management tables. For each user, first use **Authentication → Users → Add user**, set a temporary password, and enable auto-confirm. Create these known local accounts:
-
-| Email | User ID | Name | Role |
-| --- | --- | --- | --- |
-| `kvvkkunchala@gmail.com` | `kvvk` | kvvk kunchala | initiator |
-| `pradeep.p@sharviinfotech.com` | `pradeep` | pradeep ammisetty | initiator |
-| `prasad.kvvk@sharviinfotech.com` | `prasad` | kvvk kunchala | admin |
-| `demo@nfa.local` | `demo` | Demo User | admin |
-
-After those four auth accounts exist, run this complete SQL block once to create/update their profiles and role assignments:
-
-```sql
-do $user_migration$
-declare
-  r record;
-  v_id uuid;
-begin
-  for r in
-    select * from (values
-      ('kvvkkunchala@gmail.com',           'kvvk',    'kvvk',    'kunchala',  '8519954889', 'initiator'),
-      ('pradeep.p@sharviinfotech.com',     'pradeep', 'pradeep', 'ammisetty', '7013584342', 'initiator'),
-      ('prasad.kvvk@sharviinfotech.com',   'prasad',  'kvvk',    'kunchala',  '8519954889', 'admin'),
-      ('demo@nfa.local',                   'demo',    'Demo',    'User',      null,         'admin')
-    ) as x(email, username, first_name, last_name, contact, role_key)
-  loop
-    select id into v_id
-      from auth.users
-     where lower(email) = lower(r.email)
-     limit 1;
-
-    if v_id is null then
-      raise exception 'Create auth user % first', r.email;
-    end if;
-
-    insert into public.profiles (
-      id, email, full_name, username, first_name, last_name,
-      contact, status, is_active
-    ) values (
-      v_id, lower(r.email), r.first_name || ' ' || r.last_name,
-      r.username, r.first_name, r.last_name, r.contact, 'ACTIVE', true
-    )
-    on conflict (id) do update set
-      email = excluded.email,
-      full_name = excluded.full_name,
-      username = excluded.username,
-      first_name = excluded.first_name,
-      last_name = excluded.last_name,
-      contact = excluded.contact,
-      status = 'ACTIVE',
-      is_active = true;
-
-    delete from public.user_roles where user_id = v_id;
-    insert into public.user_roles (user_id, role)
-    values (v_id, r.role_key::public.app_role);
-
-    delete from public.user_role_assignment where user_id = v_id;
-    insert into public.user_role_assignment (user_id, role_key)
-    values (v_id, r.role_key);
-  end loop;
-end
-$user_migration$;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
 ```
 
-Do not run only highlighted lines; include the final `$user_migration$;` delimiter.
+Do not use `location /auth/` for the backend: `/auth` is the application's login page, while `/auth/v1/` is the backend auth API. The exact `/auth/v1/` match prevents the login page from being proxied incorrectly.
 
-## 5. Verify migrated users
+Apply and verify:
 
-```sql
-select
-  p.username,
-  p.email,
-  p.status,
-  p.is_active,
-  ur.role,
-  ura.role_key
-from public.profiles p
-left join public.user_roles ur on ur.user_id = p.id
-left join public.user_role_assignment ura on ura.user_id = p.id
-where lower(p.email) in (
-  'kvvkkunchala@gmail.com',
-  'pradeep.p@sharviinfotech.com',
-  'prasad.kvvk@sharviinfotech.com',
-  'demo@nfa.local',
-  'masteradmin@sharviinfotech.com'
-)
-order by p.email;
+```bash
+nginx -t
+systemctl reload nginx
+curl -i http://127.0.0.1:3000/auth
+curl -i http://10.200.1.7:8081/auth
 ```
 
-Then log in with each user's email and temporary password. User ID login will work only after `NFA-Portal-App` is online, because User ID resolution uses `/_serverFn/`.
+## Step 5 — Clear the old session and sign in
+
+The browser previously used a cloud-issued session against the Quality backend, which can produce `Invalid authentication credentials`.
+
+1. Chrome DevTools → Application → Storage → Clear site data for `10.200.1.7:8081`.
+2. Hard refresh.
+3. Sign in with `masteradmin@sharviinfotech.com` and the password configured for that Quality auth account.
+4. Confirm `POST /_serverFn/*` returns 200 rather than 502.
+5. Confirm `/rest/v1/role_permission` returns permission rows rather than 401.
+6. Then verify User ID login with `MASTERADMIN`.
+
+## Existing local users
+
+The database can copy profile fields and roles, but not recover users’ original plaintext passwords. Create each auth account in the Quality Authentication Users screen with a temporary password and Auto Confirm enabled, then run the profile/role migration query already provided. The verified Master Admin user is already complete and does not need to be recreated.
 
 ## Security follow-up
 
-The database password, JWT secret and both API keys were pasted into chat. After login is restored, rotate them together and rebuild/restart every dependent service. Do not paste the replacement values into chat.
+The database password, JWT secret and API keys shown in chat must be treated as exposed. After login is restored, rotate them together and rebuild/restart all dependent services. Do not paste the replacements into chat.
