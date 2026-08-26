@@ -2,39 +2,85 @@
 
 ## Confirmed diagnosis
 
-The migration files are **not missing**. They are located at:
+The latest screenshot confirms:
 
-```text
-/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations
-```
+- `masteradmin@sharviinfotech.com` already has the `admin` role in `public.user_roles`.
+- The SQL Editor is successfully connected to the Quality database.
+- The `SNIPPETS_MANAGEMENT_FOLDER` notification affects only saved SQL snippets; it is unrelated to authentication, roles, or User Management.
 
-The migration script calculates its default location as:
+Therefore, do **not** run `seed-admin.sql` again. The two shell errors have separate causes:
 
-```text
-/opt/Ramky_Applications/NFA-Approval/Quality/supabase/migrations
-```
+1. `connection refused` on `127.0.0.1:54322` means the database container is not publishing that host port, is stopped/unhealthy, or uses a different configured host port.
+2. The server's installed `run-migrations.sh` is an older/different copy. It ignored the supplied `MIGRATIONS_DIR` and still used `/Quality/supabase/migrations`. The repository version supports the override, but that is not the version currently running on the server.
 
-That path mismatch causes the “No migrations directory” error.
+The admin role is already correct. After the database checks below, sign out and back in so the browser reloads roles and permissions.
 
-The `frontend.env` warning is a separate deployment configuration issue. It does not assign roles and is not the direct reason the current logged-in user is shown as `INITIATOR`.
+## 1. Rotate the exposed database password
 
-The screenshots show that authentication succeeds, but the master account is being treated as an initiator. User Management is permission-gated and is enabled for the `admin` role, so the immediate recovery is to verify the role tables and grant this existing account the admin role.
+The database password was pasted into chat. Change it before continuing and update the Quality backend configuration/services that use it. Do not paste the replacement password into chat, screenshots, shell history, or frontend variables.
 
-## 1. Diagnose the Quality database first
+## 2. Find the actual database container and host port
 
-Run this from the server and enter the database password when prompted:
+Run these read-only commands:
 
 ```bash
-psql -h 127.0.0.1 -p 54322 -U postgres -d postgres
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+
+docker compose -f docker-compose-quality.yml ps
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E 'quality|postgres|db'
+ss -ltnp | grep -E ':5432|:54322'
+grep -E '^(POSTGRES_PORT_HOST|POSTGRES_PORT)=' .env 2>/dev/null
 ```
 
-Then run:
+Expected for the repository configuration:
+
+```text
+nfa-quality-db ... 127.0.0.1:54322->5432/tcp
+```
+
+If `nfa-quality-db` is stopped or unhealthy, inspect/start only that service:
+
+```bash
+docker compose -f docker-compose-quality.yml logs --tail=100 db
+docker compose -f docker-compose-quality.yml up -d db
+```
+
+Do **not** run `docker compose down -v`; that deletes database data.
+
+If the container is healthy but no host port is shown, inspect the resolved Compose configuration:
+
+```bash
+docker compose -f docker-compose-quality.yml config | grep -A8 -n 'published\|target: 5432'
+```
+
+Use the published host port shown there instead of assuming `54322`.
+
+## 3. Confirm database access
+
+With the discovered port, test without embedding the password in the command:
+
+```bash
+read -rsp 'Database password: ' PGPASSWORD; echo
+export PGPASSWORD
+psql -h 127.0.0.1 -p <ACTUAL_HOST_PORT> -U postgres -d postgres \
+  -c 'select current_database(), current_user;'
+unset PGPASSWORD
+```
+
+If no host port is published, query through the running container:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+docker compose -f docker-compose-quality.yml exec db psql -U postgres -d postgres \
+  -c 'select current_database(), current_user;'
+```
+
+## 4. Verify User Management requirements
+
+The admin role is already present, so run only these checks in the SQL Editor:
 
 ```sql
-\set ON_ERROR_STOP on
-
 SELECT
-  to_regclass('public.user_roles') AS user_roles,
   to_regclass('public.role_permission') AS role_permission,
   to_regclass('public.app_role_def') AS app_role_def,
   to_regclass('public.user_role_assignment') AS user_role_assignment;
@@ -51,89 +97,64 @@ ORDER BY column_name;
 
 SELECT role_key, screen, allowed
 FROM public.role_permission
-WHERE screen = 'user_management'
-ORDER BY role_key;
-
-SELECT u.id, u.email, ur.role
-FROM auth.users u
-LEFT JOIN public.user_roles ur ON ur.user_id = u.id
-WHERE lower(u.email) = lower('masteradmin@sharviinfotech.com');
+WHERE role_key = 'admin'
+ORDER BY screen;
 ```
 
-Expected results:
+Required result:
 
-- All four table names are non-null.
-- The profile query returns all eight fields.
-- `role_permission` contains `admin / user_management / true`.
-- The master account currently shows `initiator`, explaining the current UI.
+- All three table names are non-null.
+- All eight profile fields are returned.
+- `admin / user_management / true` exists.
 
-Exit with:
+If these results exist, migrations are not the current blocker. Sign out, clear stored site data for `10.200.1.7:8081` if needed, and sign in again. The app loads roles during authentication bootstrap, so an old session/tab can retain the earlier UI state.
 
-```sql
-\q
-```
+## 5. Fix the installed migration script before applying migrations
 
-## 2. Grant the existing master account admin access
-
-The repository already includes an idempotent script for this. Run:
+First prove the installed script is stale:
 
 ```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality
-
-PGPASSWORD='<POSTGRES_PASSWORD>' psql \
-  -h 127.0.0.1 -p 54322 -U postgres -d postgres \
-  -v admin_email="'masteradmin@sharviinfotech.com'" \
-  -f /opt/Ramky_Applications/NFA-Approval/Quality/scripts/seed-admin.sql
+grep -n 'MIGRATIONS_DIR' \
+  /opt/Ramky_Applications/NFA-Approval/Quality/scripts/run-migrations.sh
 ```
 
-It adds the `admin` role without removing the existing `initiator` role.
-
-Verify it:
+It should contain:
 
 ```bash
-PGPASSWORD='<POSTGRES_PASSWORD>' psql \
-  -h 127.0.0.1 -p 54322 -U postgres -d postgres \
-  -c "SELECT u.email, r.role FROM auth.users u JOIN public.user_roles r ON r.user_id=u.id WHERE lower(u.email)=lower('masteradmin@sharviinfotech.com') ORDER BY r.role;"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-$REPO_ROOT/supabase/migrations}"
 ```
 
-Then sign out completely and sign in again. The Admin section, including User Management, should be available.
+Update the server script from the current repository deployment, or permanently default it to:
 
-## 3. Apply migrations from their actual folder only if diagnosis finds missing schema
+```text
+/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations
+```
 
-Do not create duplicate manual tables. Use the migration files already on the server:
+Only if Step 4 shows missing schema, run migrations with both verified values:
 
 ```bash
 cd /opt/Ramky_Applications/NFA-Approval/Quality/scripts
+read -rsp 'Database password: ' PGPASSWORD; echo
+export PGPASSWORD
 
+PGPORT=<ACTUAL_HOST_PORT> \
 MIGRATIONS_DIR=/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations \
-  ./run-migrations.sh
+./run-migrations.sh
+
+unset PGPASSWORD
 ```
 
-Important: run this step only if Step 1 reports missing tables/columns. The script records applied files in `public.schema_migrations_applied`; if the database was initialized by a different mechanism, the first run may encounter objects that already exist. In that case, stop at the first error rather than modifying or deleting existing tables, and reconcile the migration history before continuing.
+Stop on the first migration error. Do not reset the database volume or recreate existing tables.
 
-The migration files that provide User Management include:
+## 6. Repository deployment hardening
 
-- `20260812060010...sql`: screen permissions and `is_active`
-- `20260812061227...sql`: role definitions, assignments, and `role_key`
-- `20260812123128...sql`: User ID / username login
-- `20260814105347...sql`: employee ID and department
-- `20260825114401...sql`: first and last name
-- `20260825120139...sql`: contact and status
+Update the deployment scripts so future Quality deployments:
 
-## 4. Correct deployment script paths for future releases
+- Resolve the app at `/Quality/frontend`.
+- Resolve migrations at `/Quality/backend/migrations`, while preserving explicit overrides.
+- Validate the real database host port before migration.
+- Print resolved app, migrations, environment file, and database endpoint during preflight.
+- Fail clearly when an installed script ignores an override.
+- Log role/permission query failures in the app instead of silently rendering an empty sidebar.
 
-Update the deployment scripts so this folder layout is supported permanently:
-
-- Default `MIGRATIONS_DIR` to `/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations`, while preserving the environment-variable override.
-- Default `APP_DIR` to `/opt/Ramky_Applications/NFA-Approval/Quality/frontend`.
-- Keep the frontend runtime environment in `/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env`, or pass its actual location explicitly with `ENV_FILE=...`.
-- Add preflight output showing the resolved app, migration, and env paths before deployment begins.
-
-Until that repository update is deployed, use explicit variables:
-
-```bash
-APP_DIR=/opt/Ramky_Applications/NFA-Approval/Quality/frontend \
-ENV_FILE=/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env \
-MIGRATIONS_DIR=/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations \
-/opt/Ramky_Applications/NFA-Approval/Quality/scripts/deploy-quality.sh
-```
+The separate `frontend.env` issue must be fixed before running the full deployment script, but it is not needed for the already-running app to recognize the existing admin role after a fresh login.
