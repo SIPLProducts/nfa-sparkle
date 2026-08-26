@@ -21,7 +21,7 @@ This JWT/database role is separate from the application's `admin`, `initiator`, 
 
 ## 1. Repair this auth account
 
-Run this in the Quality SQL editor, using the confirmed user UUID:
+The newest login uses user UUID `38722bbc-c804-40bf-aead-059366c0063f` (the earlier UUID is no longer the current account). Run this in the Quality SQL editor:
 
 ```sql
 BEGIN;
