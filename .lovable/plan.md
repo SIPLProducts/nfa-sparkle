@@ -63,12 +63,12 @@ Service names in that file may not be `auth`, `rest`, `kong`; use the `SERVICE` 
 
 Then clear the browser's old session and sign in again so Auth issues a fresh token.
 
-The Quality backend environment must contain `JWT_SECRET`, `ANON_KEY`, and `SERVICE_ROLE_KEY` generated as one matching set:
+The Quality backend environment must contain `JWT_SECRET`, `ANON_KEY`, and `SERVICE_ROLE_KEY` generated as one matching set. The `.env` used by the stack sits next to the compose file found above, which may not be `backend/.env`:
 
 ```bash
-grep -cE '^(JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY)=' \
-  /opt/Ramky_Applications/NFA-Approval/Quality/backend/.env
+grep -cE '^(JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY)=' <dir printed above>/.env
 ```
+
 
 The result must be `3`. Use the matching Quality `ANON_KEY` and `SERVICE_ROLE_KEY` in `frontend.env`. Do not regenerate only one key; all three values must remain a matching set.
 
