@@ -181,7 +181,7 @@ function UsersTab() {
   const activeFn = useServerFn(setManagedUserActive);
 
   const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000 });
-  const [q, setQ] = useState("");
+  const [q, setQ] = useScreenState<string>("admin-users.search", "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [pwUser, setPwUser] = useState<ManagedUser | null>(null);
@@ -984,7 +984,7 @@ function PermissionsTab() {
   const qc = useQueryClient();
   const fetchPerms = useServerFn(listRolePermissions);
   const saveFn = useServerFn(saveRolePermissions);
-  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms() });
+  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms(), staleTime: 60_000 });
   const { data: roleDefs, isLoading: rolesLoading } = useRoleDefs();
   const [draft, setDraft] = useState<Record<string, boolean> | null>(null);
 

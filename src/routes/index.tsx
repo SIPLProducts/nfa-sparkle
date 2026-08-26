@@ -59,9 +59,8 @@ function Index() {
 
   useEffect(() => {
     if (!user) return;
-    // Cached rows render immediately; refresh only when the cache is stale.
-    const fresh = mine.length > 0 && Date.now() - fetchedAt < 60_000;
-    if (fresh) {
+    // Cached rows render immediately; never refresh just because the user returned to this screen.
+    if (fetchedAt > 0) {
       setDataLoading(false);
       return;
     }
@@ -81,9 +80,11 @@ function Index() {
         const { data: nfas } = await supabase.from("nfa").select("*").in("id", list.map((l) => l.nfa_id));
         const map = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
         setPending(
-          list
-            .map((ap) => ({ ap, nfa: map.get(ap.nfa_id)! }))
-            .filter((r) => r.nfa && r.nfa.status === "in_process" && r.nfa.current_level === r.ap.level),
+          list.flatMap((ap) => {
+            const nfa = map.get(ap.nfa_id);
+            if (!nfa || nfa.status !== "in_process" || nfa.current_level !== ap.level) return [];
+            return [{ ap, nfa }];
+          }),
         );
       }
       setFetchedAt(Date.now());

@@ -110,10 +110,9 @@ function MyNfas() {
     }
   }, []);
 
-  // Restore cached rows instantly; only hit SAP when the cache is empty or stale.
-  const hasRows = rows.length > 0;
+  // Restore cached rows instantly; only hit SAP automatically when this screen has not loaded in this session.
   useEffect(() => {
-    if (hasRows && Date.now() - fetchedAt < 60_000) {
+    if (fetchedAt > 0) {
       setLoading(false);
       return;
     }

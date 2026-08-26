@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useScreenState } from "@/lib/screen-state";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,11 +74,12 @@ function currentLevel(row: SapReportRow): number {
 
 function ApprovalsInbox() {
   
-  const [rows, setRows] = useState<SapReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useScreenState<SapReportRow[]>("approvals.rows", []);
+  const [fetchedAt, setFetchedAt] = useScreenState<number>("approvals.fetchedAt", 0);
+  const [loading, setLoading] = useState(rows.length === 0 && fetchedAt === 0);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [q, setQ] = useScreenState<string>("approvals.q", "");
+  const [selected, setSelected] = useScreenState<number | null>("approvals.selected", null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
@@ -115,6 +117,7 @@ function ApprovalsInbox() {
         return;
       }
       setRows(normaliseRows(parsed));
+      setFetchedAt(Date.now());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
       setRows([]);
@@ -124,7 +127,13 @@ function ApprovalsInbox() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (fetchedAt > 0) {
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [fetchedAt, load]);
 
   /** SAP decides what appears here — no client-side filtering by user. */
   const filtered = useMemo(() => {
