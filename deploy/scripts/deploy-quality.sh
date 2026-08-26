@@ -15,11 +15,19 @@
 
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/enfa/app}"
-ENV_FILE="${ENV_FILE:-/opt/enfa/app.env}"
+QUALITY_ROOT="${QUALITY_ROOT:-/opt/Ramky_Applications/NFA-Approval/Quality}"
+APP_DIR="${APP_DIR:-$QUALITY_ROOT/frontend}"
+ENV_FILE="${ENV_FILE:-$QUALITY_ROOT/frontend.env}"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-$QUALITY_ROOT/backend/migrations}"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
+step "Preflight"
+printf 'Quality root: %s\nApp directory: %s\nEnvironment:   %s\nMigrations:    %s\n' \
+  "$QUALITY_ROOT" "$APP_DIR" "$ENV_FILE" "$MIGRATIONS_DIR"
+
+[[ -d "$APP_DIR" ]] || { echo "Missing app directory $APP_DIR"; exit 1; }
+[[ -d "$MIGRATIONS_DIR" ]] || { echo "Missing migrations directory $MIGRATIONS_DIR"; exit 1; }
 cd "$APP_DIR"
 
 [[ -f "$ENV_FILE" ]] || { echo "Missing $ENV_FILE (copy deploy/env/app.env.quality.example)"; exit 1; }
@@ -51,7 +59,8 @@ sudo rsync -a --delete --exclude "server/" dist/ /opt/enfa/frontend/
 
 if [[ "${SKIP_MIGRATIONS:-0}" != "1" ]]; then
   step "Applying database migrations"
-  ./deploy/scripts/run-migrations.sh
+  QUALITY_ROOT="$QUALITY_ROOT" MIGRATIONS_DIR="$MIGRATIONS_DIR" \
+    "$QUALITY_ROOT/scripts/run-migrations.sh"
 fi
 
 if [[ "${SKIP_RESTART:-0}" != "1" ]]; then
