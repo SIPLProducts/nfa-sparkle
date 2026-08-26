@@ -40,7 +40,7 @@ npm ci
 
 step "Building (VITE_* baked in now)"
 npm run build
-[[ -f .output/server/server.js ]] || { echo "Build output .output/server/server.js not found"; exit 1; }
+[[ -f .output/server/index.mjs ]] || { echo "Build output .output/server/index.mjs not found"; exit 1; }
 [[ -f dist/index.html ]] || { echo "Static build dist/index.html not found"; exit 1; }
 
 step "Publishing static frontend to /opt/enfa/frontend"
