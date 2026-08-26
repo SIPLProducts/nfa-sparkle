@@ -12,7 +12,7 @@ The login request succeeds (`token?grant_type=password` = 200), but the followin
 
 The Node/PM2 application was started without a usable server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
 
-### The keys currently in use belong to the wrong backend
+### Verify token signing consistency before replacing keys
 
 The values in the current environment file decode to a payload containing:
 
@@ -20,18 +20,36 @@ The values in the current environment file decode to a payload containing:
 "ref": "nhrwogdnwtkmbygwlrkv"
 ```
 
-That reference identifies the hosted cloud project, not the Quality stack. Those tokens were signed with the cloud signing secret, so the Quality gateway cannot validate them and rejects the requests. This explains why sign-in returns 200 while `user_roles`, `user_role_assignment`, `nfa`, and `nfa_approver` all return 401 immediately afterwards.
+That reference came from the hosted project, but the `ref` claim by itself does not determine whether a JWT is valid. A self-hosted gateway can accept it if all Quality services use the same signing secret. The successful password-token request proves the gateway accepts the anon key for the Auth endpoint.
 
-Renaming `SUPABASE_PROJECT_ID` to `self-hosted-quality` does not change this, because the project reference is embedded inside the signed token itself.
+The important symptom is: Auth issues a session successfully, then REST rejects that new access token with 401. This most strongly indicates that the Auth and REST containers may not share the same JWT secret. Confirm this without printing any secrets:
 
-The correct values are the `ANON_KEY` and `SERVICE_ROLE_KEY` generated for the Quality stack, stored in the Quality backend environment file next to its `JWT_SECRET`:
+```bash
+AUTH_HASH=$(docker inspect nfa-quality-auth --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | sed -n 's/^GOTRUE_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
+REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | sed -n 's/^PGRST_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
+printf 'Auth JWT hash: %s\nREST JWT hash: %s\n' "$AUTH_HASH" "$REST_HASH"
+```
+
+The two hashes must be identical. If they differ, recreate the Auth and REST services from the same Quality backend `.env`; merely restarting the existing containers will preserve their old environment:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+docker compose up -d --force-recreate auth rest kong
+docker compose ps
+```
+
+Then clear the browser's old session and sign in again so Auth issues a fresh token.
+
+The Quality backend environment must contain `JWT_SECRET`, `ANON_KEY`, and `SERVICE_ROLE_KEY` generated as one matching set:
 
 ```bash
 grep -cE '^(JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY)=' \
   /opt/Ramky_Applications/NFA-Approval/Quality/backend/.env
 ```
 
-The result must be `3`. Copy those two key values, not the cloud values.
+The result must be `3`. Use the matching Quality `ANON_KEY` and `SERVICE_ROLE_KEY` in `frontend.env`. Do not regenerate only one key; all three values must remain a matching set.
 
 ### The server URL should be the local gateway
 
@@ -75,15 +93,7 @@ VITE_SUPABASE_PROJECT_ID=enfa-quality
 
 Never put the service-role key in a `VITE_` variable.
 
-Confirm the key now belongs to the Quality stack (prints only the reference field, never the secret):
-
-```bash
-set -a; . /opt/Ramky_Applications/NFA-Approval/Quality/frontend.env; set +a
-cut -d. -f2 <<<"$SUPABASE_PUBLISHABLE_KEY" | base64 -d 2>/dev/null | grep -o '"ref":"[^"]*"'
-```
-
-It must **not** print `nhrwogdnwtkmbygwlrkv`.
-
+The decoded `ref` is informational only and is not the validation test. Validate the complete setup by requesting a new login session and confirming an authenticated `/rest/v1/user_roles` request no longer returns 401.
 
 ## 2. Install Node 22 alongside Node 20 and isolate it to this app
 
@@ -215,7 +225,7 @@ group by p.email, p.username, p.status;
 
 ## Technical note
 
-No schema migration is required for either error shown. The recovery is to use the Quality-signed keys, point the server at the local gateway, run on Node 22, rebuild so the browser bundle carries the correct URL/key, restart PM2 with `--update-env`, and clear the old browser session.
+No schema migration is required for either error shown. First verify that Auth and REST use the same JWT secret and recreate only those backend services if their hashes differ. Then use the matching Quality key set, point the server at the local gateway, run only this app on Node 22, rebuild, restart its PM2 process with `--update-env`, and clear the old browser session.
 
 ## Security follow-up
 
