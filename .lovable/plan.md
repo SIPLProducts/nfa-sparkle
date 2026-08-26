@@ -10,15 +10,40 @@ Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
 
 The login request succeeds (`token?grant_type=password` = 200), but the following role reads return 401. The Admin permission rows also exist and include `user_management = true`. Therefore this is **not a missing role-permission migration**.
 
-The Node/PM2 application was started without its required server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
+The Node/PM2 application was started without a usable server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
 
-The new error confirms a second, independent runtime mismatch:
+### The keys currently in use belong to the wrong backend
+
+The values in the current environment file decode to a payload containing:
+
+```text
+"ref": "nhrwogdnwtkmbygwlrkv"
+```
+
+That reference identifies the hosted cloud project, not the Quality stack. Those tokens were signed with the cloud signing secret, so the Quality gateway cannot validate them and rejects the requests. This explains why sign-in returns 200 while `user_roles`, `user_role_assignment`, `nfa`, and `nfa_approver` all return 401 immediately afterwards.
+
+Renaming `SUPABASE_PROJECT_ID` to `self-hosted-quality` does not change this, because the project reference is embedded inside the signed token itself.
+
+The correct values are the `ANON_KEY` and `SERVICE_ROLE_KEY` generated for the Quality stack, stored in the Quality backend environment file next to its `JWT_SECRET`:
+
+```bash
+grep -cE '^(JWT_SECRET|ANON_KEY|SERVICE_ROLE_KEY)=' \
+  /opt/Ramky_Applications/NFA-Approval/Quality/backend/.env
+```
+
+The result must be `3`. Copy those two key values, not the cloud values.
+
+### The server URL should be the local gateway
+
+`SUPABASE_URL` is used by the Node process on the same machine, so it should point directly at the Quality API gateway (`http://127.0.0.1:8001`) instead of looping back through the public web port. Only `VITE_SUPABASE_URL` uses the browser-visible address.
+
+The second error is an independent runtime mismatch:
 
 ```text
 Node.js 20 detected without native WebSocket support
 ```
 
-The current backend client includes its realtime transport when a client is created. Node 20 does not provide the native WebSocket implementation expected by this version. The preferred fix is to run the generated server bundle on Node 22, which has the required native support; the application does not need realtime code changes for this.
+The installed backend client version expects native WebSocket support when a client is created. Node 20 does not provide it. The fix is to run the generated server bundle on Node 22; no realtime code change is required.
 
 ## 1. Create the Quality runtime environment file
 
@@ -31,7 +56,7 @@ chmod 600 frontend.env
 nano frontend.env
 ```
 
-Set these values using the keys from the Quality backend `.env` (do not use the cloud values from the repository):
+Set these values using the keys from the Quality backend `.env`:
 
 ```env
 HOST=127.0.0.1
@@ -39,8 +64,8 @@ PORT=3000
 NODE_ENV=production
 
 SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_PUBLISHABLE_KEY=<Quality ANON_KEY>
-SUPABASE_SERVICE_ROLE_KEY=<Quality SERVICE_ROLE_KEY>
+SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from the Quality backend .env>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from the Quality backend .env>
 SUPABASE_PROJECT_ID=enfa-quality
 
 VITE_SUPABASE_URL=http://10.200.1.7:8081
@@ -49,6 +74,16 @@ VITE_SUPABASE_PROJECT_ID=enfa-quality
 ```
 
 Never put the service-role key in a `VITE_` variable.
+
+Confirm the key now belongs to the Quality stack (prints only the reference field, never the secret):
+
+```bash
+set -a; . /opt/Ramky_Applications/NFA-Approval/Quality/frontend.env; set +a
+cut -d. -f2 <<<"$SUPABASE_PUBLISHABLE_KEY" | base64 -d 2>/dev/null | grep -o '"ref":"[^"]*"'
+```
+
+It must **not** print `nhrwogdnwtkmbygwlrkv`.
+
 
 ## 2. Upgrade the application runtime to Node 22
 
