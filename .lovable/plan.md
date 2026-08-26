@@ -1,135 +1,89 @@
-# Fix empty sidebar and restore User Management on Quality
+# Fix Quality server migrations and empty sidebar
 
-## Confirmed facts
+## What is actually wrong
 
-- The Quality database is healthy and published at `127.0.0.1:5435`.
-- The master account has `admin` in `public.user_roles`.
-- The header text **Initiator is hardcoded** in `AppShell.tsx`; it does not reflect the logged-in user's actual role.
-- Sidebar items are filtered from browser-loaded roles and `role_permission` rows. An empty sidebar means those browser queries are failing or returning no usable roles.
-- The server's installed migration script does not match the repository version: it ignores `MIGRATIONS_DIR` and calculates `/Quality/supabase/migrations`.
+### 1. Why migrations do not run
 
-Do not rerun `seed-admin.sql`; the admin role already exists.
-
-## Diagnose before migrating
-
-In browser DevTools → Network, sign out and sign back in, then inspect:
+The migrations exist here:
 
 ```text
-/rest/v1/user_roles?select=role&user_id=eq...
-/rest/v1/user_role_assignment?select=role_key&user_id=eq...
-/rest/v1/role_permission?select=role_key%2Cscreen%2Callowed
+/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations
 ```
 
-Record the status and response body for each. They must return HTTP 200. A 401 means the built frontend key/session does not match the Quality backend; an empty 200 response points to RLS/policy visibility.
+But the installed server script still looks here:
 
-Run this in the working SQL Editor:
+```text
+/opt/Ramky_Applications/NFA-Approval/Quality/supabase/migrations
+```
+
+It also ignores the `MIGRATIONS_DIR=...` value you pass. Therefore, repeating the same command cannot work. The installed `run-migrations.sh` must be replaced/fixed first.
+
+### 2. Why the earlier database command failed
+
+The Quality database is healthy, but Docker publishes it on port **5435**, not 54322:
+
+```text
+0.0.0.0:5435 -> container 5432
+```
+
+Any direct `psql` command must therefore use `-p 5435` for this currently running stack.
+
+### 3. Why the SQL Editor shows a red error
+
+The SQL itself did run—the screenshot shows **21 result rows**. The red “API error communicating with the server” and snippets warning are from the unhealthy Studio container/Studio support APIs. They are not proof that the SQL query failed.
+
+### 4. Why the sidebar is empty
+
+The account already has the `admin` role. The app sidebar depends on browser requests to `user_roles`, `user_role_assignment`, and `role_permission`. One of those browser requests is failing or returning no usable data. Also, the header word “Initiator” is hardcoded and is not the actual database role.
+
+## Implementation
+
+### Deployment scripts
+
+- Update `run-migrations.sh` to default to `/Quality/backend/migrations` and honor `MIGRATIONS_DIR`.
+- Detect/use the Docker-published database port, currently 5435, while preserving `PGPORT` overrides.
+- Update `deploy-quality.sh` for the actual `/Quality/frontend`, `/Quality/backend/migrations`, and `/Quality/frontend.env` layout.
+- Print resolved paths and ports before running so wrong copies are obvious.
+
+### Frontend role diagnostics
+
+- Replace the hardcoded “Initiator” label with the actual loaded role.
+- Handle and report errors from all three role/permission queries instead of silently rendering an empty sidebar.
+- Preserve the current role-based access rules.
+
+## Immediate next diagnostic
+
+Do not run migrations again yet. In the browser app at port 8081:
+
+1. Open DevTools → Network.
+2. Sign out and sign back in.
+3. Check these three requests:
+
+```text
+/rest/v1/user_roles
+/rest/v1/user_role_assignment
+/rest/v1/role_permission
+```
+
+Send the HTTP status and response text for each failing request. This identifies whether the sidebar is blocked by the frontend key/session or by database policy visibility.
+
+In the SQL Editor, run only this single query by itself:
 
 ```sql
 SELECT role_key, screen, allowed
 FROM public.role_permission
 WHERE role_key = 'admin'
 ORDER BY screen;
-
-SELECT schemaname, tablename, policyname, roles, cmd, qual
-FROM pg_policies
-WHERE schemaname = 'public'
-  AND tablename IN ('user_roles', 'user_role_assignment', 'role_permission')
-ORDER BY tablename, policyname;
-
-SELECT table_name, grantee, privilege_type
-FROM information_schema.role_table_grants
-WHERE table_schema = 'public'
-  AND table_name IN ('user_roles', 'user_role_assignment', 'role_permission')
-  AND grantee = 'authenticated'
-ORDER BY table_name, privilege_type;
 ```
 
-Required:
-
-- `admin / user_management / true` exists.
-- Authenticated users can read their own role rows.
-- `role_permission` is readable by authenticated users.
-- `authenticated` has `SELECT` on all three tables.
-
-## Repair only the confirmed database gap
-
-If only the permission row is missing:
-
-```sql
-INSERT INTO public.role_permission (role, role_key, screen, allowed)
-VALUES ('admin', 'admin', 'user_management', true)
-ON CONFLICT (role_key, screen)
-DO UPDATE SET allowed = true;
-```
-
-If grants are missing:
-
-```sql
-GRANT SELECT ON public.user_roles TO authenticated;
-GRANT SELECT ON public.user_role_assignment TO authenticated;
-GRANT SELECT ON public.role_permission TO authenticated;
-```
-
-Do not add broad anonymous access and do not disable RLS.
-
-## Correct frontend backend configuration if requests return 401
-
-Create the missing runtime/build env file at:
+The required row is:
 
 ```text
-/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env
+admin | user_management | true
 ```
 
-Use the Quality API URL on port `8001` and the matching Quality public/anon key for both server and `VITE_*` public configuration. Never place the service-role key in a `VITE_` variable.
-
-Rebuild because `VITE_*` values are baked into `dist`, then restart the Node app with updated environment. Sign out, clear site data for `10.200.1.7:8081`, and sign in again.
-
-## Fix the application diagnostics and role label
-
-Update the frontend to:
-
-- Show the actual loaded role instead of the hardcoded `Initiator` header text.
-- Log and surface failures from `user_roles`, `user_role_assignment`, and `role_permission` queries instead of silently producing an empty sidebar.
-- Keep the admin fallback only after a verified admin role has loaded.
-- Avoid changing existing access rules or exposing admin navigation to non-admin users.
-
-## Fix deployment scripts permanently
-
-Update repository deployment tooling for the actual Quality layout:
-
-```text
-/opt/Ramky_Applications/NFA-Approval/Quality/frontend
-/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations
-/opt/Ramky_Applications/NFA-Approval/Quality/frontend.env
-```
-
-The migration runner will:
-
-- Preserve `MIGRATIONS_DIR` and `PGPORT` overrides.
-- Default Quality database access to the currently published port `5435`, or detect it from Docker.
-- Print resolved paths and database endpoint before doing work.
-- Fail clearly if a stale deployed script ignores the override.
-
-The deploy helper will pass the resolved migration path/port explicitly and use the Quality frontend/env paths.
-
-## Migration safety
-
-Only apply migrations if the SQL checks prove required tables or profile columns are absent. First deploy the corrected migration script, then use:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/scripts
-read -rsp 'Database password: ' PGPASSWORD; echo
-export PGPASSWORD
-
-PGPORT=5435 \
-MIGRATIONS_DIR=/opt/Ramky_Applications/NFA-Approval/Quality/backend/migrations \
-./run-migrations.sh
-
-unset PGPASSWORD
-```
-
-Stop on the first error. Never run `docker compose down -v`, recreate tables, or reset the database volume.
+Do not run more migration or grant SQL until this result and the three browser responses are known.
 
 ## Security cleanup
 
-Rotate the database password that was pasted into chat and update backend services that use it. Do not place the replacement in chat, screenshots, shell history, or frontend variables.
+Rotate the database password pasted into chat and update only backend services that use it. Never place it in a `VITE_` variable.
