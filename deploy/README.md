@@ -139,10 +139,10 @@ the shell during the build:
 cd /opt/enfa/app
 set -a; . /opt/enfa/app.env; set +a
 npm ci
-npm run build          # output: dist/ (static frontend) + .output/server/index.mjs (Node)
-test -f dist/index.html && test -f .output/server/index.mjs
+npm run build          # output: dist/ (public assets) + .output/server/index.mjs (Node)
+test -d dist && test -f .output/server/index.mjs
 
-# publish the static frontend nginx serves on 8081
+# publish the static assets; nginx proxies application pages to the Node app
 sudo mkdir -p /opt/enfa/frontend
 sudo rsync -a --delete dist/ /opt/enfa/frontend/
 ```
