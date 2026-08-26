@@ -30,23 +30,23 @@ UPDATE auth.users
 SET aud = 'authenticated',
     role = 'authenticated',
     updated_at = now()
-WHERE id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
+WHERE id = '38722bbc-c804-40bf-aead-059366c0063f';
 
 -- Choose the required built-in application role here.
 -- This example assigns Initiator.
 INSERT INTO public.user_roles (user_id, role)
-VALUES ('0c99fe8b-0fcd-4d3e-9aae-176becabbf52', 'initiator'::public.app_role)
+VALUES ('38722bbc-c804-40bf-aead-059366c0063f', 'initiator'::public.app_role)
 ON CONFLICT (user_id, role) DO NOTHING;
 
 COMMIT;
 
 SELECT id, email, aud, role
 FROM auth.users
-WHERE id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
+WHERE id = '38722bbc-c804-40bf-aead-059366c0063f';
 
 SELECT user_id, role
 FROM public.user_roles
-WHERE user_id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
+WHERE user_id = '38722bbc-c804-40bf-aead-059366c0063f';
 ```
 
 For an administrator, replace `initiator` with `admin`. Do not put the application role into `auth.users.role`; that column must remain `authenticated`.
