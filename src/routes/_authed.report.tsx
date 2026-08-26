@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { useMemo, useRef, useState } from "react";
+import { useScreenState } from "@/lib/screen-state";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
@@ -148,12 +149,12 @@ function normaliseRows(value: unknown): SapReportRow[] {
 }
 
 function Report() {
-  const [f, setF] = useState<SapReportFilters>(EMPTY);
-  const [rows, setRows] = useState<SapReportRow[]>([]);
+  const [f, setF] = useScreenState<SapReportFilters>("report.filters", EMPTY);
+  const [rows, setRows] = useScreenState<SapReportRow[]>("report.rows", []);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [ran, setRan] = useState(false);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [ran, setRan] = useScreenState<boolean>("report.ran", false);
+  const [selected, setSelected] = useScreenState<number | null>("report.selected", null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -190,7 +191,7 @@ function Report() {
   }
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
-  const [extraStatus, setExtraStatus] = useState<{ back: boolean; clarify: boolean }>({ back: false, clarify: false });
+  const [extraStatus, setExtraStatus] = useScreenState<{ back: boolean; clarify: boolean }>("report.extraStatus", { back: false, clarify: false });
   const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
     setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
