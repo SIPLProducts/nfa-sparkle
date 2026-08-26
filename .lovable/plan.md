@@ -1,5 +1,28 @@
 # Diagnose and fix the Quality REST 401
 
+## First action — test the Quality API locally
+
+Run this on the Quality server before changing any configuration:
+
+```bash
+cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
+set -a
+. ./.env
+set +a
+
+curl -i 'http://127.0.0.1:8001/rest/v1/role_permission?select=role_key,screen,allowed&limit=1' \
+  -H "apikey: $ANON_KEY"
+```
+
+Interpret the result:
+
+- `200 OK` with JSON rows: Kong and REST work locally. The remaining mismatch is in the frontend build key or browser session; do not change Kong, roles, or migrations.
+- `200 OK` with `[]`: the gateway key is accepted, but database visibility/policies must be checked separately.
+- `401` with `{"message":"Invalid authentication credentials"}`: Kong is rejecting the Quality `ANON_KEY` locally. Continue with the hash-only comparison below.
+- A database/RLS error: the request passed Kong; diagnose that returned database error instead of changing API keys.
+
+This localhost test bypasses Nginx and the browser, so it establishes whether port `8001` itself is healthy.
+
 ## Current confirmed state
 
 - The Nginx rule is correct: `/auth/v1/` and `/rest/v1/` are proxied to the Quality API gateway on port `8001`.
@@ -116,7 +139,7 @@ REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{pri
 printf 'Auth JWT: %s\nREST JWT: %s\n' "$AUTH_HASH" "$REST_HASH"
 ```
 
-## 3. Verify the REST gateway before testing roles
+## 3. Re-test the REST gateway before testing roles
 
 After the gateway fix:
 
