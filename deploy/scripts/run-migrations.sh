@@ -16,9 +16,22 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-QUALITY_ROOT="${QUALITY_ROOT:-$REPO_ROOT}"
-MIGRATIONS_DIR="${MIGRATIONS_DIR:-$QUALITY_ROOT/backend/migrations}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [[ -z "${QUALITY_ROOT:-}" ]]; then
+  if [[ -d "$SCRIPT_DIR/../backend" ]]; then
+    QUALITY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  else
+    QUALITY_ROOT="$REPO_ROOT"
+  fi
+fi
+if [[ -z "${MIGRATIONS_DIR:-}" ]]; then
+  if [[ -d "$QUALITY_ROOT/backend/migrations" ]]; then
+    MIGRATIONS_DIR="$QUALITY_ROOT/backend/migrations"
+  else
+    MIGRATIONS_DIR="$REPO_ROOT/supabase/migrations"
+  fi
+fi
 
 export PGHOST="${PGHOST:-127.0.0.1}"
 if [[ -z "${PGPORT:-}" ]] && command -v docker >/dev/null 2>&1; then

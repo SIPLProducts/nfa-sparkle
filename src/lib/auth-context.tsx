@@ -22,7 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [perms, setPerms] = useState<Record<string, boolean>>({});
-  const [accessError, setAccessError] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data, error }) => {
         if (error) {
           console.error("Unable to load screen permissions", error);
-          setAccessError(`Unable to load screen permissions: ${error.message}`);
+          setPermissionError(`Unable to load screen permissions: ${error.message}`);
           return;
         }
         const m: Record<string, boolean> = {};
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (r.role_key) m[`${r.role_key}:${r.screen}`] = r.allowed;
         }
         setPerms(m);
-        setAccessError(null);
+        setPermissionError(null);
       });
   }, []);
 
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const errors = [sys.error, custom.error].filter(Boolean);
     if (errors.length > 0) {
       console.error("Unable to load user roles", errors);
-      setAccessError(`Unable to load user roles: ${errors.map((error) => error?.message).join("; ")}`);
+      setRoleError(`Unable to load user roles: ${errors.map((error) => error?.message).join("; ")}`);
       setRoles([]);
       return;
     }
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...((custom.data ?? []) as { role_key: string }[]).map((r) => r.role_key),
     ];
     setRoles(Array.from(new Set(list)));
+    setRoleError(null);
   }
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
     roles,
-    accessError,
+    accessError: roleError ?? permissionError,
     hasRole: (r) => roles.includes(r),
     canAccess: (s) => {
       if (roles.length === 0) return false;
