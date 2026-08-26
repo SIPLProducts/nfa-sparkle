@@ -12,6 +12,14 @@ The login request succeeds (`token?grant_type=password` = 200), but the followin
 
 The Node/PM2 application was started without its required server-side Quality environment. Create User needs `SUPABASE_SERVICE_ROLE_KEY` on the Node server, while authenticated server calls need `SUPABASE_URL` and the publishable key.
 
+The new error confirms a second, independent runtime mismatch:
+
+```text
+Node.js 20 detected without native WebSocket support
+```
+
+The current backend client includes its realtime transport when a client is created. Node 20 does not provide the native WebSocket implementation expected by this version. The preferred fix is to run the generated server bundle on Node 22, which has the required native support; the application does not need realtime code changes for this.
+
 ## 1. Create the Quality runtime environment file
 
 On the Ubuntu server, create the file expected by the deployment layout:
@@ -42,7 +50,34 @@ VITE_SUPABASE_PROJECT_ID=enfa-quality
 
 Never put the service-role key in a `VITE_` variable.
 
-## 2. Rebuild and restart PM2 with the environment
+## 2. Upgrade the application runtime to Node 22
+
+Check the current executable first:
+
+```bash
+node --version
+which node
+```
+
+If it reports Node 20, install/select Node 22 using the server's existing Node version manager or package-management standard. With `nvm`:
+
+```bash
+nvm install 22
+nvm alias default 22
+nvm use 22
+node --version
+```
+
+Expected: `v22.x.x`. If PM2 was installed under Node 20, reinstall it under the active Node 22 environment so its daemon and startup command use the same executable:
+
+```bash
+npm install -g pm2
+pm2 kill
+```
+
+Do not add a browser WebSocket polyfill. This is the Node application server, not a frontend browser issue.
+
+## 3. Rebuild and restart PM2 with the environment
 
 The `VITE_*` values are embedded during build; the server values are read at runtime. Load the same file for both:
 
@@ -72,7 +107,13 @@ pm2 logs NFA-Portal-App --lines 50 --nostream
 
 All three names must show `SET`, and the missing-environment error must be absent.
 
-## 3. Clear the stale browser session
+Also confirm PM2 is now using Node 22:
+
+```bash
+pm2 describe NFA-Portal-App | grep -E 'node.js version|interpreter'
+```
+
+## 4. Clear the stale browser session
 
 Because the screenshot shows login 200 followed by four 401 responses:
 
@@ -81,7 +122,7 @@ Because the screenshot shows login 200 followed by four 401 responses:
 3. Hard refresh and sign in again.
 4. Confirm `user_roles`, `user_role_assignment`, `nfa`, and `nfa_approver` no longer return 401.
 
-## 4. Create users through User Management
+## 5. Create users through User Management
 
 Once the server environment is restored, use **Admin → User Management → Create User**. This is safer than inserting directly into authentication system tables and automatically creates:
 
@@ -90,7 +131,7 @@ Once the server environment is restored, use **Admin → User Management → Cre
 - system roles in `user_roles`,
 - custom roles in `user_role_assignment`.
 
-## 5. SQL query to assign roles to an existing user
+## 6. SQL query to assign roles to an existing user
 
 If the user already exists in Authentication and `profiles`, assign system roles with this SQL. Change only the email and role list:
 
@@ -132,4 +173,4 @@ group by p.email, p.username, p.status;
 
 ## Technical note
 
-No schema migration is required for the error shown. The fix is to supply the existing Node server with the correct Quality environment, rebuild with the correct browser URL/key, restart PM2 using `--update-env`, and then refresh the browser session.
+No schema migration is required for either error shown. The recovery is to use Node 22, supply the correct Quality environment, rebuild with the correct browser URL/key, restart PM2 using `--update-env`, and then refresh the browser session. This addresses the missing environment error, the Node 20 WebSocket error, the User Management server-function 500s, and the post-login role request failures as separate verified runtime/configuration issues.
