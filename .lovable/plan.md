@@ -87,7 +87,6 @@ cd /opt/Ramky_Applications/NFA-Approval/Quality/frontend
 set -a
 . ./.env
 set +a
-pm2 start .output/server/server.js \
 pm2 start .output/server/index.mjs \
   --name NFA-Portal-App \
   --cwd /opt/Ramky_Applications/NFA-Approval/Quality/frontend \
@@ -102,8 +101,6 @@ Then verify:
 curl -i http://127.0.0.1:3000/auth
 pm2 logs NFA-Portal-App --lines 100
 ```
-
-Remove the obsolete `pm2 start .output/server/server.js` line if it was previously attempted; the only valid start command is for `index.mjs`.
 
 Expected: port 3000 answers and PM2 shows `NFA-Portal-App` as `online`. If it exits, the 100 log lines identify the exact startup error.
 
