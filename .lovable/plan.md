@@ -1,115 +1,76 @@
-# Create an admin login user on the Quality server
+# Fix login on the Quality server
 
-The previous query was only partially executed: it ended at `is_syst` and therefore never reached the closing `end $$;`. The SQL editor then appended unrelated text, producing the unterminated dollar-quote error.
+The admin user is now correct in the database (verified: `MASTERADMIN`, `ACTIVE`, role `admin`). The remaining failures are deployment issues, and there are exactly two.
 
-## Screenshot result
+## Diagnosis
 
-The latest screenshot confirms the corrected SQL completed successfully: **“Success. No rows returned”** is the normal result for a `DO` block. The two red notifications are separate self-hosted Studio issues:
+**1. `502 Bad Gateway` on `POST /_serverFn/...`**
 
-- `SNIPPETS_MANAGEMENT_FOLDER env var is not set` only disables saved SQL snippets. It does not affect the query or application login.
-- `API error happened while trying to communicate with the server` is a Studio dashboard request failure. Since the SQL result says Success, it did not roll back this query.
+Nginx now forwards this path correctly (a 405 became a 502), but nothing answers on the upstream port. The application server is not running, so User ID resolution and Create User cannot execute.
 
-Run the verification query in step 3 next. If it returns the expected Admin row, database setup is complete. The remaining login `405 Not Allowed` is caused by the missing application server/proxy route, not by these Studio notifications.
+**2. `401 Invalid authentication credentials` on `GET /rest/v1/role_permission`**
 
-Use this safer two-step method. It avoids direct manipulation of auth internals and contains no dollar-quoted block.
+This message comes from the API gateway rejecting the API key itself, not from a missing session. The frontend build is using an API key that was not signed by this server's `JWT_SECRET`. The Quality stack's own `ANON_KEY` from `backend/.env` must be the one baked into the frontend build.
 
-## 1. Create the login account
+Both must be fixed; fixing only one leaves login broken.
 
-In the Quality backend console, open **Authentication → Users → Add user** and create:
+## Step 1 - Frontend environment
 
-- Email: `masteradmin@sharviinfotech.com`
-- Password: choose a new strong password
-- Auto confirm user: enabled
+In the frontend `.env` used for the build, the publishable/anon key must be the `ANON_KEY` value from `backend/.env` (the one beginning `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...MqeMZKSY`), and the URL must be the address the browser uses:
 
-This creates the valid login record, including the required auth identity. Do not insert directly into the internal auth tables.
-
-## 2. Assign the application profile and Admin role
-
-Open **SQL Editor**, paste the complete query below, and run it as one query:
-
-```sql
--- Stop with no changes if the Authentication user does not exist.
-do $admin_setup$
-declare
-  v_id uuid;
-begin
-  select id
-    into v_id
-    from auth.users
-   where lower(email) = lower('masteradmin@sharviinfotech.com')
-   limit 1;
-
-  if v_id is null then
-    raise exception 'Create masteradmin@sharviinfotech.com in Authentication > Users first';
-  end if;
-
-  insert into public.profiles (
-    id, email, full_name, username, first_name, last_name,
-    contact, status, is_active
-  ) values (
-    v_id,
-    'masteradmin@sharviinfotech.com',
-    'Master Admin',
-    'MASTERADMIN',
-    'Master',
-    'Admin',
-    '9999999999',
-    'ACTIVE',
-    true
-  )
-  on conflict (id) do update set
-    email = excluded.email,
-    full_name = excluded.full_name,
-    username = excluded.username,
-    first_name = excluded.first_name,
-    last_name = excluded.last_name,
-    contact = excluded.contact,
-    status = excluded.status,
-    is_active = excluded.is_active;
-
-  -- Remove the default Initiator role added by the new-user trigger.
-  delete from public.user_roles where user_id = v_id;
-  insert into public.user_roles (user_id, role)
-  values (v_id, 'admin');
-
-  insert into public.app_role_def (key, name, description, is_system)
-  values ('admin', 'Admin', 'Full application administration', true)
-  on conflict (key) do update set name = excluded.name;
-
-  delete from public.user_role_assignment where user_id = v_id;
-  insert into public.user_role_assignment (user_id, role_key)
-  values (v_id, 'admin');
-end
-$admin_setup$;
+```
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
 ```
 
-Do not run only a highlighted portion. The final two lines must be included exactly:
+Vite bakes these in at build time, so the frontend must be rebuilt and the output re-synced to the Nginx root after any change here.
 
-```sql
-end
-$admin_setup$;
+## Step 2 - Server-side environment
+
+The app server process needs these variables (never with a `VITE_` prefix):
+
+```
+SUPABASE_URL=http://127.0.0.1:8001
+SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from backend/.env>
+HOST=127.0.0.1
+PORT=3000
 ```
 
-## 3. Verify the result
+Without the service role key, User ID login and Create User fail even when the process is running.
 
-```sql
-select
-  p.username,
-  p.email,
-  p.status,
-  p.is_active,
-  ur.role,
-  ura.role_key
-from public.profiles p
-left join public.user_roles ur on ur.user_id = p.id
-left join public.user_role_assignment ura on ura.user_id = p.id
-where lower(p.email) = lower('masteradmin@sharviinfotech.com');
+## Step 3 - Run the application server
+
+Build the app, then run the server output as a managed service so it survives reboots, listening on `127.0.0.1:3000`. Either a systemd unit or a PM2 entry alongside the existing middleware processes is acceptable — PM2 is already in use on this host, so it is the lower-friction choice.
+
+Confirm before continuing:
+
+```
+curl -i http://127.0.0.1:3000/auth
 ```
 
-Expected values: `MASTERADMIN`, `ACTIVE`, `true`, `admin`, `admin`.
+This must return `200`, not `Connection refused`. While it refuses, every `/_serverFn/` request stays a 502.
 
-## Login and server requirement
+## Step 4 - Nginx
 
-- Email login works through the auth service after the user is created and confirmed.
-- User ID login (`MASTERADMIN`) additionally requires the application server to run on port 3000 and Nginx to proxy `/_serverFn/` to it.
-- The database/API secrets pasted in chat should be treated as exposed. Rotate the database password, JWT secret and generated API keys before production use, then update all dependent services together.
+Keep the existing proxy blocks and confirm `/_serverFn/` and `/api/public/` both point at `127.0.0.1:3000`, with `proxy_read_timeout 200s` and `proxy_buffering off` so long SAP-backed calls are not cut off. Reload after any edit.
+
+## Step 5 - Verify in order
+
+1. `curl -i http://127.0.0.1:3000/auth` returns 200.
+2. Sign in with **email** `masteradmin@sharviinfotech.com` and its password.
+3. Confirm `/rest/v1/role_permission` returns rows instead of 401.
+4. Sign in with **User ID** `MASTERADMIN` and confirm `/_serverFn/` returns 200.
+5. Confirm the Admin sidebar section is visible.
+
+## What I need from you
+
+To produce the exact files rather than generic instructions, send:
+
+- the frontend `.env` currently used for the build on the server,
+- the output of `pm2 ls` after you attempt to start the app,
+- the directory listing of the deployed frontend folder (so I can confirm the built server entry path).
+
+## Security note
+
+The database password, JWT secret and both API keys were pasted into chat and should be treated as exposed. Plan a rotation of `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY` and `SERVICE_ROLE_KEY`, updating the stack and the frontend build together, once login is working.
