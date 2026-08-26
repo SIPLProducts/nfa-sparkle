@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Send } from "lucide-react";
+import { FileText, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 interface DraftState {
@@ -309,7 +309,7 @@ export function RecordEditDialog({
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Update in SAP
+              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
             </Button>
           </DialogFooter>
         </DialogContent>
