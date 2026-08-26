@@ -1,198 +1,81 @@
-# Diagnose and fix the Quality REST 401
+# Repair the empty JWT role and restore user-role loading
 
-## First action — test the Quality API locally
+## Confirmed cause
 
-Run this on the Quality server before changing any configuration:
+The request now reaches the REST/database layer, so the earlier Kong API-key 401 is no longer the active failure.
 
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-set -a
-. ./.env
-set +a
-
-curl -i 'http://127.0.0.1:8001/rest/v1/role_permission?select=role_key,screen,allowed&limit=1' \
-  -H "apikey: $ANON_KEY"
-```
-
-Interpret the result:
-
-- `200 OK` with JSON rows: Kong and REST work locally. The remaining mismatch is in the frontend build key or browser session; do not change Kong, roles, or migrations.
-- `200 OK` with `[]`: the gateway key is accepted, but database visibility/policies must be checked separately.
-- `401` with `{"message":"Invalid authentication credentials"}`: Kong is rejecting the Quality `ANON_KEY` locally. Continue with the hash-only comparison below.
-- A database/RLS error: the request passed Kong; diagnose that returned database error instead of changing API keys.
-
-This localhost test bypasses Nginx and the browser, so it establishes whether port `8001` itself is healthy.
-
-### Confirmed result
-
-The direct request to `127.0.0.1:8001` returned Kong `401 Invalid authentication credentials`. This proves the failure is in Kong's API-key validation, before REST, RLS, role permissions, Nginx, or the browser.
-
-The preceding `command not found` messages also show that the backend `.env` contains lines that are not valid shell assignments. Do not source that file for the next check; extract only the required values without printing them.
-
-## Current confirmed state
-
-- The Nginx rule is correct: `/auth/v1/` and `/rest/v1/` are proxied to the Quality API gateway on port `8001`.
-- The browser reaches that gateway, which returns `{"message":"Invalid authentication credentials"}` before the database can evaluate roles or permissions.
-- The database already contains Admin screen permissions, so no role migration should be run for this gateway error.
-- The Compose stack is located at:
+The newly issued access token contains:
 
 ```text
-/opt/Ramky_Applications/NFA-Approval/Quality/backend/docker-compose-quality.yml
+aud: ""
+role: ""
 ```
 
-- The running Kong container is healthy and uses its standard startup:
+REST uses the JWT `role` claim as the PostgreSQL request role. It therefore attempts to use a role named `""` and returns:
 
 ```text
-entrypoint=/docker-entrypoint.sh
-cmd=kong docker-start
-KONG_DECLARATIVE_CONFIG=/var/lib/kong/kong.yml
+role "" does not exist
 ```
 
-- The host file `/opt/Ramky_Applications/NFA-Approval/Quality/backend/volumes/api/kong.yml` is mounted at that path and exists. The earlier `/home/kong/kong.yml` check used the wrong path; it did not prove the config was unrendered.
-- The hash comparison now confirms `KONG_MODE=UNRENDERED_PLACEHOLDER`. Kong's configured key hash differs, while the backend and frontend key hashes are identical. This is the exact cause of the local and browser 401 responses.
-- The `awk` quote warnings do not change that conclusion; all three hashes were produced successfully.
+This JWT/database role is separate from the application's `admin`, `initiator`, `approver`, and custom roles stored in `user_roles` and `user_role_assignment`.
 
-## 1. Compare the three API-key sources without exposing keys
+## 1. Repair this auth account
 
-Run this exact block. It does not source either environment file and prints only SHA-256 hashes, never the keys:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-
-if grep -Fq '${ANON_KEY}' volumes/api/kong.yml; then
-  echo 'KONG_MODE=UNRENDERED_PLACEHOLDER'
-else
-  echo 'KONG_MODE=CONCRETE_KEY'
-fi
-
-KONG_HASH=$(docker exec nfa-quality-kong awk '
-  /username:[[:space:]]*anon/{found=1; next}
-  found && /key:[[:space:]]*/ {
-    sub(/^[^:]*:[[:space:]]*/, "");
-    gsub(/^['\"']|['\"']$/, "");
-    print; exit
-  }
-' /var/lib/kong/kong.yml | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
-
-BACKEND_HASH=$(awk -F= '
-  $1 == "ANON_KEY" {
-    sub(/^[^=]*=/, ""); gsub(/\r/, "");
-    gsub(/^[\x27\"]|[\x27\"]$/, ""); print; exit
-  }
-' .env | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
-
-FRONTEND_HASH=$(awk -F= '
-  $1 == "VITE_SUPABASE_PUBLISHABLE_KEY" {
-    sub(/^[^=]*=/, ""); gsub(/\r/, "");
-    gsub(/^[\x27\"]|[\x27\"]$/, ""); print; exit
-  }
-' ../frontend.env | tr -d '\r\n' | sha256sum | cut -d' ' -f1)
-
-printf 'Kong config: %s\nBackend env: %s\nFrontend env: %s\n' \
-  "$KONG_HASH" "$BACKEND_HASH" "$FRONTEND_HASH"
-```
-
-All three hashes must be identical. Their values can safely be compared, but the underlying keys must not be pasted into chat. If any command reports a missing file or produces the empty-value hash `e3b0c442...`, stop and correct that file path or variable name first.
-
-## 2. Fix the exact mismatch shown by the hashes
-
-### Result A — `KONG_MODE=UNRENDERED_PLACEHOLDER`
-
-This is the confirmed result. The mounted YAML was never rendered, so Kong registered the placeholder rather than the real Quality anon key. In `docker-compose-quality.yml`, replace the Kong service's existing `entrypoint`, `command`, declarative-config environment value, and Kong config mount with the following while preserving its other existing environment values, ports, networks, healthcheck, and dependencies:
-
-```yaml
-kong:
-  entrypoint:
-    - /bin/sh
-    - -c
-  command:
-    - |
-      sed \
-        -e "s|\$${ANON_KEY}|$${ANON_KEY}|g" \
-        -e "s|\$${SERVICE_ROLE_KEY}|$${SERVICE_ROLE_KEY}|g" \
-        /var/lib/kong/kong.template.yml > /tmp/kong.yml
-      exec /docker-entrypoint.sh kong docker-start
-  environment:
-    KONG_DATABASE: "off"
-    KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
-    KONG_DNS_ORDER: LAST,A,CNAME
-    KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,rate-limiting,response-transformer,file-log
-    ANON_KEY: ${ANON_KEY}
-    SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-  volumes:
-    - ./volumes/api/kong.yml:/var/lib/kong/kong.template.yml:ro
-```
-
-The doubled dollar signs are required in Compose: Compose reduces `$$` to a literal `$`, then the container shell expands the two key values while leaving the template placeholders as the `sed` search patterns.
-
-Then recreate only Kong:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-docker compose -p nfa-quality -f docker-compose-quality.yml up -d --force-recreate kong
-docker logs nfa-quality-kong --tail 80
-```
-
-This does not restart the database or alter users, roles, or permissions.
-
-### Result B — Kong hash and backend hash match, but frontend hash differs
-
-The deployed browser bundle contains the wrong API key. Update `frontend.env` with the Quality `ANON_KEY`, rebuild because `VITE_*` values are embedded at build time, and restart only `NFA-Portal-App` with `--update-env`.
-
-### Result C — Kong hash differs from backend hash
-
-The gateway config contains an old/static key. Use the same template-rendering fix from Result A so Kong receives the current `ANON_KEY` and `SERVICE_ROLE_KEY` from the Quality backend `.env`, then recreate only Kong.
-
-### Result D — all three hashes match
-
-The key-auth credentials are consistent. Check Kong's error log for the rejected request and then compare Auth/REST JWT-secret hashes; do not change roles or migrations:
-
-```bash
-docker logs nfa-quality-kong --tail 100
-
-AUTH_HASH=$(docker inspect nfa-quality-auth --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | sed -n 's/^GOTRUE_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
-REST_HASH=$(docker inspect nfa-quality-rest --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | sed -n 's/^PGRST_JWT_SECRET=//p' | sha256sum | cut -d' ' -f1)
-printf 'Auth JWT: %s\nREST JWT: %s\n' "$AUTH_HASH" "$REST_HASH"
-```
-
-## 3. Re-test the REST gateway before testing roles
-
-After the gateway fix:
-
-```bash
-cd /opt/Ramky_Applications/NFA-Approval/Quality/backend
-set -a
-. ./.env
-set +a
-
-curl -i 'http://127.0.0.1:8001/rest/v1/role_permission?select=role_key,screen,allowed&limit=1' \
-  -H "apikey: $ANON_KEY"
-```
-
-The exact gateway response `{"message":"Invalid authentication credentials"}` must be gone. A later database/RLS response is a separate layer and can then be diagnosed accurately.
-
-Clear browser site data for `10.200.1.7:8081`, reload, and sign in again. For a signed-in REST request:
-
-- `apikey` should be the Quality anon key.
-- `Authorization` should be the newly issued user access token, not the same value as `apikey`.
-
-## 4. Diagnose User ID `0056` only after the API gateway passes
-
-The `Invalid login credentials` message is separate from the REST gateway 401. Verify that `0056` resolves to an existing auth account:
+Run this in the Quality SQL editor, using the confirmed user UUID:
 
 ```sql
-select u.id, u.email, u.email_confirmed_at,
-       p.username, p.status
-from auth.users u
-left join public.profiles p on p.id = u.id
-where lower(p.username) = lower('0056')
-   or lower(u.email) = lower('0056');
+BEGIN;
+
+UPDATE auth.users
+SET aud = 'authenticated',
+    role = 'authenticated',
+    updated_at = now()
+WHERE id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
+
+-- Choose the required built-in application role here.
+-- This example assigns Initiator.
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('0c99fe8b-0fcd-4d3e-9aae-176becabbf52', 'initiator'::public.app_role)
+ON CONFLICT (user_id, role) DO NOTHING;
+
+COMMIT;
+
+SELECT id, email, aud, role
+FROM auth.users
+WHERE id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
+
+SELECT user_id, role
+FROM public.user_roles
+WHERE user_id = '0c99fe8b-0fcd-4d3e-9aae-176becabbf52';
 ```
 
-If no row is returned, `0056` is not currently a valid User ID in this Quality database. Create the user through User Management after the gateway/server functions are healthy. If a row is returned, validate/reset that account’s password through the supported admin flow rather than inserting a duplicate user or manually editing password hashes.
+For an administrator, replace `initiator` with `admin`. Do not put the application role into `auth.users.role`; that column must remain `authenticated`.
 
-## Project hardening
+## 2. Mint a corrected session
 
-After recovery, apply the confirmed Kong mount/startup correction to the deployment kit so future Quality deployments reproduce the working gateway. Rotate the previously exposed Quality keys afterward and do not paste the replacements into chat.
+- Sign out completely and clear the site data for `10.200.1.7:8081`.
+- Sign in again so Auth issues a new token.
+- Confirm the new decoded token has `aud: "authenticated"` and `role: "authenticated"`.
+- Re-test `user_roles`, `user_role_assignment`, and `role_permission`; the `role "" does not exist` response must be gone.
+
+The access and refresh tokens pasted into chat are exposed credentials. Revoke that session by signing out before testing the replacement session, and do not paste the new tokens.
+
+## 3. Prevent future users from receiving empty claims
+
+The current application user-creation code uses the supported admin Auth API and separately writes application roles. Keep that flow.
+
+Any manual SQL used to create users on the Quality server must set both fields below:
+
+```sql
+aud = 'authenticated'
+role = 'authenticated'
+```
+
+Update the server-side manual user-creation script/query that created this account so every future auth user gets those values. Continue assigning business roles only through `public.user_roles` or `public.user_role_assignment`.
+
+## Success criteria
+
+- A fresh login token contains `aud=authenticated` and `role=authenticated`.
+- REST requests no longer return `role "" does not exist`.
+- The selected application role is returned from the appropriate role-assignment table.
+- Sidebar screens appear according to `role_permission` for that application role.
