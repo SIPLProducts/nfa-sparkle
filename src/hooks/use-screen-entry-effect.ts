@@ -1,6 +1,8 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, type EffectCallback } from "react";
 
+const enteredPaths = new Set<string>();
+
 /**
  * Runs an effect when its screen is entered through the router.
  * Browser focus, reconnects, and local tab changes do not change the route and
@@ -9,17 +11,16 @@ import { useEffect, useRef, type EffectCallback } from "react";
 export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const onEnterRef = useRef(onEnter);
-  const enteredRef = useRef(false);
   onEnterRef.current = onEnter;
   const isActive = pathname === screenPath;
 
   useEffect(() => {
     if (!isActive) {
-      enteredRef.current = false;
+      enteredPaths.delete(screenPath);
       return;
     }
-    if (enteredRef.current) return;
-    enteredRef.current = true;
+    if (enteredPaths.has(screenPath)) return;
+    enteredPaths.add(screenPath);
     return onEnterRef.current();
-  }, [isActive]);
+  }, [isActive, screenPath]);
 }
