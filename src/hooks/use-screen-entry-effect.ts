@@ -1,12 +1,12 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, type EffectCallback } from "react";
 
-type ScreenEntryWindow = Window & { __nfaEnteredPaths?: Set<string> };
+type ScreenEntryWindow = Window & { __nfaScreenEntries?: Map<string, number> };
 
-function getEnteredPaths() {
+function getScreenEntries() {
   const target = window as ScreenEntryWindow;
-  target.__nfaEnteredPaths ??= new Set<string>();
-  return target.__nfaEnteredPaths;
+  target.__nfaScreenEntries ??= new Map<string, number>();
+  return target.__nfaScreenEntries;
 }
 
 /**
@@ -21,13 +21,12 @@ export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback
   const isActive = pathname === screenPath;
 
   useEffect(() => {
-    const enteredPaths = getEnteredPaths();
-    if (!isActive) {
-      enteredPaths.delete(screenPath);
-      return;
-    }
-    if (enteredPaths.has(screenPath)) return;
-    enteredPaths.add(screenPath);
+    if (!isActive) return;
+    const entries = getScreenEntries();
+    const now = Date.now();
+    const lastEntry = entries.get(screenPath) ?? 0;
+    if (now - lastEntry < 500) return;
+    entries.set(screenPath, now);
     return onEnterRef.current();
   }, [isActive, screenPath]);
 }
