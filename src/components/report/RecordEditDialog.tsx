@@ -141,6 +141,16 @@ export function RecordEditDialog({
           body: JSON.stringify({ edit: { reffld: enfa } }),
         });
         const text = await res.text();
+        try {
+          const preview = res.headers.get("x-sap-request-preview");
+          if (preview) {
+            const parsedPreview = JSON.parse(preview) as any;
+            const u = parsedPreview?.edit?.user_name ?? parsedPreview?.user_name ?? "";
+            if (typeof u === "string" && u && !cancelled) setSapUser(u);
+          }
+        } catch {
+          /* preview header is diagnostic only */
+        }
         if (!res.ok) {
           const failed = readSapPayload(text);
           throw new Error(
