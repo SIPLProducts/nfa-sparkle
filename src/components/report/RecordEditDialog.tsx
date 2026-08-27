@@ -109,6 +109,7 @@ export function RecordEditDialog({
   const [descOpen, setDescOpen] = useState(false);
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [sapNotice, setSapNotice] = useState<string | null>(null);
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
@@ -119,10 +120,12 @@ export function RecordEditDialog({
     (async () => {
       setLoading(true);
       setDetailError(null);
+      setSapNotice(null);
       setDetail(null);
 
       // 1. Live SAP record details for the selected ENFA number.
       let sap: SapDetail | null = null;
+      let notice: string | null = null;
       try {
         const { data: s } = await supabase.auth.getSession();
         const token = s.session?.access_token ?? "";
@@ -136,18 +139,35 @@ export function RecordEditDialog({
         });
         const text = await res.text();
         if (!res.ok) {
-          let msg = `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
-          try {
-            const p = JSON.parse(text) as { error?: string };
-            if (p?.error) msg = p.error;
-          } catch { /* keep default */ }
-          throw new Error(msg);
+          const failed = readSapPayload(text);
+          throw new Error(
+            failed.message || `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`,
+          );
         }
-        sap = pickDetail(text ? JSON.parse(text) : null);
-        if (!sap) throw new Error("SAP returned no details for this record");
+        const payload = readSapPayload(text);
+        sap = payload.record;
+        notice = payload.message;
+        if (!sap && !notice) throw new Error("SAP returned no details for this record");
       } catch (e) {
         if (!cancelled) setDetailError(e instanceof Error ? e.message : "Could not load record details from SAP");
       }
+
+      if (notice && !sap) {
+        if (cancelled) return;
+        // SAP replied with a message instead of a record — show it and stay read-only.
+        setSapNotice(notice);
+        setDetail(null);
+        setDraft({
+          subject: row?.SUBJECT ?? "",
+          scope_impact: "",
+          budget_impact: "",
+          timeline_days: "",
+          detailed_description: "",
+        });
+        setLoading(false);
+        return;
+      }
+
 
       if (sap) {
         // SAP response is the single source of truth when the live call succeeds.
