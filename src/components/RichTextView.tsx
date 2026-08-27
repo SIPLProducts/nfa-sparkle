@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const ALLOWED_TAGS = [
   "p","br","strong","b","em","i","u","s","span","h1","h2","h3","h4","ul","ol","li",
   "blockquote","hr","a","code","pre",
+  "table","thead","tbody","tfoot","tr","th","td","colgroup","col","img","figure","figcaption",
 ];
 
 export function RichTextView({ html, className }: { html: string; className?: string }) {
