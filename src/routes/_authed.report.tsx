@@ -197,10 +197,10 @@ function Report() {
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
   const uiFlag = (k: "back" | "clarify") => (v: boolean) => setExtraStatus((p) => ({ ...p, [k]: v }));
 
-  async function run() {
+  async function run(background = false) {
     setBusy(true);
     setError(null);
-    setSelected(null);
+    if (!background) setSelected(null);
     try {
       // Payload sent to SAP, exactly as SAP expects it (visible in DevTools → Network).
       const payload: Record<string, string> = {};
@@ -227,6 +227,7 @@ function Report() {
 
       setRan(true);
       if (!res.ok) {
+        if (background) return;
         const msg =
           (parsed && typeof parsed === "object" && (parsed as any).error) ||
           `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
@@ -253,6 +254,15 @@ function Report() {
       setBusy(false);
     }
   }
+
+  // Navigating back into this screen refreshes the last-run report in the
+  // background: current rows and selection stay visible until fresh data lands.
+  const ranRef = useRef(ran);
+  ranRef.current = ran;
+  useEffect(() => {
+    if (ranRef.current) void run(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function exportCsv() {
     if (!rows.length) return;
