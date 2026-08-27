@@ -265,6 +265,7 @@ export function RecordEditDialog({
   }
 
   const descChars = htmlToPlainText(draft.detailed_description).trim().length;
+  const readOnly = !!sapNotice;
 
   return (
     <>
@@ -278,11 +279,17 @@ export function RecordEditDialog({
             <p className="py-10 text-center text-xs text-muted-foreground">Loading record…</p>
           ) : (
             <div className="space-y-4">
+              {sapNotice ? (
+                <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {sapNotice}
+                </div>
+              ) : null}
               {detailError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {detailError}
                 </div>
               ) : null}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ReadOnlyField
                   label="Company"
