@@ -437,17 +437,38 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
     (await getSecret("sap_password")) ??
     "";
 
+  // Build the body from the registered template so the payload stays settings-driven.
+  let template: Record<string, unknown> = {};
+  try {
+    const raw = ep.request_body;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      template = parsed as Record<string, unknown>;
+    }
+  } catch {
+    template = {};
+  }
+  const editTemplate =
+    template["edit"] && typeof template["edit"] === "object" && !Array.isArray(template["edit"])
+      ? (template["edit"] as Record<string, unknown>)
+      : {};
+  const body = {
+    ...template,
+    edit: { ...editTemplate, user_name: (username || "").toUpperCase(), reffld },
+  };
+
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify({ edit: { reffld } }),
+    body: JSON.stringify(body),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
   });
+
 }
 
 /**
