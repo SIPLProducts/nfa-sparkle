@@ -39,13 +39,19 @@ export const REPORT_WIRE_KEYS: Record<string, string> = {
   usrid_from: "usrid_from",
   usrid_to: "usrid_to",
   r_proc: "r_proc",
-  r_comp: "r_comp ",
+  r_comp: "r_comp",
   r_reje: "r_reje",
+  r_init: "r_init",
+  r_clar: "r_clar",
 };
 
-/** Wraps a flat 15-key filter object into SAP's `{ report: { ... } }` payload. */
-export function wrapReportPayload(flat: Record<string, string>) {
+/**
+ * Wraps a flat filter object into SAP's `{ report: { ... } }` payload.
+ * `user_name` is emitted first when provided (the server fills it in).
+ */
+export function wrapReportPayload(flat: Record<string, string>, userName?: string) {
   const report: Record<string, string> = {};
+  if (userName !== undefined) report["user_name"] = userName;
   for (const [k, wire] of Object.entries(REPORT_WIRE_KEYS)) report[wire] = (flat[k] ?? "").toString();
   return { report };
 }
