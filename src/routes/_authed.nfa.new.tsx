@@ -212,7 +212,6 @@ function NewNfaPage() {
   function loadSample() {
     // Company must always come from the live SAP F4 list — never a hardcoded code.
     if (companies.length) setCompany(companies[0]!.code);
-    setProject("P002");
     if (nfaTypes.length) setNfaType(nfaTypes[0]!.code);
     if (functions.length) setFunc(functions[0]!.code);
     setSubject("Procurement of 250 KVA DG Set for Varthur Phase 2");
@@ -273,7 +272,7 @@ function NewNfaPage() {
       const { data: created, error } = await supabase.from("nfa").insert({
         initiator_id: user.id,
         company, plant: plant || null, plant_name: plantObj?.name ?? null,
-        project: project || null, nfa_type: nfaType, function: func || null,
+        project: null, nfa_type: nfaType, function: func || null,
         subject, scope_impact: scope || null,
         budget_impact: budget ? Number(budget) : null,
         timeline_days: timeline ? Number(timeline) : null,
