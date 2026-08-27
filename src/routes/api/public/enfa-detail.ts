@@ -72,8 +72,18 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           );
         }
 
-        return new Response(result.body || "{}", { status: 200, headers });
+        // SAP sometimes answers 200 with a plain sentence instead of a record.
+        // Always hand the client valid JSON while keeping SAP's exact wording.
+        const raw = (result.body ?? "").trim();
+        if (!raw) return new Response("{}", { status: 200, headers });
+        try {
+          JSON.parse(raw);
+          return new Response(raw, { status: 200, headers });
+        } catch {
+          return new Response(JSON.stringify({ message: raw }), { status: 200, headers });
+        }
       },
+
     },
   },
 });
