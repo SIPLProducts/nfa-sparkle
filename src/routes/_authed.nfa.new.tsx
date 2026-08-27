@@ -567,13 +567,7 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="Project">
-                <Select value={project} onValueChange={setProject} disabled={!plant}>
-                  <SelectTrigger><SelectValue placeholder={plant ? "Select project" : "Select plant first"} /></SelectTrigger>
-                  <SelectContent>{projectsFor(plant).map((p) => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-              <Field label="Function" className="md:col-span-2">
+              <Field label="Function">
                 <Select value={func} onValueChange={setFunc} disabled={!nfaType || functionsLoading || functions.length === 0}>
                   <SelectTrigger>
                     <SelectValue
