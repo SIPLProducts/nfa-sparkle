@@ -167,6 +167,48 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
           }}
         ><Link2 className="h-4 w-4" /></Tool>
         <Divider />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button" variant="ghost" size="icon" title="Table" aria-label="Table"
+              className={cn("h-8 w-8 rounded-sm", editor.isActive("table") && "bg-secondary text-secondary-foreground")}
+            >
+              <TableIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onSelect={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+              Insert table (3 × 3)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().addRowBefore()} onSelect={() => editor.chain().focus().addRowBefore().run()}>Add row above</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().addRowAfter()} onSelect={() => editor.chain().focus().addRowAfter().run()}>Add row below</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().deleteRow()} onSelect={() => editor.chain().focus().deleteRow().run()}>Delete row</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().addColumnBefore()} onSelect={() => editor.chain().focus().addColumnBefore().run()}>Add column left</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().addColumnAfter()} onSelect={() => editor.chain().focus().addColumnAfter().run()}>Add column right</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().deleteColumn()} onSelect={() => editor.chain().focus().deleteColumn().run()}>Delete column</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().mergeOrSplit()} onSelect={() => editor.chain().focus().mergeOrSplit().run()}>Merge / split cells</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().toggleHeaderRow()} onSelect={() => editor.chain().focus().toggleHeaderRow().run()}>Toggle header row</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().deleteTable()} onSelect={() => editor.chain().focus().deleteTable().run()}>Delete table</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Tool label="Insert image" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /></Tool>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith("image/"));
+            if (files.length) void insertImageFiles(files);
+            e.target.value = "";
+          }}
+        />
+        <Divider />
         <Tool label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}><RemoveFormatting className="h-4 w-4" /></Tool>
         <Tool label="Undo" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><Undo2 className="h-4 w-4" /></Tool>
         <Tool label="Redo" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><Redo2 className="h-4 w-4" /></Tool>
