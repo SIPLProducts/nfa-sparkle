@@ -332,7 +332,7 @@ function Report() {
             <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setF(EMPTY); setExtraStatus({ back: false, clarify: false }); }}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
-            <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
+            <Button onClick={() => void run()} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
               <Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}
             </Button>
           </div>
