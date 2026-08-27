@@ -340,6 +340,39 @@ export async function callSapEnfaTypeF4(): Promise<SapCallResult> {
   });
 }
 
+/**
+ * Resolves the SAP user for a call: endpoint username → active system username →
+ * a `user_name` already stored in the endpoint's saved request-body template.
+ * Returns "" when nothing is configured so callers can fail loudly.
+ */
+export function resolveSapUser(
+  ep: Record<string, any> | null,
+  sys: Record<string, any> | null,
+): string {
+  let fromTemplate = "";
+  try {
+    const raw = ep?.["request_body"];
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (parsed && typeof parsed === "object") {
+      const scan = (o: any): string => {
+        if (!o || typeof o !== "object") return "";
+        for (const [k, v] of Object.entries(o)) {
+          if (k.trim().toLowerCase() === "user_name" && typeof v === "string" && v.trim()) return v.trim();
+          if (v && typeof v === "object") {
+            const nested = scan(v);
+            if (nested) return nested;
+          }
+        }
+        return "";
+      };
+      fromTemplate = scan(parsed);
+    }
+  } catch {
+    fromTemplate = "";
+  }
+  return (ep?.["username"] || sys?.["username"] || fromTemplate || "").toString().trim().toUpperCase();
+}
+
 /** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
 export function buildReportPayload(input: unknown): Record<ReportKey, string> {
   let src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
