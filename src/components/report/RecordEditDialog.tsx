@@ -30,6 +30,31 @@ const EMPTY_DRAFT: DraftState = {
 /** SAP detail response — keys come straight from SAP, so read defensively. */
 type SapDetail = Record<string, unknown>;
 
+/**
+ * SAP answers either with a record object or with a plain sentence
+ * ("Note For Approval Can Only Be Edited By Initiator"). Never assume JSON.
+ */
+function readSapPayload(text: string): { record: SapDetail | null; message: string | null } {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return { record: null, message: null };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return { record: null, message: trimmed.slice(0, 500) };
+  }
+  if (typeof parsed === "string") return { record: null, message: parsed };
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const o = parsed as Record<string, unknown>;
+    const m = o["message"] ?? o["MESSAGE"] ?? o["error"];
+    const hasRecordKeys = ["SUBJECT", "TEXT", "CC_TEXT", "PSPNR", "FUNCT", "SCOPE_IMPACT"].some(
+      (k) => o[k] !== undefined,
+    );
+    if (!hasRecordKeys && typeof m === "string" && m.trim()) return { record: null, message: m.trim() };
+  }
+  return { record: pickDetail(parsed), message: null };
+}
+
 function pickDetail(raw: unknown): SapDetail | null {
   let v: unknown = raw;
   if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -44,6 +69,7 @@ function pickDetail(raw: unknown): SapDetail | null {
   if (Array.isArray(v)) v = v[0];
   return v && typeof v === "object" ? (v as SapDetail) : null;
 }
+
 
 function str(d: SapDetail | null, key: string): string {
   const v = d?.[key];
@@ -83,6 +109,7 @@ export function RecordEditDialog({
   const [descOpen, setDescOpen] = useState(false);
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [sapNotice, setSapNotice] = useState<string | null>(null);
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
@@ -93,10 +120,12 @@ export function RecordEditDialog({
     (async () => {
       setLoading(true);
       setDetailError(null);
+      setSapNotice(null);
       setDetail(null);
 
       // 1. Live SAP record details for the selected ENFA number.
       let sap: SapDetail | null = null;
+      let notice: string | null = null;
       try {
         const { data: s } = await supabase.auth.getSession();
         const token = s.session?.access_token ?? "";
@@ -110,18 +139,35 @@ export function RecordEditDialog({
         });
         const text = await res.text();
         if (!res.ok) {
-          let msg = `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
-          try {
-            const p = JSON.parse(text) as { error?: string };
-            if (p?.error) msg = p.error;
-          } catch { /* keep default */ }
-          throw new Error(msg);
+          const failed = readSapPayload(text);
+          throw new Error(
+            failed.message || `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`,
+          );
         }
-        sap = pickDetail(text ? JSON.parse(text) : null);
-        if (!sap) throw new Error("SAP returned no details for this record");
+        const payload = readSapPayload(text);
+        sap = payload.record;
+        notice = payload.message;
+        if (!sap && !notice) throw new Error("SAP returned no details for this record");
       } catch (e) {
         if (!cancelled) setDetailError(e instanceof Error ? e.message : "Could not load record details from SAP");
       }
+
+      if (notice && !sap) {
+        if (cancelled) return;
+        // SAP replied with a message instead of a record — show it and stay read-only.
+        setSapNotice(notice);
+        setDetail(null);
+        setDraft({
+          subject: row?.SUBJECT ?? "",
+          scope_impact: "",
+          budget_impact: "",
+          timeline_days: "",
+          detailed_description: "",
+        });
+        setLoading(false);
+        return;
+      }
+
 
       if (sap) {
         // SAP response is the single source of truth when the live call succeeds.
@@ -219,6 +265,7 @@ export function RecordEditDialog({
   }
 
   const descChars = htmlToPlainText(draft.detailed_description).trim().length;
+  const readOnly = !!sapNotice;
 
   return (
     <>
@@ -232,11 +279,17 @@ export function RecordEditDialog({
             <p className="py-10 text-center text-xs text-muted-foreground">Loading record…</p>
           ) : (
             <div className="space-y-4">
+              {sapNotice ? (
+                <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {sapNotice}
+                </div>
+              ) : null}
               {detailError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {detailError}
                 </div>
               ) : null}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ReadOnlyField
                   label="Company"
@@ -258,7 +311,7 @@ export function RecordEditDialog({
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Subject *</Label>
-                <Input value={draft.subject} onChange={(e) => set("subject")(e.target.value)} placeholder="Subject of the NFA" />
+                <Input value={draft.subject} onChange={(e) => set("subject")(e.target.value)} placeholder="Subject of the NFA" disabled={readOnly} />
               </div>
 
               <div className="space-y-1.5">
@@ -268,6 +321,7 @@ export function RecordEditDialog({
                   value={draft.scope_impact}
                   onChange={(e) => set("scope_impact")(e.target.value)}
                   placeholder="Describe the impact on scope"
+                  disabled={readOnly}
                 />
               </div>
 
@@ -279,6 +333,7 @@ export function RecordEditDialog({
                     value={draft.budget_impact}
                     onChange={(e) => set("budget_impact")(e.target.value)}
                     placeholder="0.00"
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -288,6 +343,7 @@ export function RecordEditDialog({
                     value={draft.timeline_days}
                     onChange={(e) => set("timeline_days")(e.target.value)}
                     placeholder="0"
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -299,7 +355,7 @@ export function RecordEditDialog({
                     {descChars ? `${descChars} characters` : "Not filled in yet"}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)} disabled={readOnly}>
                   <FileText className="h-3.5 w-3.5" /> Open
                 </Button>
               </div>
@@ -307,11 +363,14 @@ export function RecordEditDialog({
           )}
 
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
-            </Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
+            {readOnly ? null : (
+              <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
+                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+              </Button>
+            )}
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
