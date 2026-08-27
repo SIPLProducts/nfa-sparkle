@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useScreenState } from "@/lib/screen-state";
+import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,9 +41,9 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
-  const [mine, setMine] = useScreenState<NfaRow[]>("dashboard.mine", []);
-  const [pending, setPending] = useScreenState<{ nfa: NfaRow; ap: ApproverRow }[]>("dashboard.pending", []);
-  const [fetchedAt, setFetchedAt] = useScreenState<number>("dashboard.fetchedAt", 0);
+  const [mine, setMine] = useScreenMemory<NfaRow[]>("dashboard.mine", []);
+  const [pending, setPending] = useScreenMemory<{ nfa: NfaRow; ap: ApproverRow }[]>("dashboard.pending", []);
+  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("dashboard.fetchedAt", 0);
   const [tab, setTab] = useScreenState<"ongoing" | "completed">("dashboard.tab", "ongoing");
   const [search, setSearch] = useScreenState<string>("dashboard.search", "");
   const [deptFilter, setDeptFilter] = useScreenState<string>("dashboard.dept", "all");

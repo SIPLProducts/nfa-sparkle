@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { useMemo, useRef, useState } from "react";
-import { useScreenState } from "@/lib/screen-state";
+import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
@@ -150,10 +150,10 @@ function normaliseRows(value: unknown): SapReportRow[] {
 
 function Report() {
   const [f, setF] = useScreenState<SapReportFilters>("report.filters", EMPTY);
-  const [rows, setRows] = useScreenState<SapReportRow[]>("report.rows", []);
+  const [rows, setRows] = useScreenMemory<SapReportRow[]>("report.rows", []);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [ran, setRan] = useScreenState<boolean>("report.ran", false);
+  const [ran, setRan] = useScreenMemory<boolean>("report.ran", false);
   const [selected, setSelected] = useScreenState<number | null>("report.selected", null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
