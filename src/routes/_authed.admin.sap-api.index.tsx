@@ -53,6 +53,7 @@ import {
   DEPLOYMENT_MODES,
 } from "@/lib/sap-api-constants";
 import { useScreenState } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import {
   createSapEndpoint,
   deleteSapEndpoint,
@@ -104,12 +105,11 @@ function SapApiSettings() {
   }, [loading, isAdmin, nav]);
 
   // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
-  useEffect(() => {
+  useScreenEntryEffect(() => {
     ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   if (!isAdmin) return null;
 

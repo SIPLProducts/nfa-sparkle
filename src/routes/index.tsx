@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +58,7 @@ function Index() {
     if (!loading && !user) nav({ to: "/auth", replace: true });
   }, [loading, user, nav]);
 
-  useEffect(() => {
+  useScreenEntryEffect(() => {
     if (!user) return;
     // Navigating into this screen refreshes data. Cached rows stay on screen
     // while the refresh runs, so there is no loading flash.
@@ -87,8 +88,7 @@ function Index() {
       setFetchedAt(Date.now());
       setDataLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  });
 
   if (loading || !user) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;
