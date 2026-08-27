@@ -160,7 +160,7 @@ export async function callSapCompanyF4(): Promise<SapCallResult> {
 export const REPORT_KEYS = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
   "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",
-  "r_proc", "r_comp", "r_reje",
+  "r_proc", "r_comp", "r_reje", "r_init", "r_clar",
 ] as const;
 
 /**
@@ -392,7 +392,7 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(wrapReportPayload(payload)),
+    body: JSON.stringify(wrapReportPayload(payload, (username || "").toUpperCase())),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
