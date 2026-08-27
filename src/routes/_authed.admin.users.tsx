@@ -107,7 +107,7 @@ function UserManagement() {
   // inside the screen reuses the cache and never refetches.
   useEffect(() => {
     ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
-      qc.invalidateQueries({ queryKey: [k] }),
+      qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
