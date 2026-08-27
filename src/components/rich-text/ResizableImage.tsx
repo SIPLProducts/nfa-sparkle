@@ -53,7 +53,7 @@ export const ResizableImage = Image.extend({
       ...this.parent?.(),
       width: {
         default: null,
-        parseHTML: (el) => el.getAttribute("width") ?? (el as HTMLElement).style.width || null,
+        parseHTML: (el) => el.getAttribute("width") ?? ((el as HTMLElement).style.width || null),
         renderHTML: (attrs) => {
           if (!attrs.width) return {};
           const w = typeof attrs.width === "number" ? `${attrs.width}px` : String(attrs.width);
