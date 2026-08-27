@@ -311,7 +311,7 @@ export function RecordEditDialog({
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Subject *</Label>
-                <Input value={draft.subject} onChange={(e) => set("subject")(e.target.value)} placeholder="Subject of the NFA" />
+                <Input value={draft.subject} onChange={(e) => set("subject")(e.target.value)} placeholder="Subject of the NFA" disabled={readOnly} />
               </div>
 
               <div className="space-y-1.5">
@@ -321,6 +321,7 @@ export function RecordEditDialog({
                   value={draft.scope_impact}
                   onChange={(e) => set("scope_impact")(e.target.value)}
                   placeholder="Describe the impact on scope"
+                  disabled={readOnly}
                 />
               </div>
 
@@ -332,6 +333,7 @@ export function RecordEditDialog({
                     value={draft.budget_impact}
                     onChange={(e) => set("budget_impact")(e.target.value)}
                     placeholder="0.00"
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -341,6 +343,7 @@ export function RecordEditDialog({
                     value={draft.timeline_days}
                     onChange={(e) => set("timeline_days")(e.target.value)}
                     placeholder="0"
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -352,7 +355,7 @@ export function RecordEditDialog({
                     {descChars ? `${descChars} characters` : "Not filled in yet"}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)} disabled={readOnly}>
                   <FileText className="h-3.5 w-3.5" /> Open
                 </Button>
               </div>
@@ -360,11 +363,14 @@ export function RecordEditDialog({
           )}
 
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
-            </Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
+            {readOnly ? null : (
+              <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
+                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+              </Button>
+            )}
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
