@@ -40,6 +40,32 @@ function persist(key: string, value: unknown) {
   }
 }
 
+/**
+ * Memory-only screen state: survives navigating between screens, but never a
+ * hard refresh, a new tab, or a fresh login. Use for fetched data (rows,
+ * last-fetched timestamps) so reloading always re-fetches from the source.
+ */
+export function useScreenMemory<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(() => (memory.has(key) ? (memory.get(key) as T) : initial));
+  const keyRef = useRef(key);
+  keyRef.current = key;
+
+  useEffect(() => {
+    setValue(memory.has(key) ? (memory.get(key) as T) : initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const set = useCallback((next: T | ((prev: T) => T)) => {
+    setValue((prev) => {
+      const resolved = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+      memory.set(keyRef.current, resolved);
+      return resolved;
+    });
+  }, []);
+
+  return [value, set] as const;
+}
+
 export function useScreenState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => readInitial(key, initial));
   const keyRef = useRef(key);
