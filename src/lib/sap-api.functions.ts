@@ -605,6 +605,8 @@ export interface SapReportFilters {
   r_proc: string;
   r_comp: string;
   r_reje: string;
+  r_init: string;
+  r_clar: string;
 }
 
 export interface SapReportRow {
@@ -628,7 +630,7 @@ export interface SapReportRow {
 const REPORT_KEYS: (keyof SapReportFilters)[] = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
   "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",
-  "r_proc", "r_comp", "r_reje",
+  "r_proc", "r_comp", "r_reje", "r_init", "r_clar",
 ];
 
 function normaliseRows(raw: unknown): SapReportRow[] {

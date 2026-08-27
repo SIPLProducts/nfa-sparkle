@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authed/report")({
 const EMPTY: SapReportFilters = {
   plant_from: "", plant_to: "", funct_from: "", funct_to: "", nfano_from: "", nfano_to: "",
   extra_from: "", extra_to: "", dat_from: "", dat_to: "", usrid_from: "", usrid_to: "",
-  r_proc: "", r_comp: "", r_reje: "",
+  r_proc: "", r_comp: "", r_reje: "", r_init: "", r_clar: "",
 };
 
 const LEVELS = [1, 2, 3, 4, 5, 6] as const;
@@ -56,6 +56,7 @@ function statusTone(s: string) {
   const v = (s || "").toLowerCase();
   if (v.includes("appro")) return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
   if (v.includes("reje")) return "bg-destructive/10 text-destructive";
+  if (v.includes("initiator")) return "bg-sky-500/10 text-sky-600 dark:text-sky-400";
   if (v.includes("clari")) return "bg-amber-500/10 text-amber-600 dark:text-amber-400";
   if (v.includes("proc") || v.includes("pend")) return "bg-accent/10 text-accent";
   return "bg-muted text-muted-foreground";
@@ -192,11 +193,9 @@ function Report() {
   }
 
   const set = (k: keyof SapReportFilters) => (v: string) => setF((p) => ({ ...p, [k]: v }));
-  const [extraStatus, setExtraStatus] = useScreenState<{ back: boolean; clarify: boolean }>("report.extraStatus", { back: false, clarify: false });
   const setPair = (a: keyof SapReportFilters, b: keyof SapReportFilters) => (v: string) =>
     setF((p) => ({ ...p, [a]: v, [b]: v }));
-  const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
-  const uiFlag = (k: "back" | "clarify") => (v: boolean) => setExtraStatus((p) => ({ ...p, [k]: v }));
+  const flag = (k: "r_proc" | "r_comp" | "r_reje" | "r_init" | "r_clar") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
 
   async function run(background = false) {
     setBusy(true);
@@ -323,11 +322,11 @@ function Report() {
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_proc === "X"} onCheckedChange={(v) => flag("r_proc")(!!v)} /> In Process</label>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_comp === "X"} onCheckedChange={(v) => flag("r_comp")(!!v)} /> Completed</label>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_reje === "X"} onCheckedChange={(v) => flag("r_reje")(!!v)} /> Rejected</label>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={extraStatus.back} onCheckedChange={(v) => uiFlag("back")(!!v)} /> Back to Initiator</label>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={extraStatus.clarify} onCheckedChange={(v) => uiFlag("clarify")(!!v)} /> Requested Clarification</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_init === "X"} onCheckedChange={(v) => flag("r_init")(!!v)} /> Back to Initiator</label>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.r_clar === "X"} onCheckedChange={(v) => flag("r_clar")(!!v)} /> Requested Clarification</label>
           </div>
           <div className="flex gap-2 sm:ml-auto">
-            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setF(EMPTY); setExtraStatus({ back: false, clarify: false }); }}>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => setF(EMPTY)}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
             <Button onClick={() => void run()} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
