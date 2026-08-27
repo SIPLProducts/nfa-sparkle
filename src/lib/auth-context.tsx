@@ -67,25 +67,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let currentUserId: string | null = null;
 
-    async function bootstrap(s: Session | null) {
+    async function bootstrap(s: Session | null, initial: boolean) {
+      const nextId = s?.user?.id ?? null;
+      const sameUser = nextId !== null && nextId === currentUserId;
+      currentUserId = nextId;
+
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) {
-        await loadRoles(s.user.id);
-      } else {
-        setRoles([]);
+
+      // Token refresh / tab focus events re-fire with the same user: keep the
+      // tree mounted and skip the role reload so open dialogs and typed data
+      // are never discarded.
+      if (!sameUser) {
+        if (s?.user) {
+          await loadRoles(s.user.id);
+        } else {
+          setRoles([]);
+        }
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled && initial) setLoading(false);
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setLoading(true);
-      void bootstrap(s);
+      void bootstrap(s, false);
     });
 
     supabase.auth.getSession().then(({ data }) => {
-      void bootstrap(data.session);
+      void bootstrap(data.session, true);
     });
 
     return () => {
@@ -93,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, []);
+
 
   const value: AuthCtx = {
     user,

@@ -13,9 +13,10 @@ function AuthedLayout() {
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
   }, [loading, user, nav]);
-  if (loading || !user) {
+  if (!user) {
     return <div className="flex min-h-screen items-center justify-center bg-[#eef3f8] text-slate-600">Loading…</div>;
   }
+
   return (
     <AppShell>
       <Outlet />
