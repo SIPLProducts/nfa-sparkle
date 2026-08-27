@@ -123,6 +123,7 @@ export function RecordEditDialog({
       setLoading(true);
       setDetailError(null);
       setSapNotice(null);
+      setSapUser("");
       setDetail(null);
 
       // 1. Live SAP record details for the selected ENFA number.
