@@ -1,13 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle, FontSize } from "@tiptap/extension-text-style";
+import { TableKit } from "@tiptap/extension-table";
+import { ResizableImage, fileToScaledDataUrl } from "@/components/rich-text/ResizableImage";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Quote, Minus, Link2, Undo2, Redo2, Heading1, Heading2, RemoveFormatting,
+  Table as TableIcon, ImagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
