@@ -511,21 +511,22 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
       : {};
   const body = {
     ...template,
-    edit: { ...editTemplate, user_name: (username || "").toUpperCase(), reffld },
+    edit: { ...editTemplate, user_name: sapUser, reffld },
   };
 
-  return callSap({
+  const requestBody = JSON.stringify(body);
+  const result = await callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(body),
+    body: requestBody,
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
   });
-
+  return { ...result, requestBody };
 }
 
 /**
