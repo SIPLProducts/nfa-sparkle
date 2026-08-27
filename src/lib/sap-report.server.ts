@@ -477,6 +477,17 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const username = ep.username || sys?.username || "";
+  const sapUser = resolveSapUser(ep, sys);
+  if (!sapUser) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "No SAP user is configured for the record-details endpoint. Set a username on the endpoint or its SAP system in Admin → SAP API Settings.",
+    };
+  }
   const password =
     (await getSecret(`endpoint:${ep.id}`)) ??
     (sys ? await getSecret(`system:${sys.id}`) : null) ??
