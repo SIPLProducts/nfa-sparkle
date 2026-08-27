@@ -130,13 +130,12 @@ function ApprovalsInbox() {
     }
   }, []);
 
+  // Refresh on every navigation into this screen; cached rows and the current
+  // selection remain visible while the background refresh runs.
   useEffect(() => {
-    if (fetchedAt > 0) {
-      setLoading(false);
-      return;
-    }
-    void load();
-  }, [fetchedAt, load]);
+    void load({ background: fetchedAt > 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** SAP decides what appears here — no client-side filtering by user. */
   const filtered = useMemo(() => {
