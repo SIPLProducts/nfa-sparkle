@@ -92,6 +92,7 @@ function useRoleDefs() {
 function UserManagement() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const isAdmin = hasRole("admin");
   const [tab, setTab] = useScreenState<string>("admin-users.tab", "users");
 
@@ -101,6 +102,15 @@ function UserManagement() {
       nav({ to: "/", replace: true });
     }
   }, [loading, isAdmin, nav]);
+
+  // Navigating into this screen refreshes its data once; switching the tabs
+  // inside the screen reuses the cache and never refetches.
+  useEffect(() => {
+    ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k] }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) return null;
 
