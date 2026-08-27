@@ -86,12 +86,13 @@ function errMsg(e: unknown) {
 
 function useRoleDefs() {
   const fetchRoles = useServerFn(listRoleDefs);
-  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000 });
+  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000, refetchOnMount: false });
 }
 
 function UserManagement() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const isAdmin = hasRole("admin");
   const [tab, setTab] = useScreenState<string>("admin-users.tab", "users");
 
@@ -101,6 +102,15 @@ function UserManagement() {
       nav({ to: "/", replace: true });
     }
   }, [loading, isAdmin, nav]);
+
+  // Navigating into this screen refreshes its data once; switching the tabs
+  // inside the screen reuses the cache and never refetches.
+  useEffect(() => {
+    ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) return null;
 
@@ -180,7 +190,7 @@ function UsersTab() {
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
 
-  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: false });
   const [q, setQ] = useScreenState<string>("admin-users.search", "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
@@ -984,7 +994,7 @@ function PermissionsTab() {
   const qc = useQueryClient();
   const fetchPerms = useServerFn(listRolePermissions);
   const saveFn = useServerFn(saveRolePermissions);
-  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms(), staleTime: 60_000, refetchOnMount: false });
   const { data: roleDefs, isLoading: rolesLoading } = useRoleDefs();
   const [draft, setDraft] = useState<Record<string, boolean> | null>(null);
 

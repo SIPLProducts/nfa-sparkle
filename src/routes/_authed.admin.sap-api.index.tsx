@@ -92,6 +92,7 @@ function resultToast(r: TestResult, label: string) {
 function SapApiSettings() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const isAdmin = hasRole("admin");
   const [tab, setTab] = useScreenState<string>("sap-api.tab", "apis");
 
@@ -101,6 +102,14 @@ function SapApiSettings() {
       nav({ to: "/", replace: true });
     }
   }, [loading, isAdmin, nav]);
+
+  // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
+  useEffect(() => {
+    ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) return null;
 
@@ -157,9 +166,9 @@ function EndpointsTab() {
     system_id: "",
   });
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: false });
   const listSystems = useServerFn(listSapSystems);
-  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems(), staleTime: 60_000 });
+  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems(), staleTime: 60_000, refetchOnMount: false });
 
   const createMut = useMutation({
     mutationFn: () => create({ data: { ...form, system_id: form.system_id || null } }),
@@ -509,7 +518,7 @@ function SystemsTab() {
   const remove = useServerFn(deleteSapSystem);
   const test = useServerFn(testSapSystem);
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: false });
   const systems = data ?? [];
 
   const [form, setForm] = useState(BLANK_SYSTEM);
@@ -810,7 +819,7 @@ function MiddlewareTab() {
   const get = useServerFn(getSapSettings);
   const save = useServerFn(saveMiddlewareConfig);
   const test = useServerFn(testMiddleware);
-  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get(), staleTime: 60_000, refetchOnMount: false });
   const [form, setForm] = useState({
     connection_mode: "proxy",
     deployment_mode: "lovable_cloud",
