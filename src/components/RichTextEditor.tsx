@@ -40,7 +40,10 @@ export function toEditorHtml(value: string) {
 export function htmlToPlainText(html: string) {
   if (!html) return "";
   return html
-    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, "\n")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<\/(td|th)>\s*(?=<(td|th)\b)/gi, "\t")
+    .replace(/<\/(tr|table)>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|td|th)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
