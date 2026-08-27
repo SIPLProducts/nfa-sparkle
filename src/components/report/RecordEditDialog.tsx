@@ -110,6 +110,8 @@ export function RecordEditDialog({
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
+  // SAP user the detail call was made as (read from the request preview header).
+  const [sapUser, setSapUser] = useState<string>("");
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
