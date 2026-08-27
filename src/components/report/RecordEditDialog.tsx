@@ -336,11 +336,8 @@ export function RecordEditDialog({
 
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button variant="secondary" className="gap-1.5" onClick={save} disabled={saving || loading}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
-            </Button>
             <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Update in SAP
+              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
             </Button>
           </DialogFooter>
         </DialogContent>
