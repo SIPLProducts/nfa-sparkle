@@ -113,13 +113,10 @@ function MyNfas() {
     }
   }, []);
 
-  // Restore cached rows instantly; only hit SAP automatically when this screen has not loaded in this session.
+  // Navigating into this screen refreshes from SAP. Cached rows and the
+  // current selection stay visible while the background refresh runs.
   useEffect(() => {
-    if (fetchedAt > 0) {
-      setLoading(false);
-      return;
-    }
-    void load();
+    void load({ background: fetchedAt > 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
