@@ -7,7 +7,7 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
 
-const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
