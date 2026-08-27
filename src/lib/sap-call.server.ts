@@ -6,6 +6,8 @@ export interface SapCallResult {
   latencyMs: number;
   body: string;
   error: string | null;
+  /** The exact JSON body that was sent to SAP (credentials never included). */
+  requestBody?: string;
 }
 
 export async function admin() {
