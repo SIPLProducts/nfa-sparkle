@@ -58,7 +58,7 @@ function Index() {
     if (!loading && !user) nav({ to: "/auth", replace: true });
   }, [loading, user, nav]);
 
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/", () => {
     if (!user) return;
     // Navigating into this screen refreshes data. Cached rows stay on screen
     // while the refresh runs, so there is no loading flash.

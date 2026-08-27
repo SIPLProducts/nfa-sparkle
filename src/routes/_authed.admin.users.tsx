@@ -106,7 +106,7 @@ function UserManagement() {
 
   // Navigating into this screen refreshes its data once; switching the tabs
   // inside the screen reuses the cache and never refetches.
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/admin/users", () => {
     ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );

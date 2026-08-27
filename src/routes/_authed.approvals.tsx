@@ -133,7 +133,7 @@ function ApprovalsInbox() {
 
   // Refresh on every navigation into this screen; cached rows and the current
   // selection remain visible while the background refresh runs.
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/approvals", () => {
     void load({ background: fetchedAt > 0 });
   });
 

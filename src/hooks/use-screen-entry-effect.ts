@@ -6,10 +6,13 @@ import { useEffect, useRef, type EffectCallback } from "react";
  * Browser focus, reconnects, and local tab changes do not change the route and
  * therefore do not trigger another run.
  */
-export function useScreenEntryEffect(onEnter: EffectCallback) {
+export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const onEnterRef = useRef(onEnter);
   onEnterRef.current = onEnter;
+  const isActive = pathname === screenPath;
 
-  useEffect(() => onEnterRef.current(), [pathname]);
+  useEffect(() => {
+    if (isActive) return onEnterRef.current();
+  }, [isActive]);
 }

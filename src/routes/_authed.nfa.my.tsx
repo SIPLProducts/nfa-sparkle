@@ -116,7 +116,7 @@ function MyNfas() {
 
   // Navigating into this screen refreshes from SAP. Cached rows and the
   // current selection stay visible while the background refresh runs.
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/nfa/my", () => {
     void load({ background: fetchedAt > 0 });
   });
 

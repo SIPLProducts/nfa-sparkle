@@ -105,7 +105,7 @@ function SapApiSettings() {
   }, [loading, isAdmin, nav]);
 
   // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/admin/sap-api", () => {
     ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );

@@ -258,7 +258,7 @@ function Report() {
 
   // Navigating back into this screen refreshes the last-run report in the
   // background: current rows and selection stay visible until fresh data lands.
-  useScreenEntryEffect(() => {
+  useScreenEntryEffect("/report", () => {
     if (ran) void run(true);
   });
 
