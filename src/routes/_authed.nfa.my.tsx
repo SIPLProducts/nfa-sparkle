@@ -63,10 +63,13 @@ function MyNfas() {
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { background?: boolean }) => {
+    const background = opts?.background === true;
+    if (!background) {
+      setLoading(true);
+      setSelected(null);
+    }
     setError(null);
-    setSelected(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
@@ -110,13 +113,10 @@ function MyNfas() {
     }
   }, []);
 
-  // Restore cached rows instantly; only hit SAP automatically when this screen has not loaded in this session.
+  // Navigating into this screen refreshes from SAP. Cached rows and the
+  // current selection stay visible while the background refresh runs.
   useEffect(() => {
-    if (fetchedAt > 0) {
-      setLoading(false);
-      return;
-    }
-    void load();
+    void load({ background: fetchedAt > 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

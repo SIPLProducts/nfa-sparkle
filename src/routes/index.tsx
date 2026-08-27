@@ -59,11 +59,8 @@ function Index() {
 
   useEffect(() => {
     if (!user) return;
-    // Cached rows render immediately; never refresh just because the user returned to this screen.
-    if (fetchedAt > 0) {
-      setDataLoading(false);
-      return;
-    }
+    // Navigating into this screen refreshes data. Cached rows stay on screen
+    // while the refresh runs, so there is no loading flash.
     (async () => {
       setDataLoading(mine.length === 0);
       const { data: mineRows } = await supabase

@@ -8,7 +8,7 @@ export const getRouter = () => {
       queries: {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
-        refetchOnMount: false,
+        refetchOnMount: true,
       },
     },
   });

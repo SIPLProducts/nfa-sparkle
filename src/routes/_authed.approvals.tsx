@@ -85,10 +85,13 @@ function ApprovalsInbox() {
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { background?: boolean }) => {
+    const background = opts?.background === true;
+    if (!background) {
+      setLoading(true);
+      setSelected(null);
+    }
     setError(null);
-    setSelected(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
@@ -127,13 +130,12 @@ function ApprovalsInbox() {
     }
   }, []);
 
+  // Refresh on every navigation into this screen; cached rows and the current
+  // selection remain visible while the background refresh runs.
   useEffect(() => {
-    if (fetchedAt > 0) {
-      setLoading(false);
-      return;
-    }
-    void load();
-  }, [fetchedAt, load]);
+    void load({ background: fetchedAt > 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** SAP decides what appears here — no client-side filtering by user. */
   const filtered = useMemo(() => {
