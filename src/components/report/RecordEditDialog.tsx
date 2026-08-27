@@ -282,6 +282,7 @@ export function RecordEditDialog({
               {sapNotice ? (
                 <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {sapNotice}
+                  {sapUser ? <span className="ml-1 opacity-80">(SAP user: {sapUser})</span> : null}
                 </div>
               ) : null}
               {detailError ? (
