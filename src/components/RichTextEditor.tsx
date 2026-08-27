@@ -54,6 +54,8 @@ export function htmlToPlainText(html: string) {
 }
 
 export function RichTextEditor({ value, onChange, placeholder, className, minHeight = "240px" }: RichTextEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -61,6 +63,8 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
       TextStyle,
       FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TableKit.configure({ table: { resizable: true, allowTableNodeSelection: true } }),
+      ResizableImage,
     ],
     content: toEditorHtml(value),
     editorProps: {
@@ -69,9 +73,32 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
         style: `min-height:${minHeight}`,
         "data-placeholder": placeholder ?? "",
       },
+      handlePaste: (view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        if (!files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(files);
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const dt = (event as DragEvent).dataTransfer;
+        const files = Array.from(dt?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        if (!files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(files);
+        return true;
+      },
     },
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),
   });
+
+  async function insertImageFiles(files: File[]) {
+    if (!editor) return;
+    for (const file of files) {
+      const src = await fileToScaledDataUrl(file);
+      editor.chain().focus().setImage({ src }).run();
+    }
+  }
 
   useEffect(() => {
     if (!editor) return;
