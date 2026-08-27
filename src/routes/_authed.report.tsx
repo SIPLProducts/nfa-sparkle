@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
