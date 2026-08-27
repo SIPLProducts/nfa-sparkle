@@ -14,8 +14,8 @@ export function RichTextView({ html, className }: { html: string; className?: st
     () =>
       DOMPurify.sanitize(toEditorHtml(html ?? ""), {
         ALLOWED_TAGS,
-        ALLOWED_ATTR: ["href", "target", "rel", "style", "class"],
-        ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|#|\/)/i,
+        ALLOWED_ATTR: ["href", "target", "rel", "style", "class", "src", "alt", "title", "width", "height", "colspan", "rowspan", "colwidth", "span"],
+        ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpeg|jpg|gif|webp);base64,|#|\/)/i,
       }),
     [html],
   );
