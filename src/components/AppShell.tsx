@@ -205,7 +205,7 @@ export function AppShell({
             sidebarCollapsed ? "h-0 overflow-hidden border-0 py-0 opacity-0" : "block"
           )}
         >
-          v1.0 · © {new Date().getFullYear()} Your Company
+          v1.0 · © {new Date().getFullYear()} Sharvi Infotech
         </div>
       </aside>
 

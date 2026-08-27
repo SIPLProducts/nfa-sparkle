@@ -108,7 +108,7 @@ function AuthPage() {
         </div>
 
         <div className="relative z-10 flex items-center justify-between text-xs text-white/60">
-          <span>© {new Date().getFullYear()} Your Company. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Sharvi Infotech. All rights reserved.</span>
           <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Secure SSO</span>
         </div>
       </div>
