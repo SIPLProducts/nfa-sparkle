@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
-import { useMemo, useRef, useState } from "react";
-import { useScreenState } from "@/lib/screen-state";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
@@ -150,10 +150,10 @@ function normaliseRows(value: unknown): SapReportRow[] {
 
 function Report() {
   const [f, setF] = useScreenState<SapReportFilters>("report.filters", EMPTY);
-  const [rows, setRows] = useScreenState<SapReportRow[]>("report.rows", []);
+  const [rows, setRows] = useScreenMemory<SapReportRow[]>("report.rows", []);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [ran, setRan] = useScreenState<boolean>("report.ran", false);
+  const [ran, setRan] = useScreenMemory<boolean>("report.ran", false);
   const [selected, setSelected] = useScreenState<number | null>("report.selected", null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -197,10 +197,10 @@ function Report() {
   const flag = (k: "r_proc" | "r_comp" | "r_reje") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
   const uiFlag = (k: "back" | "clarify") => (v: boolean) => setExtraStatus((p) => ({ ...p, [k]: v }));
 
-  async function run() {
+  async function run(background = false) {
     setBusy(true);
     setError(null);
-    setSelected(null);
+    if (!background) setSelected(null);
     try {
       // Payload sent to SAP, exactly as SAP expects it (visible in DevTools → Network).
       const payload: Record<string, string> = {};
@@ -227,6 +227,7 @@ function Report() {
 
       setRan(true);
       if (!res.ok) {
+        if (background) return;
         const msg =
           (parsed && typeof parsed === "object" && (parsed as any).error) ||
           `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
@@ -253,6 +254,15 @@ function Report() {
       setBusy(false);
     }
   }
+
+  // Navigating back into this screen refreshes the last-run report in the
+  // background: current rows and selection stay visible until fresh data lands.
+  const ranRef = useRef(ran);
+  ranRef.current = ran;
+  useEffect(() => {
+    if (ranRef.current) void run(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function exportCsv() {
     if (!rows.length) return;
@@ -322,7 +332,7 @@ function Report() {
             <Button variant="outline" size="sm" className="flex-1 gap-1.5 sm:flex-none" onClick={() => { setF(EMPTY); setExtraStatus({ back: false, clarify: false }); }}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
-            <Button onClick={run} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
+            <Button onClick={() => void run()} disabled={busy} className="flex-1 gap-1.5 sm:flex-none">
               <Play className="h-3.5 w-3.5" /> {busy ? "Running…" : "Execute"}
             </Button>
           </div>

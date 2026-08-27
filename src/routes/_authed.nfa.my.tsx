@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useScreenState } from "@/lib/screen-state";
+import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +51,8 @@ function val(row: SapReportRow, key: string): string {
 }
 
 function MyNfas() {
-  const [rows, setRows] = useScreenState<SapReportRow[]>("nfa-my.rows", []);
-  const [fetchedAt, setFetchedAt] = useScreenState<number>("nfa-my.fetchedAt", 0);
+  const [rows, setRows] = useScreenMemory<SapReportRow[]>("nfa-my.rows", []);
+  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("nfa-my.fetchedAt", 0);
   const [loading, setLoading] = useState(rows.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useScreenState<string>("nfa-my.q", "");

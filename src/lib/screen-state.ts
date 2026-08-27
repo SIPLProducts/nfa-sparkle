@@ -13,6 +13,31 @@ const memory = new Map<string, unknown>();
 
 const PREFIX = "screen-state:";
 
+/**
+ * Fetched-data keys are memory-only now. Earlier builds persisted them to
+ * sessionStorage, so drop any leftovers once at startup.
+ */
+const LEGACY_DATA_KEYS = [
+  "report.rows",
+  "report.ran",
+  "dashboard.mine",
+  "dashboard.pending",
+  "dashboard.fetchedAt",
+  "nfa-my.rows",
+  "nfa-my.fetchedAt",
+  "approvals.rows",
+  "approvals.fetchedAt",
+];
+
+if (typeof window !== "undefined") {
+  try {
+    LEGACY_DATA_KEYS.forEach((k) => window.sessionStorage.removeItem(PREFIX + k));
+  } catch {
+    /* ignore */
+  }
+}
+
+
 function readInitial<T>(key: string, initial: T): T {
   if (memory.has(key)) return memory.get(key) as T;
   if (typeof window !== "undefined") {
@@ -38,6 +63,32 @@ function persist(key: string, value: unknown) {
   } catch {
     /* quota or non-serialisable — memory cache still holds it */
   }
+}
+
+/**
+ * Memory-only screen state: survives navigating between screens, but never a
+ * hard refresh, a new tab, or a fresh login. Use for fetched data (rows,
+ * last-fetched timestamps) so reloading always re-fetches from the source.
+ */
+export function useScreenMemory<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(() => (memory.has(key) ? (memory.get(key) as T) : initial));
+  const keyRef = useRef(key);
+  keyRef.current = key;
+
+  useEffect(() => {
+    setValue(memory.has(key) ? (memory.get(key) as T) : initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const set = useCallback((next: T | ((prev: T) => T)) => {
+    setValue((prev) => {
+      const resolved = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
+      memory.set(keyRef.current, resolved);
+      return resolved;
+    });
+  }, []);
+
+  return [value, set] as const;
 }
 
 export function useScreenState<T>(key: string, initial: T) {

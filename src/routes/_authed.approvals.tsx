@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useScreenState } from "@/lib/screen-state";
+import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,8 +74,8 @@ function currentLevel(row: SapReportRow): number {
 
 function ApprovalsInbox() {
   
-  const [rows, setRows] = useScreenState<SapReportRow[]>("approvals.rows", []);
-  const [fetchedAt, setFetchedAt] = useScreenState<number>("approvals.fetchedAt", 0);
+  const [rows, setRows] = useScreenMemory<SapReportRow[]>("approvals.rows", []);
+  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("approvals.fetchedAt", 0);
   const [loading, setLoading] = useState(rows.length === 0 && fetchedAt === 0);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useScreenState<string>("approvals.q", "");
