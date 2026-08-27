@@ -413,23 +413,36 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const username = ep.username || sys?.username || "";
+  const sapUser = resolveSapUser(ep, sys);
+  if (!sapUser) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "No SAP user is configured for the eNFA Report endpoint. Set a username on the endpoint or its SAP system in Admin → SAP API Settings.",
+    };
+  }
   const password =
     (await getSecret(`endpoint:${ep.id}`)) ??
     (sys ? await getSecret(`system:${sys.id}`) : null) ??
     (await getSecret("sap_password")) ??
     "";
 
-  return callSap({
+  const requestBody = JSON.stringify(wrapReportPayload(payload, sapUser));
+  const result = await callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(wrapReportPayload(payload, (username || "").toUpperCase())),
+    body: requestBody,
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
   });
+  return { ...result, requestBody };
 }
 
 /**
