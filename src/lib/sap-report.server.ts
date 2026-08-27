@@ -340,39 +340,6 @@ export async function callSapEnfaTypeF4(): Promise<SapCallResult> {
   });
 }
 
-/**
- * Resolves the SAP user for a call: endpoint username → active system username →
- * a `user_name` already stored in the endpoint's saved request-body template.
- * Returns "" when nothing is configured so callers can fail loudly.
- */
-export function resolveSapUser(
-  ep: Record<string, any> | null,
-  sys: Record<string, any> | null,
-): string {
-  let fromTemplate = "";
-  try {
-    const raw = ep?.["request_body"];
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (parsed && typeof parsed === "object") {
-      const scan = (o: any): string => {
-        if (!o || typeof o !== "object") return "";
-        for (const [k, v] of Object.entries(o)) {
-          if (k.trim().toLowerCase() === "user_name" && typeof v === "string" && v.trim()) return v.trim();
-          if (v && typeof v === "object") {
-            const nested = scan(v);
-            if (nested) return nested;
-          }
-        }
-        return "";
-      };
-      fromTemplate = scan(parsed);
-    }
-  } catch {
-    fromTemplate = "";
-  }
-  return (ep?.["username"] || sys?.["username"] || fromTemplate || "").toString().trim().toUpperCase();
-}
-
 /** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
 export function buildReportPayload(input: unknown): Record<ReportKey, string> {
   let src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
@@ -413,36 +380,23 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const username = ep.username || sys?.username || "";
-  const sapUser = resolveSapUser(ep, sys);
-  if (!sapUser) {
-    return {
-      ok: false,
-      status: null,
-      latencyMs: 0,
-      body: "",
-      error:
-        "No SAP user is configured for the eNFA Report endpoint. Set a username on the endpoint or its SAP system in Admin → SAP API Settings.",
-    };
-  }
   const password =
     (await getSecret(`endpoint:${ep.id}`)) ??
     (sys ? await getSecret(`system:${sys.id}`) : null) ??
     (await getSecret("sap_password")) ??
     "";
 
-  const requestBody = JSON.stringify(wrapReportPayload(payload, sapUser));
-  const result = await callSap({
+  return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: requestBody,
+    body: JSON.stringify(wrapReportPayload(payload, (username || "").toUpperCase())),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
   });
-  return { ...result, requestBody };
 }
 
 /**
@@ -477,17 +431,6 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const username = ep.username || sys?.username || "";
-  const sapUser = resolveSapUser(ep, sys);
-  if (!sapUser) {
-    return {
-      ok: false,
-      status: null,
-      latencyMs: 0,
-      body: "",
-      error:
-        "No SAP user is configured for the record-details endpoint. Set a username on the endpoint or its SAP system in Admin → SAP API Settings.",
-    };
-  }
   const password =
     (await getSecret(`endpoint:${ep.id}`)) ??
     (sys ? await getSecret(`system:${sys.id}`) : null) ??
@@ -511,22 +454,21 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
       : {};
   const body = {
     ...template,
-    edit: { ...editTemplate, user_name: sapUser, reffld },
+    edit: { ...editTemplate, user_name: (username || "").toUpperCase(), reffld },
   };
 
-  const requestBody = JSON.stringify(body);
-  const result = await callSap({
+  return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: requestBody,
+    body: JSON.stringify(body),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
   });
-  return { ...result, requestBody };
+
 }
 
 /**

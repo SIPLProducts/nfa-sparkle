@@ -60,8 +60,6 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           "cache-control": "no-store",
           "x-sap-status": String(result.status ?? ""),
           "x-sap-latency-ms": String(result.latencyMs ?? 0),
-          // The exact body sent to SAP (no credentials) so the payload is verifiable in DevTools.
-          "x-sap-request-preview": (result.requestBody ?? "").slice(0, 1000),
         };
 
         if (!result.ok) {

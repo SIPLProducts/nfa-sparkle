@@ -110,8 +110,6 @@ export function RecordEditDialog({
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
-  // SAP user the detail call was made as (read from the request preview header).
-  const [sapUser, setSapUser] = useState<string>("");
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
@@ -123,7 +121,6 @@ export function RecordEditDialog({
       setLoading(true);
       setDetailError(null);
       setSapNotice(null);
-      setSapUser("");
       setDetail(null);
 
       // 1. Live SAP record details for the selected ENFA number.
@@ -141,16 +138,6 @@ export function RecordEditDialog({
           body: JSON.stringify({ edit: { reffld: enfa } }),
         });
         const text = await res.text();
-        try {
-          const preview = res.headers.get("x-sap-request-preview");
-          if (preview) {
-            const parsedPreview = JSON.parse(preview) as any;
-            const u = parsedPreview?.edit?.user_name ?? parsedPreview?.user_name ?? "";
-            if (typeof u === "string" && u && !cancelled) setSapUser(u);
-          }
-        } catch {
-          /* preview header is diagnostic only */
-        }
         if (!res.ok) {
           const failed = readSapPayload(text);
           throw new Error(
@@ -295,7 +282,6 @@ export function RecordEditDialog({
               {sapNotice ? (
                 <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {sapNotice}
-                  {sapUser ? <span className="ml-1 opacity-80">(SAP user: {sapUser})</span> : null}
                 </div>
               ) : null}
               {detailError ? (
