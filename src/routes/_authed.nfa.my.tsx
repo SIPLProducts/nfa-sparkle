@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
