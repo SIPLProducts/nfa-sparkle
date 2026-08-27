@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { projectsFor, parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4 } from "@/lib/sap/master";
+import { parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4 } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,6 @@ function NewNfaPage() {
   const nav = useNavigate();
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
-  const [project, setProject] = useState("");
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
