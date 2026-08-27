@@ -9,10 +9,17 @@ import { useEffect, useRef, type EffectCallback } from "react";
 export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const onEnterRef = useRef(onEnter);
+  const enteredRef = useRef(false);
   onEnterRef.current = onEnter;
   const isActive = pathname === screenPath;
 
   useEffect(() => {
-    if (isActive) return onEnterRef.current();
+    if (!isActive) {
+      enteredRef.current = false;
+      return;
+    }
+    if (enteredRef.current) return;
+    enteredRef.current = true;
+    return onEnterRef.current();
   }, [isActive]);
 }
