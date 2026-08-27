@@ -92,6 +92,7 @@ function resultToast(r: TestResult, label: string) {
 function SapApiSettings() {
   const { hasRole, loading } = useAuth();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const isAdmin = hasRole("admin");
   const [tab, setTab] = useScreenState<string>("sap-api.tab", "apis");
 
@@ -101,6 +102,14 @@ function SapApiSettings() {
       nav({ to: "/", replace: true });
     }
   }, [loading, isAdmin, nav]);
+
+  // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
+  useEffect(() => {
+    ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k] }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) return null;
 
