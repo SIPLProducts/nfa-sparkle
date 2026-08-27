@@ -178,21 +178,6 @@ export function RecordPreviewDialog({
 
           {pdfUrl ? null : (
           <>
-          <section className="rounded-lg border border-border p-4">
-            <h3 className="mb-2 font-display text-sm font-bold">NFA Details</h3>
-            <Row label="ENFA Number" value={enfa} />
-            <Row label="Company" value={company ? `${company.code} – ${company.name}` : ""} />
-            <Row label="Plant" value={[row?.PSPNR, row?.NAME1].filter(Boolean).join(" – ")} />
-            <Row label="NFA Type" value={row?.FUNCT_TXT ?? ""} />
-            <Row label="Function" value={row?.EXTR_TXT ?? ""} />
-            <Row label="Subject" value={draft?.subject || row?.SUBJECT || ""} />
-            <Row label="Initiator" value={row?.INIT_NAME ?? ""} />
-            <Row label="Creation Date" value={row?.BEGDA ?? ""} />
-            <Row label="Status" value={row?.STATUS_TXT ?? ""} />
-            <Row label="Scope Impact" value={draft?.scope_impact ?? ""} />
-            <Row label="Budget Impact" value={draft?.budget_impact != null ? String(draft.budget_impact) : ""} />
-            <Row label="Timeline Impact" value={draft?.timeline_days != null ? `${draft.timeline_days} days` : ""} />
-          </section>
 
           <section className="rounded-lg border border-border p-4">
             <h3 className="mb-2 font-display text-sm font-bold">Approval Ladder</h3>
