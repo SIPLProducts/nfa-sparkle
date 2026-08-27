@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,10 +116,9 @@ function MyNfas() {
 
   // Navigating into this screen refreshes from SAP. Cached rows and the
   // current selection stay visible while the background refresh runs.
-  useEffect(() => {
+  useScreenEntryEffect("/nfa/my", () => {
     void load({ background: fetchedAt > 0 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;

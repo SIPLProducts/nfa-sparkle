@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,10 +133,9 @@ function ApprovalsInbox() {
 
   // Refresh on every navigation into this screen; cached rows and the current
   // selection remain visible while the background refresh runs.
-  useEffect(() => {
+  useScreenEntryEffect("/approvals", () => {
     void load({ background: fetchedAt > 0 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   /** SAP decides what appears here — no client-side filtering by user. */
   const filtered = useMemo(() => {

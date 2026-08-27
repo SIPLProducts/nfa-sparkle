@@ -24,6 +24,7 @@ import {
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { useScreenState } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -105,12 +106,11 @@ function UserManagement() {
 
   // Navigating into this screen refreshes its data once; switching the tabs
   // inside the screen reuses the cache and never refetches.
-  useEffect(() => {
+  useScreenEntryEffect("/admin/users", () => {
     ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   if (!isAdmin) return null;
 

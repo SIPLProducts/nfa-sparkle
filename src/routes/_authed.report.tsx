@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
@@ -257,12 +258,9 @@ function Report() {
 
   // Navigating back into this screen refreshes the last-run report in the
   // background: current rows and selection stay visible until fresh data lands.
-  const ranRef = useRef(ran);
-  ranRef.current = ran;
-  useEffect(() => {
-    if (ranRef.current) void run(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useScreenEntryEffect("/report", () => {
+    if (ran) void run(true);
+  });
 
   function exportCsv() {
     if (!rows.length) return;
