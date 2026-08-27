@@ -1,13 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle, FontSize } from "@tiptap/extension-text-style";
+import { TableKit } from "@tiptap/extension-table";
+import { ResizableImage, fileToScaledDataUrl } from "@/components/rich-text/ResizableImage";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Quote, Minus, Link2, Undo2, Redo2, Heading1, Heading2, RemoveFormatting,
+  Table as TableIcon, ImagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +40,10 @@ export function toEditorHtml(value: string) {
 export function htmlToPlainText(html: string) {
   if (!html) return "";
   return html
-    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, "\n")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<\/(td|th)>\s*(?=<(td|th)\b)/gi, "\t")
+    .replace(/<\/(tr|table)>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|td|th)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
@@ -45,6 +54,8 @@ export function htmlToPlainText(html: string) {
 }
 
 export function RichTextEditor({ value, onChange, placeholder, className, minHeight = "240px" }: RichTextEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -52,6 +63,8 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
       TextStyle,
       FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TableKit.configure({ table: { resizable: true, allowTableNodeSelection: true } }),
+      ResizableImage,
     ],
     content: toEditorHtml(value),
     editorProps: {
@@ -60,9 +73,32 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
         style: `min-height:${minHeight}`,
         "data-placeholder": placeholder ?? "",
       },
+      handlePaste: (view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        if (!files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(files);
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const dt = (event as DragEvent).dataTransfer;
+        const files = Array.from(dt?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        if (!files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(files);
+        return true;
+      },
     },
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),
   });
+
+  async function insertImageFiles(files: File[]) {
+    if (!editor) return;
+    for (const file of files) {
+      const src = await fileToScaledDataUrl(file);
+      editor.chain().focus().setImage({ src }).run();
+    }
+  }
 
   useEffect(() => {
     if (!editor) return;
@@ -130,6 +166,48 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
             editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
           }}
         ><Link2 className="h-4 w-4" /></Tool>
+        <Divider />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button" variant="ghost" size="icon" title="Table" aria-label="Table"
+              className={cn("h-8 w-8 rounded-sm", editor.isActive("table") && "bg-secondary text-secondary-foreground")}
+            >
+              <TableIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onSelect={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+              Insert table (3 × 3)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().addRowBefore()} onSelect={() => editor.chain().focus().addRowBefore().run()}>Add row above</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().addRowAfter()} onSelect={() => editor.chain().focus().addRowAfter().run()}>Add row below</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().deleteRow()} onSelect={() => editor.chain().focus().deleteRow().run()}>Delete row</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().addColumnBefore()} onSelect={() => editor.chain().focus().addColumnBefore().run()}>Add column left</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().addColumnAfter()} onSelect={() => editor.chain().focus().addColumnAfter().run()}>Add column right</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().deleteColumn()} onSelect={() => editor.chain().focus().deleteColumn().run()}>Delete column</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().mergeOrSplit()} onSelect={() => editor.chain().focus().mergeOrSplit().run()}>Merge / split cells</DropdownMenuItem>
+            <DropdownMenuItem disabled={!editor.can().toggleHeaderRow()} onSelect={() => editor.chain().focus().toggleHeaderRow().run()}>Toggle header row</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!editor.can().deleteTable()} onSelect={() => editor.chain().focus().deleteTable().run()}>Delete table</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Tool label="Insert image" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4" /></Tool>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith("image/"));
+            if (files.length) void insertImageFiles(files);
+            e.target.value = "";
+          }}
+        />
         <Divider />
         <Tool label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}><RemoveFormatting className="h-4 w-4" /></Tool>
         <Tool label="Undo" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><Undo2 className="h-4 w-4" /></Tool>

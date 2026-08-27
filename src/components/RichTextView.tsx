@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const ALLOWED_TAGS = [
   "p","br","strong","b","em","i","u","s","span","h1","h2","h3","h4","ul","ol","li",
   "blockquote","hr","a","code","pre",
+  "table","thead","tbody","tfoot","tr","th","td","colgroup","col","img","figure","figcaption",
 ];
 
 export function RichTextView({ html, className }: { html: string; className?: string }) {
@@ -13,8 +14,8 @@ export function RichTextView({ html, className }: { html: string; className?: st
     () =>
       DOMPurify.sanitize(toEditorHtml(html ?? ""), {
         ALLOWED_TAGS,
-        ALLOWED_ATTR: ["href", "target", "rel", "style", "class"],
-        ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|#|\/)/i,
+        ALLOWED_ATTR: ["href", "target", "rel", "style", "class", "src", "alt", "title", "width", "height", "colspan", "rowspan", "colwidth", "span"],
+        ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpeg|jpg|gif|webp);base64,|#|\/)/i,
       }),
     [html],
   );
