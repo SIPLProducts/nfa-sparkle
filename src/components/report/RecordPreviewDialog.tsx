@@ -7,7 +7,7 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
 
-const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -179,35 +179,6 @@ export function RecordPreviewDialog({
           {pdfUrl ? null : (
           <>
 
-          <section className="rounded-lg border border-border p-4">
-            <h3 className="mb-2 font-display text-sm font-bold">Approval Ladder</h3>
-            <table className="w-full text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="py-1.5 font-medium">Level</th>
-                  <th className="py-1.5 font-medium">Designation</th>
-                  <th className="py-1.5 font-medium">Approver</th>
-                  <th className="py-1.5 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {LEVELS.map((l) => {
-                  const role = row?.[`ROLE${l}` as keyof SapReportRow] as string | undefined;
-                  const appr = row?.[`APPR${l}` as keyof SapReportRow] as string | undefined;
-                  const stat = row?.[`STAT${l}` as keyof SapReportRow] as string | undefined;
-                  if (!role && !appr && !stat) return null;
-                  return (
-                    <tr key={l}>
-                      <td className="py-1.5 pr-2">L{l}</td>
-                      <td className="py-1.5 pr-2 text-muted-foreground">{role || "—"}</td>
-                      <td className="py-1.5 pr-2">{appr || "—"}</td>
-                      <td className="py-1.5">{stat || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </section>
 
           {draft?.detailed_description ? (
             <section className="rounded-lg border border-border p-4">
