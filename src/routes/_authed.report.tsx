@@ -427,9 +427,9 @@ function Report() {
 
       {/* Desktop table */}
       <div className="mt-2 hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-clip">
           <table className="min-w-full text-sm">
-            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-20 border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="w-9 px-3 py-2.5" />
                 {BASE_COLS.map((c, idx) => (
