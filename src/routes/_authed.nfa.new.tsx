@@ -621,10 +621,7 @@ function NewNfaPage() {
                   onChange={setDesc}
                   minHeight="240px"
                 />
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                  <span>
-                    {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
-                  </span>
+                <div className="mt-1.5 flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs">
@@ -634,9 +631,6 @@ function NewNfaPage() {
                     <DialogContent className="max-w-3xl">
                       <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
                       <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" />
-                      <div className="text-[11px] text-muted-foreground">
-                        {plainDesc ? plainDesc.split(/\s+/).length : 0} words · {plainDesc.length} characters
-                      </div>
                       <DialogFooter><Button>Done</Button></DialogFooter>
                     </DialogContent>
                   </Dialog>
