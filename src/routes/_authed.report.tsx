@@ -367,7 +367,7 @@ function Report() {
       </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-card shadow-sm">
 
         {/* Mobile card list */}
         <div className="mt-2 space-y-2.5 md:hidden">
@@ -426,83 +426,81 @@ function Report() {
       </div>
 
       {/* Desktop table */}
-      <div className="mt-2 hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="w-9 px-3 py-2.5" />
-                {BASE_COLS.map((c, idx) => (
-                  <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-10 bg-muted/50" : "")}>{c.label}</th>
-                ))}
-                {LEVELS.flatMap((l) => [
-                  <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Designation{l}</th>,
-                  <th key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Approver{l}</th>,
-                  <th key={`s${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Status{l}</th>,
-                ])}
-                <th className="whitespace-nowrap px-3 py-2.5 font-medium">ENFA Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 2} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
-                  </td>
-                </tr>
-              )}
-              {rows.map((r, i) => (
-                <tr
-                  key={`${r.REFFLD}-${i}`}
-                  className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
-                  onClick={() => setSelected(i)}
-                >
-                  <td className="px-3 py-2.5">
-                    <input
-                      type="radio"
-                      name="enfa-record-desktop"
-                      className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                      checked={selected === i}
-                      onChange={() => setSelected(i)}
-                      aria-label={`Select ${r.REFFLD}`}
-                    />
-                  </td>
-                  {BASE_COLS.map((c, idx) => (
-                    <td
-                      key={c.key}
-                      className={
-                        "px-3 py-2.5 " +
-                        (idx === 0
-                          ? "sticky left-0 z-10 bg-card font-mono text-xs font-medium text-accent"
-                          : c.key === "SUBJECT"
-                            ? "max-w-[240px] truncate"
-                            : "whitespace-nowrap")
-                      }
-                      title={c.key === "SUBJECT" ? r.SUBJECT : undefined}
-                    >
-                      {r[c.key] || "—"}
-                    </td>
-                  ))}
-                  {LEVELS.flatMap((l) => {
-                    const role = r[`ROLE${l}` as keyof SapReportRow] as string;
-                    const appr = r[`APPR${l}` as keyof SapReportRow] as string;
-                    const stat = r[`STAT${l}` as keyof SapReportRow] as string;
-                    return [
-                      <td key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs text-muted-foreground">{role || "—"}</td>,
-                      <td key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs">{appr || "—"}</td>,
-                      <td key={`s${l}`} className="px-3 py-2.5">
-                        {stat ? <span className={"inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium " + statusTone(stat)}>{stat}</span> : <span className="text-muted-foreground/40">—</span>}
-                      </td>,
-                    ];
-                  })}
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(r.STATUS_TXT)}>{r.STATUS_TXT || "—"}</span>
-                  </td>
-                </tr>
+      <div className="hidden md:block">
+        <table className="min-w-full text-sm">
+          <thead className="sticky top-0 z-20 border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="w-9 px-3 py-2.5" />
+              {BASE_COLS.map((c, idx) => (
+                <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-10 bg-muted/50" : "")}>{c.label}</th>
               ))}
-            </tbody>
-          </table>
-        </div>
+              {LEVELS.flatMap((l) => [
+                <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Designation{l}</th>,
+                <th key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Approver{l}</th>,
+                <th key={`s${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Status{l}</th>,
+              ])}
+              <th className="whitespace-nowrap px-3 py-2.5 font-medium">ENFA Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 2} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
+                </td>
+              </tr>
+            )}
+            {rows.map((r, i) => (
+              <tr
+                key={`${r.REFFLD}-${i}`}
+                className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+                onClick={() => setSelected(i)}
+              >
+                <td className="px-3 py-2.5">
+                  <input
+                    type="radio"
+                    name="enfa-record-desktop"
+                    className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                    checked={selected === i}
+                    onChange={() => setSelected(i)}
+                    aria-label={`Select ${r.REFFLD}`}
+                  />
+                </td>
+                {BASE_COLS.map((c, idx) => (
+                  <td
+                    key={c.key}
+                    className={
+                      "px-3 py-2.5 " +
+                      (idx === 0
+                        ? "sticky left-0 z-10 bg-card font-mono text-xs font-medium text-accent"
+                        : c.key === "SUBJECT"
+                          ? "max-w-[240px] truncate"
+                          : "whitespace-nowrap")
+                    }
+                    title={c.key === "SUBJECT" ? r.SUBJECT : undefined}
+                  >
+                    {r[c.key] || "—"}
+                  </td>
+                ))}
+                {LEVELS.flatMap((l) => {
+                  const role = r[`ROLE${l}` as keyof SapReportRow] as string;
+                  const appr = r[`APPR${l}` as keyof SapReportRow] as string;
+                  const stat = r[`STAT${l}` as keyof SapReportRow] as string;
+                  return [
+                    <td key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs text-muted-foreground">{role || "—"}</td>,
+                    <td key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 text-xs">{appr || "—"}</td>,
+                    <td key={`s${l}`} className="px-3 py-2.5">
+                      {stat ? <span className={"inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium " + statusTone(stat)}>{stat}</span> : <span className="text-muted-foreground/40">—</span>}
+                    </td>,
+                  ];
+                })}
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  <span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(r.STATUS_TXT)}>{r.STATUS_TXT || "—"}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       </div>
 
