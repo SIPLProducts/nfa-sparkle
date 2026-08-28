@@ -64,50 +64,52 @@
 :root {
   --radius: 0.5rem;
 
-  /* Ramky Estates brand: deep blue wordmark, orange + green leaf */
-  --brand-navy: oklch(0.30 0.105 258);
-  --brand-navy-2: oklch(0.41 0.125 256);
-  --brand-blue: oklch(0.52 0.145 255);
+  /* Corporate blue theme (reference #0166A8) */
+  --brand-navy: oklch(0.42 0.115 245);
+  --brand-navy-2: oklch(0.47 0.125 245);
+  --brand-blue: oklch(0.52 0.13 245);
+  --brand-blue-light: oklch(0.66 0.115 240);
   --brand-orange: oklch(0.68 0.175 52);
   --brand-green: oklch(0.62 0.155 148);
-  --brand-surface: oklch(0.945 0.012 250);
+  --brand-surface: oklch(0.945 0.014 245);
   --brand-gold: oklch(0.78 0.13 70);
 
-  --background: oklch(0.975 0.005 247);
-  --foreground: var(--brand-navy);
+  --background: oklch(0.975 0.007 245);
+  --foreground: oklch(0.28 0.06 245);
   --card: oklch(1 0 0);
-  --card-foreground: var(--brand-navy);
+  --card-foreground: oklch(0.28 0.06 245);
   --popover: oklch(1 0 0);
-  --popover-foreground: var(--brand-navy);
-  --primary: var(--brand-navy);
-  --primary-foreground: oklch(0.985 0 0);
+  --popover-foreground: oklch(0.28 0.06 245);
+  --primary: var(--brand-blue);
+  --primary-foreground: oklch(0.99 0 0);
   --secondary: var(--brand-surface);
   --secondary-foreground: var(--brand-navy);
   --muted: var(--brand-surface);
-  --muted-foreground: oklch(0.45 0.03 255);
-  --accent: var(--brand-orange);
+  --muted-foreground: oklch(0.48 0.035 245);
+  --accent: var(--brand-blue-light);
   --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.55 0.20 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.88 0.012 247);
-  --input: oklch(0.88 0.012 247);
-  --ring: var(--brand-orange);
+  --border: oklch(0.88 0.016 245);
+  --input: oklch(0.88 0.016 245);
+  --ring: var(--brand-blue);
   --success: var(--brand-green);
   --success-foreground: oklch(0.99 0 0);
   --chart-1: var(--brand-blue);
-  --chart-2: var(--brand-orange);
-  --chart-3: var(--brand-green);
-  --chart-4: oklch(0.65 0.13 195);
+  --chart-2: var(--brand-blue-light);
+  --chart-3: oklch(0.38 0.10 245);
+  --chart-4: oklch(0.72 0.09 225);
   --chart-5: oklch(0.55 0.20 27);
 
-  --sidebar: var(--brand-navy);
-  --sidebar-foreground: oklch(0.92 0.012 247);
-  --sidebar-primary: var(--brand-orange);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.38 0.10 257);
+  --sidebar: var(--brand-blue);
+  --sidebar-foreground: oklch(0.97 0.012 245);
+  --sidebar-primary: oklch(0.99 0 0);
+  --sidebar-primary-foreground: var(--brand-blue);
+  --sidebar-accent: oklch(0.44 0.12 245);
   --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(0.40 0.08 257);
-  --sidebar-ring: var(--brand-orange);
+  --sidebar-border: oklch(0.46 0.115 245);
+  --sidebar-ring: oklch(0.85 0.06 245);
+
 }
 
 @layer base {
