@@ -292,17 +292,19 @@ function Report() {
   const visibleRows = rows.slice(0, visibleCount);
 
   return (
-    <div>
-      <PageHeader
-        eyebrow="Insights"
-        title="E-NFA Report"
-        subtitle="Live SAP report — filters are sent to SAP as the request payload."
-        actions={
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
-        }
-      />
+    <div className="flex flex-col h-full min-h-0">
+      <div className="shrink-0">
+        <PageHeader
+          eyebrow="Insights"
+          title="E-NFA Report"
+          subtitle="Live SAP report — filters are sent to SAP as the request payload."
+          actions={
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+          }
+        />
+
 
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
