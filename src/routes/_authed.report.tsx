@@ -426,7 +426,7 @@ function Report() {
       </div>
 
       {/* Desktop table */}
-      <div className="mt-2 hidden md:block">
+      <div className="hidden md:block">
         <table className="min-w-full text-sm">
           <thead className="sticky top-0 z-20 border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
