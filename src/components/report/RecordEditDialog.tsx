@@ -264,7 +264,6 @@ export function RecordEditDialog({
     }
   }
 
-  const descChars = htmlToPlainText(draft.detailed_description).trim().length;
   const readOnly = !!sapNotice;
 
   return (
