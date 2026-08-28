@@ -292,17 +292,19 @@ function Report() {
   const visibleRows = rows.slice(0, visibleCount);
 
   return (
-    <div>
-      <PageHeader
-        eyebrow="Insights"
-        title="E-NFA Report"
-        subtitle="Live SAP report — filters are sent to SAP as the request payload."
-        actions={
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
-        }
-      />
+    <div className="flex flex-col h-full min-h-0">
+      <div className="shrink-0">
+        <PageHeader
+          eyebrow="Insights"
+          title="E-NFA Report"
+          subtitle="Live SAP report — filters are sent to SAP as the request payload."
+          actions={
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCsv} disabled={rows.length === 0}>
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+          }
+        />
+
 
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
@@ -363,9 +365,13 @@ function Report() {
           </Button>
         </div>
       </div>
+      </div>
 
-      {/* Mobile card list */}
-      <div className="mt-2 space-y-2.5 md:hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+
+        {/* Mobile card list */}
+        <div className="mt-2 space-y-2.5 md:hidden">
+
         {rows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
             {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
@@ -498,9 +504,13 @@ function Report() {
           </table>
         </div>
       </div>
+      </div>
 
       <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
+
+
       <RecordEditDialog row={selectedRow} open={editOpen} onOpenChange={setEditOpen} />
+
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
