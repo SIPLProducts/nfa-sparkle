@@ -348,12 +348,7 @@ export function RecordEditDialog({
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">Detailed Description</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {descChars ? `${descChars} characters` : "Not filled in yet"}
-                  </div>
-                </div>
+                <div className="text-sm font-medium">Detailed Description</div>
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)} disabled={readOnly}>
                   <FileText className="h-3.5 w-3.5" /> Open
                 </Button>
