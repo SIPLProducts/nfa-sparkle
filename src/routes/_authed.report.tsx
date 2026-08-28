@@ -366,8 +366,10 @@ function Report() {
         </div>
       </div>
 
-      {/* Mobile card list */}
-      <div className="mt-2 space-y-2.5 md:hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Mobile card list */}
+        <div className="mt-2 space-y-2.5 md:hidden">
+
         {rows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
             {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
