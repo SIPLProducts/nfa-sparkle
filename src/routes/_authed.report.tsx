@@ -505,6 +505,7 @@ function Report() {
 
       <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
       <RecordEditDialog row={selectedRow} open={editOpen} onOpenChange={setEditOpen} />
+
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
