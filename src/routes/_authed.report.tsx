@@ -504,8 +504,10 @@ function Report() {
           </table>
         </div>
       </div>
+      </div>
 
       <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
+
 
       <RecordEditDialog row={selectedRow} open={editOpen} onOpenChange={setEditOpen} />
 
