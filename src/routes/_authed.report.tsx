@@ -365,8 +365,10 @@ function Report() {
           </Button>
         </div>
       </div>
+      </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
+
         {/* Mobile card list */}
         <div className="mt-2 space-y-2.5 md:hidden">
 
