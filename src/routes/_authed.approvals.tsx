@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
@@ -85,6 +86,9 @@ function ApprovalsInbox() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const { hasRole } = useAuth();
+  const rejectLabel = hasRole("initiator") ? "Cancel" : "Reject";
 
   const load = useCallback(async (opts?: { background?: boolean }) => {
     const background = opts?.background === true;
@@ -268,7 +272,7 @@ function ApprovalsInbox() {
               <CheckCircle2 className="h-3.5 w-3.5" /> Approve
             </Button>
             <Button size="sm" variant="destructive" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
-              <X className="h-3.5 w-3.5" /> Reject
+              <X className="h-3.5 w-3.5" /> {rejectLabel}
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90 border-accent" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
               <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
