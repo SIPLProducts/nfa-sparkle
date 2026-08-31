@@ -10,6 +10,10 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { FileText, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { getSapUserForEndpoint } from "@/lib/sap-api.functions";
+
+/** Session cache of the SAP user per endpoint kind, so the lookup happens once. */
+const sapUserCache: Partial<Record<"detail" | "select", string>> = {};
 
 interface DraftState {
   subject: string;
@@ -129,13 +133,26 @@ export function RecordEditDialog({
       try {
         const { data: s } = await supabase.auth.getSession();
         const token = s.session?.access_token ?? "";
+        // The SAP user is resolved from Admin -> SAP API Settings so the request
+        // payload in DevTools is exactly what SAP receives.
+        let sapUser = "";
+        try {
+          const kind = endpoint === "select" ? ("select" as const) : ("detail" as const);
+          if (sapUserCache[kind] === undefined) {
+            const r = await getSapUserForEndpoint({ data: { kind } });
+            sapUserCache[kind] = r?.user_name ?? "";
+          }
+          sapUser = sapUserCache[kind] ?? "";
+        } catch {
+          sapUser = "";
+        }
         const res = await fetch(endpoint === "select" ? "/api/public/enfa-select" : "/api/public/enfa-detail", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ edit: { reffld: enfa } }),
+          body: JSON.stringify({ edit: { user_name: sapUser, reffld: enfa } }),
         });
         const text = await res.text();
         if (!res.ok) {
