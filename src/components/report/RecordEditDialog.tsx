@@ -132,16 +132,22 @@ export function RecordEditDialog({
       try {
         const { data: s } = await supabase.auth.getSession();
         const token = s.session?.access_token ?? "";
-        // The SAP user is resolved from Admin -> SAP API Settings so the request
-        // payload in DevTools is exactly what SAP receives.
+        // user_name is the logged-in user's User ID (profiles.username), so the
+        // request payload in DevTools is exactly what SAP receives.
         let sapUser = "";
         try {
-          const kind = endpoint === "select" ? ("select" as const) : ("detail" as const);
-          if (sapUserCache[kind] === undefined) {
-            const r = await getSapUserForEndpoint({ data: { kind } });
-            sapUserCache[kind] = r?.user_name ?? "";
+          const uid = s.session?.user?.id ?? "";
+          if (uid) {
+            if (sapUserCache[uid] === undefined) {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("username")
+                .eq("id", uid)
+                .maybeSingle();
+              sapUserCache[uid] = (profile?.username ?? "").toUpperCase();
+            }
+            sapUser = sapUserCache[uid] ?? "";
           }
-          sapUser = sapUserCache[kind] ?? "";
         } catch {
           sapUser = "";
         }
