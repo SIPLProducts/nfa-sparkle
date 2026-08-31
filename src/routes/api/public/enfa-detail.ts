@@ -53,12 +53,15 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
         }
 
-        const result = await callEnfaDetail(reffld);
+        const result = await callEnfaDetail(reffld, edit);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
           "cache-control": "no-store",
           "x-sap-status": String(result.status ?? ""),
+          "x-sap-url": result.request?.url ?? "",
+          "x-sap-method": result.request?.method ?? "",
+          "x-sap-request": String(result.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
           "x-sap-latency-ms": String(result.latencyMs ?? 0),
         };
 

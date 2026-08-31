@@ -53,6 +53,9 @@ export const Route = createFileRoute("/api/public/enfa-update")({
           "content-type": "application/json",
           "cache-control": "no-store",
           "x-sap-status": String(result.status ?? ""),
+          "x-sap-url": result.request?.url ?? "",
+          "x-sap-method": result.request?.method ?? "",
+          "x-sap-request": String(result.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
           "x-sap-latency-ms": String(result.latencyMs ?? 0),
         };
 

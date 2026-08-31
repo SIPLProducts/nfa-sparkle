@@ -297,6 +297,9 @@ export const Route = createFileRoute("/api/public/enfa-attachments")({
         const headers: Record<string, string> = {
           ...baseHeaders,
           "x-sap-status": String(entry.status ?? ""),
+          "x-sap-url": entry.request?.url ?? "",
+          "x-sap-method": entry.request?.method ?? "",
+          "x-sap-request": String(entry.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
           "x-sap-latency-ms": String(entry.latencyMs ?? 0),
         };
 
