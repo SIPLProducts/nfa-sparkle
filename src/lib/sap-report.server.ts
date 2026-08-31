@@ -403,7 +403,10 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
  * Fetches a single eNFA record's details from SAP for the given record number.
  * The endpoint is looked up dynamically — nothing about the SAP URL or payload is hardcoded.
  */
-export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
+export async function callEnfaDetail(
+  reffld: string,
+  overrides?: Record<string, unknown>,
+): Promise<SapCallResult> {
   const db = await admin();
   const { data: ep } = await db
     .from("sap_endpoint")
@@ -452,9 +455,17 @@ export async function callEnfaDetail(reffld: string): Promise<SapCallResult> {
     template["edit"] && typeof template["edit"] === "object" && !Array.isArray(template["edit"])
       ? (template["edit"] as Record<string, unknown>)
       : {};
+  const callerEdit = overrides && typeof overrides === "object" ? overrides : {};
   const body = {
     ...template,
-    edit: { ...editTemplate, user_name: (username || "").toUpperCase(), reffld },
+    edit: {
+      ...editTemplate,
+      ...callerEdit,
+      user_name: String(
+        (callerEdit["user_name"] as string | undefined) || username || "",
+      ).toUpperCase(),
+      reffld,
+    },
   };
 
   return callSap({
@@ -549,7 +560,10 @@ export async function callEnfaMyNfaUpdate(payload: Record<string, unknown>): Pro
  * endpoint (the approval API). Host, path, method, headers, query, body template and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaSelect(reffld: string): Promise<SapCallResult> {
+export async function callEnfaSelect(
+  reffld: string,
+  overrides?: Record<string, unknown>,
+): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
@@ -591,20 +605,33 @@ export async function callEnfaSelect(reffld: string): Promise<SapCallResult> {
   };
   const { username, password } = await credentialsFor(ep, sys);
 
-  // Use the endpoint's saved body template, substituting the requested record number.
-  let body = JSON.stringify({ edit: { reffld } });
+  // Use the endpoint's saved body template, substituting the live values.
+  const callerEdit = overrides && typeof overrides === "object" ? overrides : {};
+  let template: Record<string, unknown> = {};
   const tpl = (ep.request_body ?? "").trim();
   if (tpl) {
     try {
       const parsed = JSON.parse(tpl) as Record<string, unknown>;
-      if (parsed && typeof parsed === "object" && parsed["edit"] && typeof parsed["edit"] === "object") {
-        (parsed["edit"] as Record<string, unknown>)["reffld"] = reffld;
-        body = JSON.stringify(parsed);
-      }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) template = parsed;
     } catch {
       /* fall back to the default shape */
     }
   }
+  const editTemplate =
+    template["edit"] && typeof template["edit"] === "object" && !Array.isArray(template["edit"])
+      ? (template["edit"] as Record<string, unknown>)
+      : {};
+  const body = JSON.stringify({
+    ...template,
+    edit: {
+      ...editTemplate,
+      ...callerEdit,
+      user_name: String(
+        (callerEdit["user_name"] as string | undefined) || username || "",
+      ).toUpperCase(),
+      reffld,
+    },
+  });
 
   return callSap({
     system: sys,
