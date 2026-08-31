@@ -14,6 +14,8 @@ interface CacheEntry {
   status: number | null;
   latencyMs: number;
   at: number;
+  /** Exactly what was sent to SAP — surfaced via x-sap-* headers. */
+  request?: { url: string; method: string; body: string };
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -130,6 +132,7 @@ async function fetchAttachments(
       status: result.status ?? null,
       latencyMs: result.latencyMs ?? 0,
       at: Date.now(),
+      ...(result.request ? { request: result.request } : {}),
     };
     writeCache(key, entry);
     await writeDbCache(key, entry);
