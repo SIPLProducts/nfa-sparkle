@@ -10,10 +10,9 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { FileText, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { getSapUserForEndpoint } from "@/lib/sap-api.functions";
 
-/** Session cache of the SAP user per endpoint kind, so the lookup happens once. */
-const sapUserCache: Partial<Record<"detail" | "select", string>> = {};
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
 
 interface DraftState {
   subject: string;
