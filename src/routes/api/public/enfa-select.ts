@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/enfa-select")({
           return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
         }
 
-        const result = await callEnfaSelect(reffld);
+        const result = await callEnfaSelect(reffld, edit);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",

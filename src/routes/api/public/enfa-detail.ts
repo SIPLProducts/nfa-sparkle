@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
         }
 
-        const result = await callEnfaDetail(reffld);
+        const result = await callEnfaDetail(reffld, edit);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
