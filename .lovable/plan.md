@@ -27,7 +27,7 @@ The Upload Document call uses the method configured in Admin → SAP API Setting
 ```
 
 - `STATUS` other than `S` is treated as a failure and SAP's own `MESSAGE` is shown in the toast, verbatim — no generic wording.
-- On `S`, the toast shows SAP's success message and the Attached Docs list re-fetches so the new file appears.
+- On success (`STATUS: "S"`, e.g. `"File upload successfull with ENFA No 100102"`), the toast shows SAP's success message including the returned `ENFA_NO`, and the Attached Docs list re-fetches so the new file appears.
 - The Attached Docs dialog shows the same SAP message inline instead of spinning forever if the upload is rejected.
 
 **Network visibility**
