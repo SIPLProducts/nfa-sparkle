@@ -888,13 +888,39 @@ export async function callEnfaUpload(
   };
   const { username, password } = await credentialsFor(ep, sys);
 
+  // Build the body from the registered template so the payload stays
+  // settings-driven; then fill in the live values (user_name, reffld, file).
+  let template: Record<string, unknown> = {};
+  try {
+    const raw = ep.request_body;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      template = parsed as Record<string, unknown>;
+    }
+  } catch {
+    template = {};
+  }
+  const uploadTemplate =
+    template["upload"] && typeof template["upload"] === "object" && !Array.isArray(template["upload"])
+      ? (template["upload"] as Record<string, unknown>)
+      : {};
+  const body = {
+    ...template,
+    upload: {
+      ...uploadTemplate,
+      user_name: (username || String(uploadTemplate["user_name"] ?? "")).toUpperCase(),
+      reffld,
+      file: files,
+    },
+  };
+
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
-    method: (ep.http_method ?? "POST").toUpperCase(),
+    method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify({ upload: { reffld, file: files } }),
+    body: JSON.stringify(body),
     username: username || undefined,
     password,
     maxBytes: 20_000_000,
