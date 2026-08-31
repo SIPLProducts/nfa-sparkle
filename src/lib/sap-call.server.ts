@@ -123,6 +123,19 @@ export async function callSap(opts: {
     query["sap-client"] = String(opts.system.sap_client);
   }
 
+  // The SAP target as it will be seen by SAP itself (never the proxy URL).
+  let sapUrl = raw;
+  try {
+    if (isAbsolute || base) {
+      const u = new URL(isAbsolute ? raw : `${base}${raw.startsWith("/") ? "" : "/"}${raw}`);
+      for (const [k, v] of Object.entries(query)) if (k) u.searchParams.set(k, v);
+      sapUrl = u.toString();
+    }
+  } catch {
+    /* keep the raw path when it cannot be parsed */
+  }
+  const requestInfo = { url: sapUrl, method: opts.method, body: opts.body ?? "" };
+
   if (viaProxy) {
     const secret = secretValue ?? "";
 
