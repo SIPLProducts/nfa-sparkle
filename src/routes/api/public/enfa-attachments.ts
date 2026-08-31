@@ -132,6 +132,7 @@ async function fetchAttachments(
       status: result.status ?? null,
       latencyMs: result.latencyMs ?? 0,
       at: Date.now(),
+      ...(result.request ? { request: result.request } : {}),
     };
     writeCache(key, entry);
     await writeDbCache(key, entry);
