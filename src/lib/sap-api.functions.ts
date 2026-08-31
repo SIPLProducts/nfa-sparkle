@@ -710,3 +710,14 @@ export const runSapEnfaReport = createServerFn({ method: "POST" })
       error: r.error,
     };
   });
+
+/** Returns the SAP user (no secrets) the given eNFA endpoint authenticates with. */
+export const getSapUserForEndpoint = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { kind: "detail" | "select" }) => ({
+    kind: input?.kind === "select" ? ("select" as const) : ("detail" as const),
+  }))
+  .handler(async ({ data }) => {
+    const { resolveSapUserForEndpoint } = await import("@/lib/sap-report.server");
+    return { user_name: await resolveSapUserForEndpoint(data.kind) };
+  });

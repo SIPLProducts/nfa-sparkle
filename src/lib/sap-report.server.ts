@@ -1342,3 +1342,22 @@ export async function callEnfaDisplayEditData(): Promise<SapCallResult> {
     timeoutMs: 180_000,
   });
 }
+
+/**
+ * Resolves the SAP user that a given eNFA endpoint authenticates with, so the
+ * browser can send exactly the same `user_name` SAP receives. Never returns secrets.
+ */
+export async function resolveSapUserForEndpoint(kind: "detail" | "select"): Promise<string> {
+  const db = await admin();
+  const query =
+    kind === "select"
+      ? db.from("sap_endpoint").select("*").ilike("name", "%nfa select%")
+      : db
+          .from("sap_endpoint")
+          .select("*")
+          .or("name.ilike.%detail%,name.ilike.%deatil%,name.ilike.%number%");
+  const { data: ep } = await query.order("created_at", { ascending: true }).limit(1).maybeSingle();
+  if (!ep) return "";
+  const sys = await loadSystem(ep.system_id ?? null);
+  return String(ep.username || sys?.username || "").toUpperCase();
+}
