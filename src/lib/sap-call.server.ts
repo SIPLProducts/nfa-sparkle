@@ -158,7 +158,7 @@ export async function callSap(opts: {
       headers: { "Content-Type": "application/json", "x-proxy-secret": secret },
       body: JSON.stringify(payload),
     }, timeoutMs + 5000, Math.max(limit + 4000, 8000));
-    if (!r.ok && r.status === null) return r;
+    if (!r.ok && r.status === null) return { ...r, request: requestInfo };
     try {
       const parsed = JSON.parse(r.body) as {
         ok?: boolean;
@@ -176,9 +176,10 @@ export async function callSap(opts: {
             ? parsed.body
             : JSON.stringify(parsed.body ?? "").slice(0, limit),
         error: parsed.error ?? null,
+        request: requestInfo,
       };
     } catch {
-      return r;
+      return { ...r, request: requestInfo };
     }
   }
 
@@ -189,6 +190,7 @@ export async function callSap(opts: {
       latencyMs: 0,
       body: "",
       error: "No SAP system configured — add a system in SAP Systems or use a full URL",
+      request: requestInfo,
     };
   }
   const target = new URL(isAbsolute ? raw : `${base}${raw.startsWith("/") ? "" : "/"}${raw}`);
@@ -198,10 +200,11 @@ export async function callSap(opts: {
     headers["Authorization"] = "Basic " + btoa(`${opts.username}:${opts.password ?? ""}`);
   }
   if (opts.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
-  return fetchWithTimeout(
+  const direct = await fetchWithTimeout(
     target.toString(),
     { method: opts.method, headers, body: opts.body },
     opts.timeoutMs ?? 15000,
     opts.maxBytes ?? 4000,
   );
+  return { ...direct, request: { ...requestInfo, url: target.toString() } };
 }
