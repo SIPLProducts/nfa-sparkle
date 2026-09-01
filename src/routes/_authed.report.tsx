@@ -240,7 +240,7 @@ function Report() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(wrapReportPayload(payload)),
+        body: JSON.stringify(wrapReportPayload(payload, sapUser)),
       });
 
       const text = await res.text();
