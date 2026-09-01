@@ -18,6 +18,26 @@ export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
 });
 
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
+
+/** Resolves the logged-in user's User ID, uppercased ("" when unavailable). */
+async function resolveMySapUser(userId: string): Promise<string> {
+  if (!userId) return "";
+  if (sapUserCache[userId] !== undefined) return sapUserCache[userId] ?? "";
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    sapUserCache[userId] = (profile?.username ?? "").toUpperCase();
+  } catch {
+    sapUserCache[userId] = "";
+  }
+  return sapUserCache[userId] ?? "";
+}
+
 /** Normalises SAP's response into upper-cased string rows. */
 function normaliseRows(value: unknown): SapReportRow[] {
   let v = value;
@@ -74,13 +94,16 @@ function MyNfas() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
+      // user_name is the logged-in user's User ID (profiles.username), so the
+      // request payload in DevTools is exactly what SAP receives.
+      const sapUser = await resolveMySapUser(sessionData.session?.user?.id ?? "");
       const res = await fetch("/api/public/enfa-display-edit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ report: "" }),
+        body: JSON.stringify({ report: { user_name: sapUser } }),
       });
       const text = await res.text();
       let parsed: unknown = null;
