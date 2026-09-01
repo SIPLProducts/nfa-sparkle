@@ -1290,7 +1290,9 @@ export async function callEnfaApprovalAction(opts: {
  * endpoint. Host, path, method, headers, query, body template and credentials
  * all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaDisplayEditData(): Promise<SapCallResult> {
+export async function callEnfaDisplayEditData(
+  overrides?: { user_name?: string },
+): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
@@ -1332,8 +1334,35 @@ export async function callEnfaDisplayEditData(): Promise<SapCallResult> {
   };
   const { username, password } = await credentialsFor(ep, sys);
 
-  let body = (ep.request_body ?? "").trim();
-  if (!body) body = JSON.stringify({ report: "" });
+  // Build SAP's `{ "report": { "user_name": "..." } }` payload. A caller-supplied
+  // user_name (the logged-in user's User ID) is sent unchanged; otherwise the
+  // endpoint/system credential is used. The saved body template's wrapper key
+  // and any extra keys are respected — nothing hardcoded.
+  const callerUser = (overrides?.user_name ?? "").trim();
+  const effectiveUser = (callerUser || username || "").toUpperCase();
+
+  let template: Record<string, unknown> = {};
+  const raw = (ep.request_body ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        template = parsed as Record<string, unknown>;
+      }
+    } catch {
+      template = {};
+    }
+  }
+  const wrapKey = Object.keys(template).find((k) => k.toLowerCase() === "report") ?? "report";
+  const inner = template[wrapKey];
+  const report: Record<string, string> = { user_name: effectiveUser };
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    for (const [k, v] of Object.entries(inner as Record<string, unknown>)) {
+      if (k.toLowerCase() === "user_name") continue;
+      report[k] = v == null ? "" : String(v);
+    }
+  }
+  const body = JSON.stringify({ [wrapKey]: report });
 
   return callSap({
     system: sys,

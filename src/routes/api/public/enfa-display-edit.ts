@@ -40,7 +40,18 @@ export const Route = createFileRoute("/api/public/enfa-display-edit")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        const result = await callEnfaDisplayEditData();
+        // Forward the caller's user_name (the logged-in user's User ID) so SAP
+        // receives exactly what the browser sent. The server fills it from the
+        // endpoint credential only when absent.
+        let callerUser = "";
+        try {
+          const bodyIn = (await request.json()) as { report?: { user_name?: unknown } };
+          callerUser = String(bodyIn?.report?.user_name ?? "").trim();
+        } catch {
+          callerUser = "";
+        }
+
+        const result = await callEnfaDisplayEditData(callerUser ? { user_name: callerUser } : undefined);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
