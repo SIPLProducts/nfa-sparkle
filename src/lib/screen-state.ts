@@ -88,15 +88,6 @@ export function useScreenState<T>(key: string, initial: T) {
 /** Clears every cached screen state (used on sign-out). */
 export function clearScreenState() {
   memory.clear();
-  if (typeof window === "undefined") return;
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < window.sessionStorage.length; i++) {
-      const k = window.sessionStorage.key(i);
-      if (k && k.startsWith(PREFIX)) keys.push(k);
-    }
-    keys.forEach((k) => window.sessionStorage.removeItem(k));
-  } catch {
-    /* ignore */
-  }
+  purgeLegacyStorage();
 }
+
