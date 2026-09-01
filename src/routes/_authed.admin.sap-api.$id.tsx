@@ -345,15 +345,33 @@ function EndpointDetail() {
             <KVEditor rows={headers} onChange={setHeaders} label="Request headers" />
             <KVEditor rows={query} onChange={setQuery} label="Query parameters" />
             <div className="space-y-1.5">
-              <Label htmlFor="d-body">Body template (JSON)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="d-body">Body template (JSON)</Label>
+                {/^\s*create\s*e-?nfa/i.test(ep.name ?? "") && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => set({ request_body: CREATE_BODY_SAMPLE })}
+                  >
+                    Insert sample payload
+                  </Button>
+                )}
+              </div>
               <Textarea
                 id="d-body"
                 rows={8}
                 className="font-mono text-xs"
-                placeholder={'{\n  "PLANT": "9000"\n}'}
+                placeholder={/^\s*create\s*e-?nfa/i.test(ep.name ?? "") ? CREATE_BODY_SAMPLE : '{\n  "PLANT": "9000"\n}'}
                 value={ep.request_body ?? ""}
                 onChange={(e) => set({ request_body: e.target.value })}
               />
+              {/^\s*create\s*e-?nfa/i.test(ep.name ?? "") && (
+                <p className="text-xs text-muted-foreground">
+                  Values are filled at runtime from the Create NFA form; <code>user_name</code> is the signed-in user's User ID.
+                </p>
+              )}
             </div>
             <SaveBar pending={saveMut.isPending} onClick={() => saveMut.mutate()} label="Save request" />
           </div>
