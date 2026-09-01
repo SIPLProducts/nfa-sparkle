@@ -134,6 +134,26 @@ function SingleSelect({
   );
 }
 
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
+
+async function resolveSapUser(uid: string): Promise<string> {
+  if (!uid) return "";
+  try {
+    if (sapUserCache[uid] === undefined) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", uid)
+        .maybeSingle();
+      sapUserCache[uid] = (profile?.username ?? "").toUpperCase();
+    }
+    return sapUserCache[uid] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function normaliseRows(value: unknown): SapReportRow[] {
   let v = value;
   if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -210,6 +230,9 @@ function Report() {
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
+      // user_name is the logged-in user's User ID (profiles.username), so the
+      // payload in DevTools → Network is exactly what SAP receives.
+      const sapUser = await resolveSapUser(sessionData.session?.user?.id ?? "");
 
       const res = await fetch("/api/public/enfa-report", {
         method: "POST",
@@ -217,7 +240,7 @@ function Report() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(wrapReportPayload(payload)),
+        body: JSON.stringify(wrapReportPayload(payload, sapUser)),
       });
 
       const text = await res.text();
@@ -239,12 +262,24 @@ function Report() {
 
       const parsedRows = normaliseRows(parsed);
       setRows(parsedRows);
+      // SAP may answer with a plain sentence (e.g. "Data is not availble"),
+      // relayed as { message: "..." } — show SAP's own wording.
+      const sapMessage =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? String((parsed as any).message ?? "").trim()
+          : "";
       if (parseFailed) {
         const msg = "Could not read the SAP response (it was not valid JSON)";
         setError(msg);
         toast.error(msg);
+      } else if (parsedRows.length === 0 && sapMessage) {
+        setError(sapMessage);
+        toast.info(sapMessage);
       } else if (parsedRows.length === 0) {
+        setError(null);
         toast.info("SAP returned no records for these filters");
+      } else {
+        setError(null);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Report failed";
