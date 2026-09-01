@@ -53,7 +53,20 @@ export const Route = createFileRoute("/api/public/enfa-create")({
           ? input.create
           : input ?? {};
         const files = Array.isArray(src.file) ? src.file : Array.isArray(input?.files) ? input.files : [];
-        const payload = wrapCreatePayload(src, files);
+
+        // user_name is the logged-in user's User ID. Prefer what the browser sent
+        // (so Network shows exactly what SAP receives); otherwise resolve it here.
+        let userName = String(src.user_name ?? input?.user_name ?? "").trim().toUpperCase();
+        if (!userName) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", claimsData.claims.sub as string)
+            .maybeSingle();
+          userName = (profile?.username ?? "").toUpperCase();
+        }
+
+        const payload = wrapCreatePayload(src, files, userName);
 
         const result = await callEnfaCreate(payload);
 
