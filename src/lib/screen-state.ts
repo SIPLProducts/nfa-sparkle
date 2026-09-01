@@ -1,69 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Screen-level state that survives route unmounts (navigating away and back)
- * and a browser refresh within the same tab session.
+ * Screen-level state that survives route unmounts (navigating away and back).
  *
- * Backed by a module-level Map for instant restore plus sessionStorage so a
- * reload keeps the screen as the user left it. Only store serialisable UI
- * state here (tabs, filters, search text, selection, cached rows) — never
- * dialog open flags or functions.
+ * Memory-only by design: nothing is written to localStorage or sessionStorage,
+ * so a hard refresh, a new tab, or a fresh login always re-fetches from the
+ * API/SAP instead of restoring stale NFA data.
  */
 const memory = new Map<string, unknown>();
 
 const PREFIX = "screen-state:";
 
-/**
- * Fetched-data keys are memory-only now. Earlier builds persisted them to
- * sessionStorage, so drop any leftovers once at startup.
- */
-const LEGACY_DATA_KEYS = [
-  "report.rows",
-  "report.ran",
-  "dashboard.mine",
-  "dashboard.pending",
-  "dashboard.fetchedAt",
-  "nfa-my.rows",
-  "nfa-my.fetchedAt",
-  "approvals.rows",
-  "approvals.fetchedAt",
-];
-
-if (typeof window !== "undefined") {
+/** Earlier builds mirrored screen state into sessionStorage — remove leftovers. */
+function purgeLegacyStorage() {
+  if (typeof window === "undefined") return;
   try {
-    LEGACY_DATA_KEYS.forEach((k) => window.sessionStorage.removeItem(PREFIX + k));
+    const keys: string[] = [];
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const k = window.sessionStorage.key(i);
+      if (k && k.startsWith(PREFIX)) keys.push(k);
+    }
+    keys.forEach((k) => window.sessionStorage.removeItem(k));
   } catch {
     /* ignore */
   }
 }
 
+purgeLegacyStorage();
 
 function readInitial<T>(key: string, initial: T): T {
-  if (memory.has(key)) return memory.get(key) as T;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = window.sessionStorage.getItem(PREFIX + key);
-      if (raw != null) {
-        const parsed = JSON.parse(raw) as T;
-        memory.set(key, parsed);
-        return parsed;
-      }
-    } catch {
-      /* ignore malformed cache */
-    }
-  }
-  return initial;
+  return memory.has(key) ? (memory.get(key) as T) : initial;
 }
 
 function persist(key: string, value: unknown) {
   memory.set(key, value);
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    /* quota or non-serialisable — memory cache still holds it */
-  }
 }
+
 
 /**
  * Memory-only screen state: survives navigating between screens, but never a
@@ -116,15 +88,6 @@ export function useScreenState<T>(key: string, initial: T) {
 /** Clears every cached screen state (used on sign-out). */
 export function clearScreenState() {
   memory.clear();
-  if (typeof window === "undefined") return;
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < window.sessionStorage.length; i++) {
-      const k = window.sessionStorage.key(i);
-      if (k && k.startsWith(PREFIX)) keys.push(k);
-    }
-    keys.forEach((k) => window.sessionStorage.removeItem(k));
-  } catch {
-    /* ignore */
-  }
+  purgeLegacyStorage();
 }
+

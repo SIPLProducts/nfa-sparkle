@@ -1,28 +1,22 @@
-# Fix Create NFA abort + stop storing NFA data locally
+# Create NFA "Request timed out" — why the screenshot still shows it
 
-## What the log shows (verified)
+## What the screenshot tells us
 
-- The payload SAP received is correct and dynamic: `user_name: "2026"` is genuinely the signed-in user's User ID — the `profiles` row for `sai@gmail.com` has `username = 2026`. So nothing is hardcoded and nothing is wrong with that value.
-- The failure is a timeout, not a payload problem: `SAP REQUEST ERROR: This operation was aborted` comes from the middleware aborting its own upstream call.
-- Root cause: `callEnfaCreate` (`src/lib/sap-report.server.ts`) calls `callSap` without a `timeoutMs`, so `src/lib/sap-call.server.ts` falls back to **20 s** for proxy calls (15 s direct) and sends `timeoutMs: 20000` to the middleware. The SAP create service takes longer than that — especially with attachments — so the middleware aborts mid-flight even though the on-prem `.env` allows 180 s.
+The toast text "Saved locally, but SAP submission failed: Request timed out" is produced by the **old 20-second** timeout path, and the URL is `enfa.siplproducts.com` — the Quality server, which is still running the previously deployed build. The timeout fix made in the last step (Create ENFA now gets 120s, or 180s for large attachment batches, instead of 20s) exists in the code but has not been deployed to that server yet.
 
-## Fix
+Verified server-side budgets that already allow the longer call:
+- nginx (`deploy/nginx/enfa-qa.conf`, `nfa-quality.conf`): `proxy_read_timeout` 180-200s on the app and middleware locations.
+- middleware `.env` (quality example): `TIMEOUT_MS=180000`.
 
-1. `src/lib/sap-report.server.ts` — `callEnfaCreate`
-   - Pass an explicit generous timeout (180 s, matching the middleware/nginx budget) so SAP is given time to finish and the browser gets SAP's real reply instead of an abort.
-   - Scale it with the payload size (bigger attachment batches get the full window) and keep the existing `maxBytes`.
-2. `src/routes/api/public/enfa-create.ts`
-   - When the call fails with an abort/timeout, return a clear message ("SAP did not respond in time — the record was not created in SAP") instead of a bare `SAP request failed`, keeping the existing `x-sap-url` / `x-sap-method` / `x-sap-request` / `x-sap-status` headers so Inspect → Network still shows the exact SAP call.
-3. `src/routes/_authed.nfa.new.tsx`
-   - Surface that message as-is in the toast. No payload changes — the create body stays exactly the SAP shape already sent.
+So no further code change is required for the abort itself — only a redeploy.
 
-## Stop persisting NFA data locally
+## Plan
 
-- `src/lib/screen-state.ts` currently mirrors screen state into `sessionStorage` (`screen-state:*`). Remove the `sessionStorage` read/write entirely and make both `useScreenState` and `useScreenMemory` memory-only, plus a one-time cleanup that deletes any existing `screen-state:*` keys left in a user's browser.
-- Result: no NFA rows, filters, or selections are written to `localStorage`/`sessionStorage`. Navigating screen-to-screen still keeps state in memory (existing behaviour), while a hard refresh, a new tab, or a fresh login always re-fetches from SAP/the API.
-- `src/hooks/use-screen-entry-effect.ts` keeps its single timestamp key (a refresh de-dupe marker, no NFA data) — switching it to a module variable as well so nothing app-related remains in web storage.
-- `InstallPrompt`'s dismiss flag stays (it is not NFA data).
+1. No new code change for the timeout: the Create ENFA call now sends `timeoutMs` 120s (180s when the payload exceeds ~1 MB) to the middleware, and the middleware/nginx budgets already exceed that.
+2. Deploy the current build to the Quality server (`deploy/scripts/deploy-quality.sh`) and restart the app service so the new timeout takes effect.
+3. Re-test Create NFA on `enfa.siplproducts.com`; if SAP still exceeds ~2 minutes, the next step is to raise the middleware `TIMEOUT_MS`/nginx window together rather than shortening it client-side.
+4. Already applied in the same change set and included in the redeploy: no NFA data is written to `localStorage`/`sessionStorage` any more (screen state is memory-only, legacy `screen-state:*` keys are purged), and the timeout now returns the clearer message "SAP did not respond in time — the record was not created in SAP".
 
-## Note
+## Open question folded into the plan
 
-Created NFAs are still written to the Cloud database `nfa` table before the SAP call — that is the app's server-side record, not browser storage. Say the word if you also want that row skipped so SAP is the only store.
+The record is still written to the Cloud database before the SAP call, which is why the toast says "Saved locally". If you want SAP to be the only store (no local record when SAP fails), say so and that becomes a follow-up change.
