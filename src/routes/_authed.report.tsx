@@ -5,7 +5,7 @@ import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { NFA_TYPES, PLANTS, FUNCTIONS } from "@/lib/sap/master";
+import { NFA_TYPES, PLANTS, FUNCTIONS, nfaTypeDisplayLabel } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,12 +113,13 @@ function RangeInput({
 }
 
 function SingleSelect({
-  label, options, value, onChange,
+  label, options, value, onChange, renderLabel,
 }: {
   label: string;
   options: { code: string; name: string }[];
   value: string;
   onChange: (v: string) => void;
+  renderLabel?: (o: { code: string; name: string }) => string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -127,7 +128,11 @@ function SingleSelect({
         <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Any" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="_all">Any</SelectItem>
-          {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
+          {options.map((o) => (
+            <SelectItem key={o.code} value={o.code}>
+              {renderLabel ? renderLabel(o) : `${o.code} – ${o.name}`}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
@@ -348,7 +353,7 @@ function Report() {
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <RangeSelect label="Plant" options={PLANTS} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
-          <SingleSelect label="ENFA Type" options={NFA_TYPES} value={f.funct_from} onChange={setPair("funct_from", "funct_to")} />
+          <SingleSelect label="ENFA Type" options={NFA_TYPES} value={f.funct_from} onChange={setPair("funct_from", "funct_to")} renderLabel={nfaTypeDisplayLabel} />
           <SingleSelect label="Function" options={FUNCTIONS} value={f.extra_from} onChange={setPair("extra_from", "extra_to")} />
           <RangeInput label="Date range" type="date" from={f.dat_from} to={f.dat_to} onFrom={set("dat_from")} onTo={set("dat_to")} />
         </div>
