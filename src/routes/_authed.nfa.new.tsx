@@ -417,8 +417,11 @@ function NewNfaPage() {
           message: "Saved locally, but the attachments are too large to send to SAP in one request. Remove some files and try again.",
         };
       }
+      // user_name is the logged-in user's User ID (profiles.username) — never hardcoded.
+      const sapUser = await resolveMySapUser(user?.id ?? "");
       const payload = {
         create: {
+          user_name: sapUser,
           CC_code: company,
           PSPNR: plant,
           NAME1: plantName,
