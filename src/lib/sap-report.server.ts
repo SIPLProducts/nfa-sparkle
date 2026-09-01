@@ -340,15 +340,19 @@ export async function callSapEnfaTypeF4(): Promise<SapCallResult> {
   });
 }
 
-/** Builds the exact 15-key SAP payload from arbitrary input (dynamic, no hardcoded values). */
-export function buildReportPayload(input: unknown): Record<ReportKey, string> {
+/** Builds the exact SAP payload from arbitrary input (dynamic, no hardcoded values). */
+export function buildReportPayload(input: unknown): Record<string, string> {
   let src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   // Accept both a flat object and SAP's wrapped `{ report: { ... } }` shape.
   if (src["report"] && typeof src["report"] === "object") src = src["report"] as Record<string, unknown>;
   const normalised: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(src)) normalised[k.trim().toLowerCase()] = v;
-  const out = {} as Record<ReportKey, string>;
+  const out = {} as Record<string, string>;
   for (const k of REPORT_KEYS) out[k] = (normalised[k] ?? "").toString().trim();
+  // Preserve a caller-supplied user_name; the SAP call falls back to the
+  // endpoint credential when it is absent.
+  const caller = (normalised["user_name"] ?? "").toString().trim();
+  if (caller) out["user_name"] = caller;
   return out;
 }
 
