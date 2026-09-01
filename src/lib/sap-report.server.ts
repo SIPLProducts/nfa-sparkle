@@ -68,18 +68,25 @@ export async function callEnfaCreate(payload: Record<string, unknown>): Promise<
   };
   const { username, password } = await credentialsFor(ep, sys);
 
+  const body = JSON.stringify(payload);
+  // SAP's create service (especially with base64 attachments) regularly needs
+  // far more than the 20s default; give it the full middleware/nginx budget.
+  const timeoutMs = body.length > 1_000_000 ? 180_000 : 120_000;
+
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
     method: (ep.http_method ?? "POST").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(payload),
+    body,
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
+    timeoutMs,
   });
 }
+
 
 /**
  * Fetches the Company value-help (F4) list from SAP through the registered
