@@ -125,6 +125,16 @@ function MyNfas() {
         toast.error(msg);
         return;
       }
+      // SAP answered with a plain sentence (wrapped as { message }) — surface
+      // SAP's own words with zero rows instead of a generic parse error.
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && typeof (parsed as any).message === "string") {
+        const msg = String((parsed as any).message);
+        setRows([]);
+        setFetchedAt(Date.now());
+        setError(msg);
+        toast.info(msg);
+        return;
+      }
       setRows(normaliseRows(parsed));
       setFetchedAt(Date.now());
     } catch (err) {
