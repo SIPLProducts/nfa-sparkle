@@ -120,13 +120,17 @@ function ApprovalsInbox() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
+      const userId = sessionData.session?.user?.id ?? "";
+      // user_name is the logged-in user's User ID (profiles.username), so the
+      // browser posts exactly the payload SAP receives — visible in Network.
+      const userName = await resolveMySapUser(userId);
       const res = await fetch("/api/public/enfa-approval", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ get_data: "" }),
+        body: JSON.stringify({ get_data: { user_name: userName } }),
       });
       const text = await res.text();
       let parsed: unknown = null;
