@@ -210,6 +210,9 @@ function Report() {
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
+      // user_name is the logged-in user's User ID (profiles.username), so the
+      // payload in DevTools → Network is exactly what SAP receives.
+      const sapUser = await resolveSapUser(sessionData.session?.user?.id ?? "");
 
       const res = await fetch("/api/public/enfa-report", {
         method: "POST",
