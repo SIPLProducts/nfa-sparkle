@@ -83,7 +83,15 @@ export const Route = createFileRoute("/api/public/enfa-report")({
             out = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
           }
         } catch {
-          /* pass SAP's raw body through unchanged */
+          // SAP answered with a plain sentence (e.g. "Data is not availble") —
+          // surface it verbatim as a JSON message so the screen can show it.
+          out = JSON.stringify({ message: out.trim() });
+        }
+        // The inner body may itself be a plain sentence.
+        try {
+          JSON.parse(out);
+        } catch {
+          out = JSON.stringify({ message: out.trim() });
         }
 
         return new Response(out, { status: 200, headers });
