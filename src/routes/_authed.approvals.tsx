@@ -148,6 +148,12 @@ function ApprovalsInbox() {
         setError(String(msg));
         return;
       }
+      // SAP's plain-text "no records" reply arrives wrapped as { message }.
+      if (asObj && typeof asObj["message"] === "string") {
+        setRows([]);
+        setError(String(asObj["message"]));
+        return;
+      }
       setRows(normaliseRows(parsed));
       setFetchedAt(Date.now());
     } catch (err) {
