@@ -113,12 +113,13 @@ function RangeInput({
 }
 
 function SingleSelect({
-  label, options, value, onChange,
+  label, options, value, onChange, renderLabel,
 }: {
   label: string;
   options: { code: string; name: string }[];
   value: string;
   onChange: (v: string) => void;
+  renderLabel?: (o: { code: string; name: string }) => string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -127,7 +128,11 @@ function SingleSelect({
         <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Any" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="_all">Any</SelectItem>
-          {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
+          {options.map((o) => (
+            <SelectItem key={o.code} value={o.code}>
+              {renderLabel ? renderLabel(o) : `${o.code} – ${o.name}`}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
