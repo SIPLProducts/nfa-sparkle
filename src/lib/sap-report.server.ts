@@ -396,7 +396,9 @@ export async function callEnfaReport(payload: Record<string, string>): Promise<S
     method: (ep.http_method ?? "PUT").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(wrapReportPayload(payload, (username || "").toUpperCase())),
+    body: JSON.stringify(
+      wrapReportPayload(payload, (payload["user_name"] || username || "").toUpperCase()),
+    ),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
