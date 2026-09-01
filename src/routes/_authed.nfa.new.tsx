@@ -20,6 +20,26 @@ export const Route = createFileRoute("/_authed/nfa/new")({
 
 interface ApproverDraft { level: number; email: string; designation: string }
 
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
+
+/** Resolves the logged-in user's User ID, uppercased ("" when unavailable). */
+async function resolveMySapUser(userId: string): Promise<string> {
+  if (!userId) return "";
+  if (sapUserCache[userId] !== undefined) return sapUserCache[userId] ?? "";
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    sapUserCache[userId] = (profile?.username ?? "").toUpperCase();
+  } catch {
+    sapUserCache[userId] = "";
+  }
+  return sapUserCache[userId] ?? "";
+}
+
 function NewNfaPage() {
   const { user } = useAuth();
   const nav = useNavigate();
