@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4 } from "@/lib/sap/master";
+import { parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4, nfaTypeDisplayLabel } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -515,7 +515,7 @@ function NewNfaPage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}
+                    {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{nfaTypeDisplayLabel(t)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 {nfaTypesError ? (

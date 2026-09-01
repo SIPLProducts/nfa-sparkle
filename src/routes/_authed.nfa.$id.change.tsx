@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { STATUS_LABEL, type NfaRow } from "@/lib/nfa-types";
-import { NFA_TYPES, FUNCTIONS, nfaTypeName } from "@/lib/sap/master";
+import { NFA_TYPES, FUNCTIONS, nfaTypeName, nfaTypeDisplayLabel } from "@/lib/sap/master";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +228,7 @@ function ChangeRequestPage() {
             <Field label="NFA Type">
               <Select value={nfaType} onValueChange={setNfaType} disabled={!canEdit}>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{NFA_TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{nfaTypeDisplayLabel(t)}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Function">
