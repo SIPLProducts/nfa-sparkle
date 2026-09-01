@@ -82,13 +82,17 @@ export const Route = createFileRoute("/api/public/enfa-create")({
 
         if (!result.ok) {
           console.error("[enfa-create] SAP call failed:", result.status, result.error);
+          const timedOut =
+            result.status === null && /abort|timed? ?out|did not respond/i.test(result.error ?? "");
+          const message = timedOut
+            ? "SAP did not respond in time — the record was not created in SAP. Please try again, or remove large attachments."
+            : (result.error ?? "SAP request failed");
           return new Response(
-            result.body && result.body.trim()
-              ? result.body
-              : JSON.stringify({ error: result.error ?? "SAP request failed" }),
+            result.body && result.body.trim() ? result.body : JSON.stringify({ error: message }),
             { status: result.status && result.status >= 400 ? result.status : 502, headers },
           );
         }
+
 
         let out = result.body || "{}";
         try {
