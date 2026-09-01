@@ -1116,7 +1116,9 @@ export async function callSapFunctionF4(nfaType: string): Promise<SapCallResult>
  * "Approval Get Data" endpoint. Host, path, method, headers, query and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaApproval(): Promise<SapCallResult> {
+export async function callEnfaApproval(
+  overrides?: { user_name?: string },
+): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")
