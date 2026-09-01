@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SAP_API_TYPES, SAP_AUTH_TYPES, SAP_METHODS, SAP_MODULES } from "@/lib/sap-api-constants";
+import { SAP_API_TYPES, SAP_AUTH_TYPES, SAP_METHODS, SAP_MODULES, CREATE_BODY_SAMPLE } from "@/lib/sap-api-constants";
 import {
   getSapEndpoint,
   listSapTestLog,
