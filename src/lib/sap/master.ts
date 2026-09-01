@@ -175,6 +175,11 @@ export function parseEnfaTypeF4(raw: unknown): Option[] {
 export function nfaTypeName(code: string) {
   return NFA_TYPES.find((t) => t.code === code)?.name ?? code;
 }
+
+/** Formats an eNFA Type option for dropdown display (removes underscores, keeps the raw code as the value). */
+export function nfaTypeDisplayLabel(option: Option): string {
+  return option.name.replace(/_/g, " ");
+}
 /** Parses SAP's Function F4 response into `{ code, name }` options (code = SAP EXTR_TXT value). */
 export function parseFunctionF4(raw: unknown): Option[] {
   let src: unknown = raw;
