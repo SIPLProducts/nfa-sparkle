@@ -60,6 +60,7 @@ export function wrapReportPayload(flat: Record<string, string>, userName?: strin
 
 /** Exact SAP keys for the Create ENFA service, in payload order. */
 export const CREATE_WIRE_KEYS = [
+  "user_name",
   "CC_code",
   "PSPNR",
   "NAME1",
