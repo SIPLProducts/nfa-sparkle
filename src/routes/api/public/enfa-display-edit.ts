@@ -90,6 +90,16 @@ export const Route = createFileRoute("/api/public/enfa-display-edit")({
           /* pass SAP's raw body through unchanged */
         }
 
+        // SAP sometimes answers with a plain sentence (e.g. "Data is not
+        // availble"). Wrap it so the screen can surface SAP's own message
+        // instead of failing on JSON.parse.
+        let isJson = false;
+        try { JSON.parse(out); isJson = true; } catch { isJson = false; }
+        if (!isJson) {
+          const msg = out.trim();
+          out = JSON.stringify(msg ? { message: msg } : []);
+        }
+
         return new Response(out, { status: 200, headers });
       },
     },
