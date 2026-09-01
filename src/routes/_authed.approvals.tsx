@@ -19,6 +19,26 @@ export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
 });
 
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
+
+/** Resolves the logged-in user's User ID, uppercased ("" when unavailable). */
+async function resolveMySapUser(userId: string): Promise<string> {
+  if (!userId) return "";
+  if (sapUserCache[userId] !== undefined) return sapUserCache[userId] ?? "";
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    sapUserCache[userId] = (profile?.username ?? "").toUpperCase();
+  } catch {
+    sapUserCache[userId] = "";
+  }
+  return sapUserCache[userId] ?? "";
+}
+
 /** Normalises SAP's response into upper-cased string rows. */
 function normaliseRows(value: unknown): SapReportRow[] {
   let v = value;
@@ -100,13 +120,17 @@ function ApprovalsInbox() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
+      const userId = sessionData.session?.user?.id ?? "";
+      // user_name is the logged-in user's User ID (profiles.username), so the
+      // browser posts exactly the payload SAP receives — visible in Network.
+      const userName = await resolveMySapUser(userId);
       const res = await fetch("/api/public/enfa-approval", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ get_data: "" }),
+        body: JSON.stringify({ get_data: { user_name: userName } }),
       });
       const text = await res.text();
       let parsed: unknown = null;
@@ -122,6 +146,12 @@ function ApprovalsInbox() {
           `SAP responded with status ${res.headers.get("x-sap-status") || res.status}`;
         setRows([]);
         setError(String(msg));
+        return;
+      }
+      // SAP's plain-text "no records" reply arrives wrapped as { message }.
+      if (asObj && typeof asObj["message"] === "string") {
+        setRows([]);
+        setError(String(asObj["message"]));
         return;
       }
       setRows(normaliseRows(parsed));

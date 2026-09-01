@@ -40,7 +40,15 @@ export const Route = createFileRoute("/api/public/enfa-approval")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        const result = await callEnfaApproval();
+        let input: { get_data?: { user_name?: string } } = {};
+        try {
+          input = (await request.json()) as typeof input;
+        } catch {
+          /* empty body */
+        }
+        const userName = String(input.get_data?.user_name ?? "").trim();
+
+        const result = await callEnfaApproval(userName ? { user_name: userName } : undefined);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
@@ -76,7 +84,16 @@ export const Route = createFileRoute("/api/public/enfa-approval")({
             out = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
           }
         } catch {
-          /* pass SAP's raw body through unchanged */
+          /* handled below */
+        }
+
+        // SAP replies with plain text (e.g. "No data is available for the
+        // current user") when there are no records — wrap it so the screen
+        // can show the message inline instead of hitting a JSON parse error.
+        try {
+          JSON.parse(out);
+        } catch {
+          out = JSON.stringify({ message: out.trim() });
         }
 
         return new Response(out, { status: 200, headers });
