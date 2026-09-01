@@ -75,12 +75,32 @@ export const CREATE_WIRE_KEYS = [
 
 export interface CreateFile { file_name: string; file: string }
 
-/** Wraps a flat field map + attachments into SAP's `{ create: { ... } }` payload. */
-export function wrapCreatePayload(flat: Record<string, unknown>, files: CreateFile[] = []) {
+/**
+ * Wraps a flat field map + attachments into SAP's `{ create: { ... } }` payload.
+ * `userName` (the logged-in User ID) overrides any `user_name` in `flat`.
+ */
+export function wrapCreatePayload(
+  flat: Record<string, unknown>,
+  files: CreateFile[] = [],
+  userName?: string,
+) {
   const lower: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(flat ?? {})) lower[k.trim().toLowerCase()] = v;
+  if (userName) lower["user_name"] = userName;
   const create: Record<string, unknown> = {};
   for (const key of CREATE_WIRE_KEYS) create[key] = (lower[key.toLowerCase()] ?? "").toString().trim();
   create["file"] = files.map((f) => ({ file_name: String(f.file_name ?? ""), file: String(f.file ?? "") }));
   return { create };
 }
+
+/** Exact Create ENFA body shape, shown as the template placeholder in API Settings. */
+export const CREATE_BODY_SAMPLE = JSON.stringify(
+  {
+    create: {
+      ...Object.fromEntries(CREATE_WIRE_KEYS.map((k) => [k, ""])),
+      file: [{ file_name: "", file: "" }],
+    },
+  },
+  null,
+  2,
+);
