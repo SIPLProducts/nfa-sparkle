@@ -262,12 +262,24 @@ function Report() {
 
       const parsedRows = normaliseRows(parsed);
       setRows(parsedRows);
+      // SAP may answer with a plain sentence (e.g. "Data is not availble"),
+      // relayed as { message: "..." } — show SAP's own wording.
+      const sapMessage =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? String((parsed as any).message ?? "").trim()
+          : "";
       if (parseFailed) {
         const msg = "Could not read the SAP response (it was not valid JSON)";
         setError(msg);
         toast.error(msg);
+      } else if (parsedRows.length === 0 && sapMessage) {
+        setError(sapMessage);
+        toast.info(sapMessage);
       } else if (parsedRows.length === 0) {
+        setError(null);
         toast.info("SAP returned no records for these filters");
+      } else {
+        setError(null);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Report failed";
