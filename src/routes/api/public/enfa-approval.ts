@@ -40,7 +40,15 @@ export const Route = createFileRoute("/api/public/enfa-approval")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        const result = await callEnfaApproval();
+        let input: { get_data?: { user_name?: string } } = {};
+        try {
+          input = (await request.json()) as typeof input;
+        } catch {
+          /* empty body */
+        }
+        const userName = String(input.get_data?.user_name ?? "").trim();
+
+        const result = await callEnfaApproval(userName ? { user_name: userName } : undefined);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
