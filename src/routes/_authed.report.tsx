@@ -134,6 +134,26 @@ function SingleSelect({
   );
 }
 
+/** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
+const sapUserCache: Record<string, string> = {};
+
+async function resolveSapUser(uid: string): Promise<string> {
+  if (!uid) return "";
+  try {
+    if (sapUserCache[uid] === undefined) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", uid)
+        .maybeSingle();
+      sapUserCache[uid] = (profile?.username ?? "").toUpperCase();
+    }
+    return sapUserCache[uid] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function normaliseRows(value: unknown): SapReportRow[] {
   let v = value;
   if (v && typeof v === "object" && !Array.isArray(v)) {
