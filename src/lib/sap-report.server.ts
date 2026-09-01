@@ -1168,9 +1168,35 @@ export async function callEnfaApproval(
   };
   const { username, password } = await credentialsFor(ep, sys);
 
-  // The request body comes from the endpoint's saved template when present.
-  let body = (ep.request_body ?? "").trim();
-  if (!body) body = JSON.stringify({ get_data: "" });
+  // Build SAP's `{ "get_data": { "user_name": "..." } }` payload. A
+  // caller-supplied user_name (the logged-in user's User ID) is sent
+  // unchanged; otherwise the endpoint/system credential is used. The saved
+  // body template's wrapper key and any extra keys are respected.
+  const callerUser = (overrides?.user_name ?? "").trim();
+  const effectiveUser = (callerUser || username || "").toUpperCase();
+
+  let template: Record<string, unknown> = {};
+  const raw = (ep.request_body ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        template = parsed as Record<string, unknown>;
+      }
+    } catch {
+      template = {};
+    }
+  }
+  const wrapKey = Object.keys(template).find((k) => k.toLowerCase() === "get_data") ?? "get_data";
+  const inner = template[wrapKey];
+  const getData: Record<string, string> = { user_name: effectiveUser };
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    for (const [k, v] of Object.entries(inner as Record<string, unknown>)) {
+      if (k.toLowerCase() === "user_name") continue;
+      getData[k] = v == null ? "" : String(v);
+    }
+  }
+  const body = JSON.stringify({ [wrapKey]: getData });
 
   return callSap({
     system: sys,
