@@ -623,7 +623,7 @@ function EditUserDialog({
   const [department, setDepartment] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [role, setRole] = useState<Role | "">("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -635,7 +635,7 @@ function EditUserDialog({
       setDepartment(user.department ?? "");
       setContact(user.contact ?? "");
       setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
-      setRoles(user.roles);
+      setRole(user.roles[0] ?? "");
     }
   }, [user]);
 
