@@ -591,6 +591,7 @@ function CreateUserDialog({
           <div className="space-y-1.5">
             <Label>Role *</Label>
             <RolePicker value={role} onChange={setRole} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={closeDialog}>
