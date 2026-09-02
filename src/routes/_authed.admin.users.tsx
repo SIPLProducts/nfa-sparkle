@@ -87,7 +87,7 @@ function errMsg(e: unknown) {
 
 function useRoleDefs() {
   const fetchRoles = useServerFn(listRoleDefs);
-  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000, refetchOnMount: false });
+  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000, refetchOnMount: "always" });
 }
 
 function UserManagement() {
