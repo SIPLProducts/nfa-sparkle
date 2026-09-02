@@ -641,6 +641,10 @@ function EditUserDialog({
 
   const submit = async () => {
     if (!user) return;
+    if (!role) {
+      toast.error("Select a role");
+      return;
+    }
     setBusy(true);
     try {
       await onSubmit({
@@ -651,7 +655,7 @@ function EditUserDialog({
         EMAIL: user.email,
         STATUS: status,
         CONTACT: contact,
-        ROLE: roles.join(","),
+        ROLE: role,
         EMP_ID: employeeId,
         DEPT: department,
       });
@@ -718,8 +722,8 @@ function EditUserDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Roles *</Label>
-            <RolePicker value={roles} onChange={setRoles} />
+            <Label>Role *</Label>
+            <RolePicker value={role} onChange={setRole} />
           </div>
         </div>
         <DialogFooter>
