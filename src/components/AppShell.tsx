@@ -9,7 +9,6 @@ import {
   PlusCircle,
   LogOut,
   LayoutDashboard,
-  Search,
   Menu,
   Plug,
   PanelLeft,
@@ -241,14 +240,6 @@ export function AppShell({
               <div className="md:hidden font-display text-lg font-bold">NFA Portal</div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative hidden lg:block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Search NFA #, subject…"
-                  className="h-9 w-72 rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none ring-ring/20 transition focus:ring-2"
-                />
-              </div>
               <div className="hidden items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 sm:flex">
                 <div className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                   {(user?.email ?? "U").slice(0, 1).toUpperCase()}
