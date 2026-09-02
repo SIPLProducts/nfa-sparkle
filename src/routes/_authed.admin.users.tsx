@@ -392,7 +392,7 @@ function CreateUserDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState<Role | "">("initiator");
+  const [role, setRole] = useState<Role | "">("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -409,7 +409,7 @@ function CreateUserDialog({
       setConfirmPassword("");
       setShowPassword(false);
       setShowConfirmPassword(false);
-      setRole("initiator");
+      setRole("");
     }
   }, [open]);
 
