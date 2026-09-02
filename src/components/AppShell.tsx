@@ -249,11 +249,6 @@ export function AppShell({
                   className="h-9 w-72 rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none ring-ring/20 transition focus:ring-2"
                 />
               </div>
-              <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
-                <Bell className="h-4 w-4" />
-              </Button>
-              <AuditHistoryDrawer />
-              <StatusLegend compact />
               <div className="hidden items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 sm:flex">
                 <div className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                   {(user?.email ?? "U").slice(0, 1).toUpperCase()}
