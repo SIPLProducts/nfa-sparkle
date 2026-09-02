@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -72,12 +71,12 @@ function val(row: SapReportRow, key: string): string {
 }
 
 function MyNfas() {
-  const [rows, setRows] = useScreenMemory<SapReportRow[]>("nfa-my.rows", []);
-  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("nfa-my.fetchedAt", 0);
-  const [loading, setLoading] = useState(rows.length === 0);
+  const [rows, setRows] = useState<SapReportRow[]>([]);
+  const [, setFetchedAt] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useScreenState<string>("nfa-my.q", "");
-  const [selected, setSelected] = useScreenState<number | null>("nfa-my.selected", null);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -149,11 +148,18 @@ function MyNfas() {
     }
   }, []);
 
-  // Navigating into this screen refreshes from SAP. Cached rows and the
-  // current selection stay visible while the background refresh runs.
   useScreenEntryEffect("/nfa/my", () => {
+    setQ("");
+    setSelected(null);
+    setRows([]);
+    setFetchedAt(0);
+    setError(null);
+    setDocsOpen(false);
+    setEditOpen(false);
+    setPreviewOpen(false);
+    setUploading(false);
     const controller = new AbortController();
-    void load({ background: fetchedAt > 0, signal: controller.signal });
+    void load({ signal: controller.signal });
     return () => controller.abort();
   });
 

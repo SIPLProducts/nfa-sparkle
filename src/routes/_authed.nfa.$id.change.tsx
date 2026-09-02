@@ -54,6 +54,18 @@ function ChangeRequestPage() {
 
   useEffect(() => {
     const loadId = ++loadIdRef.current;
+    setNfa(null);
+    setLoading(true);
+    setSubject("");
+    setScope("");
+    setBudget("");
+    setTimeline("");
+    setNfaType("");
+    setFunc("");
+    setDesc("");
+    setReason("");
+    setPending([]);
+    setAttachmentsKey(0);
     void (async () => {
       const { data } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
       if (loadId !== loadIdRef.current) return;

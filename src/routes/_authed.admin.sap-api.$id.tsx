@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Activity, Loader2, Save, Plus, X, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +99,18 @@ function EndpointDetail() {
   const [testing, setTesting] = useState(false);
   const [lastResult, setLastResult] = useState<TestResult | null>(null);
 
+  useScreenEntryEffect(`/admin/sap-api/${id}`, () => {
+    setEp(null);
+    setPassword("");
+    setHeaders([]);
+    setQuery([]);
+    setTesting(false);
+    setLastResult(null);
+    void qc.resetQueries({ queryKey: ["sap-endpoint", id], exact: true });
+    void qc.resetQueries({ queryKey: ["sap-endpoint-log", id], exact: true });
+    void qc.resetQueries({ queryKey: ["sap-systems"], exact: true });
+  }, isAdmin);
+
   useEffect(() => {
     if (!loading && !isAdmin) {
       toast.error("Admins only");
@@ -124,6 +137,15 @@ function EndpointDetail() {
     enabled: isAdmin,
     refetchOnMount: "always",
   });
+
+  useEffect(() => {
+    setEp(null);
+    setPassword("");
+    setHeaders([]);
+    setQuery([]);
+    setTesting(false);
+    setLastResult(null);
+  }, [id]);
 
   useEffect(() => {
     if (data) {
