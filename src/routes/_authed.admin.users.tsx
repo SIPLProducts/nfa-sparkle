@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
-import { useScreenState } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,7 +94,7 @@ function UserManagement() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const isAdmin = hasRole("admin");
-  const [tab, setTab] = useScreenState<string>("admin-users.tab", "users");
+  const [tab, setTab] = useState("users");
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -107,9 +106,10 @@ function UserManagement() {
   // Navigating into this screen refreshes its data once; switching the tabs
   // inside the screen reuses the cache and never refetches.
   useScreenEntryEffect("/admin/users", () => {
-    ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
-      qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
-    );
+    setTab("users");
+    const keys = ["managed-users", "role-defs", "role-permissions", "approval-chains"];
+    keys.forEach((k) => qc.resetQueries({ queryKey: [k], exact: false }));
+    return () => keys.forEach((k) => qc.removeQueries({ queryKey: [k], exact: false }));
   }, isAdmin);
 
   if (!isAdmin) return null;
@@ -184,7 +184,7 @@ function UsersTab() {
   const activeFn = useServerFn(setManagedUserActive);
 
   const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: "always" });
-  const [q, setQ] = useScreenState<string>("admin-users.search", "");
+  const [q, setQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [pwUser, setPwUser] = useState<ManagedUser | null>(null);

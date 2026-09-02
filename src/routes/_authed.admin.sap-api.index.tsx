@@ -52,7 +52,6 @@ import {
   CONNECTION_MODES,
   DEPLOYMENT_MODES,
 } from "@/lib/sap-api-constants";
-import { useScreenState } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import {
   createSapEndpoint,
@@ -95,7 +94,7 @@ function SapApiSettings() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const isAdmin = hasRole("admin");
-  const [tab, setTab] = useScreenState<string>("sap-api.tab", "apis");
+  const [tab, setTab] = useState("apis");
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -106,9 +105,10 @@ function SapApiSettings() {
 
   // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
   useScreenEntryEffect("/admin/sap-api", () => {
-    ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
-      qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
-    );
+    setTab("apis");
+    const keys = ["sap-endpoints", "sap-systems", "sap-settings"];
+    keys.forEach((k) => qc.resetQueries({ queryKey: [k], exact: false }));
+    return () => keys.forEach((k) => qc.removeQueries({ queryKey: [k], exact: false }));
   }, isAdmin);
 
   if (!isAdmin) return null;
@@ -522,7 +522,7 @@ function SystemsTab() {
   const systems = data ?? [];
 
   const [form, setForm] = useState(BLANK_SYSTEM);
-  const [selectedId, setSelectedId] = useScreenState<string | null>("sap-api.system.selected", null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [loaded, setLoaded] = useState(false);

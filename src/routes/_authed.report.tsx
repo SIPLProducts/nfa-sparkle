@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { useMemo, useRef, useState } from "react";
-import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -176,12 +175,12 @@ function normaliseRows(value: unknown): SapReportRow[] {
 }
 
 function Report() {
-  const [f, setF] = useScreenState<SapReportFilters>("report.filters", EMPTY);
-  const [rows, setRows] = useScreenMemory<SapReportRow[]>("report.rows", []);
+  const [f, setF] = useState<SapReportFilters>(EMPTY);
+  const [rows, setRows] = useState<SapReportRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [ran, setRan] = useScreenMemory<boolean>("report.ran", false);
-  const [selected, setSelected] = useScreenState<number | null>("report.selected", null);
+  const [ran, setRan] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -222,7 +221,7 @@ function Report() {
     setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje" | "r_init" | "r_clar") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
 
-  async function run(background = false, signal?: AbortSignal) {
+  async function run(background = false, signal?: AbortSignal, filters: SapReportFilters = f) {
     setBusy(true);
     setError(null);
     if (!background) setSelected(null);
@@ -230,7 +229,7 @@ function Report() {
       // Payload sent to SAP, exactly as SAP expects it (visible in DevTools → Network).
       const payload: Record<string, string> = {};
       for (const k of Object.keys(EMPTY) as (keyof SapReportFilters)[]) {
-        payload[k] = (f[k] ?? "").toString().trim();
+        payload[k] = (filters[k] ?? "").toString().trim();
       }
 
       const { data: sessionData } = await supabase.auth.getSession();
@@ -297,12 +296,18 @@ function Report() {
     }
   }
 
-  // Navigating back into this screen refreshes the last-run report in the
-  // background: current rows and selection stay visible until fresh data lands.
   useScreenEntryEffect("/report", () => {
-    if (!ran) return;
+    setF(EMPTY);
+    setRows([]);
+    setSelected(null);
+    setRan(false);
+    setError(null);
+    setDocsOpen(false);
+    setEditOpen(false);
+    setPreviewOpen(false);
+    setUploading(false);
     const controller = new AbortController();
-    void run(true, controller.signal);
+    void run(false, controller.signal, EMPTY);
     return () => controller.abort();
   });
 

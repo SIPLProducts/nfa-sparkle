@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
@@ -42,17 +41,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
-  const [mine, setMine] = useScreenMemory<NfaRow[]>("dashboard.mine", []);
-  const [pending, setPending] = useScreenMemory<{ nfa: NfaRow; ap: ApproverRow }[]>("dashboard.pending", []);
-  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("dashboard.fetchedAt", 0);
-  const [tab, setTab] = useScreenState<"ongoing" | "completed">("dashboard.tab", "ongoing");
-  const [search, setSearch] = useScreenState<string>("dashboard.search", "");
-  const [deptFilter, setDeptFilter] = useScreenState<string>("dashboard.dept", "all");
-  const [statusFilter, setStatusFilter] = useScreenState<string>("dashboard.status", "all");
-  const [dateFrom, setDateFrom] = useScreenState<string>("dashboard.dateFrom", "");
-  const [dateTo, setDateTo] = useScreenState<string>("dashboard.dateTo", "");
-  const [filtersOpen, setFiltersOpen] = useScreenState<boolean>("dashboard.filtersOpen", false);
-  const [dataLoading, setDataLoading] = useState(mine.length === 0);
+  const [mine, setMine] = useState<NfaRow[]>([]);
+  const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
+  const [, setFetchedAt] = useState(0);
+  const [tab, setTab] = useState<"ongoing" | "completed">("ongoing");
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const refreshIdRef = useRef(0);
 
   useEffect(() => {
@@ -61,11 +60,19 @@ function Index() {
 
   useScreenEntryEffect("/", () => {
     if (!user) return;
-    // Navigating into this screen refreshes data. Cached rows stay on screen
-    // while the refresh runs, so there is no loading flash.
+    setTab("ongoing");
+    setSearch("");
+    setDeptFilter("all");
+    setStatusFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setFiltersOpen(false);
+    setMine([]);
+    setPending([]);
+    setFetchedAt(0);
+    setDataLoading(true);
     void (async () => {
       const refreshId = ++refreshIdRef.current;
-      setDataLoading(mine.length === 0);
       const { data: mineRows } = await supabase
         .from("nfa")
         .select("*")

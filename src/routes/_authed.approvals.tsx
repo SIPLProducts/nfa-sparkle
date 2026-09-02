@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
-import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -96,12 +95,12 @@ function currentLevel(row: SapReportRow): number {
 
 function ApprovalsInbox() {
   
-  const [rows, setRows] = useScreenMemory<SapReportRow[]>("approvals.rows", []);
-  const [fetchedAt, setFetchedAt] = useScreenMemory<number>("approvals.fetchedAt", 0);
-  const [loading, setLoading] = useState(rows.length === 0 && fetchedAt === 0);
+  const [rows, setRows] = useState<SapReportRow[]>([]);
+  const [, setFetchedAt] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useScreenState<string>("approvals.q", "");
-  const [selected, setSelected] = useScreenState<number | null>("approvals.selected", null);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
@@ -167,11 +166,17 @@ function ApprovalsInbox() {
     }
   }, []);
 
-  // Refresh on every navigation into this screen; cached rows and the current
-  // selection remain visible while the background refresh runs.
   useScreenEntryEffect("/approvals", () => {
+    setQ("");
+    setSelected(null);
+    setRows([]);
+    setFetchedAt(0);
+    setError(null);
+    setDocsOpen(false);
+    setPreviewOpen(false);
+    setCommentAction(null);
     const controller = new AbortController();
-    void load({ background: fetchedAt > 0, signal: controller.signal });
+    void load({ signal: controller.signal });
     return () => controller.abort();
   });
 

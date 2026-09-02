@@ -103,6 +103,26 @@ function NfaDetail() {
   }, [id]);
 
   useEffect(() => {
+    setNfa(null);
+    setApprovers([]);
+    setAudit([]);
+    setAuditLoading(true);
+    setViews([]);
+    setAttachmentNames({});
+    setProfiles({});
+    setComment("");
+    setTlFilter("all");
+    setTlSearch("");
+    setFAction("all");
+    setFType("all");
+    setFApprover("");
+    setFLevel("all");
+    setFFrom("");
+    setFTo("");
+    setSortKey("at");
+    setSortDir("desc");
+    setPageSize(10);
+    setPage(1);
     void load();
     return () => {
       loadIdRef.current += 1;

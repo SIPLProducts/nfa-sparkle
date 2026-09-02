@@ -126,6 +126,15 @@ function EndpointDetail() {
   });
 
   useEffect(() => {
+    setEp(null);
+    setPassword("");
+    setHeaders([]);
+    setQuery([]);
+    setTesting(false);
+    setLastResult(null);
+  }, [id]);
+
+  useEffect(() => {
     if (data) {
       setEp(data);
       setHeaders(toKV(data.request_headers));
