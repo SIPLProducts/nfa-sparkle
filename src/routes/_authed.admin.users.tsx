@@ -530,11 +530,11 @@ function CreateUserDialog({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Employee ID</Label>
+              <Label>Company Name</Label>
               <Input
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="EMP-1024"
+                placeholder="Company name"
                 autoComplete="off"
               />
             </div>
