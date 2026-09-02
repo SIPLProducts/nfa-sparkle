@@ -155,29 +155,22 @@ function UserManagement() {
 
 /* --------------------------------- users -------------------------------- */
 
-function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) => void }) {
+function RolePicker({ value, onChange }: { value: Role | ""; onChange: (r: Role) => void }) {
   const { data: roleDefs, isLoading } = useRoleDefs();
-  if (isLoading) return <Skeleton className="h-20 w-full" />;
+  if (isLoading) return <Skeleton className="h-10 w-full" />;
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {(roleDefs ?? []).map((r) => {
-        const checked = value.includes(r.key);
-        return (
-          <label
-            key={r.key}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"
-          >
-            <Checkbox
-              checked={checked}
-              onCheckedChange={(c) =>
-                onChange(c ? [...value, r.key] : value.filter((v) => v !== r.key))
-              }
-            />
+    <Select value={value || undefined} onValueChange={(v) => onChange(v as Role)}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select a role" />
+      </SelectTrigger>
+      <SelectContent>
+        {(roleDefs ?? []).map((r) => (
+          <SelectItem key={r.key} value={r.key}>
             {r.name}
-          </label>
-        );
-      })}
-    </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -399,7 +392,7 @@ function CreateUserDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [roles, setRoles] = useState<Role[]>(["initiator"]);
+  const [role, setRole] = useState<Role | "">("initiator");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -416,7 +409,7 @@ function CreateUserDialog({
       setConfirmPassword("");
       setShowPassword(false);
       setShowConfirmPassword(false);
-      setRoles(["initiator"]);
+      setRole("initiator");
     }
   }, [open]);
 
@@ -425,6 +418,10 @@ function CreateUserDialog({
   const submit = async () => {
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+    if (!role) {
+      toast.error("Select a role");
       return;
     }
     setBusy(true);
@@ -438,7 +435,7 @@ function CreateUserDialog({
         CONTACT: contact,
         PASSWORD: password,
         CONFPWRD: confirmPassword,
-        ROLE: roles.join(","),
+        ROLE: role,
         EMP_ID: employeeId,
         DEPT: department,
       });
@@ -592,8 +589,8 @@ function CreateUserDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Roles *</Label>
-            <RolePicker value={roles} onChange={setRoles} />
+            <Label>Role *</Label>
+            <RolePicker value={role} onChange={setRole} />
           </div>
         </div>
         <DialogFooter>
@@ -626,7 +623,7 @@ function EditUserDialog({
   const [department, setDepartment] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [role, setRole] = useState<Role | "">("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -638,12 +635,16 @@ function EditUserDialog({
       setDepartment(user.department ?? "");
       setContact(user.contact ?? "");
       setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
-      setRoles(user.roles);
+      setRole(user.roles[0] ?? "");
     }
   }, [user]);
 
   const submit = async () => {
     if (!user) return;
+    if (!role) {
+      toast.error("Select a role");
+      return;
+    }
     setBusy(true);
     try {
       await onSubmit({
@@ -654,7 +655,7 @@ function EditUserDialog({
         EMAIL: user.email,
         STATUS: status,
         CONTACT: contact,
-        ROLE: roles.join(","),
+        ROLE: role,
         EMP_ID: employeeId,
         DEPT: department,
       });
@@ -721,8 +722,8 @@ function EditUserDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Roles *</Label>
-            <RolePicker value={roles} onChange={setRoles} />
+            <Label>Role *</Label>
+            <RolePicker value={role} onChange={setRole} />
           </div>
         </div>
         <DialogFooter>
