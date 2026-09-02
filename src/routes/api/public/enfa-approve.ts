@@ -40,6 +40,20 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
+        // Resolve the logged-in user's User ID (profiles.username) so the SAP
+        // payload carries it dynamically — never hardcoded.
+        let userName = "";
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", claimsData.claims.sub)
+            .maybeSingle();
+          userName = String((profile as { username?: string } | null)?.username ?? "").trim();
+        } catch {
+          /* fall through with empty user_name */
+        }
+
         let input: { reffld?: string; comment?: string; action?: string } = {};
         try {
           input = (await request.json()) as typeof input;
