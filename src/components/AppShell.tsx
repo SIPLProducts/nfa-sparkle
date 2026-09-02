@@ -1,19 +1,15 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { StatusLegend } from "@/components/StatusLegend";
-import { AuditHistoryDrawer } from "@/components/AuditHistoryDrawer";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import {
   FileText,
   Inbox,
   BarChart3,
-  History,
   PlusCircle,
   LogOut,
   LayoutDashboard,
   Search,
-  Bell,
   Menu,
   Plug,
   PanelLeft,
