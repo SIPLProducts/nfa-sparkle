@@ -12,18 +12,12 @@ export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback
   const onEnterRef = useRef(onEnter);
   onEnterRef.current = onEnter;
   const isActive = enabled && pathname === screenPath;
-  const wasActiveRef = useRef(false);
 
   useEffect(() => {
-    if (!isActive) {
-      // Left the screen (or never on it) — next activation counts as an entry.
-      wasActiveRef.current = false;
-      return;
-    }
-    // Already active: a re-render, not a new entry. (Also guards the
-    // StrictMode double-effect, since refs persist across it.)
-    if (wasActiveRef.current) return;
-    wasActiveRef.current = true;
+    if (!isActive) return;
+    // React Strict Mode replays effects in development. Running the callback
+    // again after its cleanup is required: the first request is aborted by
+    // that cleanup, and the replay becomes the single live request.
     return onEnterRef.current();
   }, [isActive, screenPath]);
 }
