@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { STATUS_LABEL, STATUS_TONE, type ApproverRow, type NfaRow } from "@/lib/nfa-types";
@@ -71,18 +71,25 @@ function NfaDetail() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
+  const loadIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const loadId = ++loadIdRef.current;
     const { data: n } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
+    if (loadId !== loadIdRef.current) return;
     setNfa((n as NfaRow) ?? null);
     const { data: a } = await supabase.from("nfa_approver").select("*").eq("nfa_id", id).order("level");
+    if (loadId !== loadIdRef.current) return;
     setApprovers((a as ApproverRow[]) ?? []);
     const { data: au } = await supabase.from("nfa_audit").select("*").eq("nfa_id", id).order("at", { ascending: false });
+    if (loadId !== loadIdRef.current) return;
     setAudit((au as AuditRow[]) ?? []);
     setAuditLoading(false);
     const { data: vw } = await supabase.from("nfa_attachment_view").select("*").eq("nfa_id", id).order("viewed_at", { ascending: false });
+    if (loadId !== loadIdRef.current) return;
     setViews((vw as ViewRow[]) ?? []);
     const { data: atts } = await supabase.from("nfa_attachment").select("id,filename").eq("nfa_id", id);
+    if (loadId !== loadIdRef.current) return;
     setAttachmentNames(Object.fromEntries(((atts ?? []) as { id: string; filename: string }[]).map((x) => [x.id, x.filename])));
     const ids = [
       n?.initiator_id,
@@ -90,10 +97,17 @@ function NfaDetail() {
       ...((au ?? []).map((r) => r.actor_id)),
       ...((vw ?? []).map((r) => r.viewer_id)),
     ].filter((x): x is string => Boolean(x));
-    setProfiles(await fetchProfilesMap(ids));
+    const profileMap = await fetchProfilesMap(ids);
+    if (loadId !== loadIdRef.current) return;
+    setProfiles(profileMap);
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => {
+      loadIdRef.current += 1;
+    };
+  }, [load]);
 
   // Classify each audit row into a broad event type for the Type filter.
   // Approver actions populate action_kind; other events are derived from action text.

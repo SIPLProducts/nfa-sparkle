@@ -63,7 +63,7 @@ function Index() {
     if (!user) return;
     // Navigating into this screen refreshes data. Cached rows stay on screen
     // while the refresh runs, so there is no loading flash.
-    (async () => {
+    void (async () => {
       const refreshId = ++refreshIdRef.current;
       setDataLoading(mine.length === 0);
       const { data: mineRows } = await supabase
@@ -93,6 +93,9 @@ function Index() {
       setFetchedAt(Date.now());
       setDataLoading(false);
     })();
+    return () => {
+      refreshIdRef.current += 1;
+    };
   }, Boolean(user));
 
   if (loading || !user) {

@@ -84,7 +84,7 @@ function MyNfas() {
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async (opts?: { background?: boolean }) => {
+  const load = useCallback(async (opts?: { background?: boolean; signal?: AbortSignal }) => {
     const background = opts?.background === true;
     if (!background) {
       setLoading(true);
@@ -104,6 +104,7 @@ function MyNfas() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ report: { user_name: sapUser } }),
+        signal: opts?.signal,
       });
       const text = await res.text();
       let parsed: unknown = null;
@@ -138,6 +139,7 @@ function MyNfas() {
       setRows(normaliseRows(parsed));
       setFetchedAt(Date.now());
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
       setRows([]);
       setError(msg);
@@ -150,7 +152,9 @@ function MyNfas() {
   // Navigating into this screen refreshes from SAP. Cached rows and the
   // current selection stay visible while the background refresh runs.
   useScreenEntryEffect("/nfa/my", () => {
-    void load({ background: fetchedAt > 0 });
+    const controller = new AbortController();
+    void load({ background: fetchedAt > 0, signal: controller.signal });
+    return () => controller.abort();
   });
 
   const filtered = useMemo(() => {
