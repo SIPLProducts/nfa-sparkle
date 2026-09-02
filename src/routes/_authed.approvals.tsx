@@ -110,7 +110,7 @@ function ApprovalsInbox() {
   const { hasRole } = useAuth();
   const rejectLabel = hasRole("initiator") ? "Cancel" : "Reject";
 
-  const load = useCallback(async (opts?: { background?: boolean }) => {
+  const load = useCallback(async (opts?: { background?: boolean; signal?: AbortSignal }) => {
     const background = opts?.background === true;
     if (!background) {
       setLoading(true);
@@ -131,6 +131,7 @@ function ApprovalsInbox() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ get_data: { user_name: userName } }),
+        signal: opts?.signal,
       });
       const text = await res.text();
       let parsed: unknown = null;
@@ -157,6 +158,7 @@ function ApprovalsInbox() {
       setRows(normaliseRows(parsed));
       setFetchedAt(Date.now());
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       const msg = err instanceof Error ? err.message : "Could not reach SAP";
       setRows([]);
       setError(msg);
@@ -168,7 +170,9 @@ function ApprovalsInbox() {
   // Refresh on every navigation into this screen; cached rows and the current
   // selection remain visible while the background refresh runs.
   useScreenEntryEffect("/approvals", () => {
-    void load({ background: fetchedAt > 0 });
+    const controller = new AbortController();
+    void load({ background: fetchedAt > 0, signal: controller.signal });
+    return () => controller.abort();
   });
 
   /** SAP decides what appears here — no client-side filtering by user. */

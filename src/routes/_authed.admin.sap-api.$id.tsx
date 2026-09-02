@@ -109,17 +109,20 @@ function EndpointDetail() {
     queryKey: ["sap-endpoint", id],
     queryFn: () => get({ data: { id } }),
     enabled: isAdmin,
+    refetchOnMount: "always",
   });
   const { data: history } = useQuery({
     queryKey: ["sap-endpoint-log", id],
     queryFn: () => logs({ data: { endpointId: id } }),
     enabled: isAdmin,
+    refetchOnMount: "always",
   });
   const listSystems = useServerFn(listSapSystems);
   const { data: systems } = useQuery({
     queryKey: ["sap-systems"],
     queryFn: () => listSystems(),
     enabled: isAdmin,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {

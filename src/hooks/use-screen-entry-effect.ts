@@ -7,11 +7,11 @@ import { useEffect, useRef, type EffectCallback } from "react";
  * after having been inactive. Browser focus, reconnects, and in-screen tab
  * changes do not change the route and therefore never trigger another run.
  */
-export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback) {
+export function useScreenEntryEffect(screenPath: string, onEnter: EffectCallback, enabled = true) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const onEnterRef = useRef(onEnter);
   onEnterRef.current = onEnter;
-  const isActive = pathname === screenPath;
+  const isActive = enabled && pathname === screenPath;
   const wasActiveRef = useRef(false);
 
   useEffect(() => {

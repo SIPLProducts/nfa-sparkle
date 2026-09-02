@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useScreenState, useScreenMemory } from "@/lib/screen-state";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
@@ -53,6 +53,7 @@ function Index() {
   const [dateTo, setDateTo] = useScreenState<string>("dashboard.dateTo", "");
   const [filtersOpen, setFiltersOpen] = useScreenState<boolean>("dashboard.filtersOpen", false);
   const [dataLoading, setDataLoading] = useState(mine.length === 0);
+  const refreshIdRef = useRef(0);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth", replace: true });
@@ -62,20 +63,24 @@ function Index() {
     if (!user) return;
     // Navigating into this screen refreshes data. Cached rows stay on screen
     // while the refresh runs, so there is no loading flash.
-    (async () => {
+    void (async () => {
+      const refreshId = ++refreshIdRef.current;
       setDataLoading(mine.length === 0);
       const { data: mineRows } = await supabase
         .from("nfa")
         .select("*")
         .eq("initiator_id", user.id)
         .order("created_at", { ascending: false });
+      if (refreshId !== refreshIdRef.current) return;
       setMine(((mineRows as NfaRow[]) ?? []));
 
       const { data: aps } = await supabase.from("nfa_approver").select("*").eq("approver_id", user.id).eq("status", "pending");
+      if (refreshId !== refreshIdRef.current) return;
       const list = (aps as ApproverRow[]) ?? [];
       setPending([]);
       if (list.length) {
         const { data: nfas } = await supabase.from("nfa").select("*").in("id", list.map((l) => l.nfa_id));
+        if (refreshId !== refreshIdRef.current) return;
         const map = new Map(((nfas as NfaRow[]) ?? []).map((n) => [n.id, n]));
         setPending(
           list.flatMap((ap) => {
@@ -88,7 +93,10 @@ function Index() {
       setFetchedAt(Date.now());
       setDataLoading(false);
     })();
-  });
+    return () => {
+      refreshIdRef.current += 1;
+    };
+  }, Boolean(user));
 
   if (loading || !user) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;

@@ -87,7 +87,7 @@ function errMsg(e: unknown) {
 
 function useRoleDefs() {
   const fetchRoles = useServerFn(listRoleDefs);
-  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000, refetchOnMount: false });
+  return useQuery({ queryKey: ["role-defs"], queryFn: () => fetchRoles(), staleTime: 60_000, refetchOnMount: "always" });
 }
 
 function UserManagement() {
@@ -110,7 +110,7 @@ function UserManagement() {
     ["managed-users", "role-defs", "role-permissions", "approval-chains"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );
-  });
+  }, isAdmin);
 
   if (!isAdmin) return null;
 
@@ -183,7 +183,7 @@ function UsersTab() {
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
 
-  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: false });
+  const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: "always" });
   const [q, setQ] = useScreenState<string>("admin-users.search", "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
@@ -995,7 +995,7 @@ function PermissionsTab() {
   const qc = useQueryClient();
   const fetchPerms = useServerFn(listRolePermissions);
   const saveFn = useServerFn(saveRolePermissions);
-  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms(), staleTime: 60_000, refetchOnMount: false });
+  const { data, isLoading } = useQuery({ queryKey: ["role-permissions"], queryFn: () => fetchPerms(), staleTime: 60_000, refetchOnMount: "always" });
   const { data: roleDefs, isLoading: rolesLoading } = useRoleDefs();
   const [draft, setDraft] = useState<Record<string, boolean> | null>(null);
 

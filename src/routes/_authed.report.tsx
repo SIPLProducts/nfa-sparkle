@@ -222,7 +222,7 @@ function Report() {
     setF((p) => ({ ...p, [a]: v, [b]: v }));
   const flag = (k: "r_proc" | "r_comp" | "r_reje" | "r_init" | "r_clar") => (v: boolean) => setF((p) => ({ ...p, [k]: v ? "X" : "" }));
 
-  async function run(background = false) {
+  async function run(background = false, signal?: AbortSignal) {
     setBusy(true);
     setError(null);
     if (!background) setSelected(null);
@@ -246,6 +246,7 @@ function Report() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(wrapReportPayload(payload, sapUser)),
+        signal,
       });
 
       const text = await res.text();
@@ -287,6 +288,7 @@ function Report() {
         setError(null);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Report failed";
       setError(msg);
       toast.error(msg);
@@ -298,7 +300,10 @@ function Report() {
   // Navigating back into this screen refreshes the last-run report in the
   // background: current rows and selection stay visible until fresh data lands.
   useScreenEntryEffect("/report", () => {
-    if (ran) void run(true);
+    if (!ran) return;
+    const controller = new AbortController();
+    void run(true, controller.signal);
+    return () => controller.abort();
   });
 
   function exportCsv() {

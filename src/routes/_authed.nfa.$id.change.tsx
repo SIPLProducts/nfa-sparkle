@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { STATUS_LABEL, type NfaRow } from "@/lib/nfa-types";
@@ -50,10 +50,13 @@ function ChangeRequestPage() {
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<File[]>([]);
   const [attachmentsKey, setAttachmentsKey] = useState(0);
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
-    (async () => {
+    const loadId = ++loadIdRef.current;
+    void (async () => {
       const { data } = await supabase.from("nfa").select("*").eq("id", id).maybeSingle();
+      if (loadId !== loadIdRef.current) return;
       const n = (data as NfaRow) ?? null;
       setNfa(n);
       if (n) {
@@ -67,6 +70,9 @@ function ChangeRequestPage() {
       }
       setLoading(false);
     })();
+    return () => {
+      loadIdRef.current += 1;
+    };
   }, [id]);
 
   const diffs = useMemo(() => {
