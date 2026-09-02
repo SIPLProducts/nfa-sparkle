@@ -1228,6 +1228,7 @@ export async function callEnfaApprovalAction(opts: {
   action: "approve" | "reject" | "back_to_initiator" | "clarification";
   reffld: string;
   comment: string;
+  user_name?: string;
 }): Promise<SapCallResult> {
   const config = {
     approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
@@ -1304,7 +1305,21 @@ export async function callEnfaApprovalAction(opts: {
   const cmtKey = Object.keys(inner).find((k) => k.toLowerCase() === "comment") ?? "Comment";
   inner[refKey] = opts.reffld;
   inner[cmtKey] = opts.comment ?? "";
-  payload[wrapperKey] = inner;
+
+  // Inject the logged-in user's User ID as `user_name`, emitted as the first
+  // key of the wrapper's inner object so SAP receives
+  // { "reject": { "user_name": "...", "REFFLD": "...", "Comment": "..." } }.
+  const callerUser = (opts.user_name ?? "").trim();
+  if (callerUser) {
+    const usrKey = Object.keys(inner).find((k) => k.toLowerCase() === "user_name") ?? "user_name";
+    const reordered: Record<string, any> = { [usrKey]: callerUser };
+    for (const [k, v] of Object.entries(inner)) {
+      if (k.toLowerCase() !== "user_name") reordered[k] = v;
+    }
+    payload[wrapperKey] = reordered;
+  } else {
+    payload[wrapperKey] = inner;
+  }
 
   return callSap({
     system: sys,

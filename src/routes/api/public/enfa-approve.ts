@@ -40,6 +40,20 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
+        // Resolve the logged-in user's User ID (profiles.username) so the SAP
+        // payload carries it dynamically — never hardcoded.
+        let userName = "";
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", claimsData.claims.sub)
+            .maybeSingle();
+          userName = String((profile as { username?: string } | null)?.username ?? "").trim();
+        } catch {
+          /* fall through with empty user_name */
+        }
+
         let input: { reffld?: string; comment?: string; action?: string } = {};
         try {
           input = (await request.json()) as typeof input;
@@ -61,6 +75,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           action: rawAction as (typeof allowed)[number],
           reffld,
           comment: String(input.comment ?? ""),
+          user_name: userName,
         });
 
         const headers: Record<string, string> = {
@@ -100,6 +115,12 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         let ok = true;
         if (typeof raw === "string") {
           message = raw.trim().replace(/^"|"$/g, "");
+          // SAP signals failures in plain text too (e.g. "Note For Approval
+          // Can Only Be Rejected By Initiator") — flag those as errors so the
+          // screen shows an error toast instead of a success one.
+          if (/can only be|not allowed|cannot|not permitted|no authorization|error/i.test(message)) {
+            ok = false;
+          }
         } else if (raw && typeof raw === "object") {
           const o = raw as Record<string, unknown>;
           message = String(o["MESSAGE"] ?? o["message"] ?? o["Message"] ?? "").trim();
