@@ -75,6 +75,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           action: rawAction as (typeof allowed)[number],
           reffld,
           comment: String(input.comment ?? ""),
+          user_name: userName,
         });
 
         const headers: Record<string, string> = {
@@ -114,6 +115,12 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         let ok = true;
         if (typeof raw === "string") {
           message = raw.trim().replace(/^"|"$/g, "");
+          // SAP signals failures in plain text too (e.g. "Note For Approval
+          // Can Only Be Rejected By Initiator") — flag those as errors so the
+          // screen shows an error toast instead of a success one.
+          if (/can only be|not allowed|cannot|not permitted|no authorization|error/i.test(message)) {
+            ok = false;
+          }
         } else if (raw && typeof raw === "object") {
           const o = raw as Record<string, unknown>;
           message = String(o["MESSAGE"] ?? o["message"] ?? o["Message"] ?? "").trim();
