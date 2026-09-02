@@ -392,7 +392,7 @@ function CreateUserDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [roles, setRoles] = useState<Role[]>(["initiator"]);
+  const [role, setRole] = useState<Role | "">("initiator");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -409,7 +409,7 @@ function CreateUserDialog({
       setConfirmPassword("");
       setShowPassword(false);
       setShowConfirmPassword(false);
-      setRoles(["initiator"]);
+      setRole("initiator");
     }
   }, [open]);
 
@@ -418,6 +418,10 @@ function CreateUserDialog({
   const submit = async () => {
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+    if (!role) {
+      toast.error("Select a role");
       return;
     }
     setBusy(true);
@@ -431,7 +435,7 @@ function CreateUserDialog({
         CONTACT: contact,
         PASSWORD: password,
         CONFPWRD: confirmPassword,
-        ROLE: roles.join(","),
+        ROLE: role,
         EMP_ID: employeeId,
         DEPT: department,
       });
