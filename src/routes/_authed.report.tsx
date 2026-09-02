@@ -296,6 +296,8 @@ function Report() {
     }
   }
 
+  // Reset screen state on entry, but never auto-fetch: data loads only when
+  // the user selects filters and clicks Execute.
   useScreenEntryEffect("/report", () => {
     setF(EMPTY);
     setRows([]);
@@ -306,9 +308,6 @@ function Report() {
     setEditOpen(false);
     setPreviewOpen(false);
     setUploading(false);
-    const controller = new AbortController();
-    void run(false, controller.signal, EMPTY);
-    return () => controller.abort();
   });
 
   function exportCsv() {
