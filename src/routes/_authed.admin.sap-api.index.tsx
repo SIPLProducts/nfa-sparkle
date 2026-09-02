@@ -109,7 +109,7 @@ function SapApiSettings() {
     ["sap-endpoints", "sap-systems", "sap-settings"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k], refetchType: "all" }),
     );
-  });
+  }, isAdmin);
 
   if (!isAdmin) return null;
 
@@ -166,9 +166,9 @@ function EndpointsTab() {
     system_id: "",
   });
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: false });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-endpoints"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: "always" });
   const listSystems = useServerFn(listSapSystems);
-  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems(), staleTime: 60_000, refetchOnMount: false });
+  const { data: systems } = useQuery({ queryKey: ["sap-systems"], queryFn: () => listSystems(), staleTime: 60_000, refetchOnMount: "always" });
 
   const createMut = useMutation({
     mutationFn: () => create({ data: { ...form, system_id: form.system_id || null } }),
@@ -518,7 +518,7 @@ function SystemsTab() {
   const remove = useServerFn(deleteSapSystem);
   const test = useServerFn(testSapSystem);
 
-  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: false });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-systems"], queryFn: () => list(), staleTime: 60_000, refetchOnMount: "always" });
   const systems = data ?? [];
 
   const [form, setForm] = useState(BLANK_SYSTEM);
@@ -819,7 +819,7 @@ function MiddlewareTab() {
   const get = useServerFn(getSapSettings);
   const save = useServerFn(saveMiddlewareConfig);
   const test = useServerFn(testMiddleware);
-  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get(), staleTime: 60_000, refetchOnMount: false });
+  const { data, isLoading } = useQuery({ queryKey: ["sap-settings"], queryFn: () => get(), staleTime: 60_000, refetchOnMount: "always" });
   const [form, setForm] = useState({
     connection_mode: "proxy",
     deployment_mode: "lovable_cloud",
