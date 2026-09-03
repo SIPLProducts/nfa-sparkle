@@ -12,6 +12,7 @@ interface CreateManagedUserInput {
   CONFPWRD: string;
   ROLE: string;
   EMP_ID: string;
+  COMPANY_CODE?: string;
   DEPT: string;
 }
 

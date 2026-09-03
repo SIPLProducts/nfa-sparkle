@@ -26,6 +26,7 @@ import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { parseCompanyF4 } from "@/lib/sap/master";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -370,6 +371,108 @@ function UsersTab() {
   );
 }
 
+/** Company list from the SAP "Company F4" endpoint registered in Admin → SAP API Settings. */
+function useCompanyOptions(enabled: boolean) {
+  const [options, setOptions] = useState<{ code: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-company", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: "{}",
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try {
+          parsed = text ? JSON.parse(text) : null;
+        } catch {
+          parsed = null;
+        }
+        const list = res.ok ? parseCompanyF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) {
+          setOptions(list);
+          setError("");
+        } else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 200) : "") ||
+            `SAP responded with status ${res.status}`;
+          setOptions([]);
+          setError(`SAP: ${String(detail)}`);
+        }
+      } catch {
+        if (!cancelled) {
+          setOptions([]);
+          setError("Could not reach the SAP company service.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, reload]);
+
+  return { options, loading, error, retry: () => setReload((n) => n + 1) };
+}
+
+function CompanyNameField({
+  companyCode,
+  onChange,
+  companies,
+}: {
+  companyCode: string;
+  onChange: (code: string, name: string) => void;
+  companies: ReturnType<typeof useCompanyOptions>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>Company Name</Label>
+      <Select
+        value={companyCode}
+        onValueChange={(code) => {
+          const hit = companies.options.find((c) => c.code === code);
+          onChange(code, hit?.name ?? "");
+        }}
+        disabled={companies.loading || !companies.options.length}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={companies.loading ? "Loading companies…" : "Select a company"} />
+        </SelectTrigger>
+        <SelectContent>
+          {companies.options.map((c) => (
+            <SelectItem key={c.code} value={c.code}>
+              {c.code} – {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {companies.error ? (
+        <p className="text-xs text-destructive">
+          {companies.error}{" "}
+          <button type="button" className="underline" onClick={companies.retry}>
+            Retry
+          </button>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function CreateUserDialog({
   open,
   onOpenChange,
@@ -384,6 +487,7 @@ function CreateUserDialog({
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
@@ -394,6 +498,7 @@ function CreateUserDialog({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<Role | "">("");
   const [busy, setBusy] = useState(false);
+  const companies = useCompanyOptions(open);
 
   useEffect(() => {
     if (open) {
@@ -401,6 +506,7 @@ function CreateUserDialog({
       setLastName("");
       setUsername("");
       setEmployeeId("");
+      setCompanyCode("");
       setDepartment("");
       setContact("");
       setStatus("ACTIVE");
@@ -437,6 +543,7 @@ function CreateUserDialog({
         CONFPWRD: confirmPassword,
         ROLE: role,
         EMP_ID: employeeId,
+        COMPANY_CODE: companyCode,
         DEPT: department,
       });
 
@@ -529,15 +636,14 @@ function CreateUserDialog({
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Company Name</Label>
-              <Input
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="Company name"
-                autoComplete="off"
-              />
-            </div>
+            <CompanyNameField
+              companies={companies}
+              companyCode={companyCode}
+              onChange={(code, name) => {
+                setCompanyCode(code);
+                setEmployeeId(name);
+              }}
+            />
             <div className="space-y-1.5">
               <Label>Department</Label>
               <Input
@@ -620,11 +726,13 @@ function EditUserDialog({
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [role, setRole] = useState<Role | "">("");
   const [busy, setBusy] = useState(false);
+  const companies = useCompanyOptions(!!user);
 
   useEffect(() => {
     if (user) {
@@ -632,6 +740,7 @@ function EditUserDialog({
       setLastName(user.last_name ?? "");
       setUsername(user.username ?? "");
       setEmployeeId(user.employee_id ?? "");
+      setCompanyCode(user.company_code ?? "");
       setDepartment(user.department ?? "");
       setContact(user.contact ?? "");
       setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
@@ -657,6 +766,7 @@ function EditUserDialog({
         CONTACT: contact,
         ROLE: role,
         EMP_ID: employeeId,
+        COMPANY_CODE: companyCode,
         DEPT: department,
       });
 
@@ -689,10 +799,14 @@ function EditUserDialog({
             <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Employee ID</Label>
-              <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} autoComplete="off" />
-            </div>
+            <CompanyNameField
+              companies={companies}
+              companyCode={companyCode}
+              onChange={(code, name) => {
+                setCompanyCode(code);
+                setEmployeeId(name);
+              }}
+            />
             <div className="space-y-1.5">
               <Label>Department</Label>
               <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />

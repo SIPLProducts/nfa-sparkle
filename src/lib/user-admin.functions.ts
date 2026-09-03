@@ -36,6 +36,7 @@ export interface ManagedUser {
   first_name: string | null;
   last_name: string | null;
   employee_id: string | null;
+  company_code: string | null;
   department: string | null;
   contact: string | null;
   status: string;
@@ -157,7 +158,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, department, contact, status").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, department, contact, status").in("id", ids),
       db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
@@ -181,6 +182,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           first_name: p?.first_name ?? null,
           last_name: p?.last_name ?? null,
           employee_id: p?.employee_id ?? null,
+          company_code: p?.company_code ?? null,
           department: p?.department ?? null,
           contact: p?.contact ?? null,
           status: (p?.status as string) ?? "ACTIVE",
@@ -204,6 +206,7 @@ export interface CreateUserPayload {
   CONFPWRD: string;
   ROLE: string;
   EMP_ID: string;
+  COMPANY_CODE?: string;
   DEPT: string;
 }
 
@@ -248,6 +251,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         last_name: lastName,
         username: data.USER_ID,
         employee_id: data.EMP_ID?.trim() || null,
+        company_code: data.COMPANY_CODE?.trim() || null,
         department: data.DEPT?.trim() || null,
         contact: data.CONTACT || null,
         status: data.STATUS,
