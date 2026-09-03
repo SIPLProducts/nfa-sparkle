@@ -363,7 +363,7 @@ function NewNfaPage() {
       if (asDraft) toast.success("Draft saved");
 
       // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
-      // This runs for both Save and Submit so the SAP response is always shown.
+      // This runs on Submit so the SAP response is always shown.
       const sap = await submitToSap(created.id, plantObj?.name ?? "");
       if (sap.ok) toast.success(sap.message);
       else toast.error(sap.message);
@@ -670,7 +670,7 @@ function NewNfaPage() {
               </label>
               {pending.length === 0 ? (
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  No files staged. Attachments upload when you Save Draft or Submit, and appear in the audit trail.
+                  No files staged. Attachments upload when you Submit, and appear in the audit trail.
                 </p>
               ) : (
                 <ul className="divide-y divide-border rounded-md border border-border">
