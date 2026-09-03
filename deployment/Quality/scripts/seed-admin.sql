@@ -1,6 +1,6 @@
 -- eNFA QUALITY - grant the admin role to the first login.
 --
--- 1. Create the user in Studio (http://<SERVER_IP>:8082)
+-- 1. Create the user in Studio (http://10.200.1.7:8082)
 --       Authentication -> Add user -> tick "Auto Confirm User"
 -- 2. Run this file with that user's email:
 --
