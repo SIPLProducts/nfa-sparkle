@@ -5,7 +5,7 @@
 -- 2. Run this file with that user's email:
 --
 --    PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -U postgres -d postgres \
---      -v admin_email="'admin@ramky.com'" -f deploy/scripts/seed-admin.sql
+--      -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 
 \set ON_ERROR_STOP on
 
