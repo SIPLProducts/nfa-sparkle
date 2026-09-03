@@ -450,28 +450,62 @@ function CompanyNameField({
   onChange: (code: string, name: string) => void;
   companies: ReturnType<typeof useCompanyOptions>;
 }) {
+  const [open, setOpen] = useState(false);
+  const selected = companies.options.find((c) => c.code === companyCode);
+  const placeholder = companies.loading ? "Loading companies…" : "Select a company";
+
   return (
     <div className="space-y-1.5">
       <Label>Company Name</Label>
-      <Select
-        value={companyCode}
-        onValueChange={(code) => {
-          const hit = companies.options.find((c) => c.code === code);
-          onChange(code, hit?.name ?? "");
-        }}
-        disabled={companies.loading || !companies.options.length}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder={companies.loading ? "Loading companies…" : "Select a company"} />
-        </SelectTrigger>
-        <SelectContent>
-          {companies.options.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
-              {c.code} – {c.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between font-normal"
+            disabled={companies.loading || !companies.options.length}
+          >
+            <span className="truncate">
+              {selected ? `${selected.code} – ${selected.name}` : placeholder}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command
+            filter={(value, search) => {
+              const term = search.toLowerCase();
+              return value.toLowerCase().includes(term) ? 1 : 0;
+            }}
+          >
+            <CommandInput placeholder="Search company…" />
+            <CommandList>
+              <CommandEmpty>No company found.</CommandEmpty>
+              <CommandGroup>
+                {companies.options.map((c) => (
+                  <CommandItem
+                    key={c.code}
+                    value={`${c.code} – ${c.name}`}
+                    onSelect={() => {
+                      onChange(c.code, c.name);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        companyCode === c.code ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {c.code} – {c.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       {companies.error ? (
         <p className="text-xs text-destructive">
           {companies.error}{" "}
