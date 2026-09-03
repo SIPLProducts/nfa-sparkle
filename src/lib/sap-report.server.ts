@@ -958,7 +958,7 @@ export async function callEnfaUpload(
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
-    method: (ep.http_method ?? "PUT").toUpperCase(),
+    method: (ep.http_method ?? "POST").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
     body: JSON.stringify(body),
