@@ -217,3 +217,65 @@ export function parseFunctionF4(raw: unknown): Option[] {
   }
   return out;
 }
+
+export interface ApprovalChainLevel { level: number; designation: string; userId: string }
+export interface SapApprovalChain {
+  pspnr: string;
+  funct: string;
+  extraTxt: string;
+  begda: string;
+  endda: string;
+  levels: ApprovalChainLevel[];
+}
+
+/**
+ * Parses SAP's "Approval Chain" response (an array of rows carrying
+ * DESIG1..7 / USERID1..7 pairs) into ordered chains for the UI.
+ */
+export function parseApprovalChains(raw: unknown): SapApprovalChain[] {
+  let src: unknown = raw;
+  if (typeof src === "string") {
+    try { src = JSON.parse(src); } catch { return []; }
+  }
+  for (let depth = 0; depth < 3; depth++) {
+    if (Array.isArray(src)) break;
+    if (!src || typeof src !== "object") break;
+    const values = Object.values(src as Record<string, unknown>);
+    const arr = values.find((v) => Array.isArray(v));
+    if (arr) { src = arr; break; }
+    const nested = values.find((v) => v && typeof v === "object");
+    if (!nested) break;
+    src = nested;
+  }
+  if (!Array.isArray(src)) {
+    if (src && typeof src === "object") src = [src];
+    else return [];
+  }
+  const out: SapApprovalChain[] = [];
+  for (const row of src as unknown[]) {
+    if (!row || typeof row !== "object") continue;
+    const lower: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row as Record<string, unknown>)) {
+      lower[k.trim().toLowerCase()] = v;
+    }
+    const str = (k: string) => String(lower[k] ?? "").trim();
+    const levels: ApprovalChainLevel[] = [];
+    for (let i = 1; i <= 7; i++) {
+      const designation = str(`desig${i}`);
+      const userId = str(`userid${i}`);
+      if (!designation && !userId) continue;
+      levels.push({ level: levels.length + 1, designation, userId });
+    }
+    const chain: SapApprovalChain = {
+      pspnr: str("pspnr"),
+      funct: str("funct"),
+      extraTxt: str("extr_txt"),
+      begda: str("begda"),
+      endda: str("endda"),
+      levels,
+    };
+    if (!chain.pspnr && !chain.funct && !levels.length) continue;
+    out.push(chain);
+  }
+  return out;
+}
