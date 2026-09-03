@@ -5,11 +5,11 @@
 # so re-running only applies what is new.
 #
 # Usage:
-#   cd /opt/enfa/app
-#   PGPASSWORD='<POSTGRES_PASSWORD>' ./deploy/scripts/run-migrations.sh
+#   cd /apps/webapplications/NFA_Approval/Quality
+#   PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
 #
 # Optional env:
-#   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 5435)
+#   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 54322)
 #   PGUSER (postgres)  PGDATABASE (postgres)
 #   MIGRATIONS_DIR (default <quality-root>/backend/migrations)
 #   DRY_RUN=1   -> only list what would be applied
@@ -36,9 +36,9 @@ fi
 export PGHOST="${PGHOST:-127.0.0.1}"
 if [[ -z "${PGPORT:-}" ]] && command -v docker >/dev/null 2>&1; then
   detected_port="$(docker port nfa-quality-db 5432/tcp 2>/dev/null | head -n1 | awk -F: '{print $NF}')"
-  PGPORT="${detected_port:-5435}"
+  PGPORT="${detected_port:-54322}"
 fi
-export PGPORT="${PGPORT:-5435}"
+export PGPORT="${PGPORT:-54322}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-postgres}"
 
@@ -109,4 +109,4 @@ if [[ -n "$failed" ]]; then
 fi
 
 echo "Schema is up to date."
-echo "Next: create the admin login in Studio, then run deploy/scripts/seed-admin.sql"
+echo "Next: create the admin login in Studio, then run scripts/seed-admin.sql"
