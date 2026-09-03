@@ -1446,3 +1446,83 @@ export async function resolveSapUserForEndpoint(kind: "detail" | "select"): Prom
   const sys = await loadSystem(ep.system_id ?? null);
   return String(ep.username || sys?.username || "").toUpperCase();
 }
+
+/**
+ * Fetches the approval chain master data from SAP through the registered
+ * "Approval Chain" endpoint. Host, path, method, headers, query, body
+ * template and credentials all come from Admin → SAP API Settings.
+ */
+export async function callApprovalChain(approver?: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Approval Chain")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%chain%")
+        .not("name", "ilike", "%get data%")
+        .not("name", "ilike", "%button%")
+        .not("name", "ilike", "%tiator%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        "The SAP Approval Chain endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "GET").toUpperCase();
+
+  let payload: Record<string, unknown> = { approver: "" };
+  const tpl = (ep.request_body ?? "").trim();
+  if (tpl) {
+    try {
+      const parsed = JSON.parse(tpl);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        payload = parsed as Record<string, unknown>;
+      }
+    } catch {
+      /* keep the default shape */
+    }
+  }
+  const approverKey = Object.keys(payload).find((k) => k.toLowerCase() === "approver") ?? "approver";
+  payload[approverKey] = (approver ?? "").trim();
+
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: method === "DELETE" ? undefined : JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
