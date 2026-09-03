@@ -351,6 +351,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_code: string | null
           contact: string | null
           created_at: string
           department: string | null
@@ -365,6 +366,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          company_code?: string | null
           contact?: string | null
           created_at?: string
           department?: string | null
@@ -379,6 +381,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          company_code?: string | null
           contact?: string | null
           created_at?: string
           department?: string | null
