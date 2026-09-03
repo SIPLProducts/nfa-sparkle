@@ -379,6 +379,25 @@ export function RecordEditDialog({
           )}
 
           <DialogFooter className="gap-2 sm:gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const list = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (list.length) void uploadFiles(list);
+              }}
+            />
+            <Button
+              variant="outline"
+              className="mr-auto gap-1.5"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading || !enfa}
+            >
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload File
+            </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
             {readOnly ? null : (
               <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
@@ -386,6 +405,7 @@ export function RecordEditDialog({
               </Button>
             )}
           </DialogFooter>
+
 
         </DialogContent>
       </Dialog>
