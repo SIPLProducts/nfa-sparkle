@@ -97,6 +97,7 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
 
         const result = await callEnfaUpload(reffld, files, endpoint);
 
+        const rawBody = String(result.body ?? "");
         const headers: Record<string, string> = {
           "content-type": "application/json",
           "cache-control": "no-store",
@@ -104,6 +105,7 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
           "x-sap-url": result.request?.url ?? "",
           "x-sap-method": result.request?.method ?? "",
           "x-sap-request": String(result.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
+          "x-sap-response": rawBody.replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
           "x-sap-latency-ms": String(result.latencyMs ?? 0),
         };
 
@@ -115,16 +117,21 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
           });
         }
 
-        const { status, message, enfaNo } = extractResult(result.body ?? "");
-        const ok = !status || /^s$/i.test(status) || /success/i.test(message ?? "");
+        console.log("[enfa-upload] SAP response:", result.status, rawBody.slice(0, 1000) || "(empty body)");
+
+        const { status, message, enfaNo } = extractResult(rawBody);
+        const ok = /^s$/i.test(status ?? "") || /success/i.test(message ?? "");
         if (!ok) {
-          return new Response(JSON.stringify({ error: message ?? "SAP rejected the upload", status }), {
-            status: 502,
-            headers,
-          });
+          const error =
+            message ??
+            (rawBody.trim()
+              ? `SAP returned an unexpected response: ${rawBody.trim().slice(0, 300)}`
+              : `SAP accepted the request but returned no response (HTTP ${result.status ?? "?"}) — the file was not attached.`);
+          return new Response(JSON.stringify({ error, status }), { status: 502, headers });
         }
 
         return new Response(JSON.stringify({ status, message, enfaNo }), { status: 200, headers });
+
       },
     },
   },
