@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
+import { uploadToSap } from "@/components/report/RecordAttachmentsDialog";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Save } from "lucide-react";
+import { FileText, Loader2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
+
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
 const sapUserCache: Record<string, string> = {};
