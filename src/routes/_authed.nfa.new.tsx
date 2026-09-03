@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
-import { Trash2, Plus, Save, Send, FileText, Building2, Users, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
+import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -256,14 +256,6 @@ function NewNfaPage() {
     toast.success("Sample NFA loaded — review and submit");
   }
 
-  function addLvl() {
-    if (approvers.length >= 6) return;
-    setApprovers([...approvers, { level: approvers.length + 1, email: "", designation: "" }]);
-  }
-  function removeLvl(i: number) {
-    const next = approvers.filter((_, idx) => idx !== i).map((a, idx) => ({ ...a, level: idx + 1 }));
-    setApprovers(next.length ? next : [{ level: 1, email: "", designation: "" }]);
-  }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -283,7 +275,6 @@ function NewNfaPage() {
     if (!user) return;
     if (!company || !nfaType || !subject) return toast.error("Company, NFA Type and Subject are required");
     const validApprovers = approvers.filter((a) => a.email.trim());
-    if (!asDraft && validApprovers.length === 0) return toast.error("Add at least one approver before submitting");
     setBusy(true);
     try {
       const plantObj = plants.find((p) => p.code === plant);
@@ -372,7 +363,7 @@ function NewNfaPage() {
       if (asDraft) toast.success("Draft saved");
 
       // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
-      // This runs for both Save and Submit so the SAP response is always shown.
+      // This runs on Submit so the SAP response is always shown.
       const sap = await submitToSap(created.id, plantObj?.name ?? "");
       if (sap.ok) toast.success(sap.message);
       else toast.error(sap.message);
@@ -478,11 +469,8 @@ function NewNfaPage() {
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => submit(true)} disabled={busy}>
-              <Save className="h-4 w-4" /> Save
-            </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
-              <Send className="h-4 w-4" /> Submit<span className="hidden sm:inline"> for Approval</span>
+              <Send className="h-4 w-4" /> Submit
             </Button>
           </div>
         }
@@ -665,49 +653,6 @@ function NewNfaPage() {
 
         <div className="lg:col-span-1">
          <div className="space-y-4">
-          <Section icon={<Users className="h-4 w-4" />} title="Approver Chain" desc="Sequential approval — up to 6 levels.">
-            <div className="space-y-3">
-              {approvers.map((a, i) => (
-                <div key={i} className="rounded-md border border-border bg-muted/30 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="inline-flex items-center gap-2">
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{a.level}</span>
-                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Level {a.level}</span>
-                    </div>
-                    {approvers.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => removeLvl(i)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Approver email</Label>
-                      <Input
-                        placeholder="user@example.com"
-                        value={a.email}
-                        onChange={(e) => { const c = [...approvers]; c[i].email = e.target.value; setApprovers(c); }}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Designation</Label>
-                      <Input
-                        placeholder="e.g. CFO, Director — Projects"
-                        value={a.designation}
-                        onChange={(e) => { const c = [...approvers]; c[i].designation = e.target.value; setApprovers(c); }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addLvl} disabled={approvers.length >= 6} className="w-full gap-1.5">
-                <Plus className="h-4 w-4" /> Add approval level
-              </Button>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Approvers must have signed in at least once so we can resolve their account. When SAP user directory is connected this becomes a live search.
-              </p>
-            </div>
-          </Section>
 
           <Section icon={<Paperclip className="h-4 w-4" />} title="Document Attachments" desc="Upload supporting documents — quotes, drawings, BOMs, photos.">
             <div className="space-y-3">
@@ -725,7 +670,7 @@ function NewNfaPage() {
               </label>
               {pending.length === 0 ? (
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  No files staged. Attachments upload when you Save Draft or Submit, and appear in the audit trail.
+                  No files staged. Attachments upload when you Submit, and appear in the audit trail.
                 </p>
               ) : (
                 <ul className="divide-y divide-border rounded-md border border-border">
