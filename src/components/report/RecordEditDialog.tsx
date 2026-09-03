@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
+import { uploadToSap } from "@/components/report/RecordAttachmentsDialog";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Save } from "lucide-react";
+import { FileText, Loader2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
+
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
 const sapUserCache: Record<string, string> = {};
@@ -113,6 +115,26 @@ export function RecordEditDialog({
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  /** Sends the picked files to SAP against this record, using the same endpoint the screen uses. */
+  async function uploadFiles(list: File[]) {
+    if (!enfa) {
+      toast.error("This record has no eNFA number yet.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const message = await uploadToSap(enfa, list, endpoint === "select" ? "my" : "report");
+      toast.success(message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
@@ -379,6 +401,25 @@ export function RecordEditDialog({
           )}
 
           <DialogFooter className="gap-2 sm:gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const list = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (list.length) void uploadFiles(list);
+              }}
+            />
+            <Button
+              variant="outline"
+              className="mr-auto gap-1.5"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading || !enfa}
+            >
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload File
+            </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
             {readOnly ? null : (
               <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
@@ -386,6 +427,7 @@ export function RecordEditDialog({
               </Button>
             )}
           </DialogFooter>
+
 
         </DialogContent>
       </Dialog>
