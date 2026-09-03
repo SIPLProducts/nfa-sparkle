@@ -29,7 +29,10 @@ const ALLOW_IPS = (process.env.ALLOW_IPS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 const DEFAULT_TIMEOUT_MS = Number(process.env.TIMEOUT_MS || 30000);
-const MAX_BODY = process.env.MAX_BODY || "5mb";
+// Uploads send whole files as base64 — the app allows up to 40 MB per upload,
+// so the JSON body limit must stay well above that or the request never reaches SAP.
+const MAX_BODY = process.env.MAX_BODY || "50mb";
+
 
 if (!PROXY_SECRET) {
   console.error("[middleware] PROXY_SECRET is not set. Copy .env.example to .env and set a strong secret.");
