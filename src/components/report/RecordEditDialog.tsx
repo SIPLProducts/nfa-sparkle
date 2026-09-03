@@ -113,6 +113,26 @@ export function RecordEditDialog({
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  /** Sends the picked files to SAP against this record, using the same endpoint the screen uses. */
+  async function uploadFiles(list: File[]) {
+    if (!enfa) {
+      toast.error("This record has no eNFA number yet.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const message = await uploadToSap(enfa, list, endpoint === "select" ? "my" : "report");
+      toast.success(message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
