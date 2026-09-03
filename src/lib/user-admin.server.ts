@@ -12,6 +12,7 @@ export interface CreateManagedUserInput {
   CONFPWRD: string;
   ROLE: string;
   EMP_ID: string;
+  COMPANY_CODE?: string;
   DEPT: string;
 }
 
@@ -133,6 +134,7 @@ export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateMa
     last_name: lastName,
     username: data.USER_ID,
     employee_id: data.EMP_ID?.trim() || null,
+    company_code: data.COMPANY_CODE?.trim() || null,
     department: data.DEPT?.trim() || null,
     contact: data.CONTACT || null,
     status: data.STATUS,
