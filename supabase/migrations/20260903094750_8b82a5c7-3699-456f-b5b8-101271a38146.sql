@@ -1,0 +1,1 @@
+UPDATE public.sap_endpoint SET http_method = 'POST' WHERE name IN ('Upload Document', 'Attached Docs In MY NFA');
