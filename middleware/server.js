@@ -31,7 +31,7 @@ const ALLOW_IPS = (process.env.ALLOW_IPS || "")
 const DEFAULT_TIMEOUT_MS = Number(process.env.TIMEOUT_MS || 30000);
 // Uploads send whole files as base64 — the app allows up to 40 MB per upload,
 // so the JSON body limit must stay well above that or the request never reaches SAP.
-const MAX_BODY = process.env.MAX_BODY || "50mb";
+const MAX_BODY = process.env.MAX_BODY || "60mb";
 
 
 if (!PROXY_SECRET) {

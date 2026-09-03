@@ -874,6 +874,7 @@ async function callEnfaUpdateInnerImpl(db: any, payload: Record<string, unknown>
 export async function callEnfaUpload(
   reffld: string,
   files: { file_name: string; file: string }[],
+  sapUsername: string,
   endpoint: "report" | "my" = "report",
 ): Promise<SapCallResult> {
   const db = await admin();
@@ -948,7 +949,7 @@ export async function callEnfaUpload(
     ...template,
     upload: {
       ...uploadTemplate,
-      user_name: (username || String(uploadTemplate["user_name"] ?? "")).toUpperCase(),
+      user_name: sapUsername.trim().toUpperCase(),
       reffld,
       file: files,
     },

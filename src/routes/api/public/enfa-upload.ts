@@ -75,6 +75,20 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
+        const userId = String(claimsData.claims.sub);
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", userId)
+          .maybeSingle();
+        const sapUsername = String(profile?.username ?? "").trim().toUpperCase();
+        if (profileError || !sapUsername) {
+          return Response.json(
+            { error: "Your SAP User ID is not configured. Ask an administrator to update your user profile." },
+            { status: 422 },
+          );
+        }
+
         let input: Record<string, any> = {};
         try {
           input = (await request.json()) as Record<string, any>;
@@ -88,14 +102,26 @@ export const Route = createFileRoute("/api/public/enfa-upload")({
         const files = rawFiles
           .map((f) => ({
             file_name: String(f?.file_name ?? f?.filename ?? f?.name ?? "").trim(),
-            file: String(f?.file ?? f?.file_content ?? f?.content ?? ""),
+            file: String(f?.file ?? f?.file_content ?? f?.content ?? "").trim(),
           }))
           .filter((f) => f.file_name && f.file);
 
         if (!reffld) return Response.json({ error: "An eNFA number is required" }, { status: 400 });
         if (!files.length) return Response.json({ error: "No files to upload" }, { status: 400 });
+        const invalidFile = files.find(
+          (file) =>
+            file.file.length < 4 ||
+            file.file.length % 4 !== 0 ||
+            !/^[A-Za-z0-9+/]*={0,2}$/.test(file.file),
+        );
+        if (invalidFile) {
+          return Response.json(
+            { error: `The file data for ${invalidFile.file_name} is incomplete or is not valid base64.` },
+            { status: 400 },
+          );
+        }
 
-        const result = await callEnfaUpload(reffld, files, endpoint);
+        const result = await callEnfaUpload(reffld, files, sapUsername, endpoint);
 
         const rawBody = String(result.body ?? "");
         const headers: Record<string, string> = {
