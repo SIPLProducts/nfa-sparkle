@@ -512,36 +512,6 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="NFA Type" required>
-                <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        nfaTypesLoading
-                          ? "Loading NFA types from SAP…"
-                          : nfaTypes.length
-                            ? "Select type"
-                            : "No NFA types returned by SAP"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{nfaTypeDisplayLabel(t)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {nfaTypesError ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {nfaTypesError}{" "}
-                    <button
-                      type="button"
-                      className="font-medium text-primary underline underline-offset-2"
-                      onClick={() => setNfaTypeReload((n) => n + 1)}
-                    >
-                      Retry
-                    </button>
-                  </p>
-                ) : null}
-              </Field>
               <Field label="Plant">
                 <Select value={plant} onValueChange={setPlant} disabled={!company || plantsLoading || plants.length === 0}>
                   <SelectTrigger>
@@ -570,6 +540,36 @@ function NewNfaPage() {
                       type="button"
                       className="font-medium text-primary underline underline-offset-2"
                       onClick={() => setPlantReload((n) => n + 1)}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                ) : null}
+              </Field>
+              <Field label="NFA Type" required>
+                <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        nfaTypesLoading
+                          ? "Loading NFA types from SAP…"
+                          : nfaTypes.length
+                            ? "Select type"
+                            : "No NFA types returned by SAP"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{nfaTypeDisplayLabel(t)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {nfaTypesError ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {nfaTypesError}{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline underline-offset-2"
+                      onClick={() => setNfaTypeReload((n) => n + 1)}
                     >
                       Retry
                     </button>
