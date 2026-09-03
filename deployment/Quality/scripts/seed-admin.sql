@@ -1,11 +1,11 @@
 -- eNFA QUALITY - grant the admin role to the first login.
 --
--- 1. Create the user in Studio (http://<SERVER_IP>:8082)
+-- 1. Create the user in Studio (http://10.200.1.7:8082)
 --       Authentication -> Add user -> tick "Auto Confirm User"
 -- 2. Run this file with that user's email:
 --
 --    PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -U postgres -d postgres \
---      -v admin_email="'admin@ramky.com'" -f deploy/scripts/seed-admin.sql
+--      -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 
 \set ON_ERROR_STOP on
 
