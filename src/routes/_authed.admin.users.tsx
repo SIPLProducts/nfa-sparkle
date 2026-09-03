@@ -20,6 +20,8 @@ import {
   Eye,
   EyeOff,
   X,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
@@ -44,6 +46,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { SCREENS, type Role, type ScreenKey } from "@/lib/screens";
 import {
   createRoleDef,
