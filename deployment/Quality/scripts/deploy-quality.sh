@@ -37,7 +37,12 @@ set +a
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   cd "$SRC_DIR"
   step "Installing dependencies"
-  npm ci
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    echo "package-lock.json not found; running npm install to create it"
+    npm install
+  fi
 
   step "Building (VITE_* baked in now)"
   npm run build
