@@ -1,64 +1,53 @@
-# Fix the 502 — start the eNFA app process on port 3000 (via PM2)
+# Fix "Loading…" page — Node server can't find the static files (dist/public missing)
 
-Confirmed from your output:
+Current state (from your output):
 
-- `dist/` is correctly at `/apps/webapplications/NFA_Approval/Quality/frontend/dist/`, and
-  `dist/server/index.mjs` (30 KB) exists — the build copy is complete.
-- nginx is listening on 8081 and its config is correct.
-- PM2 runs only `enfa-quality-middleware` (port 3005). **No process runs the SSR app on port
-  3000**, so nginx gets no answer and shows 502.
+- PM2 `enfa-quality-app` is online and listening on 127.0.0.1:3000.
+- `curl -I http://10.200.1.7:8081/` returns **200** — nginx + app are connected. The 502 is gone.
+- Remaining problem: the error log shows
+  `ENOENT: ... open '/apps/webapplications/NFA_Approval/Quality/frontend/dist/public/manifest.webmanifest'`
+  and the same for `favicon.png`. The Node server bundle expects its static files in a
+  **`public/` subfolder inside dist/**, but the copied build has them at the dist root
+  (`dist/assets`, `dist/icons`, `dist/favicon.png`, ...). The browser page hangs on "Loading…"
+  because those files fail to load.
 
-## Fix — start the app with PM2 (same tool you already use)
+## Fix on the server — give the Node server the public/ folder it expects
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
-
-# make sure the env file exists (copy + fill once, if missing)
-ls /apps/webapplications/NFA_Approval/Quality/frontend/.env
-
-PORT=3000 HOST=127.0.0.1 pm2 start server/index.mjs --name enfa-quality-app
-pm2 save
-pm2 ls
+mkdir -p public
+cp -r assets icons favicon.ico favicon.png manifest.webmanifest public/
+pm2 restart enfa-quality-app
 ```
 
-If the app needs the env values at runtime (Supabase keys), load them explicitly:
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/frontend
-cp .env.example .env   # only if .env does not exist yet, then edit it with the real values
-pm2 delete enfa-quality-app 2>/dev/null
-cd dist
-set -a && . ../.env && set +a
-PORT=3000 HOST=127.0.0.1 pm2 start server/index.mjs --name enfa-quality-app \
-  --update-env
-pm2 save
-```
+(If your dist has other root-level files/folders besides `server/`, copy them into `public/` too.)
 
 ## Verify
 
 ```bash
-pm2 logs enfa-quality-app --lines 30     # no errors
-sudo ss -tulpn | grep :3000              # now shows a LISTEN line
-curl -I http://127.0.0.1:3000/           # HTTP/1.1 200
-curl -I http://10.200.1.7:8081/          # HTTP/1.1 200
+pm2 logs enfa-quality-app --lines 20          # no more ENOENT lines
+curl -I http://127.0.0.1:3000/manifest.webmanifest   # 200, not 500
+curl -I http://10.200.1.7:8081/favicon.png           # 200
 ```
 
-Then open http://10.200.1.7:8081 in the browser — the login page should load.
+Then hard-refresh the browser (Ctrl+Shift+R) on http://10.200.1.7:8081 — the styled login page
+should appear instead of the plain "Loading…" text.
 
-## If the PM2 process shows `errored` or restarts in a loop
+## Repo change so this never happens again
 
-Run `pm2 logs enfa-quality-app --err --lines 50` and paste the error — it names the real cause
-(missing env, Node version, etc.).
+`scripts/pack-dist.mjs` copies `.output/public` into `dist/` root but the Nitro node-server
+bundle also resolves `../public` next to `dist/server/`. I will update `pack-dist.mjs` to ALSO
+write the static files into `dist/public/` (so both nginx `root dist/` and the Node server's own
+static handler find them). That way every future Windows build you copy over just works —
+no manual mkdir step.
 
-## Optional repo change (small, helpful)
-
-Add a PM2 config for the app next to the middleware one —
-`deployment/Quality/middleware/ecosystem.config.cjs` already defines the middleware; I can add
-`deployment/Quality/frontend/ecosystem.config.cjs` with the app entry so future starts are just
-`pm2 start ecosystem.config.cjs`. Not required to fix the 502.
+- Files to edit: `scripts/pack-dist.mjs` (add the extra copy step), plus a one-line note in
+  `deployment/README.md`.
+- After the edit, rebuild once on Windows (`npm run build`) and copy the new `dist/` over — it
+  will already contain `public/`.
 
 ## Notes
 
-- Nothing existing is touched: VMS middlewares and other apps keep running; we only ADD one PM2
-  process named `enfa-quality-app`.
-- No application source changes are needed for the 502 itself.
+- Nothing existing on the server is touched: no other apps, ports, or nginx files.
+- The duplicated static files cost a few MB of disk only; nginx keeps serving from `dist/` root
+  as before.
