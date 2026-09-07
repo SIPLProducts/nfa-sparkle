@@ -155,6 +155,40 @@ docker ps --format '{{.Names}}' | grep nfa-quality
 
 Optional log/analytics profile: `docker compose -p nfa-quality --profile analytics up -d`.
 
+### If `nfa-quality-auth` stays unhealthy
+
+GoTrue (the auth container) connects to Postgres at startup and runs its own
+migrations. If it fails, `kong` and `studio` never start. Check the real error
+first:
+
+```bash
+docker logs nfa-quality-auth --tail 50
+```
+
+Usual causes and fixes:
+
+1. **The DB volume was created by an earlier, broken attempt.** The bootstrap
+   SQL in `volumes/db/` runs only on a fresh, empty data volume — if the volume
+   already exists, roles like `supabase_auth_admin` may be missing their
+   password. Do a one-time reset (Quality volumes only; DEV/PROD are untouched,
+   and the Quality database is still empty at this stage):
+
+   ```bash
+   docker compose -p nfa-quality down -v    # deletes ONLY nfa-quality volumes
+   docker compose -p nfa-quality up -d
+   docker logs nfa-quality-auth --tail 50   # confirm GoTrue started
+   docker compose -p nfa-quality ps         # wait until all are healthy
+   ```
+
+   Afterwards re-apply the schema with `Quality/scripts/run-migrations.sh`.
+
+2. **Empty or too-short secrets in `.env`.** `JWT_SECRET` must be 40+ chars and
+   `POSTGRES_PASSWORD` must be set — an empty value makes several containers
+   fail at once. Regenerate with the `openssl rand` commands from step 2 and
+   run `docker compose -p nfa-quality up -d` again (after the `down -v` reset
+   above if `POSTGRES_PASSWORD` changed, since the DB role passwords were set
+   from the old value).
+
 ---
 
 ## 4. Apply the database schema
