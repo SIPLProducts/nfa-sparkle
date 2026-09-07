@@ -1,51 +1,89 @@
-# Fix 502 on http://10.200.1.7:8081 — include the config + start the Node app
+# Fix the 502 on http://10.200.1.7:8081 — the app's Node server is not running
 
-Two confirmed causes from your screenshots:
+Your `ss` output proves the diagnosis:
 
-1. **Your nginx.conf does not load `enfa-quality.conf`.** The active include is
-   `include /opt/Ramky_Applications/nginx/*.conf;` — `sites-enabled` is commented out and
-   `/apps/webapplications/NFA_Approval/nginx/` is not included anywhere. So the 8081 server
-   block you tested is only live if something else already proxies 8081, OR nginx is serving a
-   stale config. Either way the file must be linked into an included directory.
-2. **502 Bad Gateway means nginx reached the block but nothing listens on 127.0.0.1:3000** —
-   the Node SSR server (`dist/server/index.mjs`) is not running yet.
+- Port **8081** is listening (nginx) — so `enfa-quality.conf` IS loaded and correct.
+- Port **3000** is missing from the output — nothing is running there.
 
-## Fix (run on the server)
+nginx forwards `/` to `127.0.0.1:3000`. Nothing answers, so nginx returns 502. The nginx file is
+fine; the application itself was never started.
 
-1. Include the config without touching existing applications:
-   ```bash
-   sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
-       /opt/Ramky_Applications/nginx/enfa-quality.conf
-   sudo nginx -t && sudo systemctl reload nginx
-   ```
-   (Symlink into the already-included folder — do NOT edit nginx.conf or other apps' files.
-   If you prefer your own folder instead, add ONE line to nginx.conf:
-   `include /apps/webapplications/NFA_Approval/nginx/*.conf;`)
+## Step 1 — Put the build on the server
 
-2. Copy the Windows build output to the server:
-   ```bash
-   mkdir -p /apps/webapplications/NFA_Approval/Quality/frontend/dist
-   # copy contents of D:\VPCL_Ramky\nfa-sparkle\dist\* into that folder
-   ```
+The build folder from Windows (`D:\VPCL_Ramky\nfa-sparkle\dist\`) must be copied to:
 
-3. Start the Node SSR app on port 3000 (creates the systemd service from the deployment kit,
-   or quick manual test first):
-   ```bash
-   cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
-   PORT=3000 HOST=127.0.0.1 node server/index.mjs &
-   curl -I http://127.0.0.1:3000/    # expect HTTP 200
-   ```
-   Then set up the systemd unit for a permanent service (kit: `deployment/README.md`).
+```
+/apps/webapplications/NFA_Approval/Quality/frontend/dist/
+```
 
-4. Verify:
-   ```bash
-   sudo ss -tulpn | grep -E ':(3000|8081)'
-   curl -I http://10.200.1.7:8081/
-   ```
-   Then open http://10.200.1.7:8081 in the browser.
+Check it arrived:
+
+```bash
+ls -la /apps/webapplications/NFA_Approval/Quality/frontend/dist/
+ls -la /apps/webapplications/NFA_Approval/Quality/frontend/dist/server/index.mjs
+```
+
+If `server/index.mjs` is missing, the copy is incomplete — recopy the whole `dist` folder.
+
+## Step 2 — Start the app by hand first (quick proof)
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
+PORT=3000 HOST=127.0.0.1 node server/index.mjs
+```
+
+Leave it running, and in a second terminal:
+
+```bash
+curl -I http://127.0.0.1:3000/      # expect HTTP/1.1 200
+curl -I http://10.200.1.7:8081/     # expect HTTP/1.1 200
+```
+
+If step 2 prints an error instead of starting, paste that error — it names the real problem
+(missing env values, wrong Node version, etc.).
+
+## Step 3 — Make it permanent with systemd
+
+Create `/etc/systemd/system/enfa-quality-app.service`:
+
+```ini
+[Unit]
+Description=eNFA Quality app (Node SSR)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/apps/webapplications/NFA_Approval/Quality/frontend/dist
+EnvironmentFile=/apps/webapplications/NFA_Approval/Quality/frontend/.env
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node server/index.mjs
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now enfa-quality-app
+sudo systemctl status enfa-quality-app --no-pager
+sudo ss -tulpn | grep :3000     # now shows a listener
+```
+
+The `.env` file must exist first — copy it from
+`Quality/frontend/.env.example` and fill in the Quality backend URL and keys.
+
+## Step 4 — Confirm
+
+Open http://10.200.1.7:8081 in the browser; the login page should load.
 
 ## Notes
 
-- If port 8081 is already used by another app (check `sudo ss -tulpn | grep 8081` BEFORE
-  reloading), tell me the owner — we'll pick a new port rather than disturb it.
-- No repository code changes needed; this is server configuration only.
+- This adds one new systemd unit named `enfa-quality-app`; no existing service, container, port,
+  or nginx file is touched.
+- No repository code changes are needed — this is server setup only.
