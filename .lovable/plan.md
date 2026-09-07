@@ -1,38 +1,51 @@
-# Confirm nginx config + install the built dist on the Quality server
+# Fix 502 on http://10.200.1.7:8081 — include the config + start the Node app
 
-Your screenshot shows a correct build output: `dist/` contains `assets/`, `icons/`, `server/` (the Node SSR bundle), favicons, and `manifest.webmanifest`. Your edited nginx file is also correct — the changes you made are safe:
+Two confirmed causes from your screenshots:
 
-- `server_name 10.200.1.7;` on the 8081 block: fine (IP-based access).
-- Commented-out `listen [::]:...` lines: fine when the server has no IPv6.
-- Everything else (upstreams, proxy rules, timeouts, body limits) matches the deployment kit.
+1. **Your nginx.conf does not load `enfa-quality.conf`.** The active include is
+   `include /opt/Ramky_Applications/nginx/*.conf;` — `sites-enabled` is commented out and
+   `/apps/webapplications/NFA_Approval/nginx/` is not included anywhere. So the 8081 server
+   block you tested is only live if something else already proxies 8081, OR nginx is serving a
+   stale config. Either way the file must be linked into an included directory.
+2. **502 Bad Gateway means nginx reached the block but nothing listens on 127.0.0.1:3000** —
+   the Node SSR server (`dist/server/index.mjs`) is not running yet.
 
-## Steps to run on the server (10.200.1.7)
+## Fix (run on the server)
 
-1. Publish the build output:
+1. Include the config without touching existing applications:
    ```bash
-   mkdir -p /apps/webapplications/NFA_Approval/Quality/frontend/dist
-   rm -rf /apps/webapplications/NFA_Approval/Quality/frontend/dist/*
-   # copy the whole contents of D:\VPCL_Ramky\nfa-sparkle\dist\* into that folder
-   ```
-2. Install the nginx config (only if not already done):
-   ```bash
-   sudo cp /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf /etc/nginx/sites-available/enfa-quality.conf
-   sudo ln -sf /etc/nginx/sites-available/enfa-quality.conf /etc/nginx/sites-enabled/enfa-quality.conf
+   sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
+       /opt/Ramky_Applications/nginx/enfa-quality.conf
    sudo nginx -t && sudo systemctl reload nginx
    ```
-3. Start the Node SSR server from `dist/server/index.mjs` (systemd service `enfa-quality-app`, port 3000) so the `@enfa_quality_node` proxy target answers.
-4. Smoke tests:
+   (Symlink into the already-included folder — do NOT edit nginx.conf or other apps' files.
+   If you prefer your own folder instead, add ONE line to nginx.conf:
+   `include /apps/webapplications/NFA_Approval/nginx/*.conf;`)
+
+2. Copy the Windows build output to the server:
    ```bash
-   curl -I http://10.200.1.7:8081/          # app (expect 200)
-   curl -I http://10.200.1.7:8001/auth/v1/health   # Kong
-   curl -I http://127.0.0.1:3000/           # Node direct
+   mkdir -p /apps/webapplications/NFA_Approval/Quality/frontend/dist
+   # copy contents of D:\VPCL_Ramky\nfa-sparkle\dist\* into that folder
    ```
-5. Open `http://10.200.1.7:8081` in a browser and log in.
 
-## One caveat to watch
+3. Start the Node SSR app on port 3000 (creates the systemd service from the deployment kit,
+   or quick manual test first):
+   ```bash
+   cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
+   PORT=3000 HOST=127.0.0.1 node server/index.mjs &
+   curl -I http://127.0.0.1:3000/    # expect HTTP 200
+   ```
+   Then set up the systemd unit for a permanent service (kit: `deployment/README.md`).
 
-`location ~ ^/(_serverFn|api)/` proxies server functions to Node, while static files under `dist/` are served by nginx directly. If the app ever 404s on a client route after a hard refresh, the fix is in this block (`try_files $uri @enfa_quality_node;` already handles it — no change needed unless observed).
+4. Verify:
+   ```bash
+   sudo ss -tulpn | grep -E ':(3000|8081)'
+   curl -I http://10.200.1.7:8081/
+   ```
+   Then open http://10.200.1.7:8081 in the browser.
 
-## No code changes
+## Notes
 
-This turn is verification only; no repository files will be edited.
+- If port 8081 is already used by another app (check `sudo ss -tulpn | grep 8081` BEFORE
+  reloading), tell me the owner — we'll pick a new port rather than disturb it.
+- No repository code changes needed; this is server configuration only.
