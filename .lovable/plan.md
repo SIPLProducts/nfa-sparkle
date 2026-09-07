@@ -1,112 +1,141 @@
-# Get the whole Quality environment working — backend containers + frontend page
+# Fix the Supabase role passwords directly (no volume wipe) + finish the frontend
 
-Two separate problems remain. Fix the backend first (the login page cannot work without it).
+Your diagnosis is correct. Two facts make the current situation unfixable by the init script alone:
+
+1. The server still has the old `volumes/db/roles.sql` with the unexpanded `:'pgpass'` variable.
+   The replacement (`00-roles.sh`) exists in the repository but was never copied to the server.
+2. Even after copying it, **`/docker-entrypoint-initdb.d/` scripts only run when the Postgres data
+   directory is empty**. Your `nfa-quality-db` volume already has data, so a new init script would
+   be ignored entirely.
+
+So the fastest, safest fix is to set the role passwords directly on the running database. No data
+loss, no wipe, no effect on other applications.
 
 ---
 
-## Part A — Backend containers (auth, realtime, meta all failing)
+## Step 1 — Set the role passwords on the live database
 
-`db` and `imgproxy` are healthy; `auth`, `realtime` and `meta` fail. All three connect to
-Postgres with their own role passwords (`supabase_auth_admin`, `supabase_admin`). Those passwords
-are set by `volumes/db/00-roles.sh`, which **only runs on a brand-new database volume**. Your
-existing `nfa-quality` volume was created before that script existed, so the roles still have the
-old/unset passwords — every dependent container fails authentication.
-
-### A1. Confirm the cause (run each separately, do not join with `and`)
-
-```bash
-docker logs nfa-quality-meta --tail 40
-docker logs nfa-quality-auth --tail 40
-docker logs nfa-quality-realtime --tail 40
-```
-
-Expect `password authentication failed` / `SECRET_KEY_BASE` style errors.
-
-### A2. Check the env file has real secrets (not placeholders)
+Run from the backend folder (substitute your actual `POSTGRES_PASSWORD` from `.env`):
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/backend
-grep -E 'POSTGRES_PASSWORD|JWT_SECRET|SECRET_KEY_BASE|VAULT_ENC_KEY|ANON_KEY|SERVICE_ROLE_KEY' .env
+source .env
+
+docker exec -i nfa-quality-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  -v pw="$POSTGRES_PASSWORD" <<'SQL'
+SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', rolname, :'pw')
+FROM pg_roles
+WHERE rolname IN (
+  'authenticator','pgbouncer','supabase_admin','supabase_auth_admin',
+  'supabase_functions_admin','supabase_read_only_user','supabase_storage_admin'
+)
+\gexec
+SQL
 ```
 
-Any value still showing `<...>` must be filled:
+Verify a role can actually log in:
 
 ```bash
-openssl rand -hex 32   # POSTGRES_PASSWORD, JWT_SECRET, SECRET_KEY_BASE
+docker exec -i nfa-quality-db \
+  env PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_auth_admin -d postgres -c 'select 1'
+```
+
+That must print `1`. If it errors, the password in `.env` differs from what you just set — re-run
+Step 1 with the correct value.
+
+### Important: password characters
+
+`GOTRUE_DB_DATABASE_URL` is a URL. If `POSTGRES_PASSWORD` contains `@ : / # ? %` or spaces, the
+URL parses wrongly and you get the same 28P01 error even with a correct password. Use a
+hex-only password:
+
+```bash
+openssl rand -hex 24
+```
+
+If you change it, put the new value in `.env` **and** re-run Step 1, then Step 2.
+
+## Step 2 — Make sure Realtime has its secrets, then restart
+
+```bash
+grep -E 'SECRET_KEY_BASE|VAULT_ENC_KEY|JWT_SECRET' .env
+```
+
+Any `<placeholder>` must be replaced:
+
+```bash
+openssl rand -hex 32   # SECRET_KEY_BASE, JWT_SECRET
 openssl rand -hex 16   # VAULT_ENC_KEY
 ```
 
-`ANON_KEY` and `SERVICE_ROLE_KEY` are JWTs signed with `JWT_SECRET` — generate them at
-https://supabase.com/docs/guides/self-hosting#api-keys (roles `anon` and `service_role`).
-
-### A3. Reset only the Quality volumes and restart
-
-This deletes ONLY `nfa-quality-*` volumes. Other applications and their Docker data are untouched.
+Then:
 
 ```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
-docker compose -p nfa-quality down -v
 docker compose -p nfa-quality up -d
-docker compose -p nfa-quality ps      # all should reach healthy/running
+docker compose -p nfa-quality ps
+docker logs nfa-quality-auth --tail 30
+docker logs nfa-quality-realtime --tail 30
+docker logs nfa-quality-meta --tail 30
 ```
 
-### A4. Load the database schema
+All containers should reach healthy/running.
+
+## Step 3 — Load the schema
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+PGPASSWORD="$POSTGRES_PASSWORD" ./scripts/run-migrations.sh
 ```
 
-Then create the first user in Studio (http://10.200.1.7:8082) and run `scripts/seed-admin.sql`
-for admin rights.
+Then create the first user in Studio (http://10.200.1.7:8082) and run `scripts/seed-admin.sql`.
 
----
+## Step 4 — Frontend static files
 
-## Part B — Frontend "Loading…" page
-
-The app process runs and nginx returns 200, but the app logs show
-`ENOENT ... dist/public/manifest.webmanifest` and `dist/public/favicon.png`. The Node server
-expects its static files in `dist/public/`; your copy has them at the `dist/` root.
+The app logs show `ENOENT ... dist/public/manifest.webmanifest`. The Node server looks for
+static files in `dist/public/`:
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
 mkdir -p public
 cp -r assets icons favicon.ico favicon.png manifest.webmanifest public/
 pm2 restart enfa-quality-app
-pm2 logs enfa-quality-app --lines 20      # ENOENT lines gone
 ```
 
-Then hard-refresh (Ctrl+Shift+R) http://10.200.1.7:8081.
+## Step 5 — Point the app at the backend
 
-## Part C — Point the frontend at the Quality backend
-
-The login page will still fail until the app has the Quality keys. Check
-`Quality/frontend/.env`:
+`Quality/frontend/.env` must hold the Quality keys:
 
 ```
 SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
-SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from backend/.env>
+SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
 VITE_SUPABASE_URL=http://10.200.1.7:8081
-VITE_SUPABASE_PUBLISHABLE_KEY=<same ANON_KEY>
+VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
 ```
 
-The `VITE_*` values are baked in at build time — if you change them you must **rebuild on
-Windows** (`npm run build`) and recopy `dist/`. The non-VITE values are read at run time, so a
-`pm2 restart enfa-quality-app` is enough for those.
+`VITE_*` values are baked in at build time — if they change, rebuild on Windows and recopy
+`dist/`. Then hard-refresh http://10.200.1.7:8081.
 
 ---
 
-## Repository change I will make
+## Repository changes I will make
 
-`scripts/pack-dist.mjs` will also write the static files into `dist/public/`, so future builds
-already contain the folder the Node server needs and Part B never has to be repeated manually.
-One matching note goes into `deployment/README.md`.
+1. **`deployment/Quality/scripts/fix-db-roles.sh`** (new) — the Step 1 command as a reusable,
+   idempotent script, so this never needs to be typed by hand again.
+2. **`deployment/Quality/backend/docker-compose.yml`** — confirm the GoTrue variables for
+   v2.186.0: `GOTRUE_DB_DRIVER=postgres` plus
+   `GOTRUE_DB_DATABASE_URL=postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}`
+   (this is the correct format; `DATABASE_URL` is also set as a fallback), and add
+   `?search_path=auth` where GoTrue expects its own schema.
+3. **`scripts/pack-dist.mjs`** — also emit `dist/public/`, so Step 4 is never needed again.
+4. **`deployment/README.md`** — replace the "reset the volume" advice with this direct fix, and
+   add the password-character warning.
 
-No other application source changes.
+No application source or UI changes.
 
-## Order to run
+## Order
 
-A1 → A2 → A3 → A4 → B → C → open http://10.200.1.7:8081 and log in.
+Step 1 → verify login → Step 2 → Step 3 → Step 4 → Step 5 → open the site.
 
-If any step errors, paste that exact error — each one names a specific cause.
+If any single command errors, paste that exact output — it identifies the remaining cause
+precisely.
