@@ -1,53 +1,112 @@
-# Fix "Loading…" page — Node server can't find the static files (dist/public missing)
+# Get the whole Quality environment working — backend containers + frontend page
 
-Current state (from your output):
+Two separate problems remain. Fix the backend first (the login page cannot work without it).
 
-- PM2 `enfa-quality-app` is online and listening on 127.0.0.1:3000.
-- `curl -I http://10.200.1.7:8081/` returns **200** — nginx + app are connected. The 502 is gone.
-- Remaining problem: the error log shows
-  `ENOENT: ... open '/apps/webapplications/NFA_Approval/Quality/frontend/dist/public/manifest.webmanifest'`
-  and the same for `favicon.png`. The Node server bundle expects its static files in a
-  **`public/` subfolder inside dist/**, but the copied build has them at the dist root
-  (`dist/assets`, `dist/icons`, `dist/favicon.png`, ...). The browser page hangs on "Loading…"
-  because those files fail to load.
+---
 
-## Fix on the server — give the Node server the public/ folder it expects
+## Part A — Backend containers (auth, realtime, meta all failing)
+
+`db` and `imgproxy` are healthy; `auth`, `realtime` and `meta` fail. All three connect to
+Postgres with their own role passwords (`supabase_auth_admin`, `supabase_admin`). Those passwords
+are set by `volumes/db/00-roles.sh`, which **only runs on a brand-new database volume**. Your
+existing `nfa-quality` volume was created before that script existed, so the roles still have the
+old/unset passwords — every dependent container fails authentication.
+
+### A1. Confirm the cause (run each separately, do not join with `and`)
+
+```bash
+docker logs nfa-quality-meta --tail 40
+docker logs nfa-quality-auth --tail 40
+docker logs nfa-quality-realtime --tail 40
+```
+
+Expect `password authentication failed` / `SECRET_KEY_BASE` style errors.
+
+### A2. Check the env file has real secrets (not placeholders)
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
+grep -E 'POSTGRES_PASSWORD|JWT_SECRET|SECRET_KEY_BASE|VAULT_ENC_KEY|ANON_KEY|SERVICE_ROLE_KEY' .env
+```
+
+Any value still showing `<...>` must be filled:
+
+```bash
+openssl rand -hex 32   # POSTGRES_PASSWORD, JWT_SECRET, SECRET_KEY_BASE
+openssl rand -hex 16   # VAULT_ENC_KEY
+```
+
+`ANON_KEY` and `SERVICE_ROLE_KEY` are JWTs signed with `JWT_SECRET` — generate them at
+https://supabase.com/docs/guides/self-hosting#api-keys (roles `anon` and `service_role`).
+
+### A3. Reset only the Quality volumes and restart
+
+This deletes ONLY `nfa-quality-*` volumes. Other applications and their Docker data are untouched.
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
+docker compose -p nfa-quality down -v
+docker compose -p nfa-quality up -d
+docker compose -p nfa-quality ps      # all should reach healthy/running
+```
+
+### A4. Load the database schema
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality
+PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+```
+
+Then create the first user in Studio (http://10.200.1.7:8082) and run `scripts/seed-admin.sql`
+for admin rights.
+
+---
+
+## Part B — Frontend "Loading…" page
+
+The app process runs and nginx returns 200, but the app logs show
+`ENOENT ... dist/public/manifest.webmanifest` and `dist/public/favicon.png`. The Node server
+expects its static files in `dist/public/`; your copy has them at the `dist/` root.
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
 mkdir -p public
 cp -r assets icons favicon.ico favicon.png manifest.webmanifest public/
 pm2 restart enfa-quality-app
+pm2 logs enfa-quality-app --lines 20      # ENOENT lines gone
 ```
 
-(If your dist has other root-level files/folders besides `server/`, copy them into `public/` too.)
+Then hard-refresh (Ctrl+Shift+R) http://10.200.1.7:8081.
 
-## Verify
+## Part C — Point the frontend at the Quality backend
 
-```bash
-pm2 logs enfa-quality-app --lines 20          # no more ENOENT lines
-curl -I http://127.0.0.1:3000/manifest.webmanifest   # 200, not 500
-curl -I http://10.200.1.7:8081/favicon.png           # 200
+The login page will still fail until the app has the Quality keys. Check
+`Quality/frontend/.env`:
+
+```
+SUPABASE_URL=http://127.0.0.1:8001
+SUPABASE_PUBLISHABLE_KEY=<ANON_KEY from backend/.env>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from backend/.env>
+VITE_SUPABASE_URL=http://10.200.1.7:8081
+VITE_SUPABASE_PUBLISHABLE_KEY=<same ANON_KEY>
 ```
 
-Then hard-refresh the browser (Ctrl+Shift+R) on http://10.200.1.7:8081 — the styled login page
-should appear instead of the plain "Loading…" text.
+The `VITE_*` values are baked in at build time — if you change them you must **rebuild on
+Windows** (`npm run build`) and recopy `dist/`. The non-VITE values are read at run time, so a
+`pm2 restart enfa-quality-app` is enough for those.
 
-## Repo change so this never happens again
+---
 
-`scripts/pack-dist.mjs` copies `.output/public` into `dist/` root but the Nitro node-server
-bundle also resolves `../public` next to `dist/server/`. I will update `pack-dist.mjs` to ALSO
-write the static files into `dist/public/` (so both nginx `root dist/` and the Node server's own
-static handler find them). That way every future Windows build you copy over just works —
-no manual mkdir step.
+## Repository change I will make
 
-- Files to edit: `scripts/pack-dist.mjs` (add the extra copy step), plus a one-line note in
-  `deployment/README.md`.
-- After the edit, rebuild once on Windows (`npm run build`) and copy the new `dist/` over — it
-  will already contain `public/`.
+`scripts/pack-dist.mjs` will also write the static files into `dist/public/`, so future builds
+already contain the folder the Node server needs and Part B never has to be repeated manually.
+One matching note goes into `deployment/README.md`.
 
-## Notes
+No other application source changes.
 
-- Nothing existing on the server is touched: no other apps, ports, or nginx files.
-- The duplicated static files cost a few MB of disk only; nginx keeps serving from `dist/` root
-  as before.
+## Order to run
+
+A1 → A2 → A3 → A4 → B → C → open http://10.200.1.7:8081 and log in.
+
+If any step errors, paste that exact error — each one names a specific cause.
