@@ -165,7 +165,7 @@ services:
       # Database connection - REQUIRED. Without these GoTrue cannot run its
       # migrations at startup and the container stays unhealthy, which then
       # blocks kong and studio. supabase_auth_admin is created with this
-      # password by volumes/db/roles.sql (runs on a fresh data volume only).
+      # password by volumes/db/00-roles.sh (runs on a fresh data volume only).
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
       DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
