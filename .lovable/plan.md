@@ -56,13 +56,26 @@ docker logs nfa-quality-realtime --tail 50
 
 Confirmed in the repository: the import is correct and the package is declared in `package.json` and `bun.lock`. There is no npm `package-lock.json`, so `npm ci` is not valid here — the local `node_modules` is simply out of date.
 
+Bun is not installed on the Windows machine, and `node_modules` has already
+been deleted. That is why `vite` is now also unavailable. Reinstall all
+dependencies with the package manager already installed:
+
 ```powershell
-Remove-Item -Recurse -Force node_modules
-bun install --frozen-lockfile
-bun run build
+npm install
+npm run build
 ```
 
-If Bun is unavailable, use `npm install` then `npm run build`. `deployment/Quality/scripts/deploy-quality.sh` will be updated to use a lockfile-compatible install so server builds do not fail the same way. A successful build produces `dist/`, including `dist/server/index.mjs`.
+Do not run `npm run build` before `npm install`; Vite and the TipTap extension
+are installed into `node_modules` by that first command. Do not use `npm ci`,
+because this checkout currently has no `package-lock.json`.
+
+The installation should create `package-lock.json`. Keep that lockfile with
+the project, then `npm ci` can be used for repeatable future Windows and server
+deployments. `deployment/Quality/scripts/deploy-quality.sh` will be made
+lockfile-aware: use `npm ci` when `package-lock.json` exists, otherwise use
+`npm install`.
+
+A successful build produces `dist/`, including `dist/server/index.mjs`.
 
 ## 5. Files changed
 
