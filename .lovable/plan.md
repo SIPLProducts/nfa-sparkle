@@ -1,16 +1,14 @@
-# Fix: missing Quality middleware server code + nfa-quality-auth unhealthy
+# Fix: missing Quality middleware server code + nfa-quality-auth unhealthy + build error
 
-Two independent problems, both in the deployment kit only — no application code changes.
+Three issues, all in the deployment kit / local environment — no application logic changes.
 
 ## 1. Add the actual middleware server files to the Quality kit
 
 `deployment/Quality/middleware/` currently contains only `.env.example`, `ecosystem.config.cjs`, and `systems.example.json` — the runnable server was never included.
 
-- Copy `middleware/server.js` → `deployment/Quality/middleware/server.js` (the Express proxy; CommonJS, runs with plain `node server.js` — your PM2 config already points at it).
+- Copy `middleware/server.js` → `deployment/Quality/middleware/server.js` (the Express proxy; runs with `node server.js` — the PM2 ecosystem config already points at it).
 - Copy `middleware/package.json` → `deployment/Quality/middleware/package.json` (deps: express, cors, dotenv).
 - Copy `middleware/.gitignore` and `middleware/README.md` for completeness.
-
-If your PM2 ecosystem file references `server.mjs` instead of `server.js`, the delivered ecosystem config will point at `server.js`; either name works, but the file and the PM2 config will be kept consistent.
 
 ## 2. Fix `nfa-quality-auth` (GoTrue) failing health checks
 
@@ -25,7 +23,7 @@ GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5
 
 `supabase_auth_admin` is created with this password by `volumes/db/roles.sql`, which is already mounted — but only on a **fresh** data volume.
 
-Also harden the healthcheck (busybox wget exists in the gotrue image, but add a longer start period so migrations can finish):
+Also harden the healthcheck (add start_period so migrations can finish):
 
 ```yaml
 healthcheck:
@@ -38,20 +36,32 @@ healthcheck:
 
 ## 3. One-time reset step on the server (documented in `deployment/README.md`)
 
-If the Quality DB volume was already created by a previous `up` attempt, the init SQL will not re-run and `supabase_auth_admin` may be missing its password. The runbook gets an explicit step:
+If the Quality DB volume was already created by a previous `up` attempt, the init SQL will not re-run. The runbook gets an explicit step:
 
 ```bash
 docker compose -p nfa-quality down -v        # deletes ONLY nfa-quality volumes
 docker compose -p nfa-quality up -d
-docker logs nfa-quality-auth --tail 50       # confirm "GoTrue" started
+docker logs nfa-quality-auth --tail 50       # confirm GoTrue started
 docker compose -p nfa-quality ps             # all healthy
 ```
 
-`down -v` touches only the `nfa-quality-*` volumes; the existing DEV/PROD stacks are not affected. Since the Quality database is still empty at this stage, nothing of value is lost — migrations are re-applied afterwards with `scripts/run-migrations.sh`.
+`down -v` touches only the `nfa-quality-*` volumes; existing DEV/PROD stacks are not affected. The Quality database is still empty, so nothing of value is lost — migrations are re-applied afterwards with `scripts/run-migrations.sh`.
 
-If auth still fails after the reset, the runbook tells you to check `docker logs nfa-quality-auth` for the exact error and verify `JWT_SECRET` (40+ chars) and `POSTGRES_PASSWORD` are actually set in `.env` (empty values are the other common cause of this symptom).
+If auth still fails after the reset, check `docker logs nfa-quality-auth` for the exact error and verify `JWT_SECRET` (40+ chars) and `POSTGRES_PASSWORD` are set in `.env`.
+
+## 4. Build error: `Rolldown failed to resolve import "@tiptap/extension-table"`
+
+Verified: `@tiptap/extension-table` (and all other tiptap packages) **are** already listed in `package.json`. The failure is on your Windows machine only — its `node_modules` was installed before the table extension was added, so the package simply isn't on disk there. No code change needed; on your build machine run:
+
+```powershell
+npm ci          # fresh install from package-lock.json
+npm run build   # now succeeds and produces dist/
+```
+
+Yes — after a successful `npm run build`, the `dist/` folder is generated (static frontend at its root, Node server in `dist/server/index.mjs`, assembled by `scripts/pack-dist.mjs`).
 
 ## Verification
 
-- `bash -n` syntax check on scripts; compose file validated with `docker compose config` if available, otherwise YAML lint.
+- `docker compose config` / YAML validation of the compose change.
+- `bash -n` syntax check on scripts.
 - No changes to app source, other containers, or existing nginx configs.
