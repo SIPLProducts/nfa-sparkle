@@ -1,40 +1,60 @@
-# Fix Windows build and Quality auth/realtime startup
+# Fix Quality backend startup (realtime + auth) and the Windows build
 
-## Scope
-Resolve both current deployment blockers without changing application features, APIs, UI, other Docker projects, Nginx, or occupied ports.
+Confirmed from your container logs. No application features, APIs, UI, other Docker projects, Nginx configs, or existing ports are touched.
 
-## 1. Capture the actual container errors first
-Run these as two separate commands (do not type the word `and` or include backticks):
+## 1. Realtime: missing SECRET_KEY_BASE
 
-```bash
-docker logs nfa-quality-auth --tail 100
-docker logs nfa-quality-realtime --tail 100
+The realtime service in `deployment/Quality/backend/docker-compose.yml` never receives `SECRET_KEY_BASE`, so the Elixir release aborts during migration boot.
+
+Add to the realtime service environment:
+
+```yaml
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      APP_NAME: realtime
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+      ERL_AFLAGS: "-proto_dist inet_tcp"
 ```
 
-The Compose status only confirms that health checks failed; it does not reveal whether the cause is database credentials, initialization SQL, environment values, a migration failure, or an incorrect health endpoint. The log output will determine the precise correction.
+`SECRET_KEY_BASE` and `VAULT_ENC_KEY` already exist in `.env.example`; the runbook will state they must be filled with real generated values (`openssl rand -hex 32` and `openssl rand -hex 16`).
 
-Also inspect the resolved configuration without printing secret values:
+## 2. Auth: password authentication failed for supabase_auth_admin
+
+The bootstrap file `volumes/db/roles.sql` sets passwords using the `:'pgpass'` psql variable, which is not reliably expanded the way it is mounted, so the internal roles keep unusable passwords and GoTrue cannot run its migrations.
+
+Replace the SQL bootstrap with a shell bootstrap that reads the password from the environment safely:
+
+- Add `volumes/db/00-roles.sh` — a small init script that runs `psql` with `POSTGRES_PASSWORD` passed as a bound value and issues `ALTER ROLE ... WITH PASSWORD` for `authenticator`, `supabase_auth_admin`, `supabase_storage_admin`, `supabase_functions_admin`, `supabase_admin`, `pgbouncer`, and `supabase_read_only_user`, skipping roles that do not exist.
+- Mount the init files directly at `/docker-entrypoint-initdb.d/` (not a nested `init-scripts/` subfolder) so the Postgres entrypoint actually executes them, in numeric order.
+- Remove the old `roles.sql` variable-expansion approach.
+
+The auth service keeps `GOTRUE_DB_DRIVER: postgres` and gains an explicit `DATABASE_URL` alongside `GOTRUE_DB_DATABASE_URL` for compatibility.
+
+## 3. One-time reset (Quality only)
+
+Init scripts run only on a fresh data volume, and the current volume was created with broken role passwords:
 
 ```bash
-docker compose -p nfa-quality config --services
-docker compose -p nfa-quality ps -a
+cd /apps/webapplications/NFA_Approval/Quality/backend
+docker compose -p nfa-quality down -v
+docker compose -p nfa-quality up -d
+docker compose -p nfa-quality ps
 ```
 
-## 2. Correct the isolated Quality backend configuration
-Based on the logs:
-- Fix the auth database connection/bootstrap or health check if auth is running but incorrectly reported unhealthy.
-- Fix the realtime database role/schema/tenant configuration or health check if realtime is running but incorrectly reported unhealthy.
-- Keep all names, network, volumes, and ports scoped to `nfa-quality`.
-- Update the Quality runbook with exact recovery and verification commands.
-- If initialization SQL must rerun, use only `docker compose -p nfa-quality down -v`; this removes only the new Quality volumes and does not touch other applications.
+Then check each container separately (one command per line):
 
-## 3. Fix the Windows TipTap build installation
-Confirmed from the repository:
-- `RichTextEditor.tsx` correctly imports `@tiptap/extension-table`.
-- The package is declared in both `package.json` and `bun.lock`.
-- There is no npm `package-lock.json`, so `npm ci` is not valid for this checkout.
+```bash
+docker logs nfa-quality-auth --tail 50
+docker logs nfa-quality-realtime --tail 50
+```
 
-Keep table editing unchanged and use the repository's Bun lockfile:
+`down -v` removes only `nfa-quality-*` volumes; the other applications, containers, and volumes on the server are unaffected. Afterwards re-apply the schema with `Quality/scripts/run-migrations.sh`.
+
+## 4. Windows build error: `@tiptap/extension-table` not resolved
+
+Confirmed in the repository: the import is correct and the package is declared in `package.json` and `bun.lock`. There is no npm `package-lock.json`, so `npm ci` is not valid here — the local `node_modules` is simply out of date.
 
 ```powershell
 Remove-Item -Recurse -Force node_modules
@@ -42,12 +62,17 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-If Bun is unavailable, use `npm install` followed by `npm run build`, not `npm ci`.
+If Bun is unavailable, use `npm install` then `npm run build`. `deployment/Quality/scripts/deploy-quality.sh` will be updated to use a lockfile-compatible install so server builds do not fail the same way. A successful build produces `dist/`, including `dist/server/index.mjs`.
 
-Update `deployment/Quality/scripts/deploy-quality.sh` to use the same lockfile-compatible install command so server deployment does not fail for the same reason.
+## 5. Files changed
 
-## 4. Verify
-- Validate the resolved Compose configuration and Quality shell scripts.
-- Start only the `nfa-quality` project and confirm auth, realtime, meta, Kong, and Studio become healthy/running.
-- Run one production build and confirm `dist/server/index.mjs` is generated.
-- Document the final server commands and the expected healthy status.
+- `deployment/Quality/backend/docker-compose.yml` — realtime env vars, auth DB URL, corrected init-script mount paths
+- `deployment/Quality/backend/volumes/db/00-roles.sh` — new role-password bootstrap
+- `deployment/Quality/backend/volumes/db/roles.sql` — removed/replaced
+- `deployment/Quality/backend/.env.example` — clarify required generated secrets
+- `deployment/README.md` — updated recovery and verification steps
+- `deployment/Quality/scripts/deploy-quality.sh` — install command fix
+
+## 6. Verification
+
+Validate the resolved Compose configuration and run shell syntax checks on the new and edited scripts.
