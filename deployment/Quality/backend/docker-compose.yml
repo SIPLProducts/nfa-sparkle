@@ -85,20 +85,20 @@ services:
         target: /var/lib/postgresql/data
       # Bootstrap SQL - runs ONLY on a fresh (empty) data volume.
       - type: bind
-        source: ./volumes/db/roles.sql
-        target: /docker-entrypoint-initdb.d/init-scripts/10-roles.sql
+        source: ./volumes/db/00-roles.sh
+        target: /docker-entrypoint-initdb.d/00-roles.sh
         read_only: true
       - type: bind
         source: ./volumes/db/realtime.sql
-        target: /docker-entrypoint-initdb.d/init-scripts/20-realtime.sql
+        target: /docker-entrypoint-initdb.d/20-realtime.sql
         read_only: true
       - type: bind
         source: ./volumes/db/webhooks.sql
-        target: /docker-entrypoint-initdb.d/init-scripts/30-webhooks.sql
+        target: /docker-entrypoint-initdb.d/30-webhooks.sql
         read_only: true
       - type: bind
         source: ./volumes/db/logs.sql
-        target: /docker-entrypoint-initdb.d/init-scripts/40-logs.sql
+        target: /docker-entrypoint-initdb.d/40-logs.sql
         read_only: true
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -168,6 +168,7 @@ services:
       # password by volumes/db/roles.sql (runs on a fresh data volume only).
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
+      DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
       API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8001}
       GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8081}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
@@ -258,6 +259,13 @@ services:
       DB_NAME: ${POSTGRES_DB:-postgres}
       DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
       DB_SSL: "false"
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      DB_ENC_KEY: ${VAULT_ENC_KEY}
+      APP_NAME: realtime
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
       SECURE_CHANNELS: "true"
       JWT_SECRET: ${JWT_SECRET}
       JWT_CLAIMS_VALIDATORS: "{\"iss\": \"supabase\", \"iat\": \"\"}"

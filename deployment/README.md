@@ -155,14 +155,14 @@ docker ps --format '{{.Names}}' | grep nfa-quality
 
 Optional log/analytics profile: `docker compose -p nfa-quality --profile analytics up -d`.
 
-### If `nfa-quality-auth` stays unhealthy
+### If `nfa-quality-auth` or `nfa-quality-realtime` stays unhealthy
 
-GoTrue (the auth container) connects to Postgres at startup and runs its own
-migrations. If it fails, `kong` and `studio` never start. Check the real error
-first:
+GoTrue connects to Postgres and Realtime runs its own migrations at startup.
+If either fails, `kong` and `studio` never start. Check each log separately:
 
 ```bash
 docker logs nfa-quality-auth --tail 50
+docker logs nfa-quality-realtime --tail 50
 ```
 
 Usual causes and fixes:
@@ -182,12 +182,12 @@ Usual causes and fixes:
 
    Afterwards re-apply the schema with `Quality/scripts/run-migrations.sh`.
 
-2. **Empty or too-short secrets in `.env`.** `JWT_SECRET` must be 40+ chars and
-   `POSTGRES_PASSWORD` must be set — an empty value makes several containers
-   fail at once. Regenerate with the `openssl rand` commands from step 2 and
-   run `docker compose -p nfa-quality up -d` again (after the `down -v` reset
-   above if `POSTGRES_PASSWORD` changed, since the DB role passwords were set
-   from the old value).
+2. **Empty or too-short secrets in `.env`.** `JWT_SECRET` must be 40+ chars,
+   `POSTGRES_PASSWORD` must be set, and Realtime requires both
+   `SECRET_KEY_BASE` and `VAULT_ENC_KEY`. Regenerate them with the `openssl
+   rand` commands from step 2 and run `docker compose -p nfa-quality up -d`
+   again (after the `down -v` reset above if `POSTGRES_PASSWORD` changed,
+   since the DB role passwords were set from the old value).
 
 ---
 
@@ -225,6 +225,15 @@ nano .env     # ANON_KEY, SERVICE_ROLE_KEY
 cd /apps/webapplications/NFA_Approval/Quality
 PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
 ls frontend/dist/index.html frontend/server/index.mjs
+```
+
+The deployment script uses `npm ci` when `package-lock.json` exists. On the
+first checkout without an npm lockfile, it uses `npm install` to create one.
+On Windows, after deleting `node_modules`, run these commands before building:
+
+```powershell
+npm install
+npm run build
 ```
 
 `VITE_*` values are inlined at build time — after changing any of them you must
