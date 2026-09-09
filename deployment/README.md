@@ -321,7 +321,10 @@ This happens when the CSS/JS files referenced by `/auth` return 404. The most
 common cause is an outdated `enfa-quality.conf` that tries to serve `/assets/`
 from disk instead of through the Node app.
 
-Run these exact commands on the server after pulling the latest code:
+Run these exact commands on the server after pulling the latest code. If the
+server has no `Quality/src` checkout, replace `SRC` with the path where you
+uploaded the latest project (or copy just the two files mentioned below from
+your build machine):
 
 ```bash
 SRC=/apps/webapplications/NFA_Approval/Quality/src
@@ -341,6 +344,40 @@ prints the failing URL. After it prints `Done`, hard-refresh the browser
 `nginx -T` must show the Quality server with `location /assets/` serving files
 from disk (`try_files`), not proxying to Node; `nginx -t` must pass before
 reloading. No existing configuration is edited.
+
+### Updating when the server only has `dist/`
+
+If the server only contains `Quality/frontend/dist` and no source checkout,
+build on the machine that has the latest project, then upload and replace just
+these two things:
+
+1. The new `dist/` folder produced by `npm run build`.
+2. The updated `deployment/nginx/enfa-quality.conf` from this repo.
+
+Server commands:
+
+```bash
+# 1. Replace the release folder atomically (keeps dist.previous for rollback)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous
+mv dist.new dist          # upload dist.new first, e.g. via rsync or scp
+
+# 2. Replace the nginx config and reload (IPv6 listeners removed for this server)
+sudo cp /path/to/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3. Restart only the Quality app
+pm2 restart enfa-quality-app --update-env
+# or if it runs under systemd:
+# sudo systemctl restart enfa-quality-app
+
+# 4. Verify
+for url in http://127.0.0.1:8081/ http://127.0.0.1:8081/auth http://127.0.0.1:8081/ramky-logo.png; do
+  echo "$url -> $(curl -s -o /dev/null -w '%{http_code}' "$url")"
+done
+```
+
+Then open `http://10.200.1.7:8081/` and hard-refresh (`Ctrl+F5`).
 
 ### Styles missing / page stuck on "Loading…"
 
