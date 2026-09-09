@@ -214,6 +214,28 @@ Usual causes and fixes:
 
 ## 4. Apply the database schema
 
+Before running migrations, make sure Studio (`http://10.200.1.7:8082`) loads
+without `password authentication failed for user "supabase_admin"`. If it shows
+that error, run the role repair first — the database volume still holds an older
+password than `backend/.env`:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality
+chmod +x scripts/fix-db-roles.sh
+./scripts/fix-db-roles.sh
+```
+
+The migration files must live at `Quality/backend/migrations` — **not** under
+`backend/volumes/`. If you placed them there, move them:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
+mv volumes/migrations ./migrations
+```
+
+Alternatively keep them where they are and pass the folder explicitly with
+`MIGRATIONS_DIR=/full/path ./scripts/run-migrations.sh`.
+
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
 PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
@@ -223,6 +245,7 @@ PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
 
 The script is idempotent — applied files are tracked in
 `public.schema_migrations_applied`, re-runs only apply new files.
+
 
 Create the first login in Studio (`http://10.200.1.7:8082`, dashboard
 credentials from `backend/.env`) with **Auto Confirm** enabled, then grant admin:
