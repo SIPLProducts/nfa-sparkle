@@ -105,8 +105,16 @@ function Index() {
     };
   }, Boolean(user));
 
-  if (loading || !user) {
+  if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        Redirecting to sign in…
+      </div>
+    );
   }
 
   const submittedCount = mine.length;
