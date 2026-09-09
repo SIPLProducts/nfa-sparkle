@@ -1,119 +1,116 @@
-# Fix the dashboard error, the dashboard login prompt, and the 401 on sign-in
+# Fix Quality login, permissions data, and Studio database access
 
-You build `dist` locally in VS Code and copy it to
-`/apps/webapplications/NFA_Approval/Quality/frontend/dist`. There is no source
-checkout on the server, so nothing below copies scripts from `src` and nothing
-builds on the server. Everything is plain commands you paste on the server.
+The server contains the prebuilt `frontend/dist` release only. Nothing will be
+copied from a server-side source folder, and nothing will be built on Ubuntu.
+Application changes are built locally in VS Code, then the replacement `dist`
+is uploaded to the existing Quality frontend folder.
 
-## The three problems
+## Confirmed findings
 
-1. **Dashboard shows `password authentication failed for user "supabase_admin"`**
-   The role passwords inside the existing Quality database volume are older than
-   the value in `backend/.env`. They must be reset to the current value and the
-   dashboard/meta containers recreated.
+- The application currently requests `role_permission` as soon as the login page
+  loads, before a user session exists. The table intentionally allows reads only
+  to authenticated users, so this request must not run before sign-in.
+- The schema migration creates `role_permission`, grants authenticated read
+  access, enables row security, and seeds the standard permissions.
+- `9000_data_import.sql` contains 28 `role_permission` rows, plus the existing
+  users, profiles, and role assignments. Whether that migration completed on
+  the Quality server still needs to be checked against the actual database.
+- The Studio screenshot is a separate database-connection failure:
+  `supabase_admin` cannot authenticate. Studio cannot be used to judge whether
+  tables or rows exist until that internal role password is repaired.
+- A gateway/browser key mismatch can also return `401` before the database is
+  reached. The configured key, running Kong key, and key embedded in `dist`
+  must be compared without exposing their values.
 
-2. **`http://10.200.1.7:8082/` never asks for a username and password**
-   The dashboard credentials in `backend/.env` are enforced by the API gateway on
-   port 8001 only. Port 8082 proxies straight to the dashboard container. A
-   password prompt has to be added on 8082 in the nginx file itself.
+## Repair plan
 
-3. **`401 Unauthorized` on `/rest/v1/role_permission` after sign-in**
-   The gateway rejects the key the browser sent. Since you say the configured
-   keys are correct, the likely cause is that the running gateway container or
-   the copied `dist` is carrying an older key. The commands below prove which one
-   before anything is changed.
+### 1. Repair Studio and database service access first
 
-## Repo change (documentation only)
+Use plain server commands to read the Quality password from
+`/apps/webapplications/NFA_Approval/Quality/backend/.env`, reset only the
+internal roles in `nfa-quality-db`, and force-recreate only these Quality
+services: `auth`, `rest`, `realtime`, `storage`, `meta`, `kong`, and `studio`.
 
-`deployment/README.md` gets one ordered "Quality recovery" section containing
-exactly the commands below, so this is not reassembled from chat each time.
-The nginx file already contains the 8082 password block. No application source
-code changes, and no scripts need to be copied to the server.
+Verify all of the following before continuing:
 
-## Commands you run on the server
+- a real TCP login as `supabase_admin` succeeds;
+- `nfa-quality-meta` remains healthy;
+- Studio can load schemas, tables, and users;
+- unrelated `supabase-dev` and `supabase-prod` containers are untouched.
 
-### Step A - prove which copy of the key is stale (safe, read-only)
+### 2. Check the actual Quality data before changing application code
 
-```text
-cd /apps/webapplications/NFA_Approval/Quality/backend
-ANON=$(grep -E '^ *ANON_KEY *=' .env | tail -n1 | cut -d= -f2- | tr -d '"'"'"' ')
+Run read-only SQL inside `nfa-quality-db` to check:
 
-# fingerprint of the configured key
-printf '%s' "$ANON" | sha256sum | cut -c1-12
+- whether `public.role_permission` exists;
+- the row count and role/screen combinations;
+- authenticated and service-role grants;
+- the enabled row-security policies;
+- users, profiles, and user-role rows required by the selected login.
 
-# fingerprint of the key the running gateway holds
-docker exec nfa-quality-kong printenv ANON_KEY | tr -d '\n' | sha256sum | cut -c1-12
+If the schema or data is absent, run the existing migration runner from the
+Quality root. It reads the password from `backend/.env`; no password placeholder
+is pasted. Confirm `9000_data_import.sql` is recorded as applied and that the
+permission count is 28 afterward. Do not rerun the destructive import when its
+rows are already present.
 
-# fingerprint(s) of the key inside the deployed browser build
-grep -rhoE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' \
-  ../frontend/dist/assets | sort -u | while read -r k; do
-  printf '%s' "$k" | sha256sum | cut -c1-12; done
+### 3. Identify the exact source of the 401
 
-# does the configured key actually pass the gateway?
-curl -s -o /dev/null -w '%{http_code}\n' \
-  "http://127.0.0.1:8001/rest/v1/role_permission?select=role_key&limit=1" \
-  -H "apikey: $ANON"
-```
+Compare SHA-256 fingerprints only—not secret values—for:
 
-Any fingerprint that differs from the first one is the stale copy: gateway
-mismatch is fixed in Step B, a `dist` mismatch means one rebuild in local VS Code
-with the correct `VITE_SUPABASE_PUBLISHABLE_KEY` and a fresh copy of `dist`.
+- `ANON_KEY` in `backend/.env`;
+- `ANON_KEY` inside the running `nfa-quality-kong` container;
+- the JWT key embedded in `frontend/dist/assets`.
 
-### Step B - repair the database roles and recreate the Quality containers
+Then call the same REST URL twice:
 
-```text
-cd /apps/webapplications/NFA_Approval/Quality/backend
-PW=$(grep -E '^ *POSTGRES_PASSWORD *=' .env | tail -n1 | cut -d= -f2- | tr -d '"'"'"' ')
+1. with the configured anon key, to verify Kong accepts it;
+2. after a real sign-in, with both the anon key and returned user token, to
+   verify authenticated access to `role_permission` returns the rows.
 
-docker exec -i -e RP="$PW" nfa-quality-db sh -eu -c \
- 'psql -U postgres -d postgres -v ON_ERROR_STOP=1 --set=rp="$RP" -q' <<'SQL'
-SELECT format('ALTER ROLE %I WITH PASSWORD %L', rolname, :'rp')
-FROM pg_roles WHERE rolname IN ('authenticator','pgbouncer','postgres',
- 'supabase_admin','supabase_auth_admin','supabase_functions_admin',
- 'supabase_read_only_user','supabase_storage_admin') \gexec
-SQL
+Only recreate Kong if its runtime fingerprint is stale. Only rebuild locally
+if the fingerprint embedded in `dist` is stale; never regenerate valid keys
+just to mask a deployment mismatch.
 
-docker compose -p nfa-quality --env-file .env up -d --force-recreate --no-deps \
-  auth rest realtime storage meta kong studio
-docker ps --format '{{.Names}}\t{{.Status}}' | grep nfa-quality
-```
+### 4. Correct the login-page permission timing
 
-Only Quality containers are touched; your `supabase-dev` and `supabase-prod`
-stacks are untouched.
+Update the local application so `role_permission` is fetched only after a
+validated session exists, then refreshed when the signed-in user changes and
+cleared on sign-out. The public login page will no longer make an authenticated-
+only table request.
 
-### Step C - turn on the dashboard login prompt (one time)
+Keep the existing security boundary: do not grant anonymous access to
+`role_permission`, and do not weaken its row-security policy.
 
-```text
-sudo apt install -y apache2-utils
-sudo htpasswd -c /etc/nginx/enfa-quality-studio.htpasswd enfa-quality-admin
-sudo chmod 640 /etc/nginx/enfa-quality-studio.htpasswd
-sudo chown root:www-data /etc/nginx/enfa-quality-studio.htpasswd
-sudo nginx -t && sudo systemctl reload nginx
-```
+Also keep the server-side login-ID lookup unchanged, but verify the Quality app
+process receives `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` from `frontend/.env`; restart only
+`enfa-quality-app` with the refreshed environment.
 
-If your live nginx file lacks the `auth_basic` lines, add them to the `listen
-8082` block from the copy in the project's `deployment/nginx/enfa-quality.conf`.
+### 5. Deploy using the existing prebuilt-release workflow
 
-### Step D - give the app process its keys
+Build the corrected app locally in VS Code with the Quality `VITE_*` values,
+upload the resulting `dist` folder to:
 
 ```text
-Q=/apps/webapplications/NFA_Approval/Quality
-grep -E '^(SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
-  $Q/frontend/.env | cut -d= -f1     # must list all three, no placeholders
-
-pm2 delete enfa-quality-app 2>/dev/null
-cd $Q/frontend && set -a && . ./.env && set +a && \
-  pm2 start dist/server/index.mjs --name enfa-quality-app --update-env && pm2 save
-
-pm2 logs enfa-quality-app --lines 20   # the Missing SUPABASE_SERVICE_ROLE_KEY line must be gone
+/apps/webapplications/NFA_Approval/Quality/frontend/dist
 ```
 
-`pm2 restart` alone reuses the old environment, which is why the key kept
-appearing missing.
+Restart only `enfa-quality-app`; do not run npm, install packages, or build on
+the Ubuntu server.
+
+### 6. End-to-end verification
+
+- Opening `/auth` makes no pre-login `role_permission` request.
+- Login-ID resolution and password sign-in succeed.
+- The first authenticated `role_permission` request returns `200` and 28 rows.
+- The signed-in user’s role is loaded and the correct screens appear.
+- Studio loads users and tables without the `supabase_admin` error.
+- No Quality service remains unhealthy or restarting.
 
 ## Safety boundary
 
-Only Quality containers, the Quality nginx block, the Quality app process, and
-Quality documentation are affected. No data is deleted, no volume is recreated,
-no build runs on the server, and no other application, container, port, or
-volume is touched.
+Only the Quality database roles, Quality containers, Quality app process, local
+application source, and uploaded Quality `dist` are involved. No volume is
+deleted, no data is cleared, no key is printed, and no dev/prod stack or other
+application is changed.
