@@ -402,16 +402,18 @@ proxy-based `/assets/` config is still active — re-link
 ### Redeploy sequence
 
 ```bash
-# 1. build (on the server checkout or the build machine)
-cd /apps/webapplications/NFA_Approval/Quality/src && npm install && npm run build
+# 1. build on the machine that has the latest project
+cd /path/to/latest/project && npm install && npm run build
 
-# 2. publish atomically (keeps dist.previous for rollback)
-cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 ./scripts/deploy-quality.sh
+# 2. upload the new dist to the server and publish atomically
+#    (keeps dist.previous for rollback)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous
+mv dist.new dist
 
-# 3. nginx config + reload
-sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
-  /opt/Ramky_Applications/nginx/enfa-quality.conf
+# 3. copy the updated nginx config (IPv6 listeners removed for this server)
+sudo cp /path/to/latest/project/deployment/nginx/enfa-quality.conf \
+  /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
 sudo nginx -t && sudo systemctl reload nginx
 
 # 4. restart only the Quality app
