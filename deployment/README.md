@@ -309,19 +309,51 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-`nginx -T` must show the Quality server and its `/assets/` proxy to
-`127.0.0.1:3000`; `nginx -t` must pass before reloading. No existing
-configuration is edited. Verify one real asset from the rendered login page:
+`nginx -T` must show the Quality server with `location /assets/` serving files
+from disk (`try_files`), not proxying to Node; `nginx -t` must pass before
+reloading. No existing configuration is edited.
+
+### Styles missing / page stuck on "Loading…"
+
+That symptom always means the browser got the HTML but the `/assets/*.css` and
+`/assets/*.js` files came back 404. Check that the file names inside the served
+HTML exist in the release folder:
 
 ```bash
 curl -sS http://127.0.0.1:3000/auth -o /tmp/enfa-auth.html
 ASSET="$(tr -d '\000' </tmp/enfa-auth.html | grep -aoE '/assets/[^" ]+\.(css|js)' | head -1)"
-test -n "$ASSET"
-curl -I "http://127.0.0.1:3000$ASSET"
-curl -I "http://127.0.0.1:8081$ASSET"
+test -n "$ASSET" && echo "$ASSET"
+ls -l "/apps/webapplications/NFA_Approval/Quality/frontend/dist$ASSET"
+curl -I "http://127.0.0.1:8081$ASSET"          # must be 200
+curl -I http://127.0.0.1:8081/ramky-logo.png   # must be 200
 ```
 
-Both requests must return HTTP 200 before testing the login page.
+If the file is missing on disk, the release folder is stale: rebuild and
+redeploy (below). If the file exists but nginx returns 404, the old
+proxy-based `/assets/` config is still active — re-link
+`deployment/nginx/enfa-quality.conf`, `nginx -t`, reload.
+
+### Redeploy sequence
+
+```bash
+# 1. build (on the server checkout or the build machine)
+cd /apps/webapplications/NFA_Approval/Quality/src && npm install && npm run build
+
+# 2. publish atomically (keeps dist.previous for rollback)
+cd /apps/webapplications/NFA_Approval/Quality
+PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 ./scripts/deploy-quality.sh
+
+# 3. nginx config + reload
+sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
+  /opt/Ramky_Applications/nginx/enfa-quality.conf
+sudo nginx -t && sudo systemctl reload nginx
+
+# 4. restart only the Quality app
+sudo systemctl restart enfa-quality-app   # or: pm2 restart enfa-quality-app
+
+# 5. verify
+curl -I http://127.0.0.1:8081/auth
+```
 
 ---
 
