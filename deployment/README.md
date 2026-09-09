@@ -92,6 +92,12 @@ cp     $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approva
 chmod +x $Q/scripts/*.sh
 ```
 
+If you are updating an existing server that only has the built `frontend/dist`
+release (no `Quality/src` checkout), skip the source copy above. Build on the
+machine that has the latest project, then upload only the new `dist/` folder
+and the updated `enfa-quality.conf` (see the "Updating when the server only has
+`dist/`" section below).
+
 ---
 
 ## 2. Generate the Quality secrets
