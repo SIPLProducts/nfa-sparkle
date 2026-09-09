@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
-import ramkyLogo from "@/assets/ramky-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in - NFA Portal" }] }),
@@ -83,7 +82,7 @@ function AuthPage() {
         />
         <div className="relative z-10 flex items-center gap-3">
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-white/25">
-            <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
+            <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="text-lg font-semibold tracking-wide">NFA Portal</div>
@@ -118,7 +117,7 @@ function AuthPage() {
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden flex items-center gap-3">
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md border border-border bg-card p-1.5 shadow-sm ring-1 ring-border/40">
-              <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
+              <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
             </div>
             <div>
               <div className="text-base font-semibold text-slate-900">NFA Portal</div>

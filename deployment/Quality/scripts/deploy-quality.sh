@@ -18,6 +18,8 @@ QUALITY_ROOT="${QUALITY_ROOT:-/apps/webapplications/NFA_Approval/Quality}"
 SRC_DIR="${SRC_DIR:-$QUALITY_ROOT/src}"                 # git checkout of the app
 ENV_FILE="${ENV_FILE:-$QUALITY_ROOT/frontend/.env}"
 FRONTEND_DIR="${FRONTEND_DIR:-$QUALITY_ROOT/frontend/dist}"
+RELEASE_TMP="${FRONTEND_DIR}.new"
+RELEASE_OLD="${FRONTEND_DIR}.previous"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
@@ -46,14 +48,19 @@ if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
 
   step "Building (VITE_* baked in now)"
   npm run build
-  [[ -f dist/server/index.mjs ]] || { echo "Build output dist/server/index.mjs not found"; exit 1; }
+  for required in dist/server/index.mjs dist/manifest.webmanifest dist/public/manifest.webmanifest dist/ramky-logo.png dist/public/ramky-logo.png; do
+    [[ -s "$required" ]] || { echo "Incomplete build: $required is missing or empty"; exit 1; }
+  done
+  [[ -n "$(find dist/assets -maxdepth 1 -type f -print -quit)" ]] || { echo "Incomplete build: dist/assets is empty"; exit 1; }
+  [[ -n "$(find dist/public/assets -maxdepth 1 -type f -print -quit)" ]] || { echo "Incomplete build: dist/public/assets is empty"; exit 1; }
 
-  step "Publishing static frontend to $FRONTEND_DIR"
-  mkdir -p "$FRONTEND_DIR"
-  rsync -a --delete --exclude "server/" dist/ "$FRONTEND_DIR/"
-
-  step "Publishing Node SSR bundle to $QUALITY_ROOT/frontend/server"
-  rsync -a --delete dist/server/ "$QUALITY_ROOT/frontend/server/"
+  step "Publishing one complete frontend release to $FRONTEND_DIR"
+  rm -rf "$RELEASE_TMP"
+  mkdir -p "$RELEASE_TMP"
+  rsync -a --delete dist/ "$RELEASE_TMP/"
+  rm -rf "$RELEASE_OLD"
+  if [[ -d "$FRONTEND_DIR" ]]; then mv "$FRONTEND_DIR" "$RELEASE_OLD"; fi
+  mv "$RELEASE_TMP" "$FRONTEND_DIR"
 fi
 
 if [[ "${SKIP_MIGRATIONS:-0}" != "1" ]]; then
@@ -63,7 +70,11 @@ fi
 
 if [[ "${SKIP_RESTART:-0}" != "1" ]]; then
   step "Restarting Quality services (Quality only)"
-  sudo systemctl restart enfa-quality-app || true
+  if pm2 describe enfa-quality-app >/dev/null 2>&1; then
+    pm2 restart enfa-quality-app --update-env
+  else
+    sudo systemctl restart enfa-quality-app
+  fi
   pm2 restart enfa-quality-middleware || true
 
   sleep 3

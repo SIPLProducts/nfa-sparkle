@@ -9,7 +9,7 @@
 // `dist/server/index.mjs`. `.output/` is then only build scratch. Inside the
 // Lovable build environment the platform owns the layout, so this does nothing.
 
-import { existsSync, rmSync, mkdirSync, renameSync, readdirSync, cpSync } from "node:fs";
+import { existsSync, rmSync, mkdirSync, renameSync, readdirSync, cpSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(process.cwd());
@@ -17,6 +17,7 @@ const dist = join(root, "dist");
 const client = join(dist, "client");
 const server = join(dist, "server");
 const nitroPublic = join(root, ".output", "public");
+const distPublic = join(dist, "public");
 
 if (process.env.LOVABLE_SANDBOX === "1" || process.env.SANDBOX) {
   console.log("[pack-dist] Lovable build environment detected — leaving output layout untouched.");
@@ -53,6 +54,16 @@ if (existsSync(nitroPublic)) {
   rmSync(client, { recursive: true, force: true });
 }
 
+// The Node preset resolves public files from dist/public at runtime, while
+// nginx deployments commonly resolve them from dist/. Ship both layouts from
+// the same build so HTML and hashed assets can never drift apart.
+rmSync(distPublic, { recursive: true, force: true });
+mkdirSync(distPublic, { recursive: true });
+for (const entry of readdirSync(dist)) {
+  if (entry === "public" || entry === "server") continue;
+  cpSync(join(dist, entry), join(distPublic, entry), { recursive: true, force: true });
+}
+
 // 3. Ship the Node server bundle inside dist/ so the release is one folder.
 const nitroServer = join(root, ".output", "server");
 const distServer = join(dist, "server");
@@ -67,5 +78,27 @@ for (const junk of ["nitro.json", "package.json", "package-lock.json"]) {
   rmSync(join(dist, junk), { force: true });
 }
 
-console.log("[pack-dist] Release folder ready in dist/ (static assets + dist/server/index.mjs):");
+// Fail the build instead of publishing a release that can only display
+// "Loading…" because its browser bundle or public files are missing.
+const requiredFiles = [
+  join(dist, "server", "index.mjs"),
+  join(dist, "manifest.webmanifest"),
+  join(dist, "favicon.png"),
+  join(dist, "ramky-logo.png"),
+  join(distPublic, "manifest.webmanifest"),
+  join(distPublic, "favicon.png"),
+  join(distPublic, "ramky-logo.png"),
+];
+for (const file of requiredFiles) {
+  if (!existsSync(file) || statSync(file).size === 0) {
+    throw new Error(`[pack-dist] Required release file is missing or empty: ${file}`);
+  }
+}
+for (const assetsDir of [join(dist, "assets"), join(distPublic, "assets")]) {
+  if (!existsSync(assetsDir) || readdirSync(assetsDir).length === 0) {
+    throw new Error(`[pack-dist] Browser assets are missing: ${assetsDir}`);
+  }
+}
+
+console.log("[pack-dist] Release ready: root/public assets + dist/server/index.mjs");
 for (const entry of readdirSync(dist).sort()) console.log("  -", entry);
