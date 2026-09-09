@@ -44,15 +44,26 @@ mkdir dist
 
 Copy the newly built `dist` contents into that empty `dist` folder. It must contain `assets`, `icons`, `server/index.mjs`, favicons, and the manifest from the **same build**.
 
-For the current server bundle, also provide Nitro's expected public directory:
+The PM2 log confirms the Node server reads static files only from `dist/public/`, and the latest `ls` shows that folder was created **but left empty**. Copy the static files into it and verify contents before restarting:
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
-mkdir -p public
-cp -a assets icons favicon.ico favicon.png manifest.webmanifest public/
+
+cp -a assets public/          # creates public/assets/...
+cp -a icons public/           # creates public/icons/...
+cp -a favicon.ico favicon.png manifest.webmanifest public/
+
+# Verification is mandatory - every line must show the file exists:
+ls -la public/
+ls public/assets | head -5
+test -f public/manifest.webmanifest && echo "manifest OK"
+test -f public/favicon.png && echo "favicon OK"
+
 PORT=3000 HOST=127.0.0.1 pm2 restart enfa-quality-app --update-env
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+Note: `cp -a assets icons ... public/` copies them as subdirectories/items **inside** `public/`. After the restart, `pm2 logs enfa-quality-app --lines 20` must show no more ENOENT errors.
 
 Verify the exact CSS/JS URLs from Step 1 return `200` and appropriate content types, then hard-refresh `/auth`. Do not proceed to login testing until the styled page loads.
 
