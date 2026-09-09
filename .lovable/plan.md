@@ -1,44 +1,51 @@
-# Fix the dashboard password error and the login error on port 8081
+# Fix the three Quality server problems
 
-Two separate problems, in this order.
+All three symptoms come from the same two root causes: the API keys in
+`backend/.env` do not match the `JWT_SECRET`, and the app process on 8081 was
+started without the server-side keys.
 
-## 1. Dashboard: "password authentication failed for user supabase_admin"
+## Symptom 1 - 401 Unauthorized on `/rest/v1/role_permission` after login
 
-The internal database passwords in the existing Quality database volume are older
-than the values now in `backend/.env`, and the API keys in `backend/.env` do not
-match the `JWT_SECRET`. Until both are corrected, the dashboard keeps failing.
-The repair scripts for this already exist in the repo but have not been run to
-completion on the server yet.
+That `{"message":"Unauthorized","request_id":...}` shape is the API gateway
+rejecting the key the browser sent. The gateway accepts exactly the `ANON_KEY`
+and `SERVICE_ROLE_KEY` values from `backend/.env`; the browser bundle was built
+with a different (invalid) key. Correct keys + rebuild clears this.
 
-## 2. Login: "Missing Supabase environment variable(s): SUPABASE_SERVICE_ROLE_KEY"
+## Symptom 2 - Dashboard: password authentication failed for supabase_admin
 
-Sign-in first calls a server-side step that resolves the User ID to an email, and
-that step needs the service key on the running Node app process. The message means
-the Quality app process on 8081 is running without `SUPABASE_SERVICE_ROLE_KEY` -
-either `frontend/.env` still holds the placeholder text, or the process was started
-without that file. Nothing in the application code is wrong.
+The internal database role passwords in the existing Quality data volume are
+older than the value now in `backend/.env`. The roles must be reset to the
+current value and the affected Quality services recreated.
+
+## Symptom 3 - The dashboard never asks for a username and password
+
+The dashboard credentials are enforced by the API gateway on 8001, but port 8082
+proxies straight to the dashboard container and bypasses it. A password prompt
+must be added on 8082 itself.
+
+## Also fixed: `SUPABASE_SERVICE_ROLE_KEY` missing on the running app
+
+Your pm2 log repeats this on every sign-in. The app process has no service key,
+because `frontend/.env` still holds placeholder text or the process was started
+without that file.
 
 ## Repo changes
 
-1. **New `deployment/Quality/scripts/sync-frontend-env.sh`**
-   - Copy the correct URL, publishable key and service key from `backend/.env` into
-     `frontend/.env` (creating it from the example if missing), never printing values.
-   - Refuse placeholder text and refuse keys that do not match `JWT_SECRET`.
-   - Report whether a frontend rebuild is required (it is, whenever the browser key
-     changes, because that value is baked into the built files).
+1. **New `deployment/Quality/scripts/sync-frontend-env.sh`** - copy the correct
+   URL and both keys from `backend/.env` into `frontend/.env` (creating it from
+   the example when missing), never printing values, refusing placeholder text
+   and keys that do not match `JWT_SECRET`.
+2. **New `deployment/Quality/scripts/check-app-env.sh`** - report present/missing
+   (never values) for the required variables on the actually running app process,
+   so this is diagnosed in one command.
+3. **`deployment/Quality/scripts/deploy-quality.sh`** - run the env sync and the
+   presence check before building, fail early with a clear message, and restart
+   the app with the env file applied.
+4. **`deployment/nginx/enfa-quality.conf`** - already updated to require a
+   password file on 8082; the README will carry the one-time setup command.
+5. **`deployment/README.md`** - one ordered recovery procedure for all three.
 
-2. **New `deployment/Quality/scripts/check-app-env.sh`**
-   - Report, for the actually running app process, whether each required value is
-     present (present/missing only, never the value), so this failure is diagnosed
-     in one command instead of by guessing.
-
-3. **`deployment/Quality/scripts/deploy-quality.sh`**
-   - Run the env sync and the presence check before building, and fail early with a
-     clear message rather than shipping a build that cannot sign anyone in.
-   - Restart the app with the env file applied so a running process picks up the key.
-
-4. **`deployment/README.md`**
-   - One ordered recovery procedure covering both problems.
+`generate-keys.sh` and `fix-db-roles.sh` already exist and are used as-is.
 
 ## What you will run on the server
 
@@ -46,23 +53,28 @@ without that file. Nothing in the application code is wrong.
 SRC=/apps/webapplications/NFA_Approval/Quality/src
 Q=/apps/webapplications/NFA_Approval/Quality
 cp $SRC/deployment/Quality/scripts/* $Q/scripts/ && chmod +x $Q/scripts/*.sh
+cp $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/
 cd $Q
 
-# Problem 1 - dashboard
-./scripts/generate-keys.sh        # paste both printed keys into backend/.env
+./scripts/generate-keys.sh        # paste BOTH printed keys into backend/.env
 ./scripts/fix-db-roles.sh         # let it finish, do not press Ctrl+C
 ./scripts/run-migrations.sh       # only after the repair reports success
 
-# Problem 2 - login
 ./scripts/sync-frontend-env.sh    # copies the corrected keys into frontend/.env
-./scripts/deploy-quality.sh       # rebuild + restart with the keys applied
+./scripts/deploy-quality.sh       # rebuild (new browser key) + restart
 ./scripts/check-app-env.sh        # confirms the running app has the service key
+
+# Dashboard login prompt, one time
+sudo apt install -y apache2-utils
+sudo htpasswd -c /etc/nginx/enfa-quality-studio.htpasswd enfa-quality-admin
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Then reload `http://10.200.1.7:8082` (dashboard) and `http://10.200.1.7:8081/auth`
-(login).
+The rebuild in step `deploy-quality.sh` is required: the browser key is baked
+into the built files, so a key change without a rebuild keeps returning 401.
 
 ## Safety boundary
 
-Only Quality scripts and Quality documentation change. No application source code,
-no data deletion, and no other application, container, port, or volume is touched.
+Only Quality scripts, the Quality nginx file and Quality documentation change.
+No application source code, no data deletion, and no other application,
+container, port, or volume is touched.
