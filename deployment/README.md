@@ -58,6 +58,20 @@ Run the discovery commands in [`PORTS.md`](./PORTS.md) and confirm that
 **8081, 8001, 8082, 3004, 3000, 3005, 54321, 54322, 54323** are all free.
 If any is taken, pick a replacement and change it in the three files listed there.
 
+What each public port is (do not mix these up):
+
+| Port | What it is |
+| --- | --- |
+| 8081 | The application itself (login page) |
+| 8001 | Supabase API / Kong gateway — used by the app, has no UI |
+| 8082 | Supabase Studio, i.e. the dashboard you open in a browser |
+| 3004 | SAP middleware |
+
+Swapping 8001 and 8082 is possible but requires rebuilding and redeploying the
+frontend, because `VITE_SUPABASE_URL` is baked into the build. Keep the
+allocation above unless you are also rebuilding.
+
+
 ---
 
 ## 1. Create the folder tree
