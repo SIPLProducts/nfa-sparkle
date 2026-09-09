@@ -82,7 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // are never discarded.
       if (!sameUser) {
         if (s?.user) {
-          await loadRoles(s.user.id);
+          try {
+            await loadRoles(s.user.id);
+          } catch (e) {
+            console.error("Unable to load roles during bootstrap", e);
+            setRoles([]);
+          }
         } else {
           setRoles([]);
         }
