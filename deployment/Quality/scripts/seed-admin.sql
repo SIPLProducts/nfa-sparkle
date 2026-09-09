@@ -4,7 +4,8 @@
 --       Authentication -> Add user -> tick "Auto Confirm User"
 -- 2. Run this file with that user's email:
 --
---    PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -U postgres -d postgres \
+--    PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
+--      psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
 --      -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 
 \set ON_ERROR_STOP on

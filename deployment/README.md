@@ -225,6 +225,17 @@ chmod +x scripts/fix-db-roles.sh
 ./scripts/fix-db-roles.sh
 ```
 
+Let it finish. It waits up to two minutes for `auth`, `realtime` and `meta` to
+report healthy and prints their state each poll. Do **not** press Ctrl+C while
+`nfa-quality-meta` still says `Restarting` — Studio reads the schema list
+through Meta, so the dashboard keeps showing the `supabase_admin` error until
+Meta is healthy. If the script gives up it prints the failing container's log
+automatically; you can also check it directly:
+
+```bash
+docker logs nfa-quality-meta --tail 50
+```
+
 The migration files must live at `Quality/backend/migrations` — **not** under
 `backend/volumes/`. If you placed them there, move them:
 
@@ -236,12 +247,21 @@ mv volumes/migrations ./migrations
 Alternatively keep them where they are and pass the folder explicitly with
 `MIGRATIONS_DIR=/full/path ./scripts/run-migrations.sh`.
 
+No password is needed — the script reads `POSTGRES_PASSWORD` from
+`backend/.env` by itself:
+
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+./scripts/run-migrations.sh
 # dry run first if you prefer:
-# DRY_RUN=1 PGPASSWORD='...' ./scripts/run-migrations.sh
+# DRY_RUN=1 ./scripts/run-migrations.sh
 ```
+
+Do not copy a placeholder like `PGPASSWORD='<POSTGRES_PASSWORD>'` into the
+shell — the angle-bracket text is sent as the password and Postgres answers
+`password authentication failed for user "postgres"`. The script now rejects
+that input with a clear message. To override the password deliberately, use
+the real value: `PGPASSWORD='actual-value' ./scripts/run-migrations.sh`.
 
 The script is idempotent — applied files are tracked in
 `public.schema_migrations_applied`, re-runs only apply new files.
@@ -251,7 +271,8 @@ Create the first login in Studio (`http://10.200.1.7:8082`, dashboard
 credentials from `backend/.env`) with **Auto Confirm** enabled, then grant admin:
 
 ```bash
-PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
+  psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
   -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 ```
 
@@ -267,7 +288,7 @@ nano .env     # ANON_KEY, SERVICE_ROLE_KEY
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
+SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
 ls frontend/dist/server/index.mjs frontend/dist/manifest.webmanifest \
    frontend/dist/public/manifest.webmanifest frontend/dist/ramky-logo.png
 ```
@@ -370,7 +391,7 @@ cp "$SRC/deployment/Quality/scripts/deploy-quality.sh" /apps/webapplications/NFA
 chmod +x /apps/webapplications/NFA_Approval/Quality/scripts/deploy-quality.sh
 sudo nginx -t && sudo systemctl reload nginx
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+./scripts/deploy-quality.sh
 ```
 
 The updated deploy script will verify every CSS/JS asset on both port 3000

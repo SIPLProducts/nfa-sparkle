@@ -6,7 +6,7 @@
 #
 # Usage:
 #   cd /apps/webapplications/NFA_Approval/Quality
-#   PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+#   ./scripts/run-migrations.sh          # password read from backend/.env
 #
 # Optional env:
 #   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 54322)
@@ -41,6 +41,26 @@ fi
 export PGPORT="${PGPORT:-54322}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-postgres}"
+
+# A pasted placeholder such as <POSTGRES_PASSWORD from backend/.env> is never a
+# real password - reject it up front instead of showing a raw Postgres error.
+if [[ "${PGPASSWORD:-}" == *"<"* || "${PGPASSWORD:-}" == *">"* ]]; then
+  echo "PGPASSWORD looks like placeholder text, not a real password."
+  echo "Just run ./scripts/run-migrations.sh with no PGPASSWORD - it reads backend/.env."
+  exit 1
+fi
+
+# Read the password straight from backend/.env so nobody has to type or paste it.
+if [[ -z "${PGPASSWORD:-}" && -f "$QUALITY_ROOT/backend/.env" ]]; then
+  env_pw="$(grep -E '^[[:space:]]*POSTGRES_PASSWORD[[:space:]]*=' "$QUALITY_ROOT/backend/.env" \
+    | tail -n1 | cut -d= -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")"
+  if [[ -n "$env_pw" ]]; then
+    echo "Using POSTGRES_PASSWORD from backend/.env"
+    PGPASSWORD="$env_pw"
+    export PGPASSWORD
+  fi
+fi
 
 if [[ -z "${PGPASSWORD:-}" ]]; then
   read -rsp "Postgres password for $PGUSER@$PGHOST:$PGPORT: " PGPASSWORD

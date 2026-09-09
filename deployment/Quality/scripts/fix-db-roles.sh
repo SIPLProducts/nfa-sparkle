@@ -5,7 +5,17 @@ set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-nfa-quality}"
 DB_CONTAINER="${DB_CONTAINER:-nfa-quality-db}"
-BACKEND_DIR="${BACKEND_DIR:-/apps/webapplications/NFA_Approval/Quality/backend}"
+
+# Resolve the Quality root from this script's own location so it can be run
+# from any directory (e.g. from inside scripts/ or from the Quality root).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${BACKEND_DIR:-}" ]]; then
+  if [[ -f "$SCRIPT_DIR/../backend/docker-compose.yml" ]]; then
+    BACKEND_DIR="$(cd "$SCRIPT_DIR/../backend" && pwd)"
+  else
+    BACKEND_DIR="/apps/webapplications/NFA_Approval/Quality/backend"
+  fi
+fi
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
@@ -43,22 +53,26 @@ step "Restarting only Quality Auth, Realtime, and Meta"
 docker compose -p "$PROJECT_NAME" -f "$BACKEND_DIR/docker-compose.yml" \
   --env-file "$BACKEND_DIR/.env" restart auth realtime meta
 
-step "Waiting for Quality service health"
-for attempt in $(seq 1 45); do
+step "Waiting for Quality service health (this can take up to 2 minutes - do not press Ctrl+C)"
+NOT_READY='starting|unhealthy|created|exited|restarting'
+for attempt in $(seq 1 60); do
   states="$(docker inspect -f '{{.Name}} {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
     nfa-quality-auth nfa-quality-realtime nfa-quality-meta 2>/dev/null || true)"
-  if ! grep -Eq 'starting|unhealthy|created|exited' <<<"$states"; then break; fi
+  if ! grep -Eq "$NOT_READY" <<<"$states"; then break; fi
+  printf '  [%02d/60] %s\n' "$attempt" "$(tr '\n' ' ' <<<"$states")"
   sleep 2
 done
 docker inspect -f '{{.Name}} {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
   nfa-quality-auth nfa-quality-realtime nfa-quality-meta
 
 if docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
-  nfa-quality-auth nfa-quality-realtime nfa-quality-meta | grep -Eq 'starting|unhealthy|created|exited'; then
+  nfa-quality-auth nfa-quality-realtime nfa-quality-meta | grep -Eq "$NOT_READY"; then
   echo "One or more Quality services are not healthy. Fresh scoped logs:"
-  docker logs nfa-quality-auth --since 5m --tail 80 || true
-  docker logs nfa-quality-realtime --since 5m --tail 80 || true
-  docker logs nfa-quality-meta --since 5m --tail 80 || true
+  for c in nfa-quality-auth nfa-quality-realtime nfa-quality-meta; do
+    state="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo unknown)"
+    printf '\n----- %s (%s) -----\n' "$c" "$state"
+    docker logs "$c" --since 5m --tail 80 2>&1 || true
+  done
   exit 1
 fi
 
