@@ -247,12 +247,21 @@ mv volumes/migrations ./migrations
 Alternatively keep them where they are and pass the folder explicitly with
 `MIGRATIONS_DIR=/full/path ./scripts/run-migrations.sh`.
 
+No password is needed — the script reads `POSTGRES_PASSWORD` from
+`backend/.env` by itself:
+
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+./scripts/run-migrations.sh
 # dry run first if you prefer:
-# DRY_RUN=1 PGPASSWORD='...' ./scripts/run-migrations.sh
+# DRY_RUN=1 ./scripts/run-migrations.sh
 ```
+
+Do not copy a placeholder like `PGPASSWORD='<POSTGRES_PASSWORD>'` into the
+shell — the angle-bracket text is sent as the password and Postgres answers
+`password authentication failed for user "postgres"`. The script now rejects
+that input with a clear message. To override the password deliberately, use
+the real value: `PGPASSWORD='actual-value' ./scripts/run-migrations.sh`.
 
 The script is idempotent — applied files are tracked in
 `public.schema_migrations_applied`, re-runs only apply new files.
