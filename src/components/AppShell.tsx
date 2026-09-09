@@ -17,7 +17,6 @@ import {
 import { Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { ScreenKey } from "@/lib/screens";
-import ramkyLogo from "@/assets/ramky-logo.png.asset.json";
 import { cn } from "@/lib/utils";
 
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: string; screen: ScreenKey }[] = [
@@ -173,7 +172,7 @@ export function AppShell({
           {!sidebarCollapsed && (
             <div className="flex min-w-0 items-center gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
-                <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
+                <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
               </div>
               <div className="flex min-w-0 flex-col justify-center overflow-hidden">
                 <div className="font-display text-base font-bold leading-tight tracking-tight text-white">NFA Portal</div>
@@ -222,7 +221,7 @@ export function AppShell({
                   <SheetHeader className="border-b border-sidebar-border px-5 py-4 text-left">
                     <SheetTitle className="flex items-center gap-3 text-white">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
-                        <img src={ramkyLogo.url} alt="Ramky Estates" className="h-full w-full object-contain" />
+                        <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
                       </div>
                       <div className="leading-tight">
                         <div className="font-display text-base font-bold">NFA Portal</div>

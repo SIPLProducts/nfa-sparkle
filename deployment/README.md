@@ -16,8 +16,7 @@ Target layout on the server:
 │   ├── src/                     git checkout used only to build (optional to keep)
 │   ├── frontend/
 │   │   ├── .env                 build + runtime env
-│   │   ├── dist/                published static frontend
-│   │   └── server/              published Node SSR bundle (index.mjs)
+│   │   └── dist/                complete release (root/public assets + server)
 │   ├── backend/
 │   │   ├── docker-compose.yml
 │   │   ├── .env
@@ -168,26 +167,28 @@ docker logs nfa-quality-realtime --tail 50
 Usual causes and fixes:
 
 1. **The DB volume was created by an earlier, broken attempt.** The bootstrap
-   SQL in `volumes/db/` runs only on a fresh, empty data volume — if the volume
-   already exists, roles like `supabase_auth_admin` may be missing their
-   password. Do a one-time reset (Quality volumes only; DEV/PROD are untouched,
-   and the Quality database is still empty at this stage):
+   SQL in `volumes/db/` runs only on a fresh, empty data volume. Repair the
+   existing Quality roles in place first; this does not print the password,
+   delete data, or touch another Docker project:
 
    ```bash
-   docker compose -p nfa-quality down -v    # deletes ONLY nfa-quality volumes
-   docker compose -p nfa-quality up -d
-   docker logs nfa-quality-auth --tail 50   # confirm GoTrue started
-   docker compose -p nfa-quality ps         # wait until all are healthy
+   cd /apps/webapplications/NFA_Approval/Quality
+   chmod +x scripts/fix-db-roles.sh
+   ./scripts/fix-db-roles.sh
+   curl -i http://127.0.0.1:8001/auth/v1/health
    ```
 
-   Afterwards re-apply the schema with `Quality/scripts/run-migrations.sh`.
+   The script restarts only `nfa-quality-auth`, `nfa-quality-realtime`, and
+   `nfa-quality-meta`, then starts the remaining `nfa-quality` services. Use a
+   volume reset only when the Quality database is explicitly confirmed
+   disposable and this live repair fails.
 
 2. **Empty or too-short secrets in `.env`.** `JWT_SECRET` must be 40+ chars,
    `POSTGRES_PASSWORD` must be set, and Realtime requires both
    `SECRET_KEY_BASE` and `VAULT_ENC_KEY`. Regenerate them with the `openssl
    rand` commands from step 2 and run `docker compose -p nfa-quality up -d`
-   again (after the `down -v` reset above if `POSTGRES_PASSWORD` changed,
-   since the DB role passwords were set from the old value).
+   again. If `POSTGRES_PASSWORD` changed after initialization, run
+   `scripts/fix-db-roles.sh` to synchronize the existing roles.
 
 ---
 
@@ -224,7 +225,8 @@ nano .env     # ANON_KEY, SERVICE_ROLE_KEY
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
 PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
-ls frontend/dist/index.html frontend/server/index.mjs
+ls frontend/dist/server/index.mjs frontend/dist/manifest.webmanifest \
+   frontend/dist/public/manifest.webmanifest frontend/dist/ramky-logo.png
 ```
 
 The deployment script uses `npm ci` when `package-lock.json` exists. On the
@@ -239,6 +241,10 @@ npm run build
 `VITE_*` values are inlined at build time — after changing any of them you must
 rebuild, a restart is not enough.
 
+The deploy helper replaces the complete `frontend/dist` release atomically;
+it does not merge old and new hashed assets. It retains the immediately
+previous release at `frontend/dist.previous` for rollback.
+
 Run the SSR server as a systemd unit:
 
 ```bash
@@ -250,9 +256,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/apps/webapplications/NFA_Approval/Quality/frontend
+WorkingDirectory=/apps/webapplications/NFA_Approval/Quality/frontend/dist
 EnvironmentFile=/apps/webapplications/NFA_Approval/Quality/frontend/.env
-ExecStart=/usr/bin/node /apps/webapplications/NFA_Approval/Quality/frontend/server/index.mjs
+ExecStart=/usr/bin/node /apps/webapplications/NFA_Approval/Quality/frontend/dist/server/index.mjs
 Restart=always
 RestartSec=5
 SyslogIdentifier=enfa-quality-app
@@ -292,15 +298,30 @@ the other PM2 processes. Enter the same `PROXY_SECRET` in the portal under
 
 ## 7. nginx
 
+This server's main Nginx file includes `/opt/Ramky_Applications/nginx/*.conf`.
+Link only the Quality file into that already configured include directory:
+
 ```bash
 sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
-            /etc/nginx/sites-enabled/enfa-quality.conf
+  /opt/Ramky_Applications/nginx/enfa-quality.conf
+sudo nginx -T 2>/dev/null | grep -n -A12 'listen 8081'
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-`nginx -t` must pass before reloading. This adds one new file to
-`sites-enabled`; no existing configuration is edited.
+`nginx -T` must show the Quality server and its `/assets/` proxy to
+`127.0.0.1:3000`; `nginx -t` must pass before reloading. No existing
+configuration is edited. Verify one real asset from the rendered login page:
+
+```bash
+curl -sS http://127.0.0.1:3000/auth -o /tmp/enfa-auth.html
+ASSET="$(tr -d '\000' </tmp/enfa-auth.html | grep -aoE '/assets/[^" ]+\.(css|js)' | head -1)"
+test -n "$ASSET"
+curl -I "http://127.0.0.1:3000$ASSET"
+curl -I "http://127.0.0.1:8081$ASSET"
+```
+
+Both requests must return HTTP 200 before testing the login page.
 
 ---
 
@@ -337,9 +358,13 @@ pm2 logs enfa-quality-middleware
 docker compose -p nfa-quality -f backend/docker-compose.yml logs -f auth
 ```
 
-Rollback: keep the previous `frontend/dist` and `frontend/server` folders
-(`cp -a frontend/dist frontend/dist.bak`) before a deploy and swap them back,
-then `sudo systemctl restart enfa-quality-app`.
+Rollback the last frontend release without touching another application:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.failed && mv dist.previous dist
+pm2 restart enfa-quality-app --update-env
+```
 
 ---
 
