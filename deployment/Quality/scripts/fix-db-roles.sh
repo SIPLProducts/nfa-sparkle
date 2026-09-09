@@ -89,33 +89,37 @@ docker inspect "$DB_CONTAINER" >/dev/null
 }
 
 step "Applying the backend/.env password to the internal Quality roles"
-printf '%s' "$TARGET_PASSWORD" | docker exec -i \
-  -e TARGET_DB="$POSTGRES_DB_NAME" "$DB_CONTAINER" sh -eu -c '
-  role_password="$(cat)"
-  export PGPASSWORD=""
-  psql --username "${POSTGRES_USER:-postgres}" --dbname "$TARGET_DB" \
-    --set=ON_ERROR_STOP=1 --set=role_password="$role_password" -q <<"SQL"
-SELECT format("ALTER ROLE %I WITH PASSWORD %L", rolname, :\u0027role_password\u0027)
+# The password travels as a container env var, never on the command line and
+# never in the output. psql substitutes it safely through :'role_password'.
+docker exec -i \
+  -e ROLE_PASSWORD="$TARGET_PASSWORD" \
+  -e TARGET_DB="$POSTGRES_DB_NAME" \
+  "$DB_CONTAINER" sh -eu -c '
+    psql --username "${POSTGRES_USER:-postgres}" --dbname "$TARGET_DB" \
+      --set=ON_ERROR_STOP=1 --set=role_password="$ROLE_PASSWORD" -q
+  ' <<'SQL'
+SELECT format('ALTER ROLE %I WITH PASSWORD %L', rolname, :'role_password')
 FROM pg_roles
 WHERE rolname IN (
-  \u0027authenticator\u0027,
-  \u0027pgbouncer\u0027,
-  \u0027postgres\u0027,
-  \u0027supabase_admin\u0027,
-  \u0027supabase_auth_admin\u0027,
-  \u0027supabase_functions_admin\u0027,
-  \u0027supabase_read_only_user\u0027,
-  \u0027supabase_storage_admin\u0027
+  'authenticator',
+  'pgbouncer',
+  'postgres',
+  'supabase_admin',
+  'supabase_auth_admin',
+  'supabase_functions_admin',
+  'supabase_read_only_user',
+  'supabase_storage_admin'
 )
 \gexec
 SQL
-'
 echo "Role passwords synchronized."
 
 step "Verifying a real supabase_admin login"
-if printf '%s' "$TARGET_PASSWORD" | docker exec -i \
-  -e TARGET_DB="$POSTGRES_DB_NAME" "$DB_CONTAINER" sh -eu -c '
-    PGPASSWORD="$(cat)" psql --host 127.0.0.1 --port 5432 --username supabase_admin \
+if docker exec -i \
+  -e PGPASSWORD="$TARGET_PASSWORD" \
+  -e TARGET_DB="$POSTGRES_DB_NAME" \
+  "$DB_CONTAINER" sh -eu -c '
+    psql --host 127.0.0.1 --port 5432 --username supabase_admin \
       --dbname "$TARGET_DB" --set=ON_ERROR_STOP=1 -tAq -c "select 1" >/dev/null
   '; then
   echo "supabase_admin can sign in with the backend/.env password."
