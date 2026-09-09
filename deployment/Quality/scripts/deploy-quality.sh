@@ -2,7 +2,7 @@
 # eNFA QUALITY - build + release helper.
 #
 #   cd /apps/webapplications/NFA_Approval/Quality
-#   PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+#   ./scripts/deploy-quality.sh          # DB password read from backend/.env
 #
 # Steps: build the frontend from the source checkout (with the Quality VITE_*
 #        values), publish dist/, apply migrations, restart app + middleware.

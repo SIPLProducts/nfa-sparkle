@@ -6,7 +6,7 @@
 #
 # Usage:
 #   cd /apps/webapplications/NFA_Approval/Quality
-#   PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+#   ./scripts/run-migrations.sh          # password read from backend/.env
 #
 # Optional env:
 #   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 54322)
