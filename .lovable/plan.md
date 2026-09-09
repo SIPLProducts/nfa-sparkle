@@ -1,141 +1,143 @@
-# Fix the Supabase role passwords directly (no volume wipe) + finish the frontend
+# Recover the Quality frontend and backend
 
-Your diagnosis is correct. Two facts make the current situation unfixable by the init script alone:
+The two failures are independent:
 
-1. The server still has the old `volumes/db/roles.sql` with the unexpanded `:'pgpass'` variable.
-   The replacement (`00-roles.sh`) exists in the repository but was never copied to the server.
-2. Even after copying it, **`/docker-entrypoint-initdb.d/` scripts only run when the Postgres data
-   directory is empty**. Your `nfa-quality-db` volume already has data, so a new init script would
-   be ignored entirely.
+- **Frontend:** PM2 and nginx respond, but `/auth` is unstyled and the logo is broken. The HTML is loading while its generated CSS/JavaScript/assets are not. We will identify the exact missing URL before changing nginx, then deploy one clean matching release.
+- **Backend:** database, Auth, Realtime, and Meta must be diagnosed separately. The previously confirmed `28P01` errors require synchronizing internal database-role passwords on the existing Quality database; a Docker image pull error requires its exact output and may be a separate registry/network issue.
 
-So the fastest, safest fix is to set the role passwords directly on the running database. No data
-loss, no wipe, no effect on other applications.
+No existing applications, non-Quality containers, shared nginx configuration, or ports will be changed.
 
----
+## 1. Capture the frontend asset failure
 
-## Step 1 — Set the role passwords on the live database
+Run on the server:
 
-Run from the backend folder (substitute your actual `POSTGRES_PASSWORD` from `.env`):
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
+
+curl -sS http://127.0.0.1:3000/auth -o /tmp/enfa-auth.html
+grep -oE '(src|href)="[^"]+"' /tmp/enfa-auth.html | head -30
+
+curl -sS -I http://127.0.0.1:8081/assets/$(ls assets | head -1)
+sudo tail -50 /var/log/nginx/nfa-quality-app.error.log
+pm2 logs enfa-quality-app --lines 50 --nostream
+```
+
+The HTML output tells us the real CSS and JavaScript URLs. Test each generated `/assets/...` URL with `curl -I`. A `404`, wrong content type, or filename absent from `dist/assets` confirms either an incomplete copy or a server/static bundle from different builds.
+
+## 2. Deploy one clean, matching frontend release
+
+Build on Windows with the **Quality** browser values present before the build:
+
+```powershell
+npm install
+npm run build
+```
+
+On the server, stop only the ENFA app, replace rather than merge the old release, and preserve a rollback copy:
+
+```bash
+pm2 stop enfa-quality-app
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.backup-$(date +%Y%m%d-%H%M%S)
+mkdir dist
+```
+
+Copy the newly built `dist` contents into that empty `dist` folder. It must contain `assets`, `icons`, `server/index.mjs`, favicons, and the manifest from the **same build**.
+
+For the current server bundle, also provide Nitro's expected public directory:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
+mkdir -p public
+cp -a assets icons favicon.ico favicon.png manifest.webmanifest public/
+PORT=3000 HOST=127.0.0.1 pm2 restart enfa-quality-app --update-env
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Verify the exact CSS/JS URLs from Step 1 return `200` and appropriate content types, then hard-refresh `/auth`. Do not proceed to login testing until the styled page loads.
+
+## 3. Capture the backend state and Docker pull error
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/backend
-source .env
+ls -la
+docker compose -p nfa-quality config --services
+docker compose -p nfa-quality ps -a
+docker compose -p nfa-quality pull 2>&1 | tee /tmp/nfa-quality-pull.log
+docker logs nfa-quality-auth --tail 80
+docker logs nfa-quality-realtime --tail 80
+docker logs nfa-quality-meta --tail 80
+```
+
+The exact `pull` output distinguishes DNS/proxy/TLS/rate-limit/image-tag failures. We will not change image tags or Docker networking without that evidence.
+
+Also confirm required variables exist **without printing their values**:
+
+```bash
+for key in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SECRET_KEY_BASE VAULT_ENC_KEY; do
+  grep -q "^${key}=." .env && echo "$key: set" || echo "$key: MISSING"
+done
+```
+
+The repository root `.env` shown in the project belongs to Lovable Cloud and must **not** be copied to this self-hosted backend. The server backend needs its own `.env` based on `deployment/Quality/backend/.env.example`.
+
+## 4. Repair the existing Quality database roles without wiping data
+
+If logs still show `28P01`, load the server `.env` and synchronize only the built-in roles in `nfa-quality-db`:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
+set -a; . ./.env; set +a
 
 docker exec -i nfa-quality-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-  -v pw="$POSTGRES_PASSWORD" <<'SQL'
-SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', rolname, :'pw')
+  -v role_password="$POSTGRES_PASSWORD" <<'SQL'
+SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', rolname, :'role_password')
 FROM pg_roles
 WHERE rolname IN (
-  'authenticator','pgbouncer','supabase_admin','supabase_auth_admin',
-  'supabase_functions_admin','supabase_read_only_user','supabase_storage_admin'
+  'authenticator', 'pgbouncer', 'supabase_admin', 'supabase_auth_admin',
+  'supabase_functions_admin', 'supabase_read_only_user', 'supabase_storage_admin'
 )
 \gexec
 SQL
 ```
 
-Verify a role can actually log in:
+Verify both failing credentials across the Docker network:
 
 ```bash
-docker exec -i nfa-quality-db \
-  env PGPASSWORD="$POSTGRES_PASSWORD" psql -U supabase_auth_admin -d postgres -c 'select 1'
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" nfa-quality-db \
+  psql -h 127.0.0.1 -U supabase_auth_admin -d postgres -c 'select 1'
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" nfa-quality-db \
+  psql -h 127.0.0.1 -U supabase_admin -d postgres -c 'select 1'
 ```
 
-That must print `1`. If it errors, the password in `.env` differs from what you just set — re-run
-Step 1 with the correct value.
+Both must return `1`. If the password contains URL-reserved characters, use a new hex-only password, update the server backend `.env`, and rerun the synchronization. Do not use `down -v` unless the Quality database is confirmed disposable.
 
-### Important: password characters
-
-`GOTRUE_DB_DATABASE_URL` is a URL. If `POSTGRES_PASSWORD` contains `@ : / # ? %` or spaces, the
-URL parses wrongly and you get the same 28P01 error even with a correct password. Use a
-hex-only password:
+## 5. Start and verify the backend in dependency order
 
 ```bash
-openssl rand -hex 24
-```
-
-If you change it, put the new value in `.env` **and** re-run Step 1, then Step 2.
-
-## Step 2 — Make sure Realtime has its secrets, then restart
-
-```bash
-grep -E 'SECRET_KEY_BASE|VAULT_ENC_KEY|JWT_SECRET' .env
-```
-
-Any `<placeholder>` must be replaced:
-
-```bash
-openssl rand -hex 32   # SECRET_KEY_BASE, JWT_SECRET
-openssl rand -hex 16   # VAULT_ENC_KEY
-```
-
-Then:
-
-```bash
-docker compose -p nfa-quality up -d
+docker compose -p nfa-quality up -d db
+docker compose -p nfa-quality up -d auth realtime rest meta storage
+docker compose -p nfa-quality up -d kong studio
 docker compose -p nfa-quality ps
-docker logs nfa-quality-auth --tail 30
-docker logs nfa-quality-realtime --tail 30
-docker logs nfa-quality-meta --tail 30
+
+curl -i http://127.0.0.1:54321/auth/v1/health
+curl -i -H "apikey: $ANON_KEY" http://127.0.0.1:54321/rest/v1/
+curl -i http://127.0.0.1:8001/auth/v1/health
 ```
 
-All containers should reach healthy/running.
+Only after these checks pass should login be tested from `http://10.200.1.7:8081/auth`.
 
-## Step 3 — Load the schema
+## Repository changes after approval
 
-```bash
-cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD="$POSTGRES_PASSWORD" ./scripts/run-migrations.sh
-```
+1. Update `scripts/pack-dist.mjs` so every build automatically contains both root static assets and `dist/public`, eliminating the manual copy.
+2. Add an idempotent `deployment/Quality/scripts/fix-db-roles.sh` for existing Quality volumes.
+3. Update `deployment/README.md` with the clean-release workflow, diagnostic commands, direct role repair, and Docker-pull troubleshooting.
+4. Validate shell syntax and deployment-file consistency; application behavior and UI remain unchanged.
 
-Then create the first user in Studio (http://10.200.1.7:8082) and run `scripts/seed-admin.sql`.
+## Success criteria
 
-## Step 4 — Frontend static files
-
-The app logs show `ENOENT ... dist/public/manifest.webmanifest`. The Node server looks for
-static files in `dist/public/`:
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/frontend/dist
-mkdir -p public
-cp -r assets icons favicon.ico favicon.png manifest.webmanifest public/
-pm2 restart enfa-quality-app
-```
-
-## Step 5 — Point the app at the backend
-
-`Quality/frontend/.env` must hold the Quality keys:
-
-```
-SUPABASE_URL=http://127.0.0.1:8001
-SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
-SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
-VITE_SUPABASE_URL=http://10.200.1.7:8081
-VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
-```
-
-`VITE_*` values are baked in at build time — if they change, rebuild on Windows and recopy
-`dist/`. Then hard-refresh http://10.200.1.7:8081.
-
----
-
-## Repository changes I will make
-
-1. **`deployment/Quality/scripts/fix-db-roles.sh`** (new) — the Step 1 command as a reusable,
-   idempotent script, so this never needs to be typed by hand again.
-2. **`deployment/Quality/backend/docker-compose.yml`** — confirm the GoTrue variables for
-   v2.186.0: `GOTRUE_DB_DRIVER=postgres` plus
-   `GOTRUE_DB_DATABASE_URL=postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}`
-   (this is the correct format; `DATABASE_URL` is also set as a fallback), and add
-   `?search_path=auth` where GoTrue expects its own schema.
-3. **`scripts/pack-dist.mjs`** — also emit `dist/public/`, so Step 4 is never needed again.
-4. **`deployment/README.md`** — replace the "reset the volume" advice with this direct fix, and
-   add the password-character warning.
-
-No application source or UI changes.
-
-## Order
-
-Step 1 → verify login → Step 2 → Step 3 → Step 4 → Step 5 → open the site.
-
-If any single command errors, paste that exact output — it identifies the remaining cause
-precisely.
+- `/auth` loads with the full corporate styling, JavaScript behavior, and logo.
+- The generated CSS/JS asset requests return `200`, not HTML or `404`.
+- Auth and Realtime can both authenticate to PostgreSQL.
+- All Quality containers are healthy/running, and Kong health checks succeed.
+- Login reaches the Quality backend without affecting any other server application.
