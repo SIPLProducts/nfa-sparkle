@@ -5,7 +5,17 @@ set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-nfa-quality}"
 DB_CONTAINER="${DB_CONTAINER:-nfa-quality-db}"
-BACKEND_DIR="${BACKEND_DIR:-/apps/webapplications/NFA_Approval/Quality/backend}"
+
+# Resolve the Quality root from this script's own location so it can be run
+# from any directory (e.g. from inside scripts/ or from the Quality root).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${BACKEND_DIR:-}" ]]; then
+  if [[ -f "$SCRIPT_DIR/../backend/docker-compose.yml" ]]; then
+    BACKEND_DIR="$(cd "$SCRIPT_DIR/../backend" && pwd)"
+  else
+    BACKEND_DIR="/apps/webapplications/NFA_Approval/Quality/backend"
+  fi
+fi
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
