@@ -225,6 +225,17 @@ chmod +x scripts/fix-db-roles.sh
 ./scripts/fix-db-roles.sh
 ```
 
+Let it finish. It waits up to two minutes for `auth`, `realtime` and `meta` to
+report healthy and prints their state each poll. Do **not** press Ctrl+C while
+`nfa-quality-meta` still says `Restarting` — Studio reads the schema list
+through Meta, so the dashboard keeps showing the `supabase_admin` error until
+Meta is healthy. If the script gives up it prints the failing container's log
+automatically; you can also check it directly:
+
+```bash
+docker logs nfa-quality-meta --tail 50
+```
+
 The migration files must live at `Quality/backend/migrations` — **not** under
 `backend/volumes/`. If you placed them there, move them:
 
