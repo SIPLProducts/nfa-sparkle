@@ -266,6 +266,40 @@ the real value: `PGPASSWORD='actual-value' ./scripts/run-migrations.sh`.
 The script is idempotent — applied files are tracked in
 `public.schema_migrations_applied`, re-runs only apply new files.
 
+### Copying the online data (users, SAP configuration, NFAs)
+
+`backend/migrations/9000_data_import.sql` carries a full copy of the online
+application data: login accounts (with their existing passwords), profiles,
+roles, screen permissions, SAP systems/endpoints/middleware/stored SAP
+credentials, and all NFA records, approvers, history and attachment entries.
+
+It runs last, after the schema files, and **replaces** the contents of those
+tables on Quality. Copy it to the server together with the other migration
+files, then run the migration script:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality
+./scripts/run-migrations.sh
+```
+
+After it finishes, sign in at `http://10.200.1.7:8081/auth` with the same User
+ID / Email and password used on the online site — no new account is needed and
+the Studio seed step below can be skipped.
+
+To load it again later (for example after refreshing the copy), remove its
+row from the tracking table first:
+
+```bash
+PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
+  psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+  -c "delete from public.schema_migrations_applied where filename like '9000_data_import%'"
+./scripts/run-migrations.sh
+```
+
+Note: uploaded attachment files themselves live in the file-storage bucket
+`nfa-attachments`; this import copies the attachment records, not the binaries.
+
+### Creating a login manually (only if you did not import the data)
 
 Create the first login in Studio (`http://10.200.1.7:8082`, dashboard
 credentials from `backend/.env`) with **Auto Confirm** enabled, then grant admin:
@@ -275,6 +309,7 @@ PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
   psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
   -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 ```
+
 
 ---
 
