@@ -309,6 +309,29 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+### If the login page is unstyled or stuck on "Loading…"
+
+This happens when the CSS/JS files referenced by `/auth` return 404. The most
+common cause is an outdated `enfa-quality.conf` that tries to serve `/assets/`
+from disk instead of through the Node app.
+
+Run these exact commands on the server after pulling the latest code:
+
+```bash
+SRC=/apps/webapplications/NFA_Approval/Quality/src
+sudo cp "$SRC/deployment/nginx/enfa-quality.conf" /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
+cp "$SRC/deployment/Quality/scripts/deploy-quality.sh" /apps/webapplications/NFA_Approval/Quality/scripts/deploy-quality.sh
+chmod +x /apps/webapplications/NFA_Approval/Quality/scripts/deploy-quality.sh
+sudo nginx -t && sudo systemctl reload nginx
+cd /apps/webapplications/NFA_Approval/Quality
+PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+```
+
+The updated deploy script will verify every CSS/JS asset on both port 3000
+(Node app) and port 8081 (Nginx). If any URL fails, the script stops and
+prints the failing URL. After it prints `Done`, hard-refresh the browser
+(`Ctrl+F5`) and open `http://10.200.1.7:8081/auth`.
+
 `nginx -T` must show the Quality server with `location /assets/` serving files
 from disk (`try_files`), not proxying to Node; `nginx -t` must pass before
 reloading. No existing configuration is edited.
