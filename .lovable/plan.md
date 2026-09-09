@@ -115,12 +115,13 @@ Hard-refresh `http://10.200.1.7:8081/auth` with `Ctrl+F5`. The page must display
 
 The login source imports `ramky-logo.png.asset.json`, whose `/__l5e/assets-v1/...` path is provided by Lovable hosting and is not part of the Ubuntu `dist` folder. Package the actual Ramky logo as a local public build asset and update the login page to reference that packaged URL. This removes the broken image without changing the login flow or styling.
 
-## Repository changes after approval
+## Repository changes before the next rebuild
 
-1. Update `scripts/pack-dist.mjs` to always create `dist/public` with the complete static output during `npm run build`.
-2. Package the Ramky logo for self-hosted builds and replace the Lovable-only logo path on the login screen.
+1. Update `scripts/pack-dist.mjs` to copy `.output/public` into **both** `dist/` (for nginx) and `dist/public/` (for the Node server), including all hashed CSS/JavaScript, icons, favicons, and the manifest.
+2. Package the Ramky logo as a normal self-hosted build asset and replace the Lovable-only `/__l5e/assets-v1/...` logo URL on the login screen.
 3. Update the Quality deployment script and guide to replace releases atomically, verify generated CSS/JS files, and restart PM2 with the correct working directory.
-4. Validate that the build contains matching root/public assets and the runnable server bundle.
+4. Add post-build assertions for `dist/server/index.mjs`, `dist/public/manifest.webmanifest`, `dist/public/assets`, and matching asset manifests so an incomplete build fails before deployment.
+5. Run the project checks and inspect the generated release layout. After that, rebuild once on Windows and replace the entire server `dist` folder rather than merging it.
 
 ## Login-page success criteria
 
