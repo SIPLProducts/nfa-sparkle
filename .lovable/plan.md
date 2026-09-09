@@ -56,9 +56,11 @@ see its actual reason; I will not touch the other two stacks.
 3. **New `deployment/Quality/scripts/check-app-env.sh`** - report present/missing
    (never values) for the required variables on the actually running app process,
    so this is diagnosed in one command.
-4. **`deployment/Quality/scripts/deploy-quality.sh`** - run the env sync and the
-   presence check before building, fail early with a clear message, and restart
-   the app with the env file applied.
+4. **`deployment/Quality/scripts/deploy-quality.sh`** - support your actual
+   deployment model: `dist` is built in local VS Code and copied into
+   `Quality/frontend/dist`. It will not install packages or build on the server.
+   It will validate the copied `dist`, validate `frontend/.env`, and restart only
+   `enfa-quality-app` with that environment applied.
 5. **`deployment/nginx/enfa-quality.conf`** - already updated to require a
    password file on 8082; the README will carry the one-time setup command.
 6. **`deployment/README.md`** - one ordered recovery procedure for all three.
@@ -80,7 +82,7 @@ cd $Q
 ./scripts/run-migrations.sh       # only after the repair reports success
 
 ./scripts/sync-frontend-env.sh    # copies the corrected keys into frontend/.env
-./scripts/deploy-quality.sh       # rebuild (new browser key) + restart
+SKIP_BUILD=1 ./scripts/deploy-quality.sh  # uses your already-copied dist + restarts
 ./scripts/check-app-env.sh        # confirms the running app has the service key
 
 # Dashboard login prompt, one time
@@ -89,8 +91,9 @@ sudo htpasswd -c /etc/nginx/enfa-quality-studio.htpasswd enfa-quality-admin
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The rebuild in step `deploy-quality.sh` is required: the browser key is baked
-into the built files, so a key change without a rebuild keeps returning 401.
+If the verification proves that the copied `dist` contains a different browser
+key, rebuild once in local VS Code with the correct `VITE_*` values and replace
+`Quality/frontend/dist`. No build will be run on the Ubuntu server.
 
 ## Safety boundary
 
