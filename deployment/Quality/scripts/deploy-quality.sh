@@ -27,7 +27,7 @@ step "Preflight"
 printf 'Quality root : %s\nSource       : %s\nEnv file     : %s\nPublish to   : %s\n' \
   "$QUALITY_ROOT" "$SRC_DIR" "$ENV_FILE" "$FRONTEND_DIR"
 
-[[ -d "$SRC_DIR" ]]   || { echo "Missing source checkout $SRC_DIR"; exit 1; }
+[[ -d "$SRC_DIR" ]]   || { echo "Missing source checkout $SRC_DIR. Set SRC_DIR to a folder containing package.json, or build elsewhere and copy dist/ manually."; exit 1; }
 [[ -f "$ENV_FILE" ]]  || { echo "Missing $ENV_FILE (copy frontend/.env.example)"; exit 1; }
 
 step "Loading env from $ENV_FILE"

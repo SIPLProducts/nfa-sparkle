@@ -82,7 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // are never discarded.
       if (!sameUser) {
         if (s?.user) {
-          await loadRoles(s.user.id);
+          try {
+            await loadRoles(s.user.id);
+          } catch (e) {
+            console.error("Unable to load roles during bootstrap", e);
+            setRoles([]);
+          }
         } else {
           setRoles([]);
         }
@@ -94,9 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void bootstrap(s, false);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      void bootstrap(data.session, true);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) console.error("getSession failed", error);
+        void bootstrap(data.session ?? null, true);
+      })
+      .catch((err) => {
+        console.error("getSession exception", err);
+        void bootstrap(null, true);
+      });
 
     return () => {
       cancelled = true;

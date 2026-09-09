@@ -92,6 +92,12 @@ cp     $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approva
 chmod +x $Q/scripts/*.sh
 ```
 
+If you are updating an existing server that only has the built `frontend/dist`
+release (no `Quality/src` checkout), skip the source copy above. Build on the
+machine that has the latest project, then upload only the new `dist/` folder
+and the updated `enfa-quality.conf` (see the "Updating when the server only has
+`dist/`" section below).
+
 ---
 
 ## 2. Generate the Quality secrets
@@ -315,7 +321,10 @@ This happens when the CSS/JS files referenced by `/auth` return 404. The most
 common cause is an outdated `enfa-quality.conf` that tries to serve `/assets/`
 from disk instead of through the Node app.
 
-Run these exact commands on the server after pulling the latest code:
+Run these exact commands on the server after pulling the latest code. If the
+server has no `Quality/src` checkout, replace `SRC` with the path where you
+uploaded the latest project (or copy just the two files mentioned below from
+your build machine):
 
 ```bash
 SRC=/apps/webapplications/NFA_Approval/Quality/src
@@ -335,6 +344,40 @@ prints the failing URL. After it prints `Done`, hard-refresh the browser
 `nginx -T` must show the Quality server with `location /assets/` serving files
 from disk (`try_files`), not proxying to Node; `nginx -t` must pass before
 reloading. No existing configuration is edited.
+
+### Updating when the server only has `dist/`
+
+If the server only contains `Quality/frontend/dist` and no source checkout,
+build on the machine that has the latest project, then upload and replace just
+these two things:
+
+1. The new `dist/` folder produced by `npm run build`.
+2. The updated `deployment/nginx/enfa-quality.conf` from this repo.
+
+Server commands:
+
+```bash
+# 1. Replace the release folder atomically (keeps dist.previous for rollback)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous
+mv dist.new dist          # upload dist.new first, e.g. via rsync or scp
+
+# 2. Replace the nginx config and reload (IPv6 listeners removed for this server)
+sudo cp /path/to/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3. Restart only the Quality app
+pm2 restart enfa-quality-app --update-env
+# or if it runs under systemd:
+# sudo systemctl restart enfa-quality-app
+
+# 4. Verify
+for url in http://127.0.0.1:8081/ http://127.0.0.1:8081/auth http://127.0.0.1:8081/ramky-logo.png; do
+  echo "$url -> $(curl -s -o /dev/null -w '%{http_code}' "$url")"
+done
+```
+
+Then open `http://10.200.1.7:8081/` and hard-refresh (`Ctrl+F5`).
 
 ### Styles missing / page stuck on "Loading…"
 
@@ -359,16 +402,18 @@ proxy-based `/assets/` config is still active — re-link
 ### Redeploy sequence
 
 ```bash
-# 1. build (on the server checkout or the build machine)
-cd /apps/webapplications/NFA_Approval/Quality/src && npm install && npm run build
+# 1. build on the machine that has the latest project
+cd /path/to/latest/project && npm install && npm run build
 
-# 2. publish atomically (keeps dist.previous for rollback)
-cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 ./scripts/deploy-quality.sh
+# 2. upload the new dist to the server and publish atomically
+#    (keeps dist.previous for rollback)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous
+mv dist.new dist
 
-# 3. nginx config + reload
-sudo ln -sf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf \
-  /opt/Ramky_Applications/nginx/enfa-quality.conf
+# 3. copy the updated nginx config (IPv6 listeners removed for this server)
+sudo cp /path/to/latest/project/deployment/nginx/enfa-quality.conf \
+  /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
 sudo nginx -t && sudo systemctl reload nginx
 
 # 4. restart only the Quality app
@@ -398,9 +443,12 @@ confirm the SAP call succeeds through the middleware.
 
 ```bash
 # redeploy after a code change
-cd /apps/webapplications/NFA_Approval/Quality/src && git pull --ff-only
-cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+# build on the machine that has the latest project, then upload dist/ and the
+# updated enfa-quality.conf to the server (see the redeploy sequence above)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous && mv dist.new dist
+sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl restart enfa-quality-app
 
 # services
 sudo systemctl restart enfa-quality-app
