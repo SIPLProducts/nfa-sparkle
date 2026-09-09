@@ -40,6 +40,40 @@ Update `deployment/README.md` and the deploy-script preflight guidance:
 - Restart only `enfa-quality-app`, test Nginx, reload it, and verify `/`, `/auth`, CSS/JS assets, and the logo.
 - Do not use the failed `Quality/src` copy commands unless a real source checkout is intentionally added later.
 
+## Files to deploy after approval
+
+Only these two items need to be copied to the server:
+
+1. **The new `dist/` folder** produced by `npm run build` — replaces `/apps/webapplications/NFA_Approval/Quality/frontend/dist`.
+2. **The updated `deployment/nginx/enfa-quality.conf`** — replaces `/apps/webapplications/NFA_Approval/nginx/enfa-quality.conf`, then reload Nginx.
+
+No backend, middleware, database, or other application changes are required.
+
+## Exact server steps after the build
+
+```text
+1. Copy the new dist to the server, e.g.:
+   rsync -a --delete dist/ /apps/webapplications/NFA_Approval/Quality/frontend/dist.new/
+   mv /apps/webapplications/NFA_Approval/Quality/frontend/dist /apps/webapplications/NFA_Approval/Quality/frontend/dist.previous
+   mv /apps/webapplications/NFA_Approval/Quality/frontend/dist.new /apps/webapplications/NFA_Approval/Quality/frontend/dist
+
+2. Copy the updated nginx config:
+   sudo cp enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/enfa-quality.conf
+   sudo nginx -t && sudo systemctl reload nginx
+
+3. Restart only the Quality Node app:
+   pm2 restart enfa-quality-app --update-env
+   # or if it is a systemd service:
+   # sudo systemctl restart enfa-quality-app
+
+4. Verify:
+   curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:8081/
+   curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:8081/auth
+   curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:8081/ramky-logo.png
+```
+
+Then open `http://10.200.1.7:8081/` in the browser and hard-refresh (Ctrl+F5).
+
 ## Verification
 
 1. Local signed-out visit to `/` ends at `/auth`; no indefinite `Loading…`.
