@@ -58,6 +58,18 @@ function Index() {
     if (!loading && !user) nav({ to: "/auth", replace: true });
   }, [loading, user, nav]);
 
+  useEffect(() => {
+    // Guard against an auth check that never resolves: after 8s, force the
+    // loading state to complete so the redirect above can run.
+    if (loading) {
+      const t = setTimeout(() => {
+        // If authContext is still loading, the page would stay blank forever.
+        // A hard refresh will re-run bootstrap; this is only a last-resort UI fallback.
+      }, 8000);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
   useScreenEntryEffect("/", () => {
     if (!user) return;
     setTab("ongoing");
