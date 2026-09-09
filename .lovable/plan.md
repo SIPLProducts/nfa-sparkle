@@ -1,43 +1,45 @@
-# Fix the Quality dashboard password error and run migrations
+# Finish the Quality dashboard fix and run the migrations
 
-## What is wrong
+## Where things stand (confirmed from your output)
 
-The role-repair script exists, but the command you ran failed only because you were already inside the `scripts/` folder and used the path `./scripts/fix-db-roles.sh`. The Studio dashboard still shows `password authentication failed for user "supabase_admin"`, which means the Quality database volume holds an older/stale password than the one in `backend/.env`. Migrations cannot be run until that is fixed.
+- The Supabase API is now healthy: `curl http://127.0.0.1:8001/auth/v1/health` returned `200 OK` with the GoTrue response. Auth is working.
+- `nfa-quality-meta` was still restarting when you pressed Ctrl+C, so the repair script did not finish its wait loop. Studio reads schemas through Meta, which is why the dashboard still shows the `supabase_admin` error.
+- The migration run failed with `password authentication failed for user "postgres"` because the command was pasted verbatim, including the placeholder text `<POSTGRES_PASSWORD from backend/.env>`. That literal string was sent as the password.
 
-## What this plan changes
+## What this plan changes in the repo
 
-1. **Make the scripts runnable from any directory**
-   - `deployment/Quality/scripts/fix-db-roles.sh` will locate the Quality root and backend folder from its own location (`BASH_SOURCE`), so it works whether you run it from `/Quality`, `/Quality/scripts`, or anywhere else.
-   - `deployment/Quality/scripts/run-migrations.sh` will also check `backend/volumes/migrations` as a fallback, so it finds your files without requiring a manual move first.
+1. **`deployment/Quality/scripts/run-migrations.sh`**
+   - Read `POSTGRES_PASSWORD` automatically from `backend/.env` when `PGPASSWORD` is not supplied, so no password ever has to be typed or pasted.
+   - Refuse an obviously wrong password containing `<` or `>` with a clear message instead of a raw Postgres error.
 
-2. **Clarify the README commands**
-   - `deployment/README.md` sections 3 and 4 will show the exact corrected commands and explicitly warn not to run the script from inside the `scripts/` directory.
+2. **`deployment/Quality/scripts/fix-db-roles.sh`**
+   - Resolve the Quality root from the script's own location, so it runs from any directory.
+   - If `meta` is still restarting after the wait loop, print its recent log instead of leaving you guessing.
 
-3. **No port swap**
-   - Keep `8001` as the Supabase API/Kong gateway and `8082` as Supabase Studio. Swapping them would require rebuilding and redeploying the frontend because `VITE_SUPABASE_URL` is baked into the build.
+3. **`deployment/README.md`**
+   - Replace the placeholder-style commands with the no-password version so this cannot be mispasted again.
 
-## Steps to execute on the server
+## Steps to run on the server after this change
 
 ```text
-# 1. Repair the stale Supabase internal role passwords (Quality only)
+# 1. Finish the role repair and let it run to completion (do not Ctrl+C)
 cd /apps/webapplications/NFA_Approval/Quality
-chmod +x scripts/fix-db-roles.sh
 ./scripts/fix-db-roles.sh
 
-# 2. Verify the dashboard password error is gone
-curl -i http://127.0.0.1:8001/auth/v1/health
-# Then open http://10.200.1.7:8082 in a browser and confirm it loads schemas/tables.
+# 2. If meta is still restarting, look at why
+docker logs nfa-quality-meta --tail 50
 
-# 3. Run the migrations
-#    If your files are at backend/volumes/migrations the script will find them automatically.
-#    Otherwise move them first:  mv backend/volumes/migrations backend/migrations
+# 3. Run the migrations - no password needed, it reads backend/.env
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD from backend/.env>' ./scripts/run-migrations.sh
+./scripts/run-migrations.sh
 
-# Optional dry run first:
-# DRY_RUN=1 PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/run-migrations.sh
+# Optional preview of what would run:
+# DRY_RUN=1 ./scripts/run-migrations.sh
 ```
+
+If you prefer to pass the password manually, use the real value from
+`backend/.env` in quotes — never the placeholder text in angle brackets.
 
 ## Scope guard
 
-Only the two Quality shell scripts and the README are changed. No application code, no database data, no other application/container/port/shared config or volume is modified. The role repair touches only the `nfa-quality-db` container and restarts only `nfa-quality-auth`, `nfa-quality-realtime`, and `nfa-quality-meta`.
+Only the two Quality shell scripts and the deployment README change. No application code, no database data, and no other application, container, port, shared config, or volume is touched. The role repair affects only `nfa-quality-db` and restarts only `nfa-quality-auth`, `nfa-quality-realtime`, and `nfa-quality-meta`.
