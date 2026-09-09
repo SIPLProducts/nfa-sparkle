@@ -1,15 +1,17 @@
 # Fix the three Quality server problems
 
-All three symptoms come from the same two root causes: the API keys in
-`backend/.env` do not match the `JWT_SECRET`, and the app process on 8081 was
-started without the server-side keys.
+The configured key values may be correct. The failures can still occur when the
+running gateway, the browser build, and the app process are not using those same
+values. The repair will verify each runtime copy before changing anything.
 
 ## Symptom 1 - 401 Unauthorized on `/rest/v1/role_permission` after login
 
 That `{"message":"Unauthorized","request_id":...}` shape is the API gateway
-rejecting the key the browser sent. The gateway accepts exactly the `ANON_KEY`
-and `SERVICE_ROLE_KEY` values from `backend/.env`; the browser bundle was built
-with a different (invalid) key. Correct keys + rebuild clears this.
+rejecting the `apikey` sent by the browser. Even if `backend/.env` is correct,
+Kong may still be running with its previous environment and the browser may still
+contain the key from its previous build. The fix compares fingerprints (never
+the secrets themselves) for all three locations, then recreates Kong and rebuilds
+the browser only when a mismatch is confirmed.
 
 ## Symptom 2 - Dashboard: password authentication failed for supabase_admin
 
@@ -42,19 +44,24 @@ see its actual reason; I will not touch the other two stacks.
 
 ## Repo changes
 
-1. **New `deployment/Quality/scripts/sync-frontend-env.sh`** - copy the correct
+1. **New `deployment/Quality/scripts/verify-runtime-keys.sh`** - validate the
+   configured keys against `JWT_SECRET`, compare safe fingerprints from
+   `backend/.env`, the running Kong container, `frontend/.env`, and the running
+   app process, and run an actual `/rest/v1/` request using the configured anon
+   key. This identifies the exact stale copy before repair.
+2. **New `deployment/Quality/scripts/sync-frontend-env.sh`** - copy the correct
    URL and both keys from `backend/.env` into `frontend/.env` (creating it from
    the example when missing), never printing values, refusing placeholder text
    and keys that do not match `JWT_SECRET`.
-2. **New `deployment/Quality/scripts/check-app-env.sh`** - report present/missing
+3. **New `deployment/Quality/scripts/check-app-env.sh`** - report present/missing
    (never values) for the required variables on the actually running app process,
    so this is diagnosed in one command.
-3. **`deployment/Quality/scripts/deploy-quality.sh`** - run the env sync and the
+4. **`deployment/Quality/scripts/deploy-quality.sh`** - run the env sync and the
    presence check before building, fail early with a clear message, and restart
    the app with the env file applied.
-4. **`deployment/nginx/enfa-quality.conf`** - already updated to require a
+5. **`deployment/nginx/enfa-quality.conf`** - already updated to require a
    password file on 8082; the README will carry the one-time setup command.
-5. **`deployment/README.md`** - one ordered recovery procedure for all three.
+6. **`deployment/README.md`** - one ordered recovery procedure for all three.
 
 `generate-keys.sh` and `fix-db-roles.sh` already exist and are used as-is.
 
@@ -67,7 +74,8 @@ cp $SRC/deployment/Quality/scripts/* $Q/scripts/ && chmod +x $Q/scripts/*.sh
 cp $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/
 cd $Q
 
-./scripts/generate-keys.sh        # paste BOTH printed keys into backend/.env
+./scripts/verify-runtime-keys.sh  # proves which running copy differs
+./scripts/generate-keys.sh        # only replace keys if validation says invalid
 ./scripts/fix-db-roles.sh         # let it finish, do not press Ctrl+C
 ./scripts/run-migrations.sh       # only after the repair reports success
 
