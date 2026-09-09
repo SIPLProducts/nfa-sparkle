@@ -443,9 +443,12 @@ confirm the SAP call succeeds through the middleware.
 
 ```bash
 # redeploy after a code change
-cd /apps/webapplications/NFA_Approval/Quality/src && git pull --ff-only
-cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+# build on the machine that has the latest project, then upload dist/ and the
+# updated enfa-quality.conf to the server (see the redeploy sequence above)
+cd /apps/webapplications/NFA_Approval/Quality/frontend
+mv dist dist.previous && mv dist.new dist
+sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl restart enfa-quality-app
 
 # services
 sudo systemctl restart enfa-quality-app
