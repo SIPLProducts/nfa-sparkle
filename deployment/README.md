@@ -271,7 +271,8 @@ Create the first login in Studio (`http://10.200.1.7:8082`, dashboard
 credentials from `backend/.env`) with **Auto Confirm** enabled, then grant admin:
 
 ```bash
-PGPASSWORD='<POSTGRES_PASSWORD>' psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
+  psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
   -v admin_email="'admin@ramky.com'" -f scripts/seed-admin.sql
 ```
 
@@ -287,7 +288,7 @@ nano .env     # ANON_KEY, SERVICE_ROLE_KEY
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
+SKIP_MIGRATIONS=1 SKIP_RESTART=1 ./scripts/deploy-quality.sh
 ls frontend/dist/server/index.mjs frontend/dist/manifest.webmanifest \
    frontend/dist/public/manifest.webmanifest frontend/dist/ramky-logo.png
 ```
@@ -390,7 +391,7 @@ cp "$SRC/deployment/Quality/scripts/deploy-quality.sh" /apps/webapplications/NFA
 chmod +x /apps/webapplications/NFA_Approval/Quality/scripts/deploy-quality.sh
 sudo nginx -t && sudo systemctl reload nginx
 cd /apps/webapplications/NFA_Approval/Quality
-PGPASSWORD='<POSTGRES_PASSWORD>' ./scripts/deploy-quality.sh
+./scripts/deploy-quality.sh
 ```
 
 The updated deploy script will verify every CSS/JS asset on both port 3000
