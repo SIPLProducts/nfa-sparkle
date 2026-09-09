@@ -29,6 +29,17 @@ Your pm2 log repeats this on every sign-in. The app process has no service key,
 because `frontend/.env` still holds placeholder text or the process was started
 without that file.
 
+## What your container list shows
+
+`nfa-quality-studio` and `nfa-quality-meta` are unhealthy - that is the same
+password problem, and the role repair plus recreate is what clears it.
+
+`nfa-quality-realtime` is restarting, but so are the realtime containers in both
+of your other, unrelated stacks (`supabase-dev` and `supabase-prod`). That points
+to a host-wide cause, not something specific to Quality, and the Quality app does
+not use realtime. The repair script will print the Quality realtime log so we can
+see its actual reason; I will not touch the other two stacks.
+
 ## Repo changes
 
 1. **New `deployment/Quality/scripts/sync-frontend-env.sh`** - copy the correct
