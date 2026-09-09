@@ -6,3 +6,6 @@
 - [x] Publish complete frontend releases without merging stale hashed assets.
 - [x] Add a non-destructive Quality database-role password repair.
 - [x] Document activation, recovery, rollback, and verification commands.
+- [x] Detect and regenerate invalid Quality API keys.
+- [x] Apply the settings-file password and recreate Quality containers on repair.
+- [x] Require a username and password on the Quality dashboard address.
