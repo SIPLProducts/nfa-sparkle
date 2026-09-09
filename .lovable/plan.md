@@ -38,21 +38,47 @@ pm2 logs enfa-quality-app --lines 30 --nostream
 
 The new log output must not contain `ENOENT` for `dist/public`.
 
-## 2. Test the exact CSS and JavaScript files referenced by `/auth`
+## 2. Clear old logs and test the exact CSS and JavaScript files referenced by `/auth`
+
+The latest output confirms the copy succeeded (`manifest OK`, `favicon OK`, `assets OK`). The ENOENT lines shown afterward are historical entries still retained in PM2's error log, not proof of a new failure. Clear only this app's logs, make a fresh request, and check fresh output:
+
+```bash
+pm2 flush enfa-quality-app
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/auth
+pm2 logs enfa-quality-app --lines 30 --nostream
+```
+
+There should be no new `ENOENT` entry.
+
+The previous `grep` reported “binary file matches” because the streamed HTML contains encoded bytes. Extract real URLs with text mode:
 
 ```bash
 curl -sS http://127.0.0.1:3000/auth -o /tmp/enfa-auth.html
-grep -oE '(src|href)="[^"]+"' /tmp/enfa-auth.html | grep '/assets/'
+grep -aohE '(src|href)="[^"]+"' /tmp/enfa-auth.html \
+  | sed -E 's/^(src|href)="//; s/"$//' \
+  | grep '^/assets/' \
+  | sort -u \
+  | tee /tmp/enfa-assets.txt
 ```
 
-For each printed `/assets/...` path, run:
+Test every real URL automatically — do **not** type `PASTE_ASSET_PATH_HERE` literally (its 404 was expected because it was only an instruction placeholder):
 
 ```bash
-curl -I "http://127.0.0.1:3000/PASTE_ASSET_PATH_HERE"
-curl -I "http://127.0.0.1:8081/PASTE_ASSET_PATH_HERE"
+while IFS= read -r asset; do
+  printf '\nNODE %s\n' "$asset"
+  curl -sS -I "http://127.0.0.1:3000${asset}" | head -5
+  printf 'NGINX %s\n' "$asset"
+  curl -sS -I "http://127.0.0.1:8081${asset}" | head -5
+done < /tmp/enfa-assets.txt
 ```
 
 Both must return `200`. CSS must return `Content-Type: text/css`; JavaScript must return a JavaScript content type. If a referenced filename is absent from both `dist/assets` and `dist/public/assets`, the deployed server and assets came from different builds and must be replaced together.
+
+If `/tmp/enfa-assets.txt` is empty, inspect the HTML safely with:
+
+```bash
+tr -d '\000' < /tmp/enfa-auth.html | grep -aoE '/assets/[^"[:space:]<>]+' | sort -u
+```
 
 ## 3. If asset filenames do not match, deploy one clean release
 
