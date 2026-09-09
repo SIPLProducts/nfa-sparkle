@@ -81,6 +81,43 @@ if [[ "${SKIP_RESTART:-0}" != "1" ]]; then
   step "Health checks"
   curl -sS -o /dev/null -w 'app       : HTTP %{http_code}\n' http://127.0.0.1:3000/ || true
   curl -sS -o /dev/null -w 'middleware: HTTP %{http_code}\n' http://127.0.0.1:3005/health || true
+
+  # Verify the login page can actually load its stylesheet and scripts.
+  # This stops the deployment from reporting success when the page is
+  # stuck on "Loading…" or unstyled because assets are 404.
+  step "Verifying login page assets"
+  verify_assets() {
+    local base=$1
+    local html
+    html=$(curl -sS --max-time 10 "${base}/auth")
+    if [[ -z "$html" ]]; then
+      echo "ERROR: ${base}/auth returned empty HTML"; return 1
+    fi
+    local urls
+    urls=$(printf '%s' "$html" | grep -oE '(/assets/[^"'\''<> ]+|/ramky-logo\.png|/favicon\.png|/manifest\.webmanifest|/icons/[^"'\''<> ]+)' | sort -u)
+    if [[ -z "$urls" ]]; then
+      echo "ERROR: no asset URLs found in ${base}/auth"; return 1
+    fi
+    local failed=0
+    for u in $urls; do
+      code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${base}${u}")
+      if [[ "$code" != "200" ]]; then
+        echo "ERROR: ${base}${u} returned HTTP ${code}"
+        failed=1
+      else
+        echo "OK: ${base}${u}"
+      fi
+    done
+    return $failed
+  }
+  if ! verify_assets "http://127.0.0.1:3000"; then
+    echo "FATAL: login page assets are broken on the Node app (port 3000)."
+    exit 1
+  fi
+  if ! verify_assets "http://127.0.0.1:8081"; then
+    echo "FATAL: login page assets are broken through Nginx (port 8081)."
+    exit 1
+  fi
 fi
 
 step "Done"
