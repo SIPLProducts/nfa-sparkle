@@ -212,29 +212,103 @@ Usual causes and fixes:
 
 ---
 
-## 4. Apply the database schema
+## 3b. Dashboard recovery — run this in order
 
-Before running migrations, make sure Studio (`http://10.200.1.7:8082`) loads
-without `password authentication failed for user "supabase_admin"`. If it shows
-that error, run the role repair first — the database volume still holds an older
-password than `backend/.env`:
+Use this whole section when Studio (`http://10.200.1.7:8082`) shows
+**"Failed to load schemas — password authentication failed for user
+`supabase_admin`"**, or when the dashboard opens without asking for a
+username and password.
+
+Copy the current `scripts/` folder from the repo to the server first —
+running an older copy of `fix-db-roles.sh` reproduces the same failure:
+
+```bash
+SRC=/apps/webapplications/NFA_Approval/Quality/src
+Q=/apps/webapplications/NFA_Approval/Quality
+cp $SRC/deployment/Quality/scripts/* $Q/scripts/
+cp $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/
+chmod +x $Q/scripts/*.sh
+```
+
+### Step 1 — check and regenerate the API keys
+
+`ANON_KEY` and `SERVICE_ROLE_KEY` are signed with `JWT_SECRET`. If they were
+copied from an example they will not match, and Studio, the REST API and the
+application all fail to authenticate:
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
-chmod +x scripts/fix-db-roles.sh
+./scripts/generate-keys.sh
+```
+
+It reports whether the current keys are `OK` or `INVALID` and prints correctly
+signed replacements. If either says `INVALID`, paste the printed
+`ANON_KEY=` and `SERVICE_ROLE_KEY=` lines over the existing lines in
+`backend/.env`.
+
+**The application build embeds the anon key.** After changing `ANON_KEY`,
+set the same value for `VITE_SUPABASE_PUBLISHABLE_KEY` and
+`SUPABASE_PUBLISHABLE_KEY` in `Quality/frontend/.env`, then rebuild and
+redeploy `dist/` (section 5). Until you do, the app on 8081 cannot sign in.
+
+### Step 2 — repair the database roles
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality
 ./scripts/fix-db-roles.sh
 ```
 
-Let it finish. It waits up to two minutes for `auth`, `realtime` and `meta` to
-report healthy and prints their state each poll. Do **not** press Ctrl+C while
-`nfa-quality-meta` still says `Restarting` — Studio reads the schema list
-through Meta, so the dashboard keeps showing the `supabase_admin` error until
-Meta is healthy. If the script gives up it prints the failing container's log
-automatically; you can also check it directly:
+The script reads `POSTGRES_PASSWORD` from `backend/.env` (never from the
+running container, which can still hold an older value), applies it to the
+internal roles, then **recreates** the Quality containers so they load the
+current settings — a plain `docker compose restart` keeps the old values and
+is why the error came back before.
+
+It only reports success after it has actually signed in as `supabase_admin`
+over TCP and confirmed the dashboard schema service answers. If anything is
+still wrong it prints the failing container's log instead. Let it finish —
+it waits up to two minutes and prints progress each poll. Do **not** press
+Ctrl+C while `nfa-quality-meta` still says `Restarting`.
+
+### Step 3 — turn on the dashboard login prompt (one time)
+
+`DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` in `backend/.env` are enforced by
+Kong on port 8001 only. Port 8082 goes straight to the Studio container, so
+without the block below the dashboard opens with no login at all. Create the
+password file, using the same username as in `backend/.env`:
 
 ```bash
-docker logs nfa-quality-meta --tail 50
+sudo apt install -y apache2-utils
+sudo htpasswd -c /etc/nginx/enfa-quality-studio.htpasswd enfa-quality-admin
+sudo chmod 640 /etc/nginx/enfa-quality-studio.htpasswd
+sudo chown root:www-data /etc/nginx/enfa-quality-studio.htpasswd
+sudo nginx -t && sudo systemctl reload nginx
 ```
+
+Create the file **before** reloading — nginx refuses to start if
+`auth_basic_user_file` points at a missing file. To add more people later use
+`sudo htpasswd /etc/nginx/enfa-quality-studio.htpasswd <name>` (no `-c`, which
+would overwrite the file).
+
+### Step 4 — verify
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}' | grep nfa-quality
+curl -i http://127.0.0.1:8001/auth/v1/health
+docker logs nfa-quality-meta --tail 30
+```
+
+Then open `http://10.200.1.7:8082`. It must ask for the username and password,
+and the Table Editor must list the tables. Only continue to the migrations
+once this is true.
+
+---
+
+## 4. Apply the database schema
+
+Studio must load without `password authentication failed for user
+"supabase_admin"` first — if it does not, complete section 3b above.
+
 
 The migration files must live at `Quality/backend/migrations` — **not** under
 `backend/volumes/`. If you placed them there, move them:
