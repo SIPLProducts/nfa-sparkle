@@ -1,24 +1,24 @@
-# Studio port confusion + running migrations on the Quality server
+# Fix the dashboard error, then run the migrations
 
-## Answering your questions
+## Your three questions answered
 
-**Which port is the dashboard?**
-- Port **8001** is NOT the dashboard. 8001 is the Supabase **API** (Kong gateway) — the app talks to it for auth/data.
-- The dashboard (Studio, your screenshot) is on port **8082** — and your screenshot at `10.200.1.7:8082/project/default/editor` shows it is already working. So that part is correct.
+**1. Can I swap the dashboard to 8001 and the gateway to 8082?**
+Technically yes — it is only two numbers in the nginx file. But it is not worth it:
+the app was built with the API address baked in as 8001, so swapping means
+rebuilding the whole app and redeploying `dist/` again. Recommendation: keep
+8001 = API, 8082 = dashboard. If you still want the swap, it can be done later
+as a separate change.
 
-**The error in your screenshot** — `password authentication failed for user "supabase_admin"` — is the same stale database-password problem we identified before. The DB volume was created with a different password than your current `.env`. The fix script already exists in the repo at `deployment/Quality/scripts/fix-db-roles.sh`; it just needs to be copied to the server and run once.
+**2. Do I move the migrations from `volumes/` to `backend/`?**
+Yes. Move `backend/volumes/migrations` to `backend/migrations`.
 
-**Your migrations folder is in the wrong place.** You have:
+**3. Fix the dashboard error first?**
+Yes — do the password repair first, then the migrations. The
+`password authentication failed for user "supabase_admin"` message means the
+database volume still holds an older password than the one in your `.env`.
+The repair script already exists in the repo at
+`deployment/Quality/scripts/fix-db-roles.sh`.
 
-```text
-/apps/webapplications/NFA_Approval/Quality/backend/volumes/migrations
-```
-
-but the migration script looks in:
-
-```text
-/apps/webapplications/NFA_Approval/Quality/backend/migrations
-```
 
 ## Plan
 
