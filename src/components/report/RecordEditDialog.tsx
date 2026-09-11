@@ -287,6 +287,16 @@ export function RecordEditDialog({
           message = trimmed.slice(0, 200);
         }
       }
+      // Keep the rich Detailed Description with the record for the Print Form.
+      await supabase.from("sap_record_draft").upsert({
+        enfa_number: enfa,
+        subject: draft.subject || null,
+        scope_impact: draft.scope_impact || null,
+        budget_impact: draft.budget_impact ? Number(draft.budget_impact) : null,
+        timeline_days: draft.timeline_days ? parseInt(draft.timeline_days, 10) : null,
+        detailed_description: draft.detailed_description || null,
+        updated_by: s.session?.user.id ?? null,
+      });
       toast.success(message);
       onUpdated?.();
     } catch (e) {
