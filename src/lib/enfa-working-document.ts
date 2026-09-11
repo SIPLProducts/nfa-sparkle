@@ -63,7 +63,8 @@ export async function embedDescriptionImages(html: string): Promise<{
       const naturalWidth = Math.max(1, image.naturalWidth || image.width);
       const naturalHeight = Math.max(1, image.naturalHeight || image.height);
       const requestedWidth = Number.parseFloat(element.getAttribute("width") ?? element.style.width) || naturalWidth;
-      const requestedHeight = Number.parseFloat(element.getAttribute("height") ?? element.style.height) || naturalHeight;
+      const explicitHeight = Number.parseFloat(element.getAttribute("height") ?? element.style.height);
+      const requestedHeight = explicitHeight || naturalHeight * (requestedWidth / naturalWidth);
       const scale = Math.min(1, MAX_IMAGE_WIDTH / requestedWidth);
       const width = Math.max(1, Math.round(requestedWidth * scale));
       const height = Math.max(1, Math.round(requestedHeight * scale));

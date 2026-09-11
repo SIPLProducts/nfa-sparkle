@@ -172,7 +172,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
         }
       }
     }
-    if (!description.length && textOnly(html)) description.push(new Paragraph({ children: [run(textOnly(html))] }));
+    if (!description.length && (textOnly(html) || images.size)) description.push(new Paragraph({ children: paragraphChildren(html) }));
     if (!description.length) description.push(new Paragraph({ children: [run("")] }));
 
     const logo = data.logoBase64?.includes(",") ? data.logoBase64.split(",")[1] : data.logoBase64;
