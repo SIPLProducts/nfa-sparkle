@@ -26,24 +26,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase
+  async function loadPermissions() {
+    const { data, error } = await supabase
       .from("role_permission")
-      .select("role_key, screen, allowed")
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Unable to load screen permissions", error);
-          setPermissionError(`Unable to load screen permissions: ${error.message}`);
-          return;
-        }
-        const m: Record<string, boolean> = {};
-        for (const r of (data ?? []) as { role_key: string | null; screen: string; allowed: boolean }[]) {
-          if (r.role_key) m[`${r.role_key}:${r.screen}`] = r.allowed;
-        }
-        setPerms(m);
-        setPermissionError(null);
-      });
-  }, []);
+      .select("role_key, screen, allowed");
+    if (error) {
+      console.error("Unable to load screen permissions", error);
+      setPermissionError(`Unable to load screen permissions: ${error.message}`);
+      setPerms({});
+      return;
+    }
+    const nextPermissions: Record<string, boolean> = {};
+    for (const row of (data ?? []) as { role_key: string | null; screen: string; allowed: boolean }[]) {
+      if (row.role_key) nextPermissions[`${row.role_key}:${row.screen}`] = row.allowed;
+    }
+    setPerms(nextPermissions);
+    setPermissionError(null);
+  }
 
   async function loadRoles(userId: string) {
     const [sys, custom] = await Promise.all([
@@ -83,13 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!sameUser) {
         if (s?.user) {
           try {
-            await loadRoles(s.user.id);
+            await Promise.all([loadRoles(s.user.id), loadPermissions()]);
           } catch (e) {
-            console.error("Unable to load roles during bootstrap", e);
+            console.error("Unable to load access during bootstrap", e);
             setRoles([]);
+            setPerms({});
           }
         } else {
           setRoles([]);
+          setPerms({});
+          setPermissionError(null);
         }
       }
       if (!cancelled && initial) setLoading(false);

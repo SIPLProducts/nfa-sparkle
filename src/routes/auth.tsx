@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveLoginId } from "@/lib/auth-login.functions";
-import { ensureDemoUser } from "@/lib/demo-user.functions";
 
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,7 @@ function AuthPage() {
   async function signInDemo() {
     setBusy(true);
     try {
-      const creds = await ensureDemoUser();
+      const creds = { email: "demo@nfa.local", password: "Demo@12345" };
       setEmail(creds.email);
       setPwd(creds.password);
       const { error } = await supabase.auth.signInWithPassword({ email: creds.email, password: creds.password });
