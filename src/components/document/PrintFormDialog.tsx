@@ -76,6 +76,10 @@ export function PrintFormDialog({
     }
     setDocxBusy(true);
     try {
+      if (workingDocument) {
+        await downloadWorkingDocument(workingDocument);
+        return;
+      }
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error("Your session has expired. Please sign in again.");

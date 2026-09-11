@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -14,6 +15,8 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
 import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
+import { fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -44,6 +47,7 @@ async function resolveMySapUser(userId: string): Promise<string> {
 function NewNfaPage() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const generateDocx = useServerFn(generateEnfaDocx);
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
   const [nfaType, setNfaType] = useState("");
@@ -462,6 +466,45 @@ function NewNfaPage() {
           detailed_description: plainDesc ? desc : null,
           updated_by: user?.id ?? null,
         });
+        // The Initiator receives a real, private DOCX working copy immediately
+        // after SAP assigns the final eNFA number. DOCX failure never rolls back
+        // the already-successful SAP submission.
+        if (user?.id) {
+          try {
+            let logoBase64: string | undefined;
+            try {
+              const logo = await fetch("/ramky-logo.png");
+              logoBase64 = await fileToBase64(await logo.blob());
+            } catch {
+              logoBase64 = undefined;
+            }
+            const generated = await generateDocx({
+              data: {
+                companyName: companies.find((item) => item.code === company)?.name ?? company,
+                nfaNo: enfaNo,
+                plantLabel: plantName ? `${plant} – ${plantName}` : plant,
+                date: new Date().toLocaleDateString(),
+                initiator: user.email ?? sapUser,
+                nfaType: nfaTypes.find((item) => item.code === nfaType)?.name ?? nfaType,
+                functionName: functions.find((item) => item.code === func)?.name ?? func,
+                subject,
+                scopeImpact: scope,
+                timelineDays: timeline,
+                budgetImpact: budget,
+                descriptionHtml: desc,
+                approvers: approvers.filter((item) => item.email.trim()).map((item) => ({
+                  role: `Level ${item.level}`,
+                  userId: item.email,
+                  name: item.designation,
+                })),
+                logoBase64,
+              },
+            });
+            await saveGeneratedDocx({ enfaNumber: enfaNo, userId: user.id, ...generated });
+          } catch (docxError) {
+            toast.warning(`eNFA was submitted, but its DOCX could not be stored: ${(docxError as Error).message}`);
+          }
+        }
         return { ok: true, message: parsed?.MESSAGE || `Submitted successfully with ENFA No ${enfaNo}` };
       }
       return {

@@ -90,15 +90,18 @@ export async function extractDescriptionFromDocx(file: File, expectedEnfa: strin
   const parsed = new DOMParser().parseFromString(`<main>${result.value}</main>`, "text/html");
   const main = parsed.querySelector("main");
   if (!main || !main.textContent?.includes(expectedEnfa)) throw new Error("This DOCX belongs to a different eNFA record");
-  let collecting = false;
-  const selected: Element[] = [];
-  for (const child of Array.from(main.children)) {
-    const text = child.textContent?.trim().toUpperCase() ?? "";
-    if (text === "DETAILED DESCRIPTION") { collecting = true; continue; }
-    if (text === "APPROVALS") break;
-    if (collecting) selected.push(child);
+  const paragraphs = Array.from(main.querySelectorAll("p"));
+  const start = paragraphs.find((element) => element.textContent?.trim().toUpperCase() === "DETAILED DESCRIPTION");
+  const end = paragraphs.find((element) => element.textContent?.trim().toUpperCase() === "APPROVALS");
+  if (!start || !end || !(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+    throw new Error("The Detailed Description section was not found in this DOCX");
   }
-  const html = selected.map((element) => element.outerHTML).join("").trim();
-  if (!collecting || !html) throw new Error("The Detailed Description section was not found in this DOCX");
+  const range = parsed.createRange();
+  range.setStartAfter(start);
+  range.setEndBefore(end);
+  const holder = parsed.createElement("div");
+  holder.append(range.cloneContents());
+  const html = holder.innerHTML.trim();
+  if (!html || !holder.textContent?.trim()) throw new Error("Detailed Description cannot be empty");
   return html;
 }
