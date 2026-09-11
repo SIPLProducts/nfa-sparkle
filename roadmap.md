@@ -8,4 +8,4 @@
 - [x] Document activation, recovery, rollback, and verification commands.
 - [x] Detect and regenerate invalid Quality API keys.
 - [x] Apply the settings-file password and recreate Quality containers on repair.
-- [x] Require a username and password on the Quality dashboard address.
+- [x] Require a username and password on the Quality dashboard address.- [ ] Restore the deleted Quality compose file on the server (copy `deployment/Quality/backend/docker-compose.yml` via WinSCP), run `fix-db-roles.sh`, enable the dashboard login prompt — user to run on server.
