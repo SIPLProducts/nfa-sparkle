@@ -1,66 +1,106 @@
-# Fix the Quality dashboard and migration connection
+# Correct the Quality Docker Compose file and restart the dashboard
 
-The latest output confirms two important facts:
+The database itself is now correct: the repaired `supabase_admin` login returned `1`, and all 28 permission rows exist. The current failure is in `docker-compose.yml`, so Meta and Studio were never recreated with the repaired password.
 
-- The database repair succeeded: `supabase_admin` logged in and returned `1`.
-- The permission data is present: 28 rows, with 7 rows for each role, plus the required grants and read policies.
+## Confirmed YAML errors
 
-The dashboard still fails because Docker Compose stopped at a YAML syntax error before recreating Meta/Studio. Those containers therefore still hold the old database password. The migration script separately failed because it did not load `POSTGRES_PASSWORD` from the server's `.env`.
+The pasted file has these exact problems:
 
-## 1. Inspect and repair the malformed Compose line
+1. `meta.healthcheck` starts at the left margin instead of being indented under `meta`.
+2. The Meta `test:` and `interval:` settings are joined on one line.
+3. `studio.healthcheck` starts at the left margin instead of being indented under `studio`.
+4. The Studio `test:` and `interval:` settings are joined on one line.
+5. `STUDIO_DEFAULT_ORGANIZATION` and `STUDIO_DEFAULT_PROJECT` are joined on one line.
 
-First make a backup and show the actual server lines around the reported error:
+These explain `yaml: ... mapping values are not allowed in this context`.
+
+## 1. Back up and replace the broken Meta and Studio blocks
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality/backend
-cp docker-compose.yml docker-compose.yml.before-fix
-nl -ba docker-compose.yml | sed -n '300,314p'
+cp docker-compose.yml docker-compose.yml.before-yaml-fix
+nano docker-compose.yml
 ```
 
-The repository's correct storage-volume block is:
+Replace the complete `meta:` and `studio:` sections with the following. Preserve the spaces exactly:
 
 ```yaml
-    volumes:
-      - type: volume
-        source: nfa-quality-storage-data
-        target: /var/lib/storage
+  meta:
+    container_name: nfa-quality-meta
+    image: supabase/postgres-meta:v0.96.3
+    restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: ${POSTGRES_HOST:-db}
+      PG_META_DB_PORT: ${POSTGRES_PORT:-5432}
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
-      rest:
-        condition: service_started
+    networks:
+      - nfa-quality-net
+
+  studio:
+    container_name: nfa-quality-studio
+    image: supabase/studio:2026.04.27-sha-5f60601
+    restart: unless-stopped
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:3000/api/profile || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      STUDIO_DEFAULT_ORGANIZATION: ${STUDIO_DEFAULT_ORGANIZATION:-Ramky}
+      STUDIO_DEFAULT_PROJECT: ${STUDIO_DEFAULT_PROJECT:-eNFA Quality}
+      SUPABASE_URL: http://nfa-quality-kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8001}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      STUDIO_PORT: 3000
+      STUDIO_PG_META_URL: http://nfa-quality-meta:8080
+      STUDIO_LOGFLARE_PUBLIC_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
+      STUDIO_LOGFLARE_URL: http://nfa-quality-analytics:4000
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      STUDIO_AUTH_JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "127.0.0.1:${STUDIO_PORT:-54323}:3000"
+    depends_on:
+      kong:
+        condition: service_healthy
+      meta:
+        condition: service_healthy
+    networks:
+      - nfa-quality-net
 ```
 
-Restore those exact lines if the server copy has merged text, an extra colon, or bad indentation near line 307. Then validate before starting anything:
+Keep the following `vector:` section unchanged.
+
+## 2. Validate the complete file before restarting
 
 ```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
 docker compose -p nfa-quality --env-file .env config -q
-echo $?
+echo "compose validation exit code: $?"
 ```
 
-Continue only when the command prints no YAML error and the exit code is `0`.
+Do not continue unless there is no YAML error and the exit code is `0`.
 
-## 2. Remove invalid non-variable lines from `.env`
-
-`Quality: command not found` proves the file contains text that is not a comment or `NAME=value`. Do not source this file again.
+## 3. Recreate only Quality services
 
 ```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
-cp .env .env.before-cleanup
-grep -nEv '^[[:space:]]*($|#|[A-Za-z_][A-Za-z0-9_]*=)' .env
-```
-
-Delete or prefix with `#` only the lines reported by that command. Do not change the actual secret values. Re-run the `grep`; it should return no lines.
-
-## 3. Recreate only the Quality services
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
 docker compose -p nfa-quality --env-file .env up -d --force-recreate --no-deps \
   auth rest realtime storage meta kong studio
 ```
 
-Wait and verify:
+Then wait and inspect:
 
 ```bash
 for i in $(seq 1 60); do
@@ -74,11 +114,11 @@ docker ps --filter 'name=nfa-quality' --format 'table {{.Names}}\t{{.Status}}'
 docker logs nfa-quality-meta --since 3m --tail 50
 ```
 
-This touches only `nfa-quality-*`. Do not restart or modify the DEV/PROD containers.
+The fresh Meta log should no longer show password authentication failures.
 
-## 4. Run migrations with an explicitly loaded password
+## 4. Run migrations without sourcing `.env`
 
-Use a parser that reads only the password assignment and does not execute the `.env` file:
+The earlier `Quality: command not found` shows that `.env` includes non-variable text. Do not use `. ./.env`.
 
 ```bash
 cd /apps/webapplications/NFA_Approval/Quality
@@ -91,9 +131,9 @@ PGPASSWORD="$PW" ./scripts/run-migrations.sh
 unset PW
 ```
 
-The first command must return `1`; the migration runner should then apply or skip files without prompting.
+The connection test must return `1`; then migrations should run without asking for a password.
 
-## 5. Final verification
+## 5. Verify the dashboard
 
 ```bash
 curl -i http://127.0.0.1:8001/auth/v1/health
@@ -101,10 +141,11 @@ curl -i http://127.0.0.1:8082/
 docker logs nfa-quality-meta --since 2m --tail 30
 ```
 
-Then reload `http://10.200.1.7:8082`. Users, tables, and schemas should load because Meta is now running with the same password already verified against `supabase_admin`.
+Reload `http://10.200.1.7:8082`. Users, schemas, and tables should now load.
 
 ## Safety
 
-- Preserve the existing `nfa-quality` database volume and its 10 users, 10 profiles, and 28 permission rows.
-- Do not regenerate keys or passwords; the direct login proved the current database password is valid.
-- Do not rebuild the application and do not touch DEV/PROD containers.
+- Do not delete or recreate the database volume.
+- Do not change the working password or API keys.
+- Do not touch `supabase-dev-*` or `supabase-prod-*` containers.
+- Do not rebuild the application.
