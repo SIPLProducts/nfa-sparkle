@@ -77,7 +77,12 @@ export function EnfaDocument({
     rows.push(chunk);
   }
 
-  const withComments = comments.filter((c) => c.text?.trim());
+  // Every approver is listed (name, plus their remark when entered), grouped by
+  // round when the caller supplies version numbers — newest version first.
+  const shown = comments.filter((c) => (c.name ?? "").trim() || (c.text ?? "").trim());
+  const versions = Array.from(
+    new Set(shown.map((c) => (typeof c.version === "number" ? c.version : -1))),
+  ).sort((a, b) => b - a);
 
   return (
     <article className={cn("enfa-doc", className)}>
