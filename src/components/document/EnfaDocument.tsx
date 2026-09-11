@@ -13,6 +13,8 @@ export interface EnfaDocumentApprover {
 export interface EnfaDocumentComment {
   name: string;
   text: string;
+  /** Optional round number; when present, comments are grouped per version. */
+  version?: number;
 }
 
 export interface EnfaDocumentProps {
@@ -75,7 +77,12 @@ export function EnfaDocument({
     rows.push(chunk);
   }
 
-  const withComments = comments.filter((c) => c.text?.trim());
+  // Every approver is listed (name, plus their remark when entered), grouped by
+  // round when the caller supplies version numbers — newest version first.
+  const shown = comments.filter((c) => (c.name ?? "").trim() || (c.text ?? "").trim());
+  const versions = Array.from(
+    new Set(shown.map((c) => (typeof c.version === "number" ? c.version : -1))),
+  ).sort((a, b) => b - a);
 
   return (
     <article className={cn("enfa-doc", className)}>
@@ -148,17 +155,25 @@ export function EnfaDocument({
         </table>
       )}
 
-      {withComments.length > 0 && (
+      {shown.length > 0 && (
         <table className="enfa-table enfa-table-joined">
           <tbody>
             <tr>
-              <td className="enfa-cell">
-                <div className="font-bold">Current Version Comments:</div>
-                {withComments.map((c, i) => (
-                  <div key={`cmt-${i}`} className="enfa-comment">
-                    <span className="font-bold">{c.name || ""}</span>
-                    {c.name ? " — " : ""}
-                    {c.text}
+              <td className="enfa-cell enfa-comments">
+                {versions.map((v, vi) => (
+                  <div key={`ver-${v}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
+                    <div className="font-bold">
+                      {vi === 0 ? "Current Version Comments:" : `Version ${v} Comments:`}
+                    </div>
+                    {shown
+                      .filter((c) => (typeof c.version === "number" ? c.version : -1) === v)
+                      .map((c, i) => (
+                        <div key={`cmt-${v}-${i}`} className="enfa-comment">
+                          <span className="font-bold">{c.name || ""}</span>
+                          {c.name && c.text ? " — " : ""}
+                          {c.text}
+                        </div>
+                      ))}
                   </div>
                 ))}
               </td>

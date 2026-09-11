@@ -268,8 +268,12 @@
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  height: 26px;
+  height: 42px;
   width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
 .enfa-doc .enfa-band {
   background: #d9d9d9;
@@ -277,11 +281,15 @@
   font-weight: 700;
   font-size: 12px;
   padding: 3px 5px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
-.enfa-doc .enfa-doc-content { min-height: 90px; height: 90px; padding: 4px 6px; }
+.enfa-doc .enfa-doc-content { min-height: 110px; padding: 4px 6px; }
 .enfa-doc .enfa-approver { width: 33.33%; }
 .enfa-doc .enfa-approver-name { margin-top: 4px; font-weight: 700; }
+.enfa-doc .enfa-comments { padding: 4px 6px; }
 .enfa-doc .enfa-comment { margin-top: 3px; }
+.enfa-doc .enfa-comment-block { margin-top: 12px; }
 
 .enfa-doc .rich-content { line-height: 1.35; font-size: 11px; }
 .enfa-doc .rich-content table { table-layout: auto; width: 100%; max-width: 100%; }
@@ -297,16 +305,26 @@
 @media print {
   body * { visibility: hidden; }
   .enfa-doc, .enfa-doc * { visibility: visible; }
+  /* Ancestors of the sheet must not clip or scroll while printing. */
+  .enfa-print-area,
+  .enfa-print-area * {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
   .enfa-doc {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
     padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   .enfa-doc tr,
   .enfa-doc img,
   .enfa-doc .enfa-approver,
-  .enfa-doc .enfa-comment { break-inside: avoid; }
+  .enfa-doc .enfa-comment,
+  .enfa-doc .enfa-comment-block { break-inside: avoid; }
   @page { size: A4; margin: 12mm; }
 }
 

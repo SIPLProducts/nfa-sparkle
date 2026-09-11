@@ -20,7 +20,7 @@ export function PrintFormDialog({ open, onOpenChange, ...doc }: PrintFormDialogP
           <DialogTitle className="font-display text-base">Print Form · {doc.nfaNo || "—"}</DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-border p-3">
+        <div className="enfa-print-area max-h-[70vh] overflow-y-auto rounded-lg border border-border p-3">
           <EnfaDocument {...doc} />
         </div>
 
