@@ -163,11 +163,7 @@ export function EnfaDocument({
                 {versions.map((v, vi) => (
                   <div key={`ver-${v}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
                     <div className="font-bold">
-                      {vi === 0 && v < 0
-                        ? "Current Version Comments:"
-                        : vi === 0
-                          ? `Current Version Comments:`
-                          : `Version ${v} Comments:`}
+                      {vi === 0 ? "Current Version Comments:" : `Version ${v} Comments:`}
                     </div>
                     {shown
                       .filter((c) => (typeof c.version === "number" ? c.version : -1) === v)
