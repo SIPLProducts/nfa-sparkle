@@ -138,7 +138,20 @@ export function RecordPreviewDialog({
   const plant = PLANTS.find((p) => p.code === (row?.PSPNR ?? ""));
   const company = COMPANIES.find((c) => c.code === plant?.company);
 
+  const approvers: EnfaDocumentApprover[] = ([1, 2, 3, 4, 5, 6] as const)
+    .map((n) => ({
+      role: (row?.[`ROLE${n}` as keyof typeof row] as string) ?? "",
+      userId: "",
+      name: (row?.[`APPR${n}` as keyof typeof row] as string) ?? "",
+      status: (row?.[`STAT${n}` as keyof typeof row] as string) ?? "",
+    }))
+    .filter((a) => a.role || a.name);
+
   const printPdf = () => {
+    if (view === "formatted") {
+      window.print();
+      return;
+    }
     if (pdfUrl) {
       const w = window.open(pdfUrl, "_blank");
       if (w) {
