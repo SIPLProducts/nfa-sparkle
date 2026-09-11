@@ -13,6 +13,8 @@ export interface EnfaDocumentApprover {
 export interface EnfaDocumentComment {
   name: string;
   text: string;
+  /** Optional round number; when present, comments are grouped per version. */
+  version?: number;
 }
 
 export interface EnfaDocumentProps {

@@ -29,9 +29,12 @@ export async function loadPrintComments(enfaNumber: string): Promise<EnfaDocumen
       .select("designation, comment, level")
       .eq("nfa_id", rec.id)
       .order("level", { ascending: true });
-    return (rows ?? [])
-      .filter((r) => (r.comment ?? "").trim())
-      .map((r) => ({ name: r.designation ?? "", text: (r.comment ?? "").trim() }));
+    // Every approver is listed, like the reference sheet; the remark is shown
+    // beside the name when one was entered.
+    return (rows ?? []).map((r) => ({
+      name: r.designation ?? "",
+      text: (r.comment ?? "").trim(),
+    }));
   } catch {
     return [];
   }
