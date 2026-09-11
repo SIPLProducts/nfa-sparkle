@@ -263,6 +263,7 @@ function ApprovalsInbox() {
       return;
     }
     setBusy(true);
+    let terminalDocumentPending = false;
     try {
       if (
         action === "approve" ||
@@ -300,6 +301,7 @@ function ApprovalsInbox() {
         toast.success(message || fallbackMsg);
         const isTerminal = action === "reject" || (action === "approve" && selectedRow && currentLevel(selectedRow) >= totalLevels(selectedRow));
         if (isTerminal) {
+          terminalDocumentPending = true;
           await openPrintForm();
           setStoreFinalPdf(true);
         }
@@ -309,7 +311,7 @@ function ApprovalsInbox() {
       }
 
       setCommentAction(null);
-      if (!storeFinalPdf) await load();
+      if (!terminalDocumentPending) await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Action failed");
     } finally {
