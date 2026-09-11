@@ -128,16 +128,17 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
           const colWidth = Math.floor(width / values.length);
           rows.push(new TableRow({ children: values.map((value) => cell([new Paragraph({ children: [run(value)] })], colWidth)) }));
         }
-        if (rows.length) description.push(new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: new Array(rows[0].root.length).fill(Math.floor(width / rows[0].root.length)), rows }));
+        const firstRowCells = body.match(/<tr[^>]*>([\s\S]*?)<\/tr>/i)?.[1].match(/<t[dh][^>]*>/gi)?.length ?? 1;
+        if (rows.length) description.push(new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: new Array(firstRowCells).fill(Math.floor(width / firstRowCells)), rows }));
       } else {
         const listItems = Array.from(body.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi));
         if ((tag === "ul" || tag === "ol") && listItems.length) {
-          for (const item of listItems) description.push(new Paragraph({ bullet: { level: 0 }, children: inlinePieces(item[1]).map((p) => new TextRun({ ...p, font: "Arial", size: 20 })) }));
+          for (const item of listItems) description.push(new Paragraph({ bullet: { level: 0 }, children: inlinePieces(item[1]).map((p) => new TextRun({ text: p.text, bold: p.bold, italics: p.italics, underline: p.underline ? {} : undefined, font: "Arial", size: 20 })) }));
         } else {
           description.push(new Paragraph({
             heading: tag === "h1" ? HeadingLevel.HEADING_1 : tag === "h2" ? HeadingLevel.HEADING_2 : tag === "h3" ? HeadingLevel.HEADING_3 : undefined,
             spacing: { after: 100 },
-            children: inlinePieces(body).map((p) => new TextRun({ ...p, font: "Arial", size: 20 })),
+            children: inlinePieces(body).map((p) => new TextRun({ text: p.text, bold: p.bold, italics: p.italics, underline: p.underline ? {} : undefined, font: "Arial", size: 20 })),
           }));
         }
       }
