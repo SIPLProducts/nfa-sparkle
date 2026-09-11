@@ -40,7 +40,9 @@ export function RecordPreviewDialog({
     detailed_description: string | null;
     subject: string | null;
   } | null>(null);
+  const [comments, setComments] = useState<EnfaDocumentComment[]>([]);
   const [view, setView] = useState<"sap" | "formatted">("sap");
+
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -57,6 +59,9 @@ export function RecordPreviewDialog({
         .maybeSingle();
       if (cancelled) return;
       setDraft(d ?? null);
+      const c = await loadPrintComments(enfa);
+      if (!cancelled) setComments(c);
+
     })();
     return () => { cancelled = true; };
   }, [open, enfa]);
