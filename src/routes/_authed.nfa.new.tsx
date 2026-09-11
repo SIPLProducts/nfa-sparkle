@@ -710,6 +710,29 @@ function NewNfaPage() {
          </div>
         </div>
       </div>
+
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={companies.find((c) => c.code === company)?.name ?? company}
+        nfaNo=""
+        plantLabel={(() => {
+          const p = plants.find((x) => x.code === plant);
+          return p ? `${p.code} – ${p.name}` : plant;
+        })()}
+        date={new Date().toLocaleDateString()}
+        initiator={user?.email ?? ""}
+        nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
+        functionName={functions.find((f) => f.code === func)?.name ?? func}
+        subject={subject}
+        scopeImpact={scope}
+        timelineDays={timeline}
+        budgetImpact={budget}
+        descriptionHtml={desc}
+        approvers={approvers
+          .filter((a) => a.email.trim())
+          .map((a) => ({ role: `Level ${a.level}`, userId: a.email, name: a.designation }))}
+      />
     </div>
   );
 }
