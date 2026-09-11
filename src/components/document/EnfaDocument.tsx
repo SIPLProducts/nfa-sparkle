@@ -122,7 +122,7 @@ export function EnfaDocument({
 
           {/* Detailed Description — the only place the description is rendered. */}
           <tr>
-            <td className="enfa-cell enfa-doc-content" colSpan={2}>
+            <td className="enfa-cell enfa-doc-content">
               {descriptionHtml?.trim() ? (
                 <RichTextView html={descriptionHtml} />
               ) : (
