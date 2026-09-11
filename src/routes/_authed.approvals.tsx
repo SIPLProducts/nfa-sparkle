@@ -512,6 +512,23 @@ function ApprovalsInbox() {
         endpoint="my"
       />
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" />
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={selectedRow ? val(selectedRow, "CC_TEXT") : ""}
+        nfaNo={selectedEnfaNo}
+        plantLabel={selectedRow ? [val(selectedRow, "PSPNR"), val(selectedRow, "NAME1")].filter(Boolean).join(" – ") : ""}
+        date={selectedRow ? val(selectedRow, "BEGDA") : ""}
+        initiator={selectedRow ? val(selectedRow, "INIT_NAME") : ""}
+        nfaType={selectedRow ? val(selectedRow, "FUNCT_TXT") : ""}
+        functionName={selectedRow ? val(selectedRow, "EXTR_TXT") : ""}
+        subject={printDoc.subject}
+        scopeImpact={printDoc.scope}
+        timelineDays={printDoc.timeline}
+        budgetImpact={printDoc.budget}
+        descriptionHtml={printDoc.description}
+        approvers={printApprovers}
+      />
       <ApprovalCommentDialog
         open={!!commentAction}
         onOpenChange={(o) => { if (!o) setCommentAction(null); }}
