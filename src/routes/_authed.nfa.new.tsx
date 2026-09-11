@@ -482,6 +482,9 @@ function NewNfaPage() {
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
             </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintOpen(true)}>
+              <Printer className="h-4 w-4" /> <span className="hidden sm:inline">Print </span>Form
+            </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit
             </Button>
