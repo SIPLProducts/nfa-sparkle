@@ -6,7 +6,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { toast } from "sonner";
 import type { SapReportRow } from "@/lib/sap-api.functions";
@@ -103,6 +105,10 @@ function ApprovalsInbox() {
   const [selected, setSelected] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printDoc, setPrintDoc] = useState<{
+    subject: string; scope: string; budget: string; timeline: string; description: string;
+  }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
 
