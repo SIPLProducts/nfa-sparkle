@@ -108,6 +108,7 @@ function ApprovalsInbox() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [storeFinalPdf, setStoreFinalPdf] = useState(false);
   const [printDoc, setPrintDoc] = useState<{
     subject: string; scope: string; budget: string; timeline: string; description: string;
   }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
