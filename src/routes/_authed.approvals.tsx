@@ -297,6 +297,11 @@ function ApprovalsInbox() {
                 ? "SAP sent the record back for clarification"
                 : "SAP sent the record back to the initiator";
         toast.success(message || fallbackMsg);
+        const isTerminal = action === "reject" || (action === "approve" && selectedRow && currentLevel(selectedRow) >= totalLevels(selectedRow));
+        if (isTerminal) {
+          await openPrintForm();
+          setStoreFinalPdf(true);
+        }
       } else {
         toast.info("This action is not yet connected to SAP.");
         return;
@@ -535,6 +540,8 @@ function ApprovalsInbox() {
         descriptionHtml={printDoc.description}
         approvers={printApprovers}
         comments={printComments}
+        storeFinalPdf={storeFinalPdf}
+        onFinalPdfStored={() => setStoreFinalPdf(false)}
 
       />
       <ApprovalCommentDialog

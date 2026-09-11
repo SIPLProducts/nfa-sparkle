@@ -74,10 +74,10 @@ export function PrintFormDialog({
     }
   }
 
-  async function generateAndSaveDocx(download: boolean) {
+  async function generateAndSaveDocx(download: boolean): Promise<boolean> {
     if (!doc.nfaNo) {
       toast.info("Submit the NFA first to receive an eNFA number");
-      return;
+      return false;
     }
     setDocxBusy(true);
     try {
@@ -109,8 +109,10 @@ export function PrintFormDialog({
       setWorkingDocument(saved);
       if (download) await downloadWorkingDocument(saved);
       toast.success(`Editable DOCX version ${saved.version} saved`);
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create the DOCX");
+      return false;
     } finally {
       setDocxBusy(false);
     }
@@ -130,8 +132,7 @@ export function PrintFormDialog({
       }
       onDescriptionChange?.(description);
       onSaved?.(description);
-      await generateAndSaveDocx(false);
-      setEditing(false);
+      if (await generateAndSaveDocx(false)) setEditing(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the description");
     } finally {
