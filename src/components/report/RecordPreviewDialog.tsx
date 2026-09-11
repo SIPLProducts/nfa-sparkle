@@ -154,6 +154,42 @@ export function RecordPreviewDialog({
           <DialogTitle className="font-display text-base">Preview · {enfa || "—"}</DialogTitle>
         </DialogHeader>
 
+        <div className="flex gap-1 rounded-md border border-border p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setView("sap")}
+            className={"flex-1 rounded px-2 py-1 " + (view === "sap" ? "bg-secondary font-semibold text-secondary-foreground" : "text-muted-foreground")}
+          >
+            SAP document
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("formatted")}
+            className={"flex-1 rounded px-2 py-1 " + (view === "formatted" ? "bg-secondary font-semibold text-secondary-foreground" : "text-muted-foreground")}
+          >
+            Formatted document
+          </button>
+        </div>
+
+        {view === "formatted" ? (
+          <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-border p-3">
+            <EnfaDocument
+              companyName={company?.name ?? ""}
+              nfaNo={enfa}
+              plantLabel={plant ? `${plant.code} – ${plant.name}` : (row?.PSPNR ?? "")}
+              date={row?.BEGDA ?? ""}
+              initiator={row?.INIT_NAME ?? ""}
+              nfaType={row?.EXTR_TXT ?? ""}
+              functionName={row?.FUNCT_TXT ?? ""}
+              subject={draft?.subject ?? row?.SUBJECT ?? ""}
+              scopeImpact={draft?.scope_impact ?? ""}
+              timelineDays={draft?.timeline_days != null ? String(draft.timeline_days) : ""}
+              budgetImpact={draft?.budget_impact != null ? String(draft.budget_impact) : ""}
+              descriptionHtml={draft?.detailed_description ?? ""}
+              approvers={approvers}
+            />
+          </div>
+        ) : (
         <div id="enfa-preview" className="space-y-5">
           {pdfLoading ? (
             <div className="flex items-center gap-2 rounded-lg border border-border p-6 text-sm text-muted-foreground">
