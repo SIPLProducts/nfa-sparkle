@@ -192,7 +192,7 @@ export function PrintFormDialog({
             <>
               <Button variant="outline" onClick={() => { setDescription(doc.descriptionHtml ?? ""); setEditing(false); }}>Cancel</Button>
               <Button className="gap-1.5" onClick={() => void saveDescription()} disabled={saving || docxBusy}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save Document
               </Button>
             </>
           ) : (
