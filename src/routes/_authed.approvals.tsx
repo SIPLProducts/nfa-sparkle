@@ -216,7 +216,7 @@ function ApprovalsInbox() {
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
           role: selectedRow ? val(selectedRow, `ROLE${n}`) : "",
-          userId: "",
+          userId: sapApproverUserId(selectedRow as unknown as Record<string, unknown>, n),
           name: selectedRow ? val(selectedRow, `APPR${n}`) : "",
           status: selectedRow ? val(selectedRow, `STAT${n}`) : "",
         }))
@@ -239,8 +239,10 @@ function ApprovalsInbox() {
       timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
       description: data?.detailed_description ?? "",
     });
+    setPrintComments(await loadPrintComments(selectedEnfaNo));
     setPrintOpen(true);
   }
+
 
   function requireSelection() {
     if (!selectedRow || !selectedEnfaNo) {
