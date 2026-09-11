@@ -55,6 +55,7 @@ export function PrintFormDialog({
   useEffect(() => {
     if (!open || !canEdit || !doc.nfaNo) return;
     let cancelled = false;
+    setWorkingDocument(null);
     void loadWorkingDocument(doc.nfaNo).then((value) => { if (!cancelled) setWorkingDocument(value); });
     return () => { cancelled = true; };
   }, [canEdit, doc.nfaNo, open]);

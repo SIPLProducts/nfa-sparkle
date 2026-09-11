@@ -94,7 +94,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     const width = 9360;
     const border = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
     const borders = { top: border, bottom: border, left: border, right: border };
-    const cell = (children: InstanceType<typeof Paragraph>[], size = width, shaded = false) =>
+    type CellChild = InstanceType<typeof Paragraph> | InstanceType<typeof Table>;
+    const cell = (children: CellChild[], size = width, shaded = false) =>
       new TableCell({
         width: { size, type: WidthType.DXA },
         borders,
@@ -107,7 +108,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       spacing: { after: 0 },
       children: [run(`${label}: `, true), run(value ?? "")],
     });
-    const oneRow = (children: InstanceType<typeof Paragraph>[], shaded = false) => new Table({
+    const oneRow = (children: CellChild[], shaded = false) => new Table({
       width: { size: width, type: WidthType.DXA },
       columnWidths: [width],
       rows: [new TableRow({ children: [cell(children, width, shaded)] })],
@@ -158,9 +159,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       oneRow([line("NFA No", [data.nfaNo, data.plantLabel].filter(Boolean).join(" / ")), line("Date", data.date)]),
       oneRow([line("Initiator", data.initiator), line("NFA Type", data.nfaType), line("Function", data.functionName), line("Sub", data.subject), line("Scope Impact", data.scopeImpact), line("Timeline Impact", data.timelineDays ? `${data.timelineDays} (Days)` : ""), line("Budget Impact", data.budgetImpact ? `Rs.${data.budgetImpact} (Lakhs)` : "")]),
       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("DETAILED DESCRIPTION", true)] })], true),
-      oneRow(description.filter((item): item is InstanceType<typeof Paragraph> => item instanceof Paragraph)),
+      oneRow(description),
     ];
-    for (const item of description) if (item instanceof Table) children.push(item);
     children.push(oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("APPROVALS", true)] })], true));
 
     const approvers = data.approvers ?? [];
