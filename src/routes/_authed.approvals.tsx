@@ -341,6 +341,9 @@ function ApprovalsInbox() {
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
               <Eye className="h-3.5 w-3.5" /> Preview
             </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
+              <Printer className="h-3.5 w-3.5" /> Print Form
+            </Button>
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
               <Paperclip className="h-3.5 w-3.5" /> Attached Docs
             </Button>
