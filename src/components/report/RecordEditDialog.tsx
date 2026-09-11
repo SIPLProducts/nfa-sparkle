@@ -195,7 +195,14 @@ export function RecordEditDialog({
 
 
       if (sap) {
-        // SAP response is the single source of truth when the live call succeeds.
+        // SAP is the source of truth for the header fields; the Detailed
+        // Description is kept in the application (it is not sent to SAP), so
+        // the locally stored rich version wins when one exists.
+        const { data: local } = await supabase
+          .from("sap_record_draft")
+          .select("detailed_description")
+          .eq("enfa_number", enfa)
+          .maybeSingle();
         if (cancelled) return;
         setDetail(sap);
         setDraft({
@@ -203,7 +210,7 @@ export function RecordEditDialog({
           scope_impact: str(sap, "SCOPE_IMPACT"),
           budget_impact: str(sap, "BUDGET_IMPACT"),
           timeline_days: str(sap, "TIMELINE_IMPACT"),
-          detailed_description: str(sap, "TEXT"),
+          detailed_description: local?.detailed_description ?? str(sap, "TEXT"),
         });
         setLoading(false);
         return;
