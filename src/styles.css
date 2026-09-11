@@ -305,16 +305,26 @@
 @media print {
   body * { visibility: hidden; }
   .enfa-doc, .enfa-doc * { visibility: visible; }
+  /* Ancestors of the sheet must not clip or scroll while printing. */
+  .enfa-print-area,
+  .enfa-print-area * {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
   .enfa-doc {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
     padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   .enfa-doc tr,
   .enfa-doc img,
   .enfa-doc .enfa-approver,
-  .enfa-doc .enfa-comment { break-inside: avoid; }
+  .enfa-doc .enfa-comment,
+  .enfa-doc .enfa-comment-block { break-inside: avoid; }
   @page { size: A4; margin: 12mm; }
 }
 
