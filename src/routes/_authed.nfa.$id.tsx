@@ -17,6 +17,7 @@ import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { RichTextView } from "@/components/RichTextView";
+import { EnfaDocument } from "@/components/document/EnfaDocument";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
 import { Eye, Download as DownloadIcon } from "lucide-react";
 
