@@ -422,7 +422,9 @@ function NewNfaPage() {
           SCOPE_IMPACT: scope,
           BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
           TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
-          TEXT: plainDesc,
+          // The Detailed Description is intentionally not sent to SAP; it is kept
+          // in the application and rendered in the Print Form.
+          TEXT: "",
           file: files,
         },
       };
