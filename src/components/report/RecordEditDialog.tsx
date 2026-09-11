@@ -117,6 +117,15 @@ export function RecordEditDialog({
   const [sending, setSending] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
+
+  useEffect(() => {
+    if (!printOpen || !enfa) return;
+    let cancelled = false;
+    void loadPrintComments(enfa).then((c) => { if (!cancelled) setPrintComments(c); });
+    return () => { cancelled = true; };
+  }, [printOpen, enfa]);
+
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
@@ -469,6 +478,8 @@ export function RecordEditDialog({
         budgetImpact={draft.budget_impact}
         descriptionHtml={draft.detailed_description}
         approvers={printApprovers}
+        comments={printComments}
+
       />
     </>
   );
