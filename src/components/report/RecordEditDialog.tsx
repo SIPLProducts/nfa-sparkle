@@ -435,6 +435,24 @@ export function RecordEditDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={str(detail, "CC_TEXT") || (company ? company.name : "")}
+        nfaNo={enfa}
+        plantLabel={[str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1].filter(Boolean).join(" – ")}
+        date={row?.BEGDA ?? ""}
+        initiator={row?.INIT_NAME ?? ""}
+        nfaType={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")}
+        functionName={str(detail, "EXTR_TXT") || (row?.EXTR_TXT ?? "")}
+        subject={draft.subject}
+        scopeImpact={draft.scope_impact}
+        timelineDays={draft.timeline_days}
+        budgetImpact={draft.budget_impact}
+        descriptionHtml={draft.detailed_description}
+        approvers={printApprovers}
+      />
     </>
   );
 }
