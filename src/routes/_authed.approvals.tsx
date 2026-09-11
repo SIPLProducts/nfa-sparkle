@@ -309,7 +309,7 @@ function ApprovalsInbox() {
       }
 
       setCommentAction(null);
-      await load();
+      if (!storeFinalPdf) await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Action failed");
     } finally {
@@ -542,7 +542,11 @@ function ApprovalsInbox() {
         approvers={printApprovers}
         comments={printComments}
         storeFinalPdf={storeFinalPdf}
-        onFinalPdfStored={() => setStoreFinalPdf(false)}
+        onFinalPdfStored={() => {
+          setStoreFinalPdf(false);
+          setPrintOpen(false);
+          void load();
+        }}
 
       />
       <ApprovalCommentDialog
