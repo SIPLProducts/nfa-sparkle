@@ -211,6 +211,37 @@ function ApprovalsInbox() {
   const selectedRow = selected !== null ? filtered[selected] ?? null : null;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
+  const printApprovers: EnfaDocumentApprover[] = useMemo(
+    () =>
+      ([1, 2, 3, 4, 5, 6] as const)
+        .map((n) => ({
+          role: val(selectedRow, `ROLE${n}`),
+          userId: "",
+          name: val(selectedRow, `APPR${n}`),
+          status: val(selectedRow, `STAT${n}`),
+        }))
+        .filter((a) => a.role || a.name),
+    [selectedRow],
+  );
+
+  /** Loads the stored rich Detailed Description for the selected record. */
+  async function openPrintForm() {
+    if (!selectedEnfaNo) return;
+    const { data } = await supabase
+      .from("sap_record_draft")
+      .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+      .eq("enfa_number", selectedEnfaNo)
+      .maybeSingle();
+    setPrintDoc({
+      subject: data?.subject ?? val(selectedRow, "SUBJECT"),
+      scope: data?.scope_impact ?? "",
+      budget: data?.budget_impact != null ? String(data.budget_impact) : "",
+      timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
+      description: data?.detailed_description ?? "",
+    });
+    setPrintOpen(true);
+  }
+
   function requireSelection() {
     if (!selectedRow || !selectedEnfaNo) {
       toast.info("Select a record first.");
