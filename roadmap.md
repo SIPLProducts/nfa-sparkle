@@ -12,4 +12,3 @@
 - [x] Make Print Form Detailed Description editable for Initiators and downloadable as PDF for Approvers.
 - [x] Generate and privately version editable Initiator DOCX working documents while keeping Approver output PDF-only.
 - [x] Embed Print Form logo and Detailed Description images directly in downloaded DOCX files.
-- [x] Edit the Initiator Print Form inside the app and automatically save each change as a versioned working DOCX.
