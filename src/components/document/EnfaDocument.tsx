@@ -155,17 +155,29 @@ export function EnfaDocument({
         </table>
       )}
 
-      {withComments.length > 0 && (
+      {shown.length > 0 && (
         <table className="enfa-table enfa-table-joined">
           <tbody>
             <tr>
-              <td className="enfa-cell">
-                <div className="font-bold">Current Version Comments:</div>
-                {withComments.map((c, i) => (
-                  <div key={`cmt-${i}`} className="enfa-comment">
-                    <span className="font-bold">{c.name || ""}</span>
-                    {c.name ? " — " : ""}
-                    {c.text}
+              <td className="enfa-cell enfa-comments">
+                {versions.map((v, vi) => (
+                  <div key={`ver-${v}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
+                    <div className="font-bold">
+                      {vi === 0 && v < 0
+                        ? "Current Version Comments:"
+                        : vi === 0
+                          ? `Current Version Comments:`
+                          : `Version ${v} Comments:`}
+                    </div>
+                    {shown
+                      .filter((c) => (typeof c.version === "number" ? c.version : -1) === v)
+                      .map((c, i) => (
+                        <div key={`cmt-${v}-${i}`} className="enfa-comment">
+                          <span className="font-bold">{c.name || ""}</span>
+                          {c.name && c.text ? " — " : ""}
+                          {c.text}
+                        </div>
+                      ))}
                   </div>
                 ))}
               </td>
