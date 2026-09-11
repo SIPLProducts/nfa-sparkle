@@ -51,7 +51,17 @@ export const Route = createFileRoute("/api/public/enfa-display-edit")({
           callerUser = "";
         }
 
-        const result = await callEnfaDisplayEditData(callerUser ? { user_name: callerUser } : undefined);
+        let result;
+        try {
+          result = await callEnfaDisplayEditData(callerUser ? { user_name: callerUser } : undefined);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "SAP worklist unavailable";
+          console.error("[enfa-display-edit] request failed:", message);
+          return Response.json(
+            { ok: false, message },
+            { status: 200, headers: { "cache-control": "no-store" } },
+          );
+        }
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
