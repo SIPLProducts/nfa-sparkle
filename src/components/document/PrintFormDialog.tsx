@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Pencil, Printer, Save } from "lucide-react";
+import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
+import {
+  DOCX_MIME,
+  downloadWorkingDocument,
+  extractDescriptionFromDocx,
+  fileToBase64,
+  loadWorkingDocument,
+  saveGeneratedDocx,
+  type WorkingDocumentInfo,
+} from "@/lib/enfa-working-document";
 
 export interface PrintFormDialogProps extends EnfaDocumentProps {
   open: boolean;
@@ -27,15 +38,109 @@ export function PrintFormDialog({
   ...doc
 }: PrintFormDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const generateDocx = useServerFn(generateEnfaDocx);
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(doc.descriptionHtml ?? "");
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [docxBusy, setDocxBusy] = useState(false);
+  const [workingDocument, setWorkingDocument] = useState<WorkingDocumentInfo | null>(null);
 
   useEffect(() => {
     if (!open) setEditing(false);
     setDescription(doc.descriptionHtml ?? "");
   }, [doc.descriptionHtml, open]);
+
+  useEffect(() => {
+    if (!open || !canEdit || !doc.nfaNo) return;
+    let cancelled = false;
+    void loadWorkingDocument(doc.nfaNo).then((value) => { if (!cancelled) setWorkingDocument(value); });
+    return () => { cancelled = true; };
+  }, [canEdit, doc.nfaNo, open]);
+
+  async function logoBase64(): Promise<string | undefined> {
+    try {
+      const response = await fetch("/ramky-logo.png");
+      const blob = await response.blob();
+      return await fileToBase64(blob);
+    } catch {
+      return undefined;
+    }
+  }
+
+  async function createOrDownloadDocx() {
+    if (!doc.nfaNo) {
+      toast.info("Submit the NFA first to receive an eNFA number");
+      return;
+    }
+    setDocxBusy(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) throw new Error("Your session has expired. Please sign in again.");
+      const generated = await generateDocx({
+        data: {
+          companyName: doc.companyName,
+          nfaNo: doc.nfaNo,
+          plantLabel: doc.plantLabel,
+          date: doc.date,
+          initiator: doc.initiator,
+          nfaType: doc.nfaType,
+          functionName: doc.functionName,
+          subject: doc.subject,
+          scopeImpact: doc.scopeImpact,
+          timelineDays: doc.timelineDays,
+          budgetImpact: doc.budgetImpact,
+          descriptionHtml: description,
+          approvers: doc.approvers,
+          comments: doc.comments,
+          logoBase64: await logoBase64(),
+        },
+      });
+      const saved = await saveGeneratedDocx({ enfaNumber: doc.nfaNo, userId, ...generated });
+      setWorkingDocument(saved);
+      await downloadWorkingDocument(saved);
+      toast.success(`Editable DOCX version ${saved.version} saved`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create the DOCX");
+    } finally {
+      setDocxBusy(false);
+    }
+  }
+
+  async function uploadRevisedDocx(file: File) {
+    if (!doc.nfaNo) return;
+    setDocxBusy(true);
+    try {
+      const html = await extractDescriptionFromDocx(file, doc.nfaNo);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) throw new Error("Your session has expired. Please sign in again.");
+      const { error } = await supabase.from("sap_record_draft").upsert({
+        enfa_number: doc.nfaNo,
+        detailed_description: html,
+        updated_by: userId,
+      });
+      if (error) throw error;
+      const saved = await saveGeneratedDocx({
+        enfaNumber: doc.nfaNo,
+        userId,
+        base64: await fileToBase64(file),
+        filename: file.name,
+      });
+      setDescription(html);
+      setWorkingDocument(saved);
+      onDescriptionChange?.(html);
+      onSaved?.(html);
+      toast.success(`Revised DOCX saved as version ${saved.version}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the revised DOCX");
+    } finally {
+      if (uploadRef.current) uploadRef.current.value = "";
+      setDocxBusy(false);
+    }
+  }
 
   async function saveDescription() {
     setSaving(true);
@@ -115,6 +220,18 @@ export function PrintFormDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
+          {canEdit && doc.nfaNo ? (
+            <div className="mr-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {workingDocument ? <span>DOCX v{workingDocument.version}</span> : <span>No DOCX saved</span>}
+              <input
+                ref={uploadRef}
+                type="file"
+                accept={`.docx,${DOCX_MIME}`}
+                className="hidden"
+                onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadRevisedDocx(file); }}
+              />
+            </div>
+          ) : null}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {canEdit && !editing ? (
             <Button variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>
@@ -129,9 +246,22 @@ export function PrintFormDialog({
               </Button>
             </>
           ) : (
-            <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading}>
-              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
-            </Button>
+            <>
+              {canEdit && doc.nfaNo ? (
+                <>
+                  <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy}>
+                    {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} Download DOCX
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={() => uploadRef.current?.click()} disabled={docxBusy}>
+                    <FileUp className="h-3.5 w-3.5" /> Upload Revised DOCX
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading}>
+                  {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
+                </Button>
+              )}
+            </>
           )}
           <Button className="gap-1.5" onClick={() => window.print()}>
             <Printer className="h-3.5 w-3.5" /> Print

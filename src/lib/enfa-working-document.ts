@@ -15,6 +15,15 @@ function base64ToBlob(base64: string): Blob {
   return new Blob([bytes], { type: DOCX_MIME });
 }
 
+export function fileToBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? "").split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read the document"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function saveGeneratedDocx(input: {
   enfaNumber: string;
   userId: string;
