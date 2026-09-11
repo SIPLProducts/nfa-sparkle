@@ -2,6 +2,7 @@ import mammoth from "mammoth/mammoth.browser";
 import { supabase } from "@/integrations/supabase/client";
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const PDF_MIME = "application/pdf";
 
 export interface WorkingDocumentInfo {
   version: number;
@@ -93,6 +94,18 @@ function base64ToBlob(base64: string): Blob {
   return new Blob([bytes], { type: DOCX_MIME });
 }
 
+async function nextDocumentVersion(enfaNumber: string): Promise<number> {
+  const { data: current, error } = await supabase
+    .from("enfa_working_document")
+    .select("version")
+    .eq("enfa_number", enfaNumber)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (current?.version ?? 0) + 1;
+}
+
 export function fileToBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -108,14 +121,7 @@ export async function saveGeneratedDocx(input: {
   base64: string;
   filename: string;
 }): Promise<WorkingDocumentInfo> {
-  const { data: current } = await supabase
-    .from("enfa_working_document")
-    .select("version")
-    .eq("enfa_number", input.enfaNumber)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const version = (current?.version ?? 0) + 1;
+  const version = await nextDocumentVersion(input.enfaNumber);
   const safe = input.enfaNumber.replace(/[^A-Za-z0-9_-]/g, "-");
   const storagePath = `${input.userId}/${safe}/v${version}.docx`;
   const blob = base64ToBlob(input.base64);
@@ -132,6 +138,34 @@ export async function saveGeneratedDocx(input: {
     mime_type: DOCX_MIME,
     size_bytes: blob.size,
     state: "working",
+    created_by: input.userId,
+  }).select("version, filename, storage_path, updated_at").single();
+  if (error) throw error;
+  return { version: data.version, filename: data.filename, storagePath: data.storage_path, updatedAt: data.updated_at };
+}
+
+export async function saveFinalPdf(input: {
+  enfaNumber: string;
+  userId: string;
+  blob: Blob;
+}): Promise<WorkingDocumentInfo> {
+  const version = await nextDocumentVersion(input.enfaNumber);
+  const safe = input.enfaNumber.replace(/[^A-Za-z0-9_-]/g, "-");
+  const storagePath = `${input.userId}/${safe}/final-v${version}.pdf`;
+  const filename = `ENFA-${input.enfaNumber}-final.pdf`;
+  const { error: uploadError } = await supabase.storage
+    .from("enfa-working-documents")
+    .upload(storagePath, input.blob, { contentType: PDF_MIME, upsert: false });
+  if (uploadError) throw uploadError;
+  await supabase.from("enfa_working_document").update({ state: "superseded" }).eq("enfa_number", input.enfaNumber).eq("state", "final");
+  const { data, error } = await supabase.from("enfa_working_document").insert({
+    enfa_number: input.enfaNumber,
+    version,
+    storage_path: storagePath,
+    filename,
+    mime_type: PDF_MIME,
+    size_bytes: input.blob.size,
+    state: "final",
     created_by: input.userId,
   }).select("version, filename, storage_path, updated_at").single();
   if (error) throw error;
