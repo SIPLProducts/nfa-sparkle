@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
-import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
+import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
+import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -55,6 +56,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
   const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
@@ -422,7 +424,9 @@ function NewNfaPage() {
           SCOPE_IMPACT: scope,
           BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
           TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
-          TEXT: plainDesc,
+          // The Detailed Description is intentionally not sent to SAP; it is kept
+          // in the application and rendered in the Print Form.
+          TEXT: "",
           file: files,
         },
       };
@@ -447,6 +451,17 @@ function NewNfaPage() {
       const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
       if (parsed?.STATUS === "S" && enfaNo) {
         await supabase.from("nfa").update({ enfa_number: enfaNo }).eq("id", nfaId);
+        // Keep the rich Detailed Description (and the header values) against the
+        // SAP number so the Print Form can render it later.
+        await supabase.from("sap_record_draft").upsert({
+          enfa_number: enfaNo,
+          subject,
+          scope_impact: scope || null,
+          budget_impact: budget ? Number(budget) : null,
+          timeline_days: timeline ? parseInt(timeline, 10) : null,
+          detailed_description: plainDesc ? desc : null,
+          updated_by: user?.id ?? null,
+        });
         return { ok: true, message: parsed?.MESSAGE || `Submitted successfully with ENFA No ${enfaNo}` };
       }
       return {
@@ -468,6 +483,9 @@ function NewNfaPage() {
           <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2">
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintOpen(true)}>
+              <Printer className="h-4 w-4" /> <span className="hidden sm:inline">Print </span>Form
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit
@@ -692,6 +710,29 @@ function NewNfaPage() {
          </div>
         </div>
       </div>
+
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={companies.find((c) => c.code === company)?.name ?? company}
+        nfaNo=""
+        plantLabel={(() => {
+          const p = plants.find((x) => x.code === plant);
+          return p ? `${p.code} – ${p.name}` : plant;
+        })()}
+        date={new Date().toLocaleDateString()}
+        initiator={user?.email ?? ""}
+        nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
+        functionName={functions.find((f) => f.code === func)?.name ?? func}
+        subject={subject}
+        scopeImpact={scope}
+        timelineDays={timeline}
+        budgetImpact={budget}
+        descriptionHtml={desc}
+        approvers={approvers
+          .filter((a) => a.email.trim())
+          .map((a) => ({ role: `Level ${a.level}`, userId: a.email, name: a.designation }))}
+      />
     </div>
   );
 }

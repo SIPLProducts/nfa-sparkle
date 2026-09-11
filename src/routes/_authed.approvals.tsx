@@ -6,7 +6,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { toast } from "sonner";
 import type { SapReportRow } from "@/lib/sap-api.functions";
@@ -103,6 +105,10 @@ function ApprovalsInbox() {
   const [selected, setSelected] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printDoc, setPrintDoc] = useState<{
+    subject: string; scope: string; budget: string; timeline: string; description: string;
+  }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -205,6 +211,37 @@ function ApprovalsInbox() {
   const selectedRow = selected !== null ? filtered[selected] ?? null : null;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
+  const printApprovers: EnfaDocumentApprover[] = useMemo(
+    () =>
+      ([1, 2, 3, 4, 5, 6] as const)
+        .map((n) => ({
+          role: selectedRow ? val(selectedRow, `ROLE${n}`) : "",
+          userId: "",
+          name: selectedRow ? val(selectedRow, `APPR${n}`) : "",
+          status: selectedRow ? val(selectedRow, `STAT${n}`) : "",
+        }))
+        .filter((a) => a.role || a.name),
+    [selectedRow],
+  );
+
+  /** Loads the stored rich Detailed Description for the selected record. */
+  async function openPrintForm() {
+    if (!selectedEnfaNo) return;
+    const { data } = await supabase
+      .from("sap_record_draft")
+      .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+      .eq("enfa_number", selectedEnfaNo)
+      .maybeSingle();
+    setPrintDoc({
+      subject: data?.subject ?? (selectedRow ? val(selectedRow, "SUBJECT") : ""),
+      scope: data?.scope_impact ?? "",
+      budget: data?.budget_impact != null ? String(data.budget_impact) : "",
+      timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
+      description: data?.detailed_description ?? "",
+    });
+    setPrintOpen(true);
+  }
+
   function requireSelection() {
     if (!selectedRow || !selectedEnfaNo) {
       toast.info("Select a record first.");
@@ -303,6 +340,9 @@ function ApprovalsInbox() {
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
               <Eye className="h-3.5 w-3.5" /> Preview
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
+              <Printer className="h-3.5 w-3.5" /> Print Form
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
               <Paperclip className="h-3.5 w-3.5" /> Attached Docs
@@ -472,6 +512,23 @@ function ApprovalsInbox() {
         endpoint="my"
       />
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" />
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={selectedRow ? val(selectedRow, "CC_TEXT") : ""}
+        nfaNo={selectedEnfaNo}
+        plantLabel={selectedRow ? [val(selectedRow, "PSPNR"), val(selectedRow, "NAME1")].filter(Boolean).join(" – ") : ""}
+        date={selectedRow ? val(selectedRow, "BEGDA") : ""}
+        initiator={selectedRow ? val(selectedRow, "INIT_NAME") : ""}
+        nfaType={selectedRow ? val(selectedRow, "FUNCT_TXT") : ""}
+        functionName={selectedRow ? val(selectedRow, "EXTR_TXT") : ""}
+        subject={printDoc.subject}
+        scopeImpact={printDoc.scope}
+        timelineDays={printDoc.timeline}
+        budgetImpact={printDoc.budget}
+        descriptionHtml={printDoc.description}
+        approvers={printApprovers}
+      />
       <ApprovalCommentDialog
         open={!!commentAction}
         onOpenChange={(o) => { if (!o) setCommentAction(null); }}

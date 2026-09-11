@@ -9,7 +9,9 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Save } from "lucide-react";
+import { FileText, Loader2, Printer, Save } from "lucide-react";
+import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { toast } from "sonner";
 
 
@@ -112,6 +114,7 @@ export function RecordEditDialog({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
@@ -119,6 +122,20 @@ export function RecordEditDialog({
 
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
+
+  // Approver boxes for the Print Form come from the selected SAP row.
+  const printApprovers: EnfaDocumentApprover[] = useMemo(
+    () =>
+      ([1, 2, 3, 4, 5, 6] as const)
+        .map((n) => ({
+          role: (row?.[`ROLE${n}` as keyof SapReportRow] as string) ?? "",
+          userId: "",
+          name: (row?.[`APPR${n}` as keyof SapReportRow] as string) ?? "",
+          status: (row?.[`STAT${n}` as keyof SapReportRow] as string) ?? "",
+        }))
+        .filter((a) => a.role || a.name),
+    [row],
+  );
 
   useEffect(() => {
     if (!open || !enfa) return;
@@ -195,7 +212,14 @@ export function RecordEditDialog({
 
 
       if (sap) {
-        // SAP response is the single source of truth when the live call succeeds.
+        // SAP is the source of truth for the header fields; the Detailed
+        // Description is kept in the application (it is not sent to SAP), so
+        // the locally stored rich version wins when one exists.
+        const { data: local } = await supabase
+          .from("sap_record_draft")
+          .select("detailed_description")
+          .eq("enfa_number", enfa)
+          .maybeSingle();
         if (cancelled) return;
         setDetail(sap);
         setDraft({
@@ -203,7 +227,7 @@ export function RecordEditDialog({
           scope_impact: str(sap, "SCOPE_IMPACT"),
           budget_impact: str(sap, "BUDGET_IMPACT"),
           timeline_days: str(sap, "TIMELINE_IMPACT"),
-          detailed_description: str(sap, "TEXT"),
+          detailed_description: local?.detailed_description ?? str(sap, "TEXT"),
         });
         setLoading(false);
         return;
@@ -280,6 +304,16 @@ export function RecordEditDialog({
           message = trimmed.slice(0, 200);
         }
       }
+      // Keep the rich Detailed Description with the record for the Print Form.
+      await supabase.from("sap_record_draft").upsert({
+        enfa_number: enfa,
+        subject: draft.subject || null,
+        scope_impact: draft.scope_impact || null,
+        budget_impact: draft.budget_impact ? Number(draft.budget_impact) : null,
+        timeline_days: draft.timeline_days ? parseInt(draft.timeline_days, 10) : null,
+        detailed_description: draft.detailed_description || null,
+        updated_by: s.session?.user.id ?? null,
+      });
       toast.success(message);
       onUpdated?.();
     } catch (e) {
@@ -384,6 +418,10 @@ export function RecordEditDialog({
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
 
+            <Button variant="outline" className="gap-1.5" onClick={() => setPrintOpen(true)} disabled={loading}>
+              <Printer className="h-3.5 w-3.5" /> Print Form
+            </Button>
+
             {readOnly ? null : (
               <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
                 {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
@@ -411,6 +449,24 @@ export function RecordEditDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintFormDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        companyName={str(detail, "CC_TEXT") || (company ? company.name : "")}
+        nfaNo={enfa}
+        plantLabel={[str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1].filter(Boolean).join(" – ")}
+        date={row?.BEGDA ?? ""}
+        initiator={row?.INIT_NAME ?? ""}
+        nfaType={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")}
+        functionName={str(detail, "EXTR_TXT") || (row?.EXTR_TXT ?? "")}
+        subject={draft.subject}
+        scopeImpact={draft.scope_impact}
+        timelineDays={draft.timeline_days}
+        budgetImpact={draft.budget_impact}
+        descriptionHtml={draft.detailed_description}
+        approvers={printApprovers}
+      />
     </>
   );
 }
