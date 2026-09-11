@@ -17,6 +17,13 @@ const CommentSchema = z.object({
   version: z.number().optional(),
 });
 
+const DescriptionImageSchema = z.object({
+  id: z.string().min(1).max(80),
+  base64: z.string().min(1).max(8_500_000),
+  width: z.number().int().positive().max(680),
+  height: z.number().int().positive().max(4000),
+});
+
 const GenerateSchema = z.object({
   companyName: z.string(),
   nfaNo: z.string().min(1),
@@ -30,6 +37,7 @@ const GenerateSchema = z.object({
   timelineDays: z.string().optional(),
   budgetImpact: z.string().optional(),
   descriptionHtml: z.string().max(2_000_000).optional(),
+  descriptionImages: z.array(DescriptionImageSchema).max(30).optional(),
   approvers: z.array(ApproverSchema).max(30).optional(),
   comments: z.array(CommentSchema).max(200).optional(),
   logoBase64: z.string().max(2_000_000).optional(),
@@ -116,6 +124,25 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
 
     const description: Array<InstanceType<typeof Paragraph> | InstanceType<typeof Table>> = [];
     const html = data.descriptionHtml ?? "";
+    const images = new Map((data.descriptionImages ?? []).map((image) => [image.id, image]));
+    const alignmentFor = (value: string) => {
+      const align = value.match(/(?:text-align\s*:\s*|align=["']?)(left|center|right|justify)/i)?.[1]?.toLowerCase();
+      return align === "center" ? AlignmentType.CENTER : align === "right" ? AlignmentType.RIGHT : align === "justify" ? AlignmentType.JUSTIFIED : AlignmentType.LEFT;
+    };
+    const paragraphChildren = (value: string): Array<InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>> => {
+      const children: Array<InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>> = [];
+      const imagePattern = /<img\b[^>]*src=["']enfa-embedded:([^"']+)["'][^>]*>/gi;
+      let cursor = 0;
+      let imageMatch: RegExpExecArray | null;
+      while ((imageMatch = imagePattern.exec(value))) {
+        children.push(...inlinePieces(value.slice(cursor, imageMatch.index)).map((piece) => new TextRun({ text: piece.text, bold: piece.bold, italics: piece.italics, underline: piece.underline ? {} : undefined, font: "Arial", size: 20 })));
+        const image = images.get(imageMatch[1]);
+        if (image) children.push(new ImageRun({ type: "png", data: Buffer.from(image.base64, "base64"), transformation: { width: image.width, height: image.height }, altText: { title: "Detailed Description image", description: "Embedded Detailed Description image", name: image.id } }));
+        cursor = imagePattern.lastIndex;
+      }
+      children.push(...inlinePieces(value.slice(cursor)).map((piece) => new TextRun({ text: piece.text, bold: piece.bold, italics: piece.italics, underline: piece.underline ? {} : undefined, font: "Arial", size: 20 })));
+      return children;
+    };
     const blockPattern = /<(table|h[1-3]|p|ul|ol|blockquote)[^>]*>([\s\S]*?)<\/\1>/gi;
     let match: RegExpExecArray | null;
     while ((match = blockPattern.exec(html))) {
@@ -124,22 +151,23 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       if (tag === "table") {
         const rows: InstanceType<typeof TableRow>[] = [];
         for (const rowMatch of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-          const values = Array.from(rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)).map((m) => textOnly(m[1]));
+          const values = Array.from(rowMatch[1].matchAll(/<t[dh]([^>]*)>([\s\S]*?)<\/t[dh]>/gi));
           if (!values.length) continue;
           const colWidth = Math.floor(width / values.length);
-          rows.push(new TableRow({ children: values.map((value) => cell([new Paragraph({ children: [run(value)] })], colWidth)) }));
+          rows.push(new TableRow({ children: values.map((value) => cell([new Paragraph({ alignment: alignmentFor(value[1]), children: paragraphChildren(value[2]) })], colWidth)) }));
         }
         const firstRowCells = body.match(/<tr[^>]*>([\s\S]*?)<\/tr>/i)?.[1].match(/<t[dh][^>]*>/gi)?.length ?? 1;
         if (rows.length) description.push(new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: new Array(firstRowCells).fill(Math.floor(width / firstRowCells)), rows }));
       } else {
         const listItems = Array.from(body.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi));
         if ((tag === "ul" || tag === "ol") && listItems.length) {
-          for (const item of listItems) description.push(new Paragraph({ bullet: { level: 0 }, children: inlinePieces(item[1]).map((p) => new TextRun({ text: p.text, bold: p.bold, italics: p.italics, underline: p.underline ? {} : undefined, font: "Arial", size: 20 })) }));
+          for (const item of listItems) description.push(new Paragraph({ bullet: { level: 0 }, children: paragraphChildren(item[1]) }));
         } else {
           description.push(new Paragraph({
             heading: tag === "h1" ? HeadingLevel.HEADING_1 : tag === "h2" ? HeadingLevel.HEADING_2 : tag === "h3" ? HeadingLevel.HEADING_3 : undefined,
+            alignment: alignmentFor(match[0]),
             spacing: { after: 100 },
-            children: inlinePieces(body).map((p) => new TextRun({ text: p.text, bold: p.bold, italics: p.italics, underline: p.underline ? {} : undefined, font: "Arial", size: 20 })),
+            children: paragraphChildren(body),
           }));
         }
       }

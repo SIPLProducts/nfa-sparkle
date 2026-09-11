@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
-import { fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
+import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -478,6 +478,7 @@ function NewNfaPage() {
             } catch {
               logoBase64 = undefined;
             }
+            const embeddedDescription = await embedDescriptionImages(desc);
             const generated = await generateDocx({
               data: {
                 companyName: companies.find((item) => item.code === company)?.name ?? company,
@@ -491,7 +492,8 @@ function NewNfaPage() {
                 scopeImpact: scope,
                 timelineDays: timeline,
                 budgetImpact: budget,
-                descriptionHtml: desc,
+                descriptionHtml: embeddedDescription.html,
+                descriptionImages: embeddedDescription.images,
                 approvers: approvers.filter((item) => item.email.trim()).map((item) => ({
                   role: `Level ${item.level}`,
                   userId: item.email,

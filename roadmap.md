@@ -11,3 +11,4 @@
 - [x] Require a username and password on the Quality dashboard address.- [ ] Restore the deleted Quality compose file on the server (copy `deployment/Quality/backend/docker-compose.yml` via WinSCP), run `fix-db-roles.sh`, enable the dashboard login prompt — user to run on server.
 - [x] Make Print Form Detailed Description editable for Initiators and downloadable as PDF for Approvers.
 - [x] Generate and privately version editable Initiator DOCX working documents while keeping Approver output PDF-only.
+- [x] Embed Print Form logo and Detailed Description images directly in downloaded DOCX files.
