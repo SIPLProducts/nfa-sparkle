@@ -79,7 +79,15 @@ export function EnfaDocument({
 
   // Every approver is listed (name, plus their remark when entered), grouped by
   // round when the caller supplies version numbers — newest version first.
-  const shown = comments.filter((c) => (c.name ?? "").trim() || (c.text ?? "").trim());
+  // When the record has no stored remarks (SAP-only records), the approver
+  // names still form the current-version list, exactly like the reference.
+  const supplied = comments.filter((c) => (c.name ?? "").trim() || (c.text ?? "").trim());
+  const shown: EnfaDocumentComment[] =
+    supplied.length > 0
+      ? supplied
+      : approvers
+          .filter((a) => (a.name ?? "").trim())
+          .map((a) => ({ name: a.name, text: "" }));
   const versions = Array.from(
     new Set(shown.map((c) => (typeof c.version === "number" ? c.version : -1))),
   ).sort((a, b) => b - a);

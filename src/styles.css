@@ -308,7 +308,12 @@
 }
 .enfa-doc .enfa-approver { width: 33.33%; }
 .enfa-doc .enfa-approver-name { margin-top: 4px; font-weight: 700; }
-.enfa-doc .enfa-comments { padding: 4px 6px; }
+.enfa-doc .enfa-comments {
+  padding: 6px 8px;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
 .enfa-doc .enfa-comment { margin-top: 3px; }
 .enfa-doc .enfa-comment-block { margin-top: 12px; }
 
