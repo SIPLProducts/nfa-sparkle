@@ -38,7 +38,7 @@ export interface EnfaDocumentProps {
 function FieldRow({ label, value }: { label: string; value?: string }) {
   return (
     <tr>
-      <td className="enfa-cell" colSpan={2}>
+      <td className="enfa-cell enfa-field">
         <span className="font-bold">{label}:</span> {value?.trim() ? value : ""}
       </td>
     </tr>
