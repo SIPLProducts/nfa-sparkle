@@ -210,6 +210,8 @@ export function RecordPreviewDialog({
               budgetImpact={draft?.budget_impact != null ? String(draft.budget_impact) : ""}
               descriptionHtml={draft?.detailed_description ?? ""}
               approvers={approvers}
+              comments={comments}
+
             />
           </div>
         ) : (
