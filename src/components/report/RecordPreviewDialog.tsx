@@ -225,6 +225,7 @@ export function RecordPreviewDialog({
           </>
           )}
         </div>
+        )}
 
         <DialogFooter>
           {pdfUrl ? (
