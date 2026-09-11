@@ -11,7 +11,9 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { FileText, Loader2, Printer, Save } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+
 import { toast } from "sonner";
 
 
@@ -115,6 +117,15 @@ export function RecordEditDialog({
   const [sending, setSending] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
+
+  useEffect(() => {
+    if (!printOpen || !enfa) return;
+    let cancelled = false;
+    void loadPrintComments(enfa).then((c) => { if (!cancelled) setPrintComments(c); });
+    return () => { cancelled = true; };
+  }, [printOpen, enfa]);
+
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [sapNotice, setSapNotice] = useState<string | null>(null);
@@ -129,13 +140,14 @@ export function RecordEditDialog({
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
           role: (row?.[`ROLE${n}` as keyof SapReportRow] as string) ?? "",
-          userId: "",
+          userId: sapApproverUserId(row as unknown as Record<string, unknown>, n),
           name: (row?.[`APPR${n}` as keyof SapReportRow] as string) ?? "",
           status: (row?.[`STAT${n}` as keyof SapReportRow] as string) ?? "",
         }))
         .filter((a) => a.role || a.name),
     [row],
   );
+
 
   useEffect(() => {
     if (!open || !enfa) return;
@@ -466,6 +478,8 @@ export function RecordEditDialog({
         budgetImpact={draft.budget_impact}
         descriptionHtml={draft.detailed_description}
         approvers={printApprovers}
+        comments={printComments}
+
       />
     </>
   );

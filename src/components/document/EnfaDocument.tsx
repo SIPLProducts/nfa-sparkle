@@ -6,6 +6,13 @@ export interface EnfaDocumentApprover {
   userId: string;
   name: string;
   status?: string;
+  actedDate?: string;
+  actedTime?: string;
+}
+
+export interface EnfaDocumentComment {
+  name: string;
+  text: string;
 }
 
 export interface EnfaDocumentProps {
@@ -22,22 +29,25 @@ export interface EnfaDocumentProps {
   budgetImpact?: string;
   descriptionHtml?: string;
   approvers?: EnfaDocumentApprover[];
+  comments?: EnfaDocumentComment[];
   className?: string;
 }
 
-function Field({ label, value, className }: { label: string; value?: string; className?: string }) {
+function FieldRow({ label, value }: { label: string; value?: string }) {
   return (
-    <div className={cn("flex gap-1.5 px-3 py-1.5 text-[13px]", className)}>
-      <span className="shrink-0 font-bold">{label}:</span>
-      <span className="min-w-0 break-words">{value?.trim() ? value : "—"}</span>
-    </div>
+    <tr>
+      <td className="enfa-cell" colSpan={2}>
+        <span className="font-bold">{label}:</span> {value?.trim() ? value : ""}
+      </td>
+    </tr>
   );
 }
 
 /**
- * Print-ready "Note for Approval" sheet. Header values are supplied by the
- * caller from the record; the Detailed Description is rendered — with its
- * tables, images and formatting — only inside the content band.
+ * Print-ready "Note for Approval" sheet, laid out to match the SAP reference
+ * form. Header values are supplied by the caller from the record; the Detailed
+ * Description is rendered — with its tables, images and formatting — only
+ * inside the content band.
  */
 export function EnfaDocument({
   companyName,
@@ -53,59 +63,108 @@ export function EnfaDocument({
   budgetImpact,
   descriptionHtml,
   approvers = [],
+  comments = [],
   className,
 }: EnfaDocumentProps) {
+  // Approvers are laid out three per row so the grid stays square like the
+  // reference sheet; trailing gaps are filled with empty cells.
+  const rows: (EnfaDocumentApprover | null)[][] = [];
+  for (let i = 0; i < approvers.length; i += 3) {
+    const chunk: (EnfaDocumentApprover | null)[] = approvers.slice(i, i + 3);
+    while (chunk.length < 3) chunk.push(null);
+    rows.push(chunk);
+  }
+
+  const withComments = comments.filter((c) => c.text?.trim());
+
   return (
-    <article className={cn("enfa-doc bg-white text-slate-900", className)}>
-      <header className="flex items-center justify-between gap-4 border border-slate-800 border-b-0 px-3 py-2">
-        <h1 className="font-display text-base font-bold">{companyName || "—"}</h1>
-        <img src="/ramky-logo.png" alt="" className="h-9 w-auto" />
-      </header>
+    <article className={cn("enfa-doc", className)}>
+      <table className="enfa-table">
+        <tbody>
+          <tr>
+            <td className="enfa-cell enfa-title-row" colSpan={2}>
+              <div className="enfa-company">
+                <span>{companyName || ""}</span>
+                <img src="/ramky-logo.png" alt="" className="enfa-logo" />
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td className="enfa-cell enfa-band" colSpan={2}>NOTE FOR APPROVAL</td>
+          </tr>
+          <tr>
+            <td className="enfa-cell">
+              <span className="font-bold">NFA No:</span>{" "}
+              {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
+            </td>
+            <td className="enfa-cell enfa-right">
+              <span className="font-bold">Date:</span> {date ?? ""}
+            </td>
+          </tr>
+          <FieldRow label="Initiator" value={initiator} />
+          <FieldRow label="NFA Type" value={nfaType} />
+          <FieldRow label="Function" value={functionName} />
+          <FieldRow label="Sub" value={subject} />
+          <FieldRow label="Scope Impact" value={scopeImpact} />
+          <FieldRow label="Timeline Impact" value={timelineDays ? `${timelineDays} (Days)` : ""} />
+          <FieldRow label="Budget Impact" value={budgetImpact ? `Rs.${budgetImpact} (Lakhs)` : ""} />
 
-      <div className="border border-slate-800 border-b-0 py-2 text-center">
-        <h2 className="font-display text-sm font-bold uppercase tracking-[0.2em]">Note for Approval</h2>
-      </div>
+          {/* Detailed Description — the only place the description is rendered. */}
+          <tr>
+            <td className="enfa-cell enfa-doc-content" colSpan={2}>
+              {descriptionHtml?.trim() ? (
+                <RichTextView html={descriptionHtml} />
+              ) : (
+                <span>&nbsp;</span>
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      <section className="border border-slate-800 border-b-0">
-        <div className="grid grid-cols-1 divide-y divide-slate-300 sm:grid-cols-2 sm:divide-y-0">
-          <Field label="NFA No" value={[nfaNo, plantLabel].filter(Boolean).join(" / ")} />
-          <Field label="Date" value={date} className="sm:border-l sm:border-slate-300" />
-        </div>
-        <div className="border-t border-slate-300"><Field label="Initiator" value={initiator} /></div>
-        <div className="border-t border-slate-300"><Field label="NFA Type" value={nfaType} /></div>
-        <div className="border-t border-slate-300"><Field label="Function" value={functionName} /></div>
-        <div className="border-t border-slate-300"><Field label="Sub" value={subject} /></div>
-        <div className="border-t border-slate-300"><Field label="Scope Impact" value={scopeImpact} /></div>
-        <div className="grid grid-cols-1 border-t border-slate-300 sm:grid-cols-2">
-          <Field label="Timeline Impact" value={timelineDays ? `${timelineDays} (Days)` : ""} />
-          <Field
-            label="Budget Impact"
-            value={budgetImpact ? `Rs.${budgetImpact} (Lakhs)` : ""}
-            className="sm:border-l sm:border-slate-300"
-          />
-        </div>
-      </section>
+      {rows.length > 0 && (
+        <table className="enfa-table enfa-table-joined">
+          <tbody>
+            {rows.map((chunk, r) => (
+              <tr key={`appr-${r}`}>
+                {chunk.map((a, c) => (
+                  <td key={`appr-${r}-${c}`} className="enfa-cell enfa-approver">
+                    {a ? (
+                      <>
+                        <div><span className="font-bold">Role:</span> {a.role || ""}</div>
+                        <div><span className="font-bold">User id:</span> {a.userId || ""}</div>
+                        <div className="enfa-approver-name">{a.name || ""}</div>
+                        <div>{a.actedDate || "."}</div>
+                        <div className="font-bold">{a.actedTime || "0:00:00"}</div>
+                      </>
+                    ) : (
+                      <span>&nbsp;</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-      {/* Detailed Description — the only place the description is rendered. */}
-      <section className="enfa-doc-content border border-slate-800 px-3 py-3">
-        {descriptionHtml?.trim() ? (
-          <RichTextView html={descriptionHtml} className="text-[13px]" />
-        ) : (
-          <p className="text-[13px] text-slate-400">No detailed description entered.</p>
-        )}
-      </section>
-
-      {approvers.length > 0 && (
-        <section className="grid grid-cols-1 border border-slate-800 border-t-0 sm:grid-cols-3">
-          {approvers.map((a, i) => (
-            <div key={`${a.role}-${i}`} className="border-t border-slate-300 px-3 py-2 text-[12px] sm:border-l sm:border-t-0 sm:first:border-l-0">
-              <p><span className="font-bold">Role:</span> {a.role || "—"}</p>
-              <p><span className="font-bold">User id:</span> {a.userId || "—"}</p>
-              <p>{a.name || "—"}</p>
-              {a.status ? <p className="text-slate-500">{a.status}</p> : null}
-            </div>
-          ))}
-        </section>
+      {withComments.length > 0 && (
+        <table className="enfa-table enfa-table-joined">
+          <tbody>
+            <tr>
+              <td className="enfa-cell">
+                <div className="font-bold">Current Version Comments:</div>
+                {withComments.map((c, i) => (
+                  <div key={`cmt-${i}`} className="enfa-comment">
+                    <span className="font-bold">{c.name || ""}</span>
+                    {c.name ? " — " : ""}
+                    {c.text}
+                  </div>
+                ))}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       )}
     </article>
   );

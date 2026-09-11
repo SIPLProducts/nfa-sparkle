@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { toast } from "sonner";
 import type { SapReportRow } from "@/lib/sap-api.functions";
@@ -109,6 +111,8 @@ function ApprovalsInbox() {
   const [printDoc, setPrintDoc] = useState<{
     subject: string; scope: string; budget: string; timeline: string; description: string;
   }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
+  const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
+
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -216,7 +220,7 @@ function ApprovalsInbox() {
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
           role: selectedRow ? val(selectedRow, `ROLE${n}`) : "",
-          userId: "",
+          userId: sapApproverUserId(selectedRow as unknown as Record<string, unknown>, n),
           name: selectedRow ? val(selectedRow, `APPR${n}`) : "",
           status: selectedRow ? val(selectedRow, `STAT${n}`) : "",
         }))
@@ -239,8 +243,10 @@ function ApprovalsInbox() {
       timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
       description: data?.detailed_description ?? "",
     });
+    setPrintComments(await loadPrintComments(selectedEnfaNo));
     setPrintOpen(true);
   }
+
 
   function requireSelection() {
     if (!selectedRow || !selectedEnfaNo) {
@@ -528,6 +534,8 @@ function ApprovalsInbox() {
         budgetImpact={printDoc.budget}
         descriptionHtml={printDoc.description}
         approvers={printApprovers}
+        comments={printComments}
+
       />
       <ApprovalCommentDialog
         open={!!commentAction}

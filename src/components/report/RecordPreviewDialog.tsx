@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextView } from "@/components/RichTextView";
-import { EnfaDocument, type EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
@@ -38,7 +40,9 @@ export function RecordPreviewDialog({
     detailed_description: string | null;
     subject: string | null;
   } | null>(null);
+  const [comments, setComments] = useState<EnfaDocumentComment[]>([]);
   const [view, setView] = useState<"sap" | "formatted">("sap");
+
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -55,6 +59,9 @@ export function RecordPreviewDialog({
         .maybeSingle();
       if (cancelled) return;
       setDraft(d ?? null);
+      const c = await loadPrintComments(enfa);
+      if (!cancelled) setComments(c);
+
     })();
     return () => { cancelled = true; };
   }, [open, enfa]);
@@ -141,11 +148,12 @@ export function RecordPreviewDialog({
   const approvers: EnfaDocumentApprover[] = ([1, 2, 3, 4, 5, 6] as const)
     .map((n) => ({
       role: (row?.[`ROLE${n}` as keyof typeof row] as string) ?? "",
-      userId: "",
+      userId: sapApproverUserId(row as unknown as Record<string, unknown>, n),
       name: (row?.[`APPR${n}` as keyof typeof row] as string) ?? "",
       status: (row?.[`STAT${n}` as keyof typeof row] as string) ?? "",
     }))
     .filter((a) => a.role || a.name);
+
 
   const printPdf = () => {
     if (view === "formatted") {
@@ -202,6 +210,8 @@ export function RecordPreviewDialog({
               budgetImpact={draft?.budget_impact != null ? String(draft.budget_impact) : ""}
               descriptionHtml={draft?.detailed_description ?? ""}
               approvers={approvers}
+              comments={comments}
+
             />
           </div>
         ) : (
