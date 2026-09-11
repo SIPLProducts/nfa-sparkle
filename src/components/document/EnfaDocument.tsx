@@ -89,7 +89,7 @@ export function EnfaDocument({
       <table className="enfa-table">
         <tbody>
           <tr>
-            <td className="enfa-cell enfa-title-row" colSpan={2}>
+            <td className="enfa-cell enfa-title-row">
               <div className="enfa-company">
                 <span>{companyName || ""}</span>
                 <img src="/ramky-logo.png" alt="" className="enfa-logo" />
@@ -97,15 +97,19 @@ export function EnfaDocument({
             </td>
           </tr>
           <tr>
-            <td className="enfa-cell enfa-band" colSpan={2}>NOTE FOR APPROVAL</td>
+            <td className="enfa-cell enfa-band">NOTE FOR APPROVAL</td>
           </tr>
           <tr>
-            <td className="enfa-cell">
-              <span className="font-bold">NFA No:</span>{" "}
-              {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
-            </td>
-            <td className="enfa-cell enfa-right">
-              <span className="font-bold">Date:</span> {date ?? ""}
+            <td className="enfa-cell enfa-field">
+              <div className="enfa-line">
+                <span>
+                  <span className="font-bold">NFA No:</span>{" "}
+                  {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
+                </span>
+                <span>
+                  <span className="font-bold">Date:</span> {date ?? ""}
+                </span>
+              </div>
             </td>
           </tr>
           <FieldRow label="Initiator" value={initiator} />
