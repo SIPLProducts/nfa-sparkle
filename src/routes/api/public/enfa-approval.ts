@@ -48,7 +48,17 @@ export const Route = createFileRoute("/api/public/enfa-approval")({
         }
         const userName = String(input.get_data?.user_name ?? "").trim();
 
-        const result = await callEnfaApproval(userName ? { user_name: userName } : undefined);
+        let result;
+        try {
+          result = await callEnfaApproval(userName ? { user_name: userName } : undefined);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "SAP worklist unavailable";
+          console.error("[enfa-approval] request failed:", message);
+          return Response.json(
+            { ok: false, message },
+            { status: 200, headers: { "cache-control": "no-store" } },
+          );
+        }
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
