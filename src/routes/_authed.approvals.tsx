@@ -534,6 +534,8 @@ function ApprovalsInbox() {
         budgetImpact={printDoc.budget}
         descriptionHtml={printDoc.description}
         approvers={printApprovers}
+        comments={printComments}
+
       />
       <ApprovalCommentDialog
         open={!!commentAction}

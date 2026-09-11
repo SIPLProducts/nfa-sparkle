@@ -11,7 +11,9 @@ import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { FileText, Loader2, Printer, Save } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+
 import { toast } from "sonner";
 
 
@@ -129,13 +131,14 @@ export function RecordEditDialog({
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
           role: (row?.[`ROLE${n}` as keyof SapReportRow] as string) ?? "",
-          userId: "",
+          userId: sapApproverUserId(row as unknown as Record<string, unknown>, n),
           name: (row?.[`APPR${n}` as keyof SapReportRow] as string) ?? "",
           status: (row?.[`STAT${n}` as keyof SapReportRow] as string) ?? "",
         }))
         .filter((a) => a.role || a.name),
     [row],
   );
+
 
   useEffect(() => {
     if (!open || !enfa) return;
