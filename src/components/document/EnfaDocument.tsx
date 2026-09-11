@@ -1,4 +1,5 @@
 import { RichTextView } from "@/components/RichTextView";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 
 export interface EnfaDocumentApprover {
@@ -30,6 +31,8 @@ export interface EnfaDocumentProps {
   timelineDays?: string;
   budgetImpact?: string;
   descriptionHtml?: string;
+  editableDescription?: string;
+  onDescriptionChange?: (html: string) => void;
   approvers?: EnfaDocumentApprover[];
   comments?: EnfaDocumentComment[];
   className?: string;
@@ -64,6 +67,8 @@ export function EnfaDocument({
   timelineDays,
   budgetImpact,
   descriptionHtml,
+  editableDescription,
+  onDescriptionChange,
   approvers = [],
   comments = [],
   className,
@@ -131,7 +136,15 @@ export function EnfaDocument({
           {/* Detailed Description — the only place the description is rendered. */}
           <tr>
             <td className="enfa-cell enfa-doc-content">
-              {descriptionHtml?.trim() ? (
+              {onDescriptionChange ? (
+                <RichTextEditor
+                  value={editableDescription ?? descriptionHtml ?? ""}
+                  onChange={onDescriptionChange}
+                  placeholder="Type the detailed description…"
+                  minHeight="180px"
+                  className="enfa-description-editor"
+                />
+              ) : descriptionHtml?.trim() ? (
                 <RichTextView html={descriptionHtml} />
               ) : (
                 <span>&nbsp;</span>

@@ -306,6 +306,15 @@
   min-height: 110px;
   padding: 8px;
 }
+.enfa-doc .enfa-description-editor {
+  border-color: #777;
+  border-radius: 0;
+  box-shadow: none;
+}
+.enfa-doc .enfa-description-editor .rich-content {
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  font-size: 11px;
+}
 .enfa-doc .enfa-approver { width: 33.33%; }
 .enfa-doc .enfa-approver-name { margin-top: 4px; font-weight: 700; }
 .enfa-doc .enfa-comments {
@@ -351,6 +360,7 @@
   .enfa-doc .enfa-approver,
   .enfa-doc .enfa-comment,
   .enfa-doc .enfa-comment-block { break-inside: avoid; }
+  .enfa-description-editor > :first-child { display: none !important; }
   @page { size: A4; margin: 12mm; }
 }
 

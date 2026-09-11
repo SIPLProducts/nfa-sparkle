@@ -729,6 +729,8 @@ function NewNfaPage() {
         timelineDays={timeline}
         budgetImpact={budget}
         descriptionHtml={desc}
+        canEdit
+        onDescriptionChange={setDesc}
         approvers={approvers
           .filter((a) => a.email.trim())
           .map((a) => ({ role: `Level ${a.level}`, userId: a.email, name: a.designation }))}
