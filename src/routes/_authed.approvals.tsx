@@ -215,10 +215,10 @@ function ApprovalsInbox() {
     () =>
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
-          role: val(selectedRow, `ROLE${n}`),
+          role: selectedRow ? val(selectedRow, `ROLE${n}`) : "",
           userId: "",
-          name: val(selectedRow, `APPR${n}`),
-          status: val(selectedRow, `STAT${n}`),
+          name: selectedRow ? val(selectedRow, `APPR${n}`) : "",
+          status: selectedRow ? val(selectedRow, `STAT${n}`) : "",
         }))
         .filter((a) => a.role || a.name),
     [selectedRow],
@@ -233,7 +233,7 @@ function ApprovalsInbox() {
       .eq("enfa_number", selectedEnfaNo)
       .maybeSingle();
     setPrintDoc({
-      subject: data?.subject ?? val(selectedRow, "SUBJECT"),
+      subject: data?.subject ?? (selectedRow ? val(selectedRow, "SUBJECT") : ""),
       scope: data?.scope_impact ?? "",
       budget: data?.budget_impact != null ? String(data.budget_impact) : "",
       timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
