@@ -10,6 +10,84 @@ export interface WorkingDocumentInfo {
   updatedAt: string;
 }
 
+export interface EmbeddedDocxImage {
+  id: string;
+  base64: string;
+  width: number;
+  height: number;
+}
+
+const MAX_DOCX_IMAGES = 30;
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_IMAGE_WIDTH = 680;
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("An image in Detailed Description could not be read"));
+    image.src = url;
+  });
+}
+
+/** Resolves every HTML image to PNG bytes so the DOCX never depends on a URL. */
+export async function embedDescriptionImages(html: string): Promise<{
+  html: string;
+  images: EmbeddedDocxImage[];
+}> {
+  if (!html || typeof DOMParser === "undefined") return { html, images: [] };
+  const parsed = new DOMParser().parseFromString(`<main>${html}</main>`, "text/html");
+  const main = parsed.querySelector("main");
+  if (!main) return { html, images: [] };
+  const elements = Array.from(main.querySelectorAll("img"));
+  if (elements.length > MAX_DOCX_IMAGES) throw new Error(`Detailed Description can contain up to ${MAX_DOCX_IMAGES} images`);
+
+  const images: EmbeddedDocxImage[] = [];
+  for (const [index, element] of elements.entries()) {
+    const source = element.getAttribute("src")?.trim();
+    if (!source) throw new Error(`Image ${index + 1} in Detailed Description has no source`);
+    let blob: Blob;
+    try {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      blob = await response.blob();
+    } catch {
+      throw new Error(`Image ${index + 1} could not be loaded for the Word document`);
+    }
+    if (!blob.type.startsWith("image/")) throw new Error(`Image ${index + 1} is not a supported image file`);
+    if (blob.size > MAX_IMAGE_BYTES) throw new Error(`Image ${index + 1} exceeds 6 MB`);
+
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const image = await loadImage(objectUrl);
+      const naturalWidth = Math.max(1, image.naturalWidth || image.width);
+      const naturalHeight = Math.max(1, image.naturalHeight || image.height);
+      const requestedWidth = Number.parseFloat(element.getAttribute("width") ?? element.style.width) || naturalWidth;
+      const explicitHeight = Number.parseFloat(element.getAttribute("height") ?? element.style.height);
+      const requestedHeight = explicitHeight || naturalHeight * (requestedWidth / naturalWidth);
+      const scale = Math.min(1, MAX_IMAGE_WIDTH / requestedWidth);
+      const width = Math.max(1, Math.round(requestedWidth * scale));
+      const height = Math.max(1, Math.round(requestedHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = naturalWidth;
+      canvas.height = naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Image conversion is unavailable in this browser");
+      context.drawImage(image, 0, 0, naturalWidth, naturalHeight);
+      const base64 = canvas.toDataURL("image/png").split(",")[1];
+      if (!base64) throw new Error("Image conversion failed");
+      const id = `image-${index + 1}`;
+      images.push({ id, base64, width, height });
+      element.setAttribute("src", `enfa-embedded:${id}`);
+      element.setAttribute("width", String(width));
+      element.setAttribute("height", String(height));
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+  return { html: main.innerHTML, images };
+}
+
 function base64ToBlob(base64: string): Blob {
   const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   return new Blob([bytes], { type: DOCX_MIME });

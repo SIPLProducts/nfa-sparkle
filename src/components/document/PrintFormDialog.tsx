@@ -10,6 +10,7 @@ import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import {
   DOCX_MIME,
   downloadWorkingDocument,
+  embedDescriptionImages,
   extractDescriptionFromDocx,
   fileToBase64,
   loadWorkingDocument,
@@ -77,13 +78,10 @@ export function PrintFormDialog({
     }
     setDocxBusy(true);
     try {
-      if (workingDocument) {
-        await downloadWorkingDocument(workingDocument);
-        return;
-      }
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error("Your session has expired. Please sign in again.");
+      const embeddedDescription = await embedDescriptionImages(description);
       const generated = await generateDocx({
         data: {
           companyName: doc.companyName,
@@ -97,7 +95,8 @@ export function PrintFormDialog({
           scopeImpact: doc.scopeImpact,
           timelineDays: doc.timelineDays,
           budgetImpact: doc.budgetImpact,
-          descriptionHtml: description,
+          descriptionHtml: embeddedDescription.html,
+          descriptionImages: embeddedDescription.images,
           approvers: doc.approvers,
           comments: doc.comments,
           logoBase64: await logoBase64(),
