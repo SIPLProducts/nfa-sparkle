@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { toast } from "sonner";
 import type { SapReportRow } from "@/lib/sap-api.functions";
@@ -109,6 +111,8 @@ function ApprovalsInbox() {
   const [printDoc, setPrintDoc] = useState<{
     subject: string; scope: string; budget: string; timeline: string; description: string;
   }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
+  const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
+
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
   const [busy, setBusy] = useState(false);
 
