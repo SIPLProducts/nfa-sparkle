@@ -477,6 +477,9 @@ export function RecordEditDialog({
         timelineDays={draft.timeline_days}
         budgetImpact={draft.budget_impact}
         descriptionHtml={draft.detailed_description}
+        canEdit={!readOnly}
+        onDescriptionChange={set("detailed_description")}
+        onSaved={(html) => set("detailed_description")(html)}
         approvers={printApprovers}
         comments={printComments}
 

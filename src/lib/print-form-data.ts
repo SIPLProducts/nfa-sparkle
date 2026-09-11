@@ -39,3 +39,18 @@ export async function loadPrintComments(enfaNumber: string): Promise<EnfaDocumen
     return [];
   }
 }
+
+/** Loads the latest rich description saved by the Initiator for the Print Form. */
+export async function loadPrintDescription(enfaNumber: string): Promise<string> {
+  if (!enfaNumber) return "";
+  try {
+    const { data } = await supabase
+      .from("sap_record_draft")
+      .select("detailed_description")
+      .eq("enfa_number", enfaNumber)
+      .maybeSingle();
+    return data?.detailed_description ?? "";
+  } catch {
+    return "";
+  }
+}
