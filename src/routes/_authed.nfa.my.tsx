@@ -383,7 +383,7 @@ function MyNfas() {
         onOpenChange={setDocsOpen}
         endpoint="my"
       />
-      <RecordEditDialog row={selectedRow} endpoint="select" open={editOpen} onOpenChange={setEditOpen} onUpdated={() => void load()} documentFirst />
+      <RecordEditDialog row={selectedRow} endpoint="select" open={editOpen} onOpenChange={setEditOpen} onUpdated={() => void load()} />
       <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" />
     </div>
   );

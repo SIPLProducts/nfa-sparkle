@@ -102,7 +102,6 @@ export function RecordEditDialog({
   onOpenChange,
   endpoint = "detail",
   onUpdated,
-  documentFirst = false,
 }: {
   row: SapReportRow | null;
   open: boolean;
@@ -111,8 +110,6 @@ export function RecordEditDialog({
   endpoint?: "detail" | "select";
   /** Called after SAP confirms an update, so the caller can refresh its list. */
   onUpdated?: () => void;
-  /** Opens the stored Print Form directly for the Initiator's document workflow. */
-  documentFirst?: boolean;
 }) {
   const enfa = row?.REFFLD ?? "";
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
@@ -268,10 +265,6 @@ export function RecordEditDialog({
     return () => { cancelled = true; };
   }, [open, enfa, row, endpoint]);
 
-  useEffect(() => {
-    if (open && documentFirst && !loading && enfa && !sapNotice) setPrintOpen(true);
-  }, [documentFirst, enfa, loading, open, sapNotice]);
-
   const set = (k: keyof DraftState) => (v: string) => setDraft((p) => ({ ...p, [k]: v }));
 
   async function sendToSap() {
@@ -346,7 +339,7 @@ export function RecordEditDialog({
 
   return (
     <>
-      <Dialog open={open && !(documentFirst && printOpen)} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-base">Edit ENFA · {enfa || "—"}</DialogTitle>
@@ -471,10 +464,7 @@ export function RecordEditDialog({
 
       <PrintFormDialog
         open={printOpen}
-        onOpenChange={(next) => {
-          setPrintOpen(next);
-          if (!next && documentFirst) onOpenChange(false);
-        }}
+        onOpenChange={setPrintOpen}
         companyName={str(detail, "CC_TEXT") || (company ? company.name : "")}
         nfaNo={enfa}
         plantLabel={[str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1].filter(Boolean).join(" – ")}

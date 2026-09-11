@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, FileDown, Loader2, Pencil, Printer, Save } from "lucide-react";
+import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import {
+  DOCX_MIME,
   downloadWorkingDocument,
   embedDescriptionImages,
+  extractDescriptionFromDocx,
   fileToBase64,
   loadWorkingDocument,
-  saveFinalPdf,
   saveGeneratedDocx,
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
@@ -23,8 +24,6 @@ export interface PrintFormDialogProps extends EnfaDocumentProps {
   canEdit?: boolean;
   onDescriptionChange?: (html: string) => void;
   onSaved?: (html: string) => void;
-  storeFinalPdf?: boolean;
-  onFinalPdfStored?: () => void;
 }
 
 /**
@@ -37,12 +36,10 @@ export function PrintFormDialog({
   canEdit = false,
   onDescriptionChange,
   onSaved,
-  storeFinalPdf = false,
-  onFinalPdfStored,
   ...doc
 }: PrintFormDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const finalSaveStarted = useRef(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
   const generateDocx = useServerFn(generateEnfaDocx);
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(doc.descriptionHtml ?? "");
@@ -74,10 +71,10 @@ export function PrintFormDialog({
     }
   }
 
-  async function generateAndSaveDocx(download: boolean): Promise<boolean> {
+  async function createOrDownloadDocx() {
     if (!doc.nfaNo) {
       toast.info("Submit the NFA first to receive an eNFA number");
-      return false;
+      return;
     }
     setDocxBusy(true);
     try {
@@ -107,13 +104,44 @@ export function PrintFormDialog({
       });
       const saved = await saveGeneratedDocx({ enfaNumber: doc.nfaNo, userId, ...generated });
       setWorkingDocument(saved);
-      if (download) await downloadWorkingDocument(saved);
+      await downloadWorkingDocument(saved);
       toast.success(`Editable DOCX version ${saved.version} saved`);
-      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create the DOCX");
-      return false;
     } finally {
+      setDocxBusy(false);
+    }
+  }
+
+  async function uploadRevisedDocx(file: File) {
+    if (!doc.nfaNo) return;
+    setDocxBusy(true);
+    try {
+      const html = await extractDescriptionFromDocx(file, doc.nfaNo);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) throw new Error("Your session has expired. Please sign in again.");
+      const { error } = await supabase.from("sap_record_draft").upsert({
+        enfa_number: doc.nfaNo,
+        detailed_description: html,
+        updated_by: userId,
+      });
+      if (error) throw error;
+      const saved = await saveGeneratedDocx({
+        enfaNumber: doc.nfaNo,
+        userId,
+        base64: await fileToBase64(file),
+        filename: file.name,
+      });
+      setDescription(html);
+      setWorkingDocument(saved);
+      onDescriptionChange?.(html);
+      onSaved?.(html);
+      toast.success(`Revised DOCX saved as version ${saved.version}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the revised DOCX");
+    } finally {
+      if (uploadRef.current) uploadRef.current.value = "";
       setDocxBusy(false);
     }
   }
@@ -132,7 +160,8 @@ export function PrintFormDialog({
       }
       onDescriptionChange?.(description);
       onSaved?.(description);
-      if (await generateAndSaveDocx(false)) setEditing(false);
+      setEditing(false);
+      toast.success("Detailed Description saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the description");
     } finally {
@@ -140,9 +169,11 @@ export function PrintFormDialog({
     }
   }
 
-  async function makePdfBlob(): Promise<Blob> {
+  async function downloadPdf() {
     const element = printRef.current;
-    if (!element || editing) throw new Error("The document is not ready for PDF generation");
+    if (!element || editing) return;
+    setDownloading(true);
+    try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
@@ -168,50 +199,13 @@ export function PrintFormDialog({
         pdf.addImage(image, "PNG", 12, 12 + offset, pageWidth, imageHeight);
         remaining -= pageHeight;
       }
-      return pdf.output("blob");
-  }
-
-  async function downloadPdf() {
-    setDownloading(true);
-    try {
-      const blob = await makePdfBlob();
-      const url = URL.createObjectURL(blob);
-      const anchor = window.document.createElement("a");
-      anchor.href = url;
-      anchor.download = `ENFA-${doc.nfaNo || "draft"}.pdf`;
-      anchor.click();
-      URL.revokeObjectURL(url);
+      pdf.save(`ENFA-${doc.nfaNo || "draft"}.pdf`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not generate the PDF");
     } finally {
       setDownloading(false);
     }
   }
-
-  useEffect(() => {
-    if (!open || !storeFinalPdf || !doc.nfaNo || finalSaveStarted.current) return;
-    finalSaveStarted.current = true;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user.id;
-          if (!userId) throw new Error("Your session has expired. Please sign in again.");
-          const saved = await saveFinalPdf({ enfaNumber: doc.nfaNo, userId, blob: await makePdfBlob() });
-          toast.success(`Final PDF version ${saved.version} stored`);
-          onFinalPdfStored?.();
-        } catch (error) {
-          finalSaveStarted.current = false;
-          toast.error(error instanceof Error ? error.message : "Could not store the final PDF");
-        }
-      })();
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [doc.nfaNo, onFinalPdfStored, open, storeFinalPdf]);
-
-  useEffect(() => {
-    if (!open) finalSaveStarted.current = false;
-  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,6 +227,13 @@ export function PrintFormDialog({
           {canEdit && doc.nfaNo ? (
             <div className="mr-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {workingDocument ? <span>DOCX v{workingDocument.version}</span> : <span>No DOCX saved</span>}
+              <input
+                ref={uploadRef}
+                type="file"
+                accept={`.docx,${DOCX_MIME}`}
+                className="hidden"
+                onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadRevisedDocx(file); }}
+              />
             </div>
           ) : null}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
@@ -252,8 +253,11 @@ export function PrintFormDialog({
             <>
               {canEdit && doc.nfaNo ? (
                 <>
-                   <Button variant="outline" className="gap-1.5" onClick={() => void generateAndSaveDocx(true)} disabled={docxBusy}>
+                  <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy}>
                     {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} Download DOCX
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={() => uploadRef.current?.click()} disabled={docxBusy}>
+                    <FileUp className="h-3.5 w-3.5" /> Upload Revised DOCX
                   </Button>
                 </>
               ) : (

@@ -108,7 +108,6 @@ function ApprovalsInbox() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [storeFinalPdf, setStoreFinalPdf] = useState(false);
   const [printDoc, setPrintDoc] = useState<{
     subject: string; scope: string; budget: string; timeline: string; description: string;
   }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
@@ -263,7 +262,6 @@ function ApprovalsInbox() {
       return;
     }
     setBusy(true);
-    let terminalDocumentPending = false;
     try {
       if (
         action === "approve" ||
@@ -299,19 +297,13 @@ function ApprovalsInbox() {
                 ? "SAP sent the record back for clarification"
                 : "SAP sent the record back to the initiator";
         toast.success(message || fallbackMsg);
-        const isTerminal = action === "reject" || (action === "approve" && selectedRow && currentLevel(selectedRow) >= totalLevels(selectedRow));
-        if (isTerminal) {
-          terminalDocumentPending = true;
-          await openPrintForm();
-          setStoreFinalPdf(true);
-        }
       } else {
         toast.info("This action is not yet connected to SAP.");
         return;
       }
 
       setCommentAction(null);
-      if (!terminalDocumentPending) await load();
+      await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Action failed");
     } finally {
@@ -543,12 +535,6 @@ function ApprovalsInbox() {
         descriptionHtml={printDoc.description}
         approvers={printApprovers}
         comments={printComments}
-        storeFinalPdf={storeFinalPdf}
-        onFinalPdfStored={() => {
-          setStoreFinalPdf(false);
-          setPrintOpen(false);
-          void load();
-        }}
 
       />
       <ApprovalCommentDialog
