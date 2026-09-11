@@ -449,6 +449,17 @@ function NewNfaPage() {
       const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
       if (parsed?.STATUS === "S" && enfaNo) {
         await supabase.from("nfa").update({ enfa_number: enfaNo }).eq("id", nfaId);
+        // Keep the rich Detailed Description (and the header values) against the
+        // SAP number so the Print Form can render it later.
+        await supabase.from("sap_record_draft").upsert({
+          enfa_number: enfaNo,
+          subject,
+          scope_impact: scope || null,
+          budget_impact: budget ? Number(budget) : null,
+          timeline_days: timeline ? parseInt(timeline, 10) : null,
+          detailed_description: plainDesc ? desc : null,
+          updated_by: user?.id ?? null,
+        });
         return { ok: true, message: parsed?.MESSAGE || `Submitted successfully with ENFA No ${enfaNo}` };
       }
       return {
