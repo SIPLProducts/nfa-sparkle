@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
-import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
+import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
+import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -55,6 +56,7 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
   const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
