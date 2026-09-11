@@ -38,7 +38,7 @@ export interface EnfaDocumentProps {
 function FieldRow({ label, value }: { label: string; value?: string }) {
   return (
     <tr>
-      <td className="enfa-cell" colSpan={2}>
+      <td className="enfa-cell enfa-field">
         <span className="font-bold">{label}:</span> {value?.trim() ? value : ""}
       </td>
     </tr>
@@ -89,7 +89,7 @@ export function EnfaDocument({
       <table className="enfa-table">
         <tbody>
           <tr>
-            <td className="enfa-cell enfa-title-row" colSpan={2}>
+            <td className="enfa-cell enfa-title-row">
               <div className="enfa-company">
                 <span>{companyName || ""}</span>
                 <img src="/ramky-logo.png" alt="" className="enfa-logo" />
@@ -97,15 +97,19 @@ export function EnfaDocument({
             </td>
           </tr>
           <tr>
-            <td className="enfa-cell enfa-band" colSpan={2}>NOTE FOR APPROVAL</td>
+            <td className="enfa-cell enfa-band">NOTE FOR APPROVAL</td>
           </tr>
           <tr>
-            <td className="enfa-cell">
-              <span className="font-bold">NFA No:</span>{" "}
-              {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
-            </td>
-            <td className="enfa-cell enfa-right">
-              <span className="font-bold">Date:</span> {date ?? ""}
+            <td className="enfa-cell enfa-field">
+              <div className="enfa-line">
+                <span>
+                  <span className="font-bold">NFA No:</span>{" "}
+                  {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
+                </span>
+                <span>
+                  <span className="font-bold">Date:</span> {date ?? ""}
+                </span>
+              </div>
             </td>
           </tr>
           <FieldRow label="Initiator" value={initiator} />
@@ -118,7 +122,7 @@ export function EnfaDocument({
 
           {/* Detailed Description — the only place the description is rendered. */}
           <tr>
-            <td className="enfa-cell enfa-doc-content" colSpan={2}>
+            <td className="enfa-cell enfa-doc-content">
               {descriptionHtml?.trim() ? (
                 <RichTextView html={descriptionHtml} />
               ) : (
