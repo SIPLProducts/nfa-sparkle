@@ -17,6 +17,7 @@ import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentList, type Attachment } from "@/components/AttachmentList";
 import { RichTextView } from "@/components/RichTextView";
+import { EnfaDocument } from "@/components/document/EnfaDocument";
 import { APPROVER_STATUS_LABEL, APPROVER_TONE } from "@/lib/nfa-types";
 import { Eye, Download as DownloadIcon } from "lucide-react";
 
@@ -305,6 +306,44 @@ function NfaDetail() {
           )}
         </div>
       </Card>
+
+      <div className="flex justify-end">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Eye className="h-4 w-4" /> Formatted document
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display text-base">Note for Approval · {nfa.enfa_number}</DialogTitle>
+            </DialogHeader>
+            <EnfaDocument
+              companyName={nfa.company}
+              nfaNo={nfa.enfa_number}
+              plantLabel={`${nfa.plant ?? ""}${plantName(nfa.plant) ? " – " + plantName(nfa.plant) : ""}`.trim()}
+              date={new Date(nfa.created_at).toLocaleDateString()}
+              initiator={nameFor(profiles, nfa.initiator_id)}
+              nfaType={nfaTypeName(nfa.nfa_type)}
+              functionName={nfa.function ?? ""}
+              subject={nfa.subject}
+              scopeImpact={nfa.scope_impact ?? ""}
+              timelineDays={nfa.timeline_days != null ? String(nfa.timeline_days) : ""}
+              budgetImpact={nfa.budget_impact != null ? String(nfa.budget_impact) : ""}
+              descriptionHtml={nfa.detailed_description ?? ""}
+              approvers={approvers.map((a) => ({
+                role: a.designation ?? `Level ${a.level}`,
+                userId: "",
+                name: nameFor(profiles, a.approver_id),
+                status: APPROVER_STATUS_LABEL[a.status],
+              }))}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => window.print()}>Print</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <AttachmentList
         nfaId={nfa.id}

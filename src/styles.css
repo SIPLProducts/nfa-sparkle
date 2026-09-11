@@ -230,3 +230,26 @@
   border: 2px solid var(--color-background);
   cursor: nwse-resize;
 }
+
+/* Printable eNFA "Note for Approval" sheet */
+.enfa-doc { width: 100%; }
+.enfa-doc-content { min-height: 8rem; }
+.enfa-doc .rich-content table { table-layout: auto; }
+.enfa-doc .rich-content th,
+.enfa-doc .rich-content td { border: 1px solid #94a3b8; }
+.enfa-doc .rich-content img { max-width: 100%; }
+
+@media print {
+  body * { visibility: hidden; }
+  .enfa-doc, .enfa-doc * { visibility: visible; }
+  .enfa-doc {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 0;
+    color: #000;
+    background: #fff;
+  }
+  .enfa-doc tr, .enfa-doc img, .enfa-doc .enfa-doc-content > * { break-inside: avoid; }
+  @page { size: A4; margin: 12mm; }
+}

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextView } from "@/components/RichTextView";
+import { EnfaDocument, type EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
@@ -37,6 +38,7 @@ export function RecordPreviewDialog({
     detailed_description: string | null;
     subject: string | null;
   } | null>(null);
+  const [view, setView] = useState<"sap" | "formatted">("sap");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -136,7 +138,20 @@ export function RecordPreviewDialog({
   const plant = PLANTS.find((p) => p.code === (row?.PSPNR ?? ""));
   const company = COMPANIES.find((c) => c.code === plant?.company);
 
+  const approvers: EnfaDocumentApprover[] = ([1, 2, 3, 4, 5, 6] as const)
+    .map((n) => ({
+      role: (row?.[`ROLE${n}` as keyof typeof row] as string) ?? "",
+      userId: "",
+      name: (row?.[`APPR${n}` as keyof typeof row] as string) ?? "",
+      status: (row?.[`STAT${n}` as keyof typeof row] as string) ?? "",
+    }))
+    .filter((a) => a.role || a.name);
+
   const printPdf = () => {
+    if (view === "formatted") {
+      window.print();
+      return;
+    }
     if (pdfUrl) {
       const w = window.open(pdfUrl, "_blank");
       if (w) {
@@ -154,6 +169,42 @@ export function RecordPreviewDialog({
           <DialogTitle className="font-display text-base">Preview · {enfa || "—"}</DialogTitle>
         </DialogHeader>
 
+        <div className="flex gap-1 rounded-md border border-border p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setView("sap")}
+            className={"flex-1 rounded px-2 py-1 " + (view === "sap" ? "bg-secondary font-semibold text-secondary-foreground" : "text-muted-foreground")}
+          >
+            SAP document
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("formatted")}
+            className={"flex-1 rounded px-2 py-1 " + (view === "formatted" ? "bg-secondary font-semibold text-secondary-foreground" : "text-muted-foreground")}
+          >
+            Formatted document
+          </button>
+        </div>
+
+        {view === "formatted" ? (
+          <div className="max-h-[70vh] overflow-y-auto rounded-lg border border-border p-3">
+            <EnfaDocument
+              companyName={company?.name ?? ""}
+              nfaNo={enfa}
+              plantLabel={plant ? `${plant.code} – ${plant.name}` : (row?.PSPNR ?? "")}
+              date={row?.BEGDA ?? ""}
+              initiator={row?.INIT_NAME ?? ""}
+              nfaType={row?.EXTR_TXT ?? ""}
+              functionName={row?.FUNCT_TXT ?? ""}
+              subject={draft?.subject ?? row?.SUBJECT ?? ""}
+              scopeImpact={draft?.scope_impact ?? ""}
+              timelineDays={draft?.timeline_days != null ? String(draft.timeline_days) : ""}
+              budgetImpact={draft?.budget_impact != null ? String(draft.budget_impact) : ""}
+              descriptionHtml={draft?.detailed_description ?? ""}
+              approvers={approvers}
+            />
+          </div>
+        ) : (
         <div id="enfa-preview" className="space-y-5">
           {pdfLoading ? (
             <div className="flex items-center gap-2 rounded-lg border border-border p-6 text-sm text-muted-foreground">
@@ -189,6 +240,7 @@ export function RecordPreviewDialog({
           </>
           )}
         </div>
+        )}
 
         <DialogFooter>
           {pdfUrl ? (
