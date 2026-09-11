@@ -123,6 +123,20 @@ export function RecordEditDialog({
   const plant = useMemo(() => PLANTS.find((p) => p.code === (row?.PSPNR ?? "")), [row]);
   const company = useMemo(() => COMPANIES.find((c) => c.code === plant?.company), [plant]);
 
+  // Approver boxes for the Print Form come from the selected SAP row.
+  const printApprovers: EnfaDocumentApprover[] = useMemo(
+    () =>
+      ([1, 2, 3, 4, 5, 6] as const)
+        .map((n) => ({
+          role: (row?.[`ROLE${n}` as keyof SapReportRow] as string) ?? "",
+          userId: "",
+          name: (row?.[`APPR${n}` as keyof SapReportRow] as string) ?? "",
+          status: (row?.[`STAT${n}` as keyof SapReportRow] as string) ?? "",
+        }))
+        .filter((a) => a.role || a.name),
+    [row],
+  );
+
   useEffect(() => {
     if (!open || !enfa) return;
     let cancelled = false;
