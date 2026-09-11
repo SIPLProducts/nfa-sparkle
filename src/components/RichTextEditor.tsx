@@ -16,6 +16,7 @@ import {
   Table as TableIcon, ImagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cleanPastedHtml } from "@/lib/paste-html";
 
 const FONT_SIZES = ["12px", "14px", "16px", "18px", "20px", "24px", "30px"];
 
@@ -73,6 +74,7 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
         style: `min-height:${minHeight}`,
         "data-placeholder": placeholder ?? "",
       },
+      transformPastedHTML: (html) => cleanPastedHtml(html),
       handlePaste: (view, event) => {
         const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
         if (!files.length) return false;
