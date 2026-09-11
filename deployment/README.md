@@ -254,15 +254,19 @@ Use this whole section when Studio (`http://10.200.1.7:8082`) shows
 `supabase_admin`"**, or when the dashboard opens without asking for a
 username and password.
 
-Copy the current `scripts/` folder from the repo to the server first —
-running an older copy of `fix-db-roles.sh` reproduces the same failure:
+Copy the current files from this project on your PC to the server first
+(WinSCP — there is no source checkout on the server); running an older copy of
+`fix-db-roles.sh` reproduces the same failure:
+
+```text
+FROM (your PC)   deployment/Quality/scripts/*            -> /apps/webapplications/NFA_Approval/Quality/scripts/
+FROM (your PC)   deployment/nginx/enfa-quality.conf      -> /apps/webapplications/NFA_Approval/nginx/
+```
+
+Then make the scripts executable:
 
 ```bash
-SRC=/apps/webapplications/NFA_Approval/Quality/src
-Q=/apps/webapplications/NFA_Approval/Quality
-cp $SRC/deployment/Quality/scripts/* $Q/scripts/
-cp $SRC/deployment/nginx/enfa-quality.conf /apps/webapplications/NFA_Approval/nginx/
-chmod +x $Q/scripts/*.sh
+chmod +x /apps/webapplications/NFA_Approval/Quality/scripts/*.sh
 ```
 
 ### Step 1 — check and regenerate the API keys
