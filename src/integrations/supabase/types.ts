@@ -109,6 +109,48 @@ export type Database = {
           },
         ]
       }
+      enfa_working_document: {
+        Row: {
+          created_at: string
+          created_by: string
+          enfa_number: string
+          filename: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          state: string
+          storage_path: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          enfa_number: string
+          filename: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          state?: string
+          storage_path: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          enfa_number?: string
+          filename?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          state?: string
+          storage_path?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       nfa: {
         Row: {
           budget_impact: number | null
