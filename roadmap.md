@@ -12,3 +12,5 @@
 - [x] Make Print Form Detailed Description editable for Initiators and downloadable as PDF for Approvers.
 - [x] Generate and privately version editable Initiator DOCX working documents while keeping Approver output PDF-only.
 - [x] Embed Print Form logo and Detailed Description images directly in downloaded DOCX files.
+- [ ] Link a Microsoft Word App User Connector client — blocked because the workspace setup card fails before configuration and no client exists.
+- [ ] Implement direct Word-for-web editing and DOCX-to-PDF conversion — blocked until the Microsoft Word client is linked and provisioned.
