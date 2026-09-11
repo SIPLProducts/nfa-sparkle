@@ -231,13 +231,68 @@
   cursor: nwse-resize;
 }
 
-/* Printable eNFA "Note for Approval" sheet */
-.enfa-doc { width: 100%; }
-.enfa-doc-content { min-height: 8rem; }
-.enfa-doc .rich-content table { table-layout: auto; }
+/* Printable eNFA "Note for Approval" sheet (matches the SAP reference form) */
+.enfa-doc {
+  width: 100%;
+  background: #fff;
+  color: #000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.enfa-doc .enfa-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.enfa-doc .enfa-table-joined { border-top: 0; }
+.enfa-doc .enfa-cell {
+  border: 1px solid #000;
+  padding: 2px 5px;
+  vertical-align: top;
+  word-break: break-word;
+}
+.enfa-doc .enfa-right { text-align: right; }
+.enfa-doc .enfa-title-row { padding: 6px 8px; }
+.enfa-doc .enfa-company {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+.enfa-doc .enfa-logo {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 26px;
+  width: auto;
+}
+.enfa-doc .enfa-band {
+  background: #d9d9d9;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 5px;
+}
+.enfa-doc .enfa-doc-content { min-height: 90px; height: 90px; padding: 4px 6px; }
+.enfa-doc .enfa-approver { width: 33.33%; }
+.enfa-doc .enfa-approver-name { margin-top: 4px; font-weight: 700; }
+.enfa-doc .enfa-comment { margin-top: 3px; }
+
+.enfa-doc .rich-content { line-height: 1.35; font-size: 11px; }
+.enfa-doc .rich-content table { table-layout: auto; width: 100%; max-width: 100%; }
 .enfa-doc .rich-content th,
-.enfa-doc .rich-content td { border: 1px solid #94a3b8; }
-.enfa-doc .rich-content img { max-width: 100%; }
+.enfa-doc .rich-content td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+}
+.enfa-doc .rich-content th { background: #f1f1f1; }
+.enfa-doc .rich-content img { max-width: 100%; height: auto; }
+.enfa-doc .rich-content .tableWrapper { overflow-x: hidden; }
 
 @media print {
   body * { visibility: hidden; }
@@ -247,9 +302,11 @@
     inset: 0 auto auto 0;
     width: 100%;
     padding: 0;
-    color: #000;
-    background: #fff;
   }
-  .enfa-doc tr, .enfa-doc img, .enfa-doc .enfa-doc-content > * { break-inside: avoid; }
+  .enfa-doc tr,
+  .enfa-doc img,
+  .enfa-doc .enfa-approver,
+  .enfa-doc .enfa-comment { break-inside: avoid; }
   @page { size: A4; margin: 12mm; }
 }
+
