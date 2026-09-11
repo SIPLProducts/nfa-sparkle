@@ -174,6 +174,41 @@ docker ps --format '{{.Names}}' | grep nfa-quality
 
 Optional log/analytics profile: `docker compose -p nfa-quality --profile analytics up -d`.
 
+### Restoring the backend compose file (if it was deleted or damaged)
+
+The complete, ready-to-use compose file lives in this project at
+`deployment/Quality/backend/docker-compose.yml` (last changed 07-09-2026 —
+that date is correct; nothing newer exists). Copy it from your PC to the
+server with WinSCP:
+
+```text
+FROM (your PC)   deployment/Quality/backend/docker-compose.yml
+TO   (server)    /apps/webapplications/NFA_Approval/Quality/backend/docker-compose.yml
+```
+
+Do NOT copy `.env.example` — the real `.env` already on the server holds your
+secrets and ports and must stay untouched. Do not open the yml in Notepad;
+that is what breaks the indentation.
+
+The `localhost` values inside the compose file are only fallbacks. Your
+`backend/.env` sets the real addresses (`SITE_URL=http://10.200.1.7:8081`,
+`API_EXTERNAL_URL=http://10.200.1.7:8001`) and those always win — never edit
+the compose file to hardcode the server IP.
+
+After copying, validate and restart:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality/backend
+ls -1 .env
+ls -1 volumes/api/kong.yml volumes/db/00-roles.sh volumes/db/realtime.sql volumes/db/webhooks.sql volumes/db/logs.sql
+docker compose -p nfa-quality --env-file .env config -q && echo OK
+docker compose -p nfa-quality --env-file .env up -d
+```
+
+The database volume `nfa-quality-db-data` is reused, so users, roles and data
+are preserved. Then run the dashboard recovery in section 3b if Studio still
+shows the `supabase_admin` password error.
+
 ### If `nfa-quality-auth` or `nfa-quality-realtime` stays unhealthy
 
 GoTrue connects to Postgres and Realtime runs its own migrations at startup.
