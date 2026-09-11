@@ -1,177 +1,61 @@
-# Repair the Quality database dashboard first, then fix Login
+# Rich Detailed Description in the eNFA document layout
 
-This repair uses the existing server folders only. It does not expect a
-`Quality/src` folder, does not build on Ubuntu, and does not touch DEV or PROD.
+Scope for this stage: the Detailed Description editing experience and the document layout only. No DMS work — the DMS service is not available yet, so nothing new is sent to SAP and no new API is created.
 
-## Confirmed root causes
+## What changes for the user
 
-1. The dashboard error is not caused by missing tables. The dashboard’s schema
-   service is trying to connect as `supabase_admin`, and the database rejects
-   that password. The Quality compose file confirms that Meta reads
-   `PG_META_DB_PASSWORD` from `POSTGRES_PASSWORD`. The role password and the
-   running container value must be synchronized before Studio can show users,
-   schemas, or tables.
-2. `src/lib/auth-context.tsx` currently requests `role_permission` immediately
-   when the login page mounts, before a session exists. The table is restricted
-   to signed-in users, so this request is invalid and produces the screenshot’s
-   `401`.
-3. Permission data must still be checked directly after the database connection
-   is repaired. The prepared import contains 28 permission rows, but the real
-   Quality database count must decide whether migrations are needed.
+**1. Detailed Description keeps its formatting when pasted**
 
-## 1. Repair `supabase_admin` on the Ubuntu server
+Pasting from Word, Excel, a web page, or typing directly keeps:
+- normal and bold/italic/underline text, headings, colours, lists
+- tables with their rows, columns, merged cells, column widths and cell alignment
+- images pasted along with the content
 
-Run this exact block. It reads the real password from the existing `.env`, does
-not print it, changes only Quality database roles, and preserves all data.
+Excel ranges paste as real tables (each cell in its own cell) instead of one line of text. Very large pasted blocks are cleaned of foreign Word/Excel styling that would break the page, while structure and emphasis stay.
 
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
-set -a
-. ./.env
-set +a
+**2. A document view that matches the reference form**
 
-docker exec -i -e ROLE_PASSWORD="$POSTGRES_PASSWORD" nfa-quality-db sh -eu -c '
-  psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-    --set=role_password="$ROLE_PASSWORD" -q
-' <<'SQL'
-SELECT format('ALTER ROLE %I WITH PASSWORD %L', rolname, :'role_password')
-FROM pg_roles
-WHERE rolname IN (
-  'authenticator', 'pgbouncer', 'postgres', 'supabase_admin',
-  'supabase_auth_admin', 'supabase_functions_admin',
-  'supabase_read_only_user', 'supabase_storage_admin'
-);
-\gexec
-SQL
-
-docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" nfa-quality-db \
-  psql -h 127.0.0.1 -U supabase_admin -d postgres -tAqc 'select 1'
-```
-
-The last command must print `1`. Stop and send its output if it does not.
-
-## 2. Reload only the affected Quality services
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
-docker compose -p nfa-quality --env-file .env up -d --force-recreate --no-deps \
-  auth rest storage meta studio
-
-for i in $(seq 1 30); do
-  STATE=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' nfa-quality-meta)
-  echo "meta: $STATE"
-  [ "$STATE" = healthy ] && break
-  sleep 2
-done
-
-docker ps --filter 'name=nfa-quality' --format 'table {{.Names}}\t{{.Status}}'
-docker logs nfa-quality-meta --since 5m --tail 50
-```
-
-Success means `nfa-quality-meta` and `nfa-quality-studio` are healthy and the
-recent Meta log no longer contains `password authentication failed`.
-Realtime is not required for login or dashboard tables; diagnose its own log
-separately without touching `supabase-dev` or `supabase-prod`.
-
-## 3. Verify users, permissions, grants, and policies directly
-
-```bash
-docker exec -i nfa-quality-db psql -U postgres -d postgres <<'SQL'
-select count(*) as users from auth.users;
-select count(*) as profiles from public.profiles;
-select count(*) as permission_rows from public.role_permission;
-select role_key, count(*) from public.role_permission group by role_key order by 1;
-
-select grantee, privilege_type
-from information_schema.role_table_grants
-where table_schema='public' and table_name='role_permission'
-order by grantee, privilege_type;
-
-select policyname, roles, cmd, qual, with_check
-from pg_policies
-where schemaname='public' and tablename='role_permission';
-SQL
-```
-
-Expected imported data: 10 users, 10 profiles, and 28 permission rows. The table
-must grant signed-in access and remain unavailable anonymously.
-
-If the table is missing or the counts are zero, run the existing migrations:
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality
-chmod +x scripts/run-migrations.sh
-./scripts/run-migrations.sh
-```
-
-Then repeat the verification query. No password should be pasted; the script
-reads `backend/.env`.
-
-## 4. Verify the browser bundle uses the running gateway key
-
-This prints fingerprints only, never the key itself.
-
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/backend
-ANON=$(grep -E '^ANON_KEY=' .env | tail -n1 | cut -d= -f2- | tr -d '"'\'' ')
-
-printf 'backend.env  %s\n' "$(printf '%s' "$ANON" | sha256sum | cut -c1-12)"
-printf 'kong runtime %s\n' "$(docker exec nfa-quality-kong printenv ANON_KEY | tr -d '\n' | sha256sum | cut -c1-12)"
-
-grep -rhoE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' \
-  ../frontend/dist/assets 2>/dev/null | sort -u | while read -r key; do
-  printf 'dist bundle  %s\n' "$(printf '%s' "$key" | sha256sum | cut -c1-12)"
-done
-```
-
-The backend and Kong fingerprints must match. One `dist bundle` fingerprint
-must also match. Only if the copied `dist` does not match, rebuild once in local
-VS Code with that existing Quality `ANON_KEY` as
-`VITE_SUPABASE_PUBLISHABLE_KEY`, then replace `Quality/frontend/dist`.
-Do not regenerate correct keys and do not build on Ubuntu.
-
-## 5. Fix the application’s permission-loading order
-
-Update `src/lib/auth-context.tsx` so:
-
-- no `role_permission` request runs on `/auth` without a session;
-- roles and permissions load together only after a signed-in user exists;
-- both are refreshed when the signed-in user changes;
-- both are cleared on sign-out;
-- token refreshes for the same user do not reset open screens.
-
-Build in local VS Code as usual and copy only the resulting `dist` to:
+A new printable eNFA document view reproduces the reference layout:
 
 ```text
-/apps/webapplications/NFA_Approval/Quality/frontend/dist
++--------------------------------------------------------------+
+| Company name                                  [logo]          |
+|                    NOTE FOR APPROVAL                          |
+| NFA No: ... / Plant            Date: ...                      |
+| Initiator: ...   NFA Type: ...   Function: ...                |
+| Sub: ...   Scope Impact: ...                                  |
+| Timeline Impact: ... (Days)   Budget Impact: Rs. ... (Lakhs)  |
++--------------------------------------------------------------+
+|  DETAILED DESCRIPTION CONTENT  (rich text, tables, images)    |
++--------------------------------------------------------------+
+| Role / User id / Name approver boxes                          |
++--------------------------------------------------------------+
 ```
 
-Restart the already-copied release with its runtime environment:
+- Every header value comes from the Create NFA form / stored record. Nothing is hardcoded.
+- The description appears only in the content band shown in the reference image, never repeated elsewhere.
+- The view is print-ready: printing or "Save as PDF" from it produces the same layout, with page breaks that don't split table rows.
 
-```bash
-cd /apps/webapplications/NFA_Approval/Quality/frontend
-set -a
-. ./.env
-set +a
-pm2 delete enfa-quality-app 2>/dev/null || true
-pm2 start dist/server/index.mjs --name enfa-quality-app --update-env
-pm2 save
-pm2 logs enfa-quality-app --lines 30 --nostream
-```
+**3. Where it appears**
 
-The log must not report a missing `SUPABASE_SERVICE_ROLE_KEY`.
+- Create NFA and Change/Revise screens: unchanged fields and validations; only the editor gains the improved paste handling.
+- The record Preview dialog gets a "Formatted document" view alongside the existing SAP-generated PDF, so the rich description is visible to the initiator and to Level 2 / Level 3 approvers.
+- Clarification and re-submission keep working exactly as today; the initiator edits the same rich description and the chain restarts.
 
-## 6. Final verification
+## What does not change
 
-1. Reload `http://10.200.1.7:8082`; users and tables must load.
-2. Open `http://10.200.1.7:8081/auth`; there must be no anonymous
-   `role_permission` request.
-3. Sign in; the auth request must succeed, followed by signed-in
-   `role_permission`, `user_roles`, and `user_role_assignment` requests.
-4. The signed-in `role_permission` request must return `200` and the correct
-   navigation permissions.
+- No new API routes, no changes to SAP payloads: SAP keeps receiving the plain-text `TEXT` conversion exactly as now.
+- Subject stays a separate field; no workflow data is stored inside the description.
+- Approve / Reject / Clarification, attachments, audit trail, statuses, permissions and the SAP print/preview all stay as they are.
 
-## Safety boundary
+## Later (not in this stage)
 
-No volume is removed, no data is deleted, no secret is printed, no Ubuntu build
-is run, and no DEV/PROD container or configuration is changed.
+Generating the final PDF from this layout and storing it in SAP DMS after final approval, plus locking the record from the initiator, will be added once the DMS service is available. The document view is being built so that step is a straight add-on.
+
+## Technical notes
+
+- `src/components/RichTextEditor.tsx`: add a `transformPastedHTML` step that strips Word/Excel `mso-*` and class noise, keeps `colspan/rowspan/colwidth/align`, and converts Excel's `<table>` clipboard flavour; keep the existing extension list, toolbar, and `htmlToPlainText` behaviour untouched. Add `TextStyle` colour/highlight attributes only if needed for pasted emphasis.
+- `src/components/RichTextView.tsx`: widen the allow-list attributes for `align`, `valign`, `bgcolor`, `colwidth` while keeping DOMPurify sanitising and the current URI regexp.
+- New `src/components/document/EnfaDocument.tsx`: pure presentational component taking header fields + description HTML, rendering the reference layout with tokens from `src/styles.css`; a `@media print` block sizes it to A4 and applies `break-inside: avoid` to table rows.
+- `src/components/report/RecordPreviewDialog.tsx` and `src/routes/_authed.nfa.$id.tsx`: render `EnfaDocument` for the local/formatted view; the SAP PDF path is left as-is.
+- `.rich-content` table/image styles in `src/styles.css` extended for the document context (borders, header shading, width clamping).
