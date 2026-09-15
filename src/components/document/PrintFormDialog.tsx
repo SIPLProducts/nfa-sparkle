@@ -17,6 +17,7 @@ import {
   saveGeneratedDocx,
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
+import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
 
 export interface PrintFormDialogProps extends EnfaDocumentProps {
   open: boolean;
@@ -178,27 +179,57 @@ export function PrintFormDialog({
         import("html2canvas"),
         import("jspdf"),
       ]);
-      const canvas = await html2canvas(element, {
+       const canvas = await html2canvas(element, {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
+         onclone: (clonedDocument) => {
+           const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
+           if (printable) {
+             printable.style.maxHeight = "none";
+             printable.style.height = "auto";
+             printable.style.overflow = "visible";
+           }
+         },
       });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = 186;
-      const pageHeight = 273;
-      const imageHeight = (canvas.height * pageWidth) / canvas.width;
-      let remaining = imageHeight;
-      let offset = 0;
-      const image = canvas.toDataURL("image/png");
-      pdf.addImage(image, "PNG", 12, 12, pageWidth, imageHeight);
-      remaining -= pageHeight;
-      while (remaining > 0) {
-        offset -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(image, "PNG", 12, 12 + offset, pageWidth, imageHeight);
-        remaining -= pageHeight;
-      }
+       const pageWidth = ENFA_PAGE.pdfWidthMm;
+       const pageHeight = ENFA_PAGE.pdfHeightMm;
+       const pixelsPerPage = Math.floor((pageHeight / pageWidth) * canvas.width);
+       const elementRect = element.getBoundingClientRect();
+       const safeBoundaries = Array.from(
+         element.querySelectorAll("tr, .enfa-comment, .enfa-comment-block, .rich-content img"),
+       )
+         .flatMap((node) => {
+           const rect = node.getBoundingClientRect();
+           return [rect.top - elementRect.top, rect.bottom - elementRect.top];
+         })
+         .map((position) => Math.round(position * (canvas.height / elementRect.height)))
+         .filter((position) => position > 0 && position < canvas.height)
+         .sort((a, b) => a - b);
+
+       let sourceY = 0;
+       while (sourceY < canvas.height) {
+         const desiredEnd = Math.min(canvas.height, sourceY + pixelsPerPage);
+         const earlierBoundary = safeBoundaries.filter((value) => value > sourceY && value <= desiredEnd).at(-1);
+         const sourceEnd = desiredEnd < canvas.height && earlierBoundary && earlierBoundary - sourceY > pixelsPerPage * 0.55
+           ? earlierBoundary
+           : desiredEnd;
+         const sliceHeight = Math.max(1, sourceEnd - sourceY);
+         const pageCanvas = document.createElement("canvas");
+         pageCanvas.width = canvas.width;
+         pageCanvas.height = sliceHeight;
+         const context = pageCanvas.getContext("2d");
+         if (!context) throw new Error("PDF rendering is unavailable in this browser");
+         context.fillStyle = "#ffffff";
+         context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+         context.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+         if (sourceY > 0) pdf.addPage();
+         const renderedHeight = (sliceHeight * pageWidth) / canvas.width;
+         pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", 12, 12, pageWidth, renderedHeight);
+         sourceY = sourceEnd;
+       }
       pdf.save(`ENFA-${doc.nfaNo || "draft"}.pdf`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not generate the PDF");
@@ -214,10 +245,9 @@ export function PrintFormDialog({
           <DialogTitle className="font-display text-base">Print Form · {doc.nfaNo || "—"}</DialogTitle>
         </DialogHeader>
 
-        <div ref={printRef} className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
-          <EnfaDocument
-            {...doc}
-            descriptionHtml={description}
+        <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
+           <EnfaDocument
+             {...normalizeEnfaDocument({ ...doc, descriptionHtml: description })}
             editableDescription={editing ? description : undefined}
             onDescriptionChange={editing ? setDescription : undefined}
           />

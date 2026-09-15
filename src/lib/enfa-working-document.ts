@@ -1,5 +1,6 @@
 import mammoth from "mammoth/mammoth.browser";
 import { supabase } from "@/integrations/supabase/client";
+import { ENFA_PAGE } from "@/lib/enfa-document-model";
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -19,7 +20,7 @@ export interface EmbeddedDocxImage {
 
 const MAX_DOCX_IMAGES = 30;
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
-const MAX_IMAGE_WIDTH = 680;
+const MAX_IMAGE_WIDTH = ENFA_PAGE.richContentWidthPx;
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -62,10 +63,12 @@ export async function embedDescriptionImages(html: string): Promise<{
       const image = await loadImage(objectUrl);
       const naturalWidth = Math.max(1, image.naturalWidth || image.width);
       const naturalHeight = Math.max(1, image.naturalHeight || image.height);
-      const requestedWidth = Number.parseFloat(element.getAttribute("width") ?? element.style.width) || naturalWidth;
-      const explicitHeight = Number.parseFloat(element.getAttribute("height") ?? element.style.height);
+      const widthValue = element.getAttribute("width") ?? element.style.width;
+      const heightValue = element.getAttribute("height") ?? element.style.height;
+      const requestedWidth = Number.parseFloat(widthValue) || naturalWidth;
+      const explicitHeight = Number.parseFloat(heightValue);
       const requestedHeight = explicitHeight || naturalHeight * (requestedWidth / naturalWidth);
-      const scale = Math.min(1, MAX_IMAGE_WIDTH / requestedWidth);
+      const scale = Math.min(1, MAX_IMAGE_WIDTH / requestedWidth, MAX_IMAGE_WIDTH / naturalWidth);
       const width = Math.max(1, Math.round(requestedWidth * scale));
       const height = Math.max(1, Math.round(requestedHeight * scale));
       const canvas = document.createElement("canvas");
@@ -164,7 +167,10 @@ export async function downloadWorkingDocument(document: WorkingDocumentInfo): Pr
 export async function extractDescriptionFromDocx(file: File, expectedEnfa: string): Promise<string> {
   if (!file.name.toLowerCase().endsWith(".docx") || (file.type && file.type !== DOCX_MIME)) throw new Error("Choose a Microsoft Word .docx file");
   if (file.size > 20 * 1024 * 1024) throw new Error("The DOCX file exceeds 20 MB");
-  const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() }, { includeDefaultStyleMap: true });
+  const result = await mammoth.convertToHtml(
+    { arrayBuffer: await file.arrayBuffer() },
+    { includeDefaultStyleMap: true },
+  );
   const parsed = new DOMParser().parseFromString(`<main>${result.value}</main>`, "text/html");
   const main = parsed.querySelector("main");
   if (!main || !main.textContent?.includes(expectedEnfa)) throw new Error("This DOCX belongs to a different eNFA record");
@@ -179,7 +185,12 @@ export async function extractDescriptionFromDocx(file: File, expectedEnfa: strin
   range.setEndBefore(end);
   const holder = parsed.createElement("div");
   holder.append(range.cloneContents());
+  holder.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+    image.style.maxWidth = "100%";
+    image.style.height = "auto";
+    if (!image.getAttribute("width")) image.setAttribute("width", String(ENFA_PAGE.richContentWidthPx));
+  });
   const html = holder.innerHTML.trim();
-  if (!html || !holder.textContent?.trim()) throw new Error("Detailed Description cannot be empty");
+  if (!html || (!holder.textContent?.trim() && !holder.querySelector("img, table"))) throw new Error("Detailed Description cannot be empty");
   return html;
 }

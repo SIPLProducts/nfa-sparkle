@@ -334,7 +334,15 @@
   padding: 2px 4px;
 }
 .enfa-doc .rich-content th { background: #f1f1f1; }
-.enfa-doc .rich-content img { max-width: 100%; height: auto; }
+.enfa-doc .rich-content figure,
+.enfa-doc .rich-content .rt-image-wrap {
+  max-width: 100%;
+}
+.enfa-doc .rich-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
 .enfa-doc .rich-content .tableWrapper { overflow-x: hidden; }
 
 @media print {

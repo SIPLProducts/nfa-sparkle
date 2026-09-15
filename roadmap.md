@@ -14,3 +14,6 @@
 - [x] Generate and privately version editable Initiator DOCX working documents while keeping Approver output PDF-only.
 - [x] Embed Print Form logo and Detailed Description images directly in downloaded DOCX files.
 - [x] Restore the stable state before the Microsoft Word Online request without reverting existing Print Form, Edit, DOCX image, alignment, or PDF functionality.
+
+- [x] Make Initiator DOCX and Approver PDF share normalized sizing, content, and page dimensions.
+- [x] Preserve image aspect ratios, cap images to printable width, retain merged table cells, and split multi-page PDFs on safe content boundaries.
