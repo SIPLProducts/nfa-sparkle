@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { CheckCircle2, Eye, FileText, HelpCircle, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
@@ -75,6 +75,70 @@ function val(row: SapReportRow, key: string): string {
   return ((row as unknown as Record<string, string>)[key] ?? "").trim();
 }
 
+type SapDetail = Record<string, string>;
+
+function firstValue(source: SapDetail | null, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = source?.[key]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+/** Extracts and normalises the complete SAP record returned by the existing select endpoint. */
+function readDetailResponse(text: string): { detail: SapDetail | null; message: string | null } {
+  const trimmed = text.trim();
+  if (!trimmed) return { detail: null, message: "SAP returned no details for this record" };
+  let value: unknown;
+  try {
+    value = JSON.parse(trimmed);
+  } catch {
+    return { detail: null, message: trimmed.slice(0, 500) };
+  }
+  if (typeof value === "string") return { detail: null, message: value };
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const wrapper = value as Record<string, unknown>;
+    for (const key of ["data", "body", "result", "response"]) {
+      if (wrapper[key] !== undefined) {
+        value = wrapper[key];
+        break;
+      }
+    }
+  }
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return { detail: null, message: value }; }
+  }
+  if (Array.isArray(value)) value = value[0];
+  if (!value || typeof value !== "object") return { detail: null, message: "SAP returned no details for this record" };
+  const detail: SapDetail = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    detail[key.trim().toUpperCase()] = raw == null ? "" : String(raw);
+  }
+  const message = firstValue(detail, "MESSAGE", "ERROR");
+  const hasRecord = ["REFFLD", "SUBJECT", "CC_TEXT", "PSPNR", "FUNCT", "FUNCT_TXT"].some((key) => firstValue(detail, key));
+  return hasRecord ? { detail, message: null } : { detail: null, message: message || "SAP returned no details for this record" };
+}
+
+interface ApprovalPrintDocument {
+  companyName: string;
+  plantLabel: string;
+  date: string;
+  initiator: string;
+  nfaType: string;
+  functionName: string;
+  subject: string;
+  scope: string;
+  budget: string;
+  timeline: string;
+  description: string;
+  approvers: EnfaDocumentApprover[];
+}
+
+const EMPTY_PRINT_DOCUMENT: ApprovalPrintDocument = {
+  companyName: "", plantLabel: "", date: "", initiator: "", nfaType: "", functionName: "",
+  subject: "", scope: "", budget: "", timeline: "", description: "", approvers: [],
+};
+
 /** NFA Type: FUNCT_TXT when present, else FUNCT (as in the get_data response). */
 function nfaType(row: SapReportRow): string {
   return val(row, "FUNCT_TXT") || val(row, "FUNCT") || "—";
@@ -108,9 +172,8 @@ function ApprovalsInbox() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [printDoc, setPrintDoc] = useState<{
-    subject: string; scope: string; budget: string; timeline: string; description: string;
-  }>({ subject: "", scope: "", budget: "", timeline: "", description: "" });
+  const [printLoading, setPrintLoading] = useState(false);
+  const [printDoc, setPrintDoc] = useState<ApprovalPrintDocument>(EMPTY_PRINT_DOCUMENT);
   const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
 
   const [commentAction, setCommentAction] = useState<ApprovalAction | null>(null);
@@ -215,7 +278,7 @@ function ApprovalsInbox() {
   const selectedRow = selected !== null ? filtered[selected] ?? null : null;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
-  const printApprovers: EnfaDocumentApprover[] = useMemo(
+  const worklistPrintApprovers: EnfaDocumentApprover[] = useMemo(
     () =>
       ([1, 2, 3, 4, 5, 6] as const)
         .map((n) => ({
@@ -228,23 +291,75 @@ function ApprovalsInbox() {
     [selectedRow],
   );
 
-  /** Loads the stored rich Detailed Description for the selected record. */
+  /** Merges the complete SAP record with local rich content and the worklist fallback. */
   async function openPrintForm() {
-    if (!selectedEnfaNo) return;
-    const { data } = await supabase
-      .from("sap_record_draft")
-      .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
-      .eq("enfa_number", selectedEnfaNo)
-      .maybeSingle();
-    setPrintDoc({
-      subject: data?.subject ?? (selectedRow ? val(selectedRow, "SUBJECT") : ""),
-      scope: data?.scope_impact ?? "",
-      budget: data?.budget_impact != null ? String(data.budget_impact) : "",
-      timeline: data?.timeline_days != null ? String(data.timeline_days) : "",
-      description: data?.detailed_description ?? "",
-    });
-    setPrintComments(await loadPrintComments(selectedEnfaNo));
-    setPrintOpen(true);
+    if (!selectedEnfaNo || !selectedRow || printLoading) return;
+    setPrintLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const userId = sessionData.session?.user?.id ?? "";
+      const userName = await resolveMySapUser(userId);
+
+      const [detailResult, draftResult, comments] = await Promise.all([
+        fetch("/api/public/enfa-select", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ edit: { user_name: userName, reffld: selectedEnfaNo } }),
+        }).then(async (response) => ({ response, text: await response.text() })).catch((error: unknown) => ({
+          response: null,
+          text: error instanceof Error ? error.message : "Could not load complete SAP details",
+        })),
+        supabase
+          .from("sap_record_draft")
+          .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+          .eq("enfa_number", selectedEnfaNo)
+          .maybeSingle(),
+        loadPrintComments(selectedEnfaNo),
+      ]);
+
+      const parsed = detailResult.response?.ok
+        ? readDetailResponse(detailResult.text)
+        : { detail: null, message: readDetailResponse(detailResult.text).message || "Could not load complete SAP details" };
+      const detail = parsed.detail;
+      const draft = draftResult.data;
+      const fallback = (key: string) => val(selectedRow, key);
+      const merged = (...keys: string[]) => firstValue(detail, ...keys) || keys.map(fallback).find(Boolean) || "";
+      const approvers = LEVELS.map((level) => ({
+        role: merged(`ROLE${level}`),
+        userId: firstValue(detail, `USER${level}`, `USRID${level}`, `UID${level}`, `PERNR${level}`, `EMPID${level}`)
+          || sapApproverUserId(selectedRow as unknown as Record<string, unknown>, level),
+        name: merged(`APPR${level}`),
+        status: merged(`STAT${level}`),
+        actedDate: merged(`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`),
+        actedTime: merged(`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`),
+      })).filter((approver) => approver.role || approver.userId || approver.name);
+
+      setPrintDoc({
+        companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT"),
+        plantLabel: [merged("PSPNR"), merged("NAME1")].filter(Boolean).join(" – "),
+        date: merged("BEGDA", "DATE", "CREATED_AT"),
+        initiator: merged("INIT_NAME", "INITIATOR_NAME", "INITIATOR", "USER_NAME"),
+        nfaType: merged("FUNCT", "FUNCT_TXT"),
+        functionName: merged("EXTR_TXT", "FUNCTION_NAME"),
+        subject: draft?.subject ?? merged("SUBJECT"),
+        scope: draft?.scope_impact ?? merged("SCOPE_IMPACT"),
+        budget: draft?.budget_impact != null ? String(draft.budget_impact) : merged("BUDGET_IMPACT"),
+        timeline: draft?.timeline_days != null ? String(draft.timeline_days) : merged("TIMELINE_IMPACT", "TIMELINE_DAYS"),
+        description: draft?.detailed_description ?? merged("TEXT", "DETAILED_DESCRIPTION"),
+        approvers: approvers.length ? approvers : worklistPrintApprovers,
+      });
+      setPrintComments(comments);
+      setPrintOpen(true);
+      if (!detail && parsed.message) toast.warning(`${parsed.message}. Showing available saved details.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not prepare the Print Form");
+    } finally {
+      setPrintLoading(false);
+    }
   }
 
 
@@ -347,8 +462,8 @@ function ApprovalsInbox() {
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
               <Eye className="h-3.5 w-3.5" /> Preview
             </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
-              <Printer className="h-3.5 w-3.5" /> Print Form
+            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
+              {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
               <Paperclip className="h-3.5 w-3.5" /> Attached Docs
@@ -521,19 +636,19 @@ function ApprovalsInbox() {
       <PrintFormDialog
         open={printOpen}
         onOpenChange={setPrintOpen}
-        companyName={selectedRow ? val(selectedRow, "CC_TEXT") : ""}
+        companyName={printDoc.companyName}
         nfaNo={selectedEnfaNo}
-        plantLabel={selectedRow ? [val(selectedRow, "PSPNR"), val(selectedRow, "NAME1")].filter(Boolean).join(" – ") : ""}
-        date={selectedRow ? val(selectedRow, "BEGDA") : ""}
-        initiator={selectedRow ? val(selectedRow, "INIT_NAME") : ""}
-        nfaType={selectedRow ? val(selectedRow, "FUNCT_TXT") : ""}
-        functionName={selectedRow ? val(selectedRow, "EXTR_TXT") : ""}
+        plantLabel={printDoc.plantLabel}
+        date={printDoc.date}
+        initiator={printDoc.initiator}
+        nfaType={printDoc.nfaType}
+        functionName={printDoc.functionName}
         subject={printDoc.subject}
         scopeImpact={printDoc.scope}
         timelineDays={printDoc.timeline}
         budgetImpact={printDoc.budget}
         descriptionHtml={printDoc.description}
-        approvers={printApprovers}
+        approvers={printDoc.approvers}
         comments={printComments}
 
       />
