@@ -53,7 +53,17 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
         }
 
-        const result = await callEnfaDetail(reffld, edit);
+        let result;
+        try {
+          result = await callEnfaDetail(reffld, edit);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "SAP record details are unavailable";
+          console.error("[enfa-detail] request failed:", message);
+          return Response.json(
+            { ok: false, message },
+            { status: 200, headers: { "cache-control": "no-store" } },
+          );
+        }
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
@@ -66,12 +76,31 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
         };
 
         if (!result.ok) {
-          console.error("[enfa-detail] SAP call failed:", result.status, result.error);
-          return new Response(
-            result.body && result.body.trim()
-              ? result.body
-              : JSON.stringify({ error: result.error ?? "SAP request failed" }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
+          // An unavailable SAP host or middleware is an upstream business-data
+          // failure, not an application crash. Return valid JSON so dialogs can
+          // show their saved-data fallback instead of the global 502 overlay.
+          console.warn("[enfa-detail] SAP call failed:", result.status, result.error);
+          let message = result.error ?? "SAP record details are unavailable";
+          const raw = result.body.trim();
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw) as unknown;
+              if (typeof parsed === "string" && parsed.trim()) message = parsed.trim();
+              else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const value = (parsed as Record<string, unknown>)["message"]
+                  ?? (parsed as Record<string, unknown>)["error"];
+                if (typeof value === "string" && value.trim()) message = value.trim();
+              }
+            } catch {
+              message = raw.slice(0, 500);
+            }
+          }
+          return Response.json(
+            { ok: false, message },
+            {
+              status: result.status && result.status >= 400 && result.status < 500 ? result.status : 200,
+              headers,
+            },
           );
         }
 
