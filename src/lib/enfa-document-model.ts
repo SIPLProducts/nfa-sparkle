@@ -24,12 +24,16 @@ export interface EnfaDocumentModelInput {
   descriptionHtml?: string;
 }
 
+export type NormalizedEnfaDocument<T extends EnfaDocumentModelInput> =
+  Omit<T, keyof EnfaDocumentModelInput>
+  & Required<EnfaDocumentModelInput>;
+
 function clean(value: string | undefined): string {
   return value?.trim() ?? "";
 }
 
 /** One normalized source for the values rendered into Word and the Approver PDF. */
-export function normalizeEnfaDocument<T extends EnfaDocumentModelInput>(input: T): T {
+export function normalizeEnfaDocument<T extends EnfaDocumentModelInput>(input: T): NormalizedEnfaDocument<T> {
   return {
     ...input,
     companyName: clean(input.companyName),
@@ -44,5 +48,5 @@ export function normalizeEnfaDocument<T extends EnfaDocumentModelInput>(input: T
     timelineDays: clean(input.timelineDays),
     budgetImpact: clean(input.budgetImpact),
     descriptionHtml: input.descriptionHtml ?? "",
-  };
+  } as NormalizedEnfaDocument<T>;
 }

@@ -21,7 +21,7 @@ const CommentSchema = z.object({
 const DescriptionImageSchema = z.object({
   id: z.string().min(1).max(80),
   base64: z.string().min(1).max(8_500_000),
-  width: z.number().int().positive().max(680),
+  width: z.number().int().positive().max(ENFA_PAGE.richContentWidthPx),
   height: z.number().int().positive().max(4000),
 });
 
@@ -105,7 +105,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     const border = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
     const borders = { top: border, bottom: border, left: border, right: border };
     type CellChild = InstanceType<typeof Paragraph> | InstanceType<typeof Table>;
-    const cell = (children: CellChild[], size = width, shaded = false) =>
+    const cell = (children: CellChild[], size: number = width, shaded = false) =>
       new TableCell({
         width: { size, type: WidthType.DXA },
         borders,
@@ -208,7 +208,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
 
     const logo = data.logoBase64?.includes(",") ? data.logoBase64.split(",")[1] : data.logoBase64;
     const titleRuns: Array<InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>> = [
-      new TextRun({ text: data.companyName, bold: true, font: "Arial", size: 32 }),
+      new TextRun({ text: normalized.companyName, bold: true, font: "Arial", size: 32 }),
     ];
     if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: 120, height: 54 }, altText: { title: "Ramky logo", description: "Ramky logo", name: "Ramky logo" } }));
 
@@ -227,8 +227,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       const group = approvers.slice(index, index + 3);
       while (group.length < 3) group.push({ role: "", userId: "", name: "" });
       children.push(new Table({
-        width: { size: width, type: WidthType.DXA }, columnWidths: [3120, 3120, 3120],
-        rows: [new TableRow({ children: group.map((a) => cell([line("Role", a.role), line("User id", a.userId), new Paragraph({ children: [run(a.name, true)] }), new Paragraph({ children: [run([a.actedDate, a.actedTime].filter(Boolean).join(" "))] })], 3120)) })],
+        width: { size: width, type: WidthType.DXA }, columnWidths: [3600, 3600, 3600],
+        rows: [new TableRow({ cantSplit: true, children: group.map((a) => cell([line("Role", a.role), line("User id", a.userId), new Paragraph({ children: [run(a.name, true)] }), new Paragraph({ children: [run([a.actedDate, a.actedTime].filter(Boolean).join(" "))] })], 3600)) })],
       }));
     }
     children.push(oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("COMMENTS", true)] })], true));

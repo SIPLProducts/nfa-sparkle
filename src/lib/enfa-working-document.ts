@@ -191,6 +191,6 @@ export async function extractDescriptionFromDocx(file: File, expectedEnfa: strin
     if (!image.getAttribute("width")) image.setAttribute("width", String(ENFA_PAGE.richContentWidthPx));
   });
   const html = holder.innerHTML.trim();
-  if (!html || !holder.textContent?.trim()) throw new Error("Detailed Description cannot be empty");
+  if (!html || (!holder.textContent?.trim() && !holder.querySelector("img, table"))) throw new Error("Detailed Description cannot be empty");
   return html;
 }

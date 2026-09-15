@@ -184,6 +184,14 @@ export function PrintFormDialog({
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
+         onclone: (clonedDocument) => {
+           const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
+           if (printable) {
+             printable.style.maxHeight = "none";
+             printable.style.height = "auto";
+             printable.style.overflow = "visible";
+           }
+         },
       });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
        const pageWidth = ENFA_PAGE.pdfWidthMm;
@@ -237,7 +245,7 @@ export function PrintFormDialog({
           <DialogTitle className="font-display text-base">Print Form · {doc.nfaNo || "—"}</DialogTitle>
         </DialogHeader>
 
-        <div ref={printRef} className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
+        <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
            <EnfaDocument
              {...normalizeEnfaDocument({ ...doc, descriptionHtml: description })}
             editableDescription={editing ? description : undefined}

@@ -339,8 +339,10 @@
 .enfa-doc .rich-content .rt-image-wrap {
   max-width: 100%;
 }
-.enfa-doc .rich-content img[width] {
-  width: min(var(--enfa-image-width, auto), 100%);
+.enfa-doc .rich-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
 }
 .enfa-doc .rich-content .tableWrapper { overflow-x: hidden; }
 
