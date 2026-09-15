@@ -1,6 +1,7 @@
 import { RichTextView } from "@/components/RichTextView";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
+import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 
 export interface EnfaDocumentApprover {
   role: string;
@@ -73,6 +74,10 @@ export function EnfaDocument({
   comments = [],
   className,
 }: EnfaDocumentProps) {
+  const normalized = normalizeEnfaDocument({
+    companyName, nfaNo, plantLabel, date, initiator, nfaType, functionName,
+    subject, scopeImpact, timelineDays, budgetImpact, descriptionHtml,
+  });
   // Approvers are laid out three per row so the grid stays square like the
   // reference sheet; trailing gaps are filled with empty cells.
   const rows: (EnfaDocumentApprover | null)[][] = [];
@@ -104,7 +109,7 @@ export function EnfaDocument({
           <tr>
             <td className="enfa-cell enfa-title-row">
               <div className="enfa-company">
-                <span>{companyName || ""}</span>
+                 <span>{normalized.companyName}</span>
                 <img src="/ramky-logo.png" alt="" className="enfa-logo" />
               </div>
             </td>
@@ -117,35 +122,35 @@ export function EnfaDocument({
               <div className="enfa-line">
                 <span>
                   <span className="font-bold">NFA No:</span>{" "}
-                  {[nfaNo, plantLabel].filter(Boolean).join(" / ")}
+                   {[normalized.nfaNo, normalized.plantLabel].filter(Boolean).join(" / ")}
                 </span>
                 <span>
-                  <span className="font-bold">Date:</span> {date ?? ""}
+                   <span className="font-bold">Date:</span> {normalized.date}
                 </span>
               </div>
             </td>
           </tr>
-          <FieldRow label="Initiator" value={initiator} />
-          <FieldRow label="NFA Type" value={nfaType} />
-          <FieldRow label="Function" value={functionName} />
-          <FieldRow label="Sub" value={subject} />
-          <FieldRow label="Scope Impact" value={scopeImpact} />
-          <FieldRow label="Timeline Impact" value={timelineDays ? `${timelineDays} (Days)` : ""} />
-          <FieldRow label="Budget Impact" value={budgetImpact ? `Rs.${budgetImpact} (Lakhs)` : ""} />
+           <FieldRow label="Initiator" value={normalized.initiator} />
+           <FieldRow label="NFA Type" value={normalized.nfaType} />
+           <FieldRow label="Function" value={normalized.functionName} />
+           <FieldRow label="Sub" value={normalized.subject} />
+           <FieldRow label="Scope Impact" value={normalized.scopeImpact} />
+           <FieldRow label="Timeline Impact" value={normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""} />
+           <FieldRow label="Budget Impact" value={normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : ""} />
 
           {/* Detailed Description — the only place the description is rendered. */}
           <tr>
             <td className="enfa-cell enfa-doc-content">
               {onDescriptionChange ? (
                 <RichTextEditor
-                  value={editableDescription ?? descriptionHtml ?? ""}
+                   value={editableDescription ?? normalized.descriptionHtml}
                   onChange={onDescriptionChange}
                   placeholder="Type the detailed description…"
                   minHeight="180px"
                   className="enfa-description-editor"
                 />
-              ) : descriptionHtml?.trim() ? (
-                <RichTextView html={descriptionHtml} />
+               ) : normalized.descriptionHtml.trim() ? (
+                 <RichTextView html={normalized.descriptionHtml} />
               ) : (
                 <span>&nbsp;</span>
               )}

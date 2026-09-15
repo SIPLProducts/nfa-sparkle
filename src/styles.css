@@ -335,6 +335,13 @@
 }
 .enfa-doc .rich-content th { background: #f1f1f1; }
 .enfa-doc .rich-content img { max-width: 100%; height: auto; }
+.enfa-doc .rich-content figure,
+.enfa-doc .rich-content .rt-image-wrap {
+  max-width: 100%;
+}
+.enfa-doc .rich-content img[width] {
+  width: min(var(--enfa-image-width, auto), 100%);
+}
 .enfa-doc .rich-content .tableWrapper { overflow-x: hidden; }
 
 @media print {

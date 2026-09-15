@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
 
 const ApproverSchema = z.object({
   role: z.string(),
@@ -99,7 +100,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       ShadingType, Table, TableCell, TableRow, TextRun, WidthType,
     } = await import("docx");
 
-    const width = 9360;
+    const normalized = normalizeEnfaDocument(data);
+    const width = ENFA_PAGE.contentWidthDxa;
     const border = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
     const borders = { top: border, bottom: border, left: border, right: border };
     type CellChild = InstanceType<typeof Paragraph> | InstanceType<typeof Table>;
@@ -123,8 +125,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     });
 
     const description: Array<InstanceType<typeof Paragraph> | InstanceType<typeof Table>> = [];
-    const html = data.descriptionHtml ?? "";
-    const images = new Map((data.descriptionImages ?? []).map((image) => [image.id, image]));
+    const html = normalized.descriptionHtml ?? "";
+    const images = new Map((normalized.descriptionImages ?? []).map((image) => [image.id, image]));
     const alignmentFor = (value: string) => {
       const align = value.match(/(?:text-align\s*:\s*|align=["']?)(left|center|right|justify)/i)?.[1]?.toLowerCase();
       return align === "center" ? AlignmentType.CENTER : align === "right" ? AlignmentType.RIGHT : align === "justify" ? AlignmentType.JUSTIFIED : AlignmentType.LEFT;
@@ -137,7 +139,18 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       while ((imageMatch = imagePattern.exec(value))) {
         children.push(...inlinePieces(value.slice(cursor, imageMatch.index)).map((piece) => new TextRun({ text: piece.text, bold: piece.bold, italics: piece.italics, underline: piece.underline ? {} : undefined, font: "Arial", size: 20 })));
         const image = images.get(imageMatch[1]);
-        if (image) children.push(new ImageRun({ type: "png", data: Buffer.from(image.base64, "base64"), transformation: { width: image.width, height: image.height }, altText: { title: "Detailed Description image", description: "Embedded Detailed Description image", name: image.id } }));
+        if (image) {
+          const scale = Math.min(1, ENFA_PAGE.richContentWidthPx / image.width);
+          children.push(new ImageRun({
+            type: "png",
+            data: Buffer.from(image.base64, "base64"),
+            transformation: {
+              width: Math.max(1, Math.round(image.width * scale)),
+              height: Math.max(1, Math.round(image.height * scale)),
+            },
+            altText: { title: "Detailed Description image", description: "Embedded Detailed Description image", name: image.id },
+          }));
+        }
         cursor = imagePattern.lastIndex;
       }
       children.push(...inlinePieces(value.slice(cursor)).map((piece) => new TextRun({ text: piece.text, bold: piece.bold, italics: piece.italics, underline: piece.underline ? {} : undefined, font: "Arial", size: 20 })));
@@ -153,15 +166,33 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
         for (const rowMatch of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
           const values = Array.from(rowMatch[1].matchAll(/<t[dh]([^>]*)>([\s\S]*?)<\/t[dh]>/gi));
           if (!values.length) continue;
-          const colWidth = Math.floor(width / values.length);
-          rows.push(new TableRow({ children: values.map((value) => cell([new Paragraph({ alignment: alignmentFor(value[1]), children: paragraphChildren(value[2]) })], colWidth)) }));
+           const totalSpan = values.reduce((sum, value) => sum + Math.max(1, Number(value[1].match(/colspan=["']?(\d+)/i)?.[1] ?? 1)), 0);
+           const unitWidth = Math.floor(width / totalSpan);
+           rows.push(new TableRow({
+             cantSplit: true,
+             children: values.map((value) => {
+               const columnSpan = Math.max(1, Number(value[1].match(/colspan=["']?(\d+)/i)?.[1] ?? 1));
+               const rowSpan = Math.max(1, Number(value[1].match(/rowspan=["']?(\d+)/i)?.[1] ?? 1));
+               return new TableCell({
+                 width: { size: unitWidth * columnSpan, type: WidthType.DXA },
+                 columnSpan: columnSpan > 1 ? columnSpan : undefined,
+                 rowSpan: rowSpan > 1 ? rowSpan : undefined,
+                 borders,
+                 margins: { top: 70, bottom: 70, left: 110, right: 110 },
+                 children: [new Paragraph({ alignment: alignmentFor(value[1]), children: paragraphChildren(value[2]) })],
+               });
+             }),
+           }));
         }
         const firstRowCells = body.match(/<tr[^>]*>([\s\S]*?)<\/tr>/i)?.[1].match(/<t[dh][^>]*>/gi)?.length ?? 1;
         if (rows.length) description.push(new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: new Array(firstRowCells).fill(Math.floor(width / firstRowCells)), rows }));
       } else {
         const listItems = Array.from(body.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi));
         if ((tag === "ul" || tag === "ol") && listItems.length) {
-          for (const item of listItems) description.push(new Paragraph({ bullet: { level: 0 }, children: paragraphChildren(item[1]) }));
+          for (const [index, item] of listItems.entries()) description.push(new Paragraph({
+            bullet: tag === "ul" ? { level: 0 } : undefined,
+            children: tag === "ol" ? [run(`${index + 1}. `), ...paragraphChildren(item[1])] : paragraphChildren(item[1]),
+          }));
         } else {
           description.push(new Paragraph({
             heading: tag === "h1" ? HeadingLevel.HEADING_1 : tag === "h2" ? HeadingLevel.HEADING_2 : tag === "h3" ? HeadingLevel.HEADING_3 : undefined,
@@ -182,10 +213,10 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: 120, height: 54 }, altText: { title: "Ramky logo", description: "Ramky logo", name: "Ramky logo" } }));
 
     const children: Array<InstanceType<typeof Paragraph> | InstanceType<typeof Table>> = [
-      oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: titleRuns })]),
+       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: titleRuns })]),
       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("NOTE FOR APPROVAL", true)] })], true),
-      oneRow([line("NFA No", [data.nfaNo, data.plantLabel].filter(Boolean).join(" / ")), line("Date", data.date)]),
-      oneRow([line("Initiator", data.initiator), line("NFA Type", data.nfaType), line("Function", data.functionName), line("Sub", data.subject), line("Scope Impact", data.scopeImpact), line("Timeline Impact", data.timelineDays ? `${data.timelineDays} (Days)` : ""), line("Budget Impact", data.budgetImpact ? `Rs.${data.budgetImpact} (Lakhs)` : "")]),
+       oneRow([line("NFA No", [normalized.nfaNo, normalized.plantLabel].filter(Boolean).join(" / ")), line("Date", normalized.date)]),
+       oneRow([line("Initiator", normalized.initiator), line("NFA Type", normalized.nfaType), line("Function", normalized.functionName), line("Sub", normalized.subject), line("Scope Impact", normalized.scopeImpact), line("Timeline Impact", normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""), line("Budget Impact", normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : "")]),
       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("DETAILED DESCRIPTION", true)] })], true),
       oneRow(description),
     ];
@@ -205,8 +236,8 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
 
     const document = new Document({
       styles: { default: { document: { run: { font: "Arial", size: 20 } } } },
-      sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 720, right: 720, bottom: 720, left: 720 } } }, children }],
+       sections: [{ properties: { page: { size: { width: ENFA_PAGE.widthDxa, height: ENFA_PAGE.heightDxa }, margin: { top: ENFA_PAGE.marginDxa, right: ENFA_PAGE.marginDxa, bottom: ENFA_PAGE.marginDxa, left: ENFA_PAGE.marginDxa } } }, children }],
     });
     const buffer = await Packer.toBuffer(document);
-    return { base64: buffer.toString("base64"), filename: `ENFA-${data.nfaNo}-working.docx` };
+    return { base64: buffer.toString("base64"), filename: `ENFA-${normalized.nfaNo}-working.docx` };
   });
