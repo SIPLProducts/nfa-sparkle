@@ -106,7 +106,8 @@ function readDetailResponse(text: string): { detail: SapDetail | null; message: 
     }
   }
   if (typeof value === "string") {
-    try { value = JSON.parse(value); } catch { return { detail: null, message: value }; }
+    const nestedText = value;
+    try { value = JSON.parse(nestedText); } catch { return { detail: null, message: nestedText }; }
   }
   if (Array.isArray(value)) value = value[0];
   if (!value || typeof value !== "object") return { detail: null, message: "SAP returned no details for this record" };
