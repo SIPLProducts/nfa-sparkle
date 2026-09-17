@@ -19,3 +19,4 @@
 - [x] Preserve image aspect ratios, cap images to printable width, retain merged table cells, and split multi-page PDFs on safe content boundaries.
 - [x] Make the Approvals Print Form merge complete SAP details, local rich content, and approval-chain fallbacks before PDF rendering.
 - [x] Keep SAP detail connection failures inside the dialog instead of opening a global 502 error page.
+- [x] Restore Approver Data and Comments in the Approvals Print Form by resolving all existing SAP approval-field aliases with saved-comment fallbacks.
