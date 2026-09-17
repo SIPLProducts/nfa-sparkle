@@ -280,15 +280,28 @@ function ApprovalsInbox() {
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
   const worklistPrintApprovers: EnfaDocumentApprover[] = useMemo(
-    () =>
-      ([1, 2, 3, 4, 5, 6] as const)
+    () => {
+      const source = selectedRow as unknown as Record<string, string> | null;
+      const fromRow = (...keys: string[]) => {
+        for (const key of keys) {
+          const value = source?.[key]?.trim();
+          if (value) return value;
+        }
+        return "";
+      };
+      return LEVELS
         .map((n) => ({
-          role: selectedRow ? val(selectedRow, `ROLE${n}`) : "",
-          userId: sapApproverUserId(selectedRow as unknown as Record<string, unknown>, n),
-          name: selectedRow ? val(selectedRow, `APPR${n}`) : "",
-          status: selectedRow ? val(selectedRow, `STAT${n}`) : "",
+          role: fromRow(`ROLE${n}`, `DESIG${n}`, `DESIGNATION${n}`),
+          userId: fromRow(`USERID${n}`) || sapApproverUserId(source, n),
+          name: fromRow(`APPR${n}`, `APPROVER${n}`, `APPR_NAME${n}`),
+          status: fromRow(`STAT${n}`, `STATUS${n}`),
+          actedDate: fromRow(`ACT_DATE${n}`, `APPR_DATE${n}`, `DATE${n}`),
+          actedTime: fromRow(`ACT_TIME${n}`, `APPR_TIME${n}`, `TIME${n}`),
         }))
-        .filter((a) => a.role || a.name),
+        .filter((approver) =>
+          approver.role || approver.userId || approver.name || approver.status || approver.actedDate || approver.actedTime,
+        );
+    },
     [selectedRow],
   );
 
@@ -330,14 +343,22 @@ function ApprovalsInbox() {
       const fallback = (key: string) => val(selectedRow, key);
       const merged = (...keys: string[]) => firstValue(detail, ...keys) || keys.map(fallback).find(Boolean) || "";
       const approvers = LEVELS.map((level) => ({
-        role: merged(`ROLE${level}`),
-        userId: firstValue(detail, `USER${level}`, `USRID${level}`, `UID${level}`, `PERNR${level}`, `EMPID${level}`)
-          || sapApproverUserId(selectedRow as unknown as Record<string, unknown>, level),
-        name: merged(`APPR${level}`),
-        status: merged(`STAT${level}`),
+        role: merged(`ROLE${level}`, `DESIG${level}`, `DESIGNATION${level}`),
+        userId: merged(
+          `USERID${level}`,
+          `USER${level}`,
+          `USRID${level}`,
+          `UID${level}`,
+          `PERNR${level}`,
+          `EMPID${level}`,
+        ),
+        name: merged(`APPR${level}`, `APPROVER${level}`, `APPR_NAME${level}`),
+        status: merged(`STAT${level}`, `STATUS${level}`),
         actedDate: merged(`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`),
         actedTime: merged(`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`),
-      })).filter((approver) => approver.role || approver.userId || approver.name);
+      })).filter((approver) =>
+        approver.role || approver.userId || approver.name || approver.status || approver.actedDate || approver.actedTime,
+      );
 
       setPrintDoc({
         companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT"),
