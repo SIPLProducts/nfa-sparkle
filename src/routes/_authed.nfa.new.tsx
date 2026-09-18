@@ -55,7 +55,8 @@ async function fetchCompanyLogoForDocx(companyCode: string, token: string): Prom
   if (!response.ok || !result.ok || !result.dataUrl) {
     throw new Error(result.message || result.error || "Company logo is unavailable");
   }
-  if (result.dataUrl.startsWith("data:image/png")) return result.dataUrl;
+  const dataUrl = result.dataUrl;
+  if (dataUrl.startsWith("data:image/png")) return dataUrl;
   return await new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -68,7 +69,7 @@ async function fetchCompanyLogoForDocx(companyCode: string, token: string): Prom
       resolve(canvas.toDataURL("image/png"));
     };
     image.onerror = () => reject(new Error("The company logo format cannot be opened"));
-    image.src = result.dataUrl;
+    image.src = dataUrl;
   });
 }
 
