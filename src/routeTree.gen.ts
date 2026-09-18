@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
+import { Route as ApiPublicSapLogoRouteImport } from './routes/api/public/sap-logo'
 import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
 import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
@@ -67,6 +68,11 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
 const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
   id: '/api/public/sap-plant',
   path: '/api/public/sap-plant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapLogoRoute = ApiPublicSapLogoRouteImport.update({
+  id: '/api/public/sap-logo',
+  path: '/api/public/sap-logo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSapFunctionRoute = ApiPublicSapFunctionRouteImport.update({
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
+  '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
+  '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
+  '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
   '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
+    | '/api/public/sap-logo'
     | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
+    | '/api/public/sap-logo'
     | '/api/public/sap-plant'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
+    | '/api/public/sap-logo'
     | '/api/public/sap-plant'
     | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
@@ -406,6 +418,7 @@ export interface RootRouteChildren {
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
   ApiPublicSapEnfaTypeRoute: typeof ApiPublicSapEnfaTypeRoute
   ApiPublicSapFunctionRoute: typeof ApiPublicSapFunctionRoute
+  ApiPublicSapLogoRoute: typeof ApiPublicSapLogoRoute
   ApiPublicSapPlantRoute: typeof ApiPublicSapPlantRoute
 }
 
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/sap-plant'
       fullPath: '/api/public/sap-plant'
       preLoaderRoute: typeof ApiPublicSapPlantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-logo': {
+      id: '/api/public/sap-logo'
+      path: '/api/public/sap-logo'
+      fullPath: '/api/public/sap-logo'
+      preLoaderRoute: typeof ApiPublicSapLogoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sap-function': {
@@ -682,6 +702,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
   ApiPublicSapEnfaTypeRoute: ApiPublicSapEnfaTypeRoute,
   ApiPublicSapFunctionRoute: ApiPublicSapFunctionRoute,
+  ApiPublicSapLogoRoute: ApiPublicSapLogoRoute,
   ApiPublicSapPlantRoute: ApiPublicSapPlantRoute,
 }
 export const routeTree = rootRouteImport
