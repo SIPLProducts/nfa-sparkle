@@ -12,6 +12,7 @@ export interface ApprovalPrintDraft {
 }
 
 export interface ApprovalPrintDocument {
+  companyCode: string;
   companyName: string;
   plantLabel: string;
   date: string;
@@ -137,6 +138,7 @@ export function resolveApprovalPrintDocument(input: {
   })).filter((approver) => Object.values(approver).some((value) => nonBlank(value)));
 
   const document: ApprovalPrintDocument = {
+    companyCode: merged("CC_CODE", "COMPANY_CODE", "BUKRS", "COMP_CODE") || savedCompany?.code || "",
     companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT", "BUTXT") || savedCompany?.name || "",
     plantLabel: [plantCode, plantName].filter(Boolean).join(" – "),
     date: merged("BEGDA", "DATE", "CREATED_AT"),
