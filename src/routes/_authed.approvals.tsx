@@ -20,6 +20,16 @@ import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalComm
 import { COMPANIES, PLANTS } from "@/lib/sap/master";
 
 export const Route = createFileRoute("/_authed/approvals")({
+  head: () => ({
+    meta: [
+      { title: "Approvals Inbox | NFA Portal" },
+      { name: "description", content: "Review pending eNFA records, documents, approval details, and comments." },
+      { property: "og:title", content: "Approvals Inbox | NFA Portal" },
+      { property: "og:description", content: "Review pending eNFA records, documents, approval details, and comments." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ApprovalsInbox,
 });
 
@@ -106,18 +116,20 @@ function readDetailResponse(text: string): { detail: SapDetail | null; message: 
     return { detail: null, message: trimmed.slice(0, 500) };
   }
   if (typeof value === "string") return { detail: null, message: value };
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const wrapper = value as Record<string, unknown>;
-    for (const key of ["data", "body", "result", "response"]) {
-      if (wrapper[key] !== undefined) {
-        value = wrapper[key];
-        break;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof value === "string") {
+      try { value = JSON.parse(value); } catch { return { detail: null, message: value }; }
+      continue;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const wrapper = value as Record<string, unknown>;
+      const wrapperKey = ["data", "body", "result", "response"].find((key) => wrapper[key] !== undefined);
+      if (wrapperKey) {
+        value = wrapper[wrapperKey];
+        continue;
       }
     }
-  }
-  if (typeof value === "string") {
-    const nestedText = value;
-    try { value = JSON.parse(nestedText); } catch { return { detail: null, message: nestedText }; }
+    break;
   }
   if (Array.isArray(value)) value = value[0];
   if (!value || typeof value !== "object") return { detail: null, message: "SAP returned no details for this record" };
@@ -370,7 +382,10 @@ function ApprovalsInbox() {
       );
       const selectedPlantCode = merged("PSPNR", "PLANT", "PLANT_CODE");
       const savedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
-      const savedCompany = COMPANIES.find((company) => company.code === savedPlant?.company);
+      const resolvedPlantName = firstNonBlank(merged("NAME1", "PLANT_NAME"), savedPlant?.name);
+      const plantCompanyCode = resolvedPlantName.match(/^([A-Z]+)\s*[-–]/)?.[1] ?? "";
+      const savedCompany = COMPANIES.find((company) => company.code === plantCompanyCode)
+        ?? COMPANIES.find((company) => company.code === savedPlant?.company);
       const approvers = LEVELS.map((level) => ({
         role: merged(
           `ROLE${level}`,
@@ -405,7 +420,7 @@ function ApprovalsInbox() {
 
       setPrintDoc({
         companyName: firstNonBlank(merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT", "BUTXT"), savedCompany?.name),
-        plantLabel: [selectedPlantCode, firstNonBlank(merged("NAME1", "PLANT_NAME"), savedPlant?.name)].filter(Boolean).join(" – "),
+        plantLabel: [selectedPlantCode, resolvedPlantName].filter(Boolean).join(" – "),
         date: merged("BEGDA", "DATE", "CREATED_AT"),
         initiator: merged("INIT_NAME", "INITIATOR_NAME", "INITIATOR", "USER_NAME"),
         nfaType: merged("FUNCT", "FUNCT_TXT", "NFA_TYPE"),
@@ -426,10 +441,13 @@ function ApprovalsInbox() {
     } catch (error) {
       const selectedPlantCode = val(selectedRow, "PSPNR");
       const selectedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
-      const selectedCompany = COMPANIES.find((company) => company.code === selectedPlant?.company);
+      const selectedPlantName = firstNonBlank(val(selectedRow, "NAME1"), selectedPlant?.name);
+      const plantCompanyCode = selectedPlantName.match(/^([A-Z]+)\s*[-–]/)?.[1] ?? "";
+      const selectedCompany = COMPANIES.find((company) => company.code === plantCompanyCode)
+        ?? COMPANIES.find((company) => company.code === selectedPlant?.company);
       setPrintDoc({
         companyName: firstNonBlank(val(selectedRow, "CC_TEXT"), selectedCompany?.name),
-        plantLabel: [selectedPlantCode, firstNonBlank(val(selectedRow, "NAME1"), selectedPlant?.name)].filter(Boolean).join(" – "),
+        plantLabel: [selectedPlantCode, selectedPlantName].filter(Boolean).join(" – "),
         date: val(selectedRow, "BEGDA"),
         initiator: val(selectedRow, "INIT_NAME"),
         nfaType: firstNonBlank(val(selectedRow, "FUNCT"), val(selectedRow, "FUNCT_TXT")),
