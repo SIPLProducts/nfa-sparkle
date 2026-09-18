@@ -118,7 +118,8 @@ function readDetailResponse(text: string): { detail: SapDetail | null; message: 
   if (typeof value === "string") return { detail: null, message: value };
   for (let depth = 0; depth < 4; depth += 1) {
     if (typeof value === "string") {
-      try { value = JSON.parse(value); } catch { return { detail: null, message: value }; }
+      const nestedText = value;
+      try { value = JSON.parse(nestedText); } catch { return { detail: null, message: nestedText }; }
       continue;
     }
     if (value && typeof value === "object" && !Array.isArray(value)) {
