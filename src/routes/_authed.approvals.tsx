@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -8,8 +8,13 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
-import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { loadPrintComments } from "@/lib/print-form-data";
+import {
+  parseApprovalPrintDetail,
+  resolveApprovalPrintDocument,
+  type ApprovalPrintDocument,
+} from "@/lib/approval-print-document";
 
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { toast } from "sonner";
@@ -17,7 +22,6 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
-import { COMPANIES, PLANTS } from "@/lib/sap/master";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -84,78 +88,6 @@ const LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
 function val(row: SapReportRow, key: string): string {
   return ((row as unknown as Record<string, string>)[key] ?? "").trim();
-}
-
-type SapDetail = Record<string, string>;
-
-function firstValue(source: SapDetail | null, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = source?.[key]?.trim();
-    if (value) return value;
-  }
-  return "";
-}
-
-function firstNonBlank(...values: unknown[]): string {
-  for (const value of values) {
-    if (value === undefined || value === null) continue;
-    const text = String(value).trim();
-    if (text) return text;
-  }
-  return "";
-}
-
-/** Extracts and normalises the complete SAP record returned by the existing select endpoint. */
-function readDetailResponse(text: string): { detail: SapDetail | null; message: string | null } {
-  const trimmed = text.trim();
-  if (!trimmed) return { detail: null, message: "SAP returned no details for this record" };
-  let value: unknown;
-  try {
-    value = JSON.parse(trimmed);
-  } catch {
-    return { detail: null, message: trimmed.slice(0, 500) };
-  }
-  if (typeof value === "string") return { detail: null, message: value };
-  for (let depth = 0; depth < 4; depth += 1) {
-    if (typeof value === "string") {
-      const nestedText = value;
-      try { value = JSON.parse(nestedText); } catch { return { detail: null, message: nestedText }; }
-      continue;
-    }
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      const wrapper = value as Record<string, unknown>;
-      const wrapperKey = ["data", "body", "result", "response"].find((key) => wrapper[key] !== undefined);
-      if (wrapperKey) {
-        value = wrapper[wrapperKey];
-        continue;
-      }
-    }
-    break;
-  }
-  if (Array.isArray(value)) value = value[0];
-  if (!value || typeof value !== "object") return { detail: null, message: "SAP returned no details for this record" };
-  const detail: SapDetail = {};
-  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
-    detail[key.trim().toUpperCase()] = raw == null ? "" : String(raw);
-  }
-  const message = firstValue(detail, "MESSAGE", "ERROR");
-  const hasRecord = ["REFFLD", "SUBJECT", "CC_TEXT", "PSPNR", "FUNCT", "FUNCT_TXT"].some((key) => firstValue(detail, key));
-  return hasRecord ? { detail, message: null } : { detail: null, message: message || "SAP returned no details for this record" };
-}
-
-interface ApprovalPrintDocument {
-  companyName: string;
-  plantLabel: string;
-  date: string;
-  initiator: string;
-  nfaType: string;
-  functionName: string;
-  subject: string;
-  scope: string;
-  budget: string;
-  timeline: string;
-  description: string;
-  approvers: EnfaDocumentApprover[];
 }
 
 const EMPTY_PRINT_DOCUMENT: ApprovalPrintDocument = {
@@ -302,31 +234,11 @@ function ApprovalsInbox() {
   const selectedRow = selected !== null ? filtered[selected] ?? null : null;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
-  const worklistPrintApprovers: EnfaDocumentApprover[] = useMemo(
-    () => {
-      const source = selectedRow as unknown as Record<string, string> | null;
-      const fromRow = (...keys: string[]) => {
-        for (const key of keys) {
-          const value = source?.[key]?.trim();
-          if (value) return value;
-        }
-        return "";
-      };
-      return LEVELS
-        .map((n) => ({
-          role: fromRow(`ROLE${n}`, `DESIG${n}`, `DESIGNATION${n}`),
-          userId: fromRow(`USERID${n}`) || sapApproverUserId(source, n),
-          name: fromRow(`APPR${n}`, `APPROVER${n}`, `APPR_NAME${n}`),
-          status: fromRow(`STAT${n}`, `STATUS${n}`),
-          actedDate: fromRow(`ACT_DATE${n}`, `APPR_DATE${n}`, `DATE${n}`),
-          actedTime: fromRow(`ACT_TIME${n}`, `APPR_TIME${n}`, `TIME${n}`),
-        }))
-        .filter((approver) =>
-          approver.role || approver.userId || approver.name || approver.status || approver.actedDate || approver.actedTime,
-        );
-    },
-    [selectedRow],
-  );
+  useEffect(() => {
+    setPrintOpen(false);
+    setPrintDoc(EMPTY_PRINT_DOCUMENT);
+    setPrintComments([]);
+  }, [selectedEnfaNo]);
 
   /** Merges the same complete SAP record used by Edit with saved content and worklist fallbacks. */
   async function openPrintForm() {
@@ -364,103 +276,36 @@ function ApprovalsInbox() {
         loadPrintComments(selectedEnfaNo),
       ]);
 
-      const parseResult = (result: typeof editDetailResult) => {
-        const parsed = readDetailResponse(result.text);
+       const parseResult = (result: typeof editDetailResult) => {
+         const parsed = parseApprovalPrintDetail(result.text);
         return result.response?.ok
           ? parsed
           : { detail: null, message: parsed.message || "Could not load complete SAP details" };
       };
       const editParsed = parseResult(editDetailResult);
       const selectParsed = parseResult(selectDetailResult);
-      const editDetail = editParsed.detail;
-      const selectDetail = selectParsed.detail;
-      const draft = draftResult.data;
-      const fromWorklist = (...keys: string[]) => keys.map((key) => val(selectedRow, key)).find(Boolean) || "";
-      const merged = (...keys: string[]) => firstNonBlank(
-        firstValue(editDetail, ...keys),
-        firstValue(selectDetail, ...keys),
-        fromWorklist(...keys),
-      );
-      const selectedPlantCode = merged("PSPNR", "PLANT", "PLANT_CODE");
-      const savedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
-      const resolvedPlantName = firstNonBlank(merged("NAME1", "PLANT_NAME"), savedPlant?.name);
-      const plantCompanyCode = resolvedPlantName.match(/^([A-Z]+)\s*[-–]/)?.[1] ?? "";
-      const savedCompany = COMPANIES.find((company) => company.code === plantCompanyCode)
-        ?? COMPANIES.find((company) => company.code === savedPlant?.company);
-      const approvers = LEVELS.map((level) => ({
-        role: merged(
-          `ROLE${level}`,
-          `DESIG${level}`,
-          `DESIGNATION${level}`,
-          `APPR_ROLE${level}`,
-        ),
-        userId: merged(
-          `USERID${level}`,
-          `USER_ID${level}`,
-          `USER${level}`,
-          `USRID${level}`,
-          `UID${level}`,
-          `PERNR${level}`,
-          `EMPID${level}`,
-          `APPR_USER${level}`,
-          `APPR_ID${level}`,
-        ),
-        name: merged(
-          `APPR${level}`,
-          `APPROVER${level}`,
-          `APPR_NAME${level}`,
-          `APPROVER_NAME${level}`,
-          `USER_NAME${level}`,
-        ),
-        status: merged(`STAT${level}`, `STATUS${level}`),
-        actedDate: merged(`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`),
-        actedTime: merged(`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`),
-      })).filter((approver) =>
-        approver.role || approver.userId || approver.name || approver.status || approver.actedDate || approver.actedTime,
-      );
-
-      setPrintDoc({
-        companyName: firstNonBlank(merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT", "BUTXT"), savedCompany?.name),
-        plantLabel: [selectedPlantCode, resolvedPlantName].filter(Boolean).join(" – "),
-        date: merged("BEGDA", "DATE", "CREATED_AT"),
-        initiator: merged("INIT_NAME", "INITIATOR_NAME", "INITIATOR", "USER_NAME"),
-        nfaType: merged("FUNCT", "FUNCT_TXT", "NFA_TYPE"),
-        functionName: merged("EXTR_TXT", "FUNCTION_NAME", "FUNCTION"),
-        subject: firstNonBlank(merged("SUBJECT"), draft?.subject),
-        scope: firstNonBlank(merged("SCOPE_IMPACT"), draft?.scope_impact),
-        budget: firstNonBlank(merged("BUDGET_IMPACT"), draft?.budget_impact),
-        timeline: firstNonBlank(merged("TIMELINE_IMPACT", "TIMELINE_DAYS"), draft?.timeline_days),
-        description: firstNonBlank(draft?.detailed_description, merged("TEXT", "DETAILED_DESCRIPTION")),
-        approvers: approvers.length ? approvers : worklistPrintApprovers,
-      });
-      setPrintComments(comments);
+       const resolved = resolveApprovalPrintDocument({
+         editDetail: editParsed.detail,
+         selectDetail: selectParsed.detail,
+         worklistRow: selectedRow as unknown as Record<string, unknown>,
+         draft: draftResult.data,
+         comments,
+       });
+       setPrintDoc(resolved.document);
+       setPrintComments(resolved.comments);
       setPrintOpen(true);
-      if (!editDetail && !selectDetail) {
-        const message = editParsed.message || selectParsed.message;
-        if (message) toast.warning(`${message}. Showing available saved details.`);
+       if (resolved.missingFields.length) {
+         toast.warning(`Some source data is unavailable: ${resolved.missingFields.join(", ")}. Showing all saved details.`);
+       } else if (!editParsed.detail && !selectParsed.detail) {
+         const message = editParsed.message || selectParsed.message;
+         if (message) toast.warning(`${message}. Showing complete saved and worklist details.`);
       }
     } catch (error) {
-      const selectedPlantCode = val(selectedRow, "PSPNR");
-      const selectedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
-      const selectedPlantName = firstNonBlank(val(selectedRow, "NAME1"), selectedPlant?.name);
-      const plantCompanyCode = selectedPlantName.match(/^([A-Z]+)\s*[-–]/)?.[1] ?? "";
-      const selectedCompany = COMPANIES.find((company) => company.code === plantCompanyCode)
-        ?? COMPANIES.find((company) => company.code === selectedPlant?.company);
-      setPrintDoc({
-        companyName: firstNonBlank(val(selectedRow, "CC_TEXT"), selectedCompany?.name),
-        plantLabel: [selectedPlantCode, selectedPlantName].filter(Boolean).join(" – "),
-        date: val(selectedRow, "BEGDA"),
-        initiator: val(selectedRow, "INIT_NAME"),
-        nfaType: firstNonBlank(val(selectedRow, "FUNCT"), val(selectedRow, "FUNCT_TXT")),
-        functionName: val(selectedRow, "EXTR_TXT"),
-        subject: val(selectedRow, "SUBJECT"),
-        scope: val(selectedRow, "SCOPE_IMPACT"),
-        budget: val(selectedRow, "BUDGET_IMPACT"),
-        timeline: firstNonBlank(val(selectedRow, "TIMELINE_IMPACT"), val(selectedRow, "TIMELINE_DAYS")),
-        description: firstNonBlank(val(selectedRow, "TEXT"), val(selectedRow, "DETAILED_DESCRIPTION")),
-        approvers: worklistPrintApprovers,
-      });
-      setPrintComments([]);
+       const fallback = resolveApprovalPrintDocument({
+         worklistRow: selectedRow as unknown as Record<string, unknown>,
+       });
+       setPrintDoc(fallback.document);
+       setPrintComments(fallback.comments);
       setPrintOpen(true);
       toast.warning(error instanceof Error ? `${error.message}. Showing available saved details.` : "Showing available saved details.");
     } finally {
