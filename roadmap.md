@@ -22,3 +22,4 @@
 - [x] Restore Approver Data and Comments in the Approvals Print Form by resolving all existing SAP approval-field aliases with saved-comment fallbacks.
 - [x] Match Approvals Print Form field, Approval Chain, and Comments data preparation to the Edit Print Form without changing shared workflows.
 - [x] Load and merge complete Edit-equivalent data before opening the Approvals Print Form and Approver PDF.
+- [x] Replace duplicated Approvals Print Form mapping with a tested shared resolver for nested SAP responses, saved rich content, approval aliases, and comments.
