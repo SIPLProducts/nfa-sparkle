@@ -17,6 +17,7 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
+import { COMPANIES, PLANTS } from "@/lib/sap/master";
 
 export const Route = createFileRoute("/_authed/approvals")({
   component: ApprovalsInbox,
@@ -81,6 +82,15 @@ function firstValue(source: SapDetail | null, ...keys: string[]): string {
   for (const key of keys) {
     const value = source?.[key]?.trim();
     if (value) return value;
+  }
+  return "";
+}
+
+function firstNonBlank(...values: unknown[]): string {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const text = String(value).trim();
+    if (text) return text;
   }
   return "";
 }
@@ -342,17 +352,34 @@ function ApprovalsInbox() {
       const draft = draftResult.data;
       const fallback = (key: string) => val(selectedRow, key);
       const merged = (...keys: string[]) => firstValue(detail, ...keys) || keys.map(fallback).find(Boolean) || "";
+      const selectedPlantCode = merged("PSPNR", "PLANT", "PLANT_CODE");
+      const savedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
+      const savedCompany = COMPANIES.find((company) => company.code === savedPlant?.company);
       const approvers = LEVELS.map((level) => ({
-        role: merged(`ROLE${level}`, `DESIG${level}`, `DESIGNATION${level}`),
+        role: merged(
+          `ROLE${level}`,
+          `DESIG${level}`,
+          `DESIGNATION${level}`,
+          `APPR_ROLE${level}`,
+        ),
         userId: merged(
           `USERID${level}`,
+          `USER_ID${level}`,
           `USER${level}`,
           `USRID${level}`,
           `UID${level}`,
           `PERNR${level}`,
           `EMPID${level}`,
+          `APPR_USER${level}`,
+          `APPR_ID${level}`,
         ),
-        name: merged(`APPR${level}`, `APPROVER${level}`, `APPR_NAME${level}`),
+        name: merged(
+          `APPR${level}`,
+          `APPROVER${level}`,
+          `APPR_NAME${level}`,
+          `APPROVER_NAME${level}`,
+          `USER_NAME${level}`,
+        ),
         status: merged(`STAT${level}`, `STATUS${level}`),
         actedDate: merged(`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`),
         actedTime: merged(`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`),
@@ -361,17 +388,17 @@ function ApprovalsInbox() {
       );
 
       setPrintDoc({
-        companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT"),
-        plantLabel: [merged("PSPNR"), merged("NAME1")].filter(Boolean).join(" – "),
+        companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT") || savedCompany?.name || "",
+        plantLabel: [selectedPlantCode, merged("NAME1", "PLANT_NAME")].filter(Boolean).join(" – "),
         date: merged("BEGDA", "DATE", "CREATED_AT"),
         initiator: merged("INIT_NAME", "INITIATOR_NAME", "INITIATOR", "USER_NAME"),
         nfaType: merged("FUNCT", "FUNCT_TXT"),
         functionName: merged("EXTR_TXT", "FUNCTION_NAME"),
-        subject: draft?.subject ?? merged("SUBJECT"),
-        scope: draft?.scope_impact ?? merged("SCOPE_IMPACT"),
-        budget: draft?.budget_impact != null ? String(draft.budget_impact) : merged("BUDGET_IMPACT"),
-        timeline: draft?.timeline_days != null ? String(draft.timeline_days) : merged("TIMELINE_IMPACT", "TIMELINE_DAYS"),
-        description: draft?.detailed_description ?? merged("TEXT", "DETAILED_DESCRIPTION"),
+        subject: firstNonBlank(draft?.subject, merged("SUBJECT")),
+        scope: firstNonBlank(draft?.scope_impact, merged("SCOPE_IMPACT")),
+        budget: firstNonBlank(draft?.budget_impact, merged("BUDGET_IMPACT")),
+        timeline: firstNonBlank(draft?.timeline_days, merged("TIMELINE_IMPACT", "TIMELINE_DAYS")),
+        description: firstNonBlank(draft?.detailed_description, merged("TEXT", "DETAILED_DESCRIPTION")),
         approvers: approvers.length ? approvers : worklistPrintApprovers,
       });
       setPrintComments(comments);
