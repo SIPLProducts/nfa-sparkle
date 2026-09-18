@@ -44,6 +44,34 @@ async function resolveMySapUser(userId: string): Promise<string> {
   return sapUserCache[userId] ?? "";
 }
 
+async function fetchCompanyLogoForDocx(companyCode: string, token: string): Promise<string | undefined> {
+  if (!companyCode || !token) return undefined;
+  const response = await fetch("/api/public/sap-logo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ companyCode }),
+  });
+  const result = (await response.json()) as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
+  if (!response.ok || !result.ok || !result.dataUrl) {
+    throw new Error(result.message || result.error || "Company logo is unavailable");
+  }
+  if (result.dataUrl.startsWith("data:image/png")) return result.dataUrl;
+  return await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) return reject(new Error("The company logo cannot be converted for Word"));
+      context.drawImage(image, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    image.onerror = () => reject(new Error("The company logo format cannot be opened"));
+    image.src = result.dataUrl;
+  });
+}
+
 function NewNfaPage() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -471,13 +499,7 @@ function NewNfaPage() {
         // the already-successful SAP submission.
         if (user?.id) {
           try {
-            let logoBase64: string | undefined;
-            try {
-              const logo = await fetch("/ramky-logo.png");
-              logoBase64 = await fileToBase64(await logo.blob());
-            } catch {
-              logoBase64 = undefined;
-            }
+            const logoBase64 = await fetchCompanyLogoForDocx(company, token ?? "");
             const embeddedDescription = await embedDescriptionImages(desc);
             const generated = await generateDocx({
               data: {
