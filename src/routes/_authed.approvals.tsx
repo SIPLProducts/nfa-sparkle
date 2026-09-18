@@ -319,6 +319,29 @@ function ApprovalsInbox() {
   async function openPrintForm() {
     if (!selectedEnfaNo || !selectedRow || printLoading) return;
     setPrintLoading(true);
+    const selectedPlantCode = val(selectedRow, "PSPNR");
+    const selectedPlant = PLANTS.find((plant) => plant.code === selectedPlantCode);
+    const selectedCompany = COMPANIES.find((company) => company.code === selectedPlant?.company);
+
+    // Match Edit's resilient behavior: open from the selected SAP worklist row
+    // immediately, then enrich it with the complete record and saved data.
+    setPrintComments([]);
+    setPrintDoc({
+      companyName: firstNonBlank(val(selectedRow, "CC_TEXT"), selectedCompany?.name),
+      plantLabel: [selectedPlantCode, val(selectedRow, "NAME1")].filter(Boolean).join(" – "),
+      date: val(selectedRow, "BEGDA"),
+      initiator: val(selectedRow, "INIT_NAME"),
+      nfaType: firstNonBlank(val(selectedRow, "FUNCT"), val(selectedRow, "FUNCT_TXT")),
+      functionName: val(selectedRow, "EXTR_TXT"),
+      subject: val(selectedRow, "SUBJECT"),
+      scope: val(selectedRow, "SCOPE_IMPACT"),
+      budget: val(selectedRow, "BUDGET_IMPACT"),
+      timeline: firstNonBlank(val(selectedRow, "TIMELINE_IMPACT"), val(selectedRow, "TIMELINE_DAYS")),
+      description: firstNonBlank(val(selectedRow, "TEXT"), val(selectedRow, "DETAILED_DESCRIPTION")),
+      approvers: worklistPrintApprovers,
+    });
+    setPrintOpen(true);
+
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
@@ -402,10 +425,10 @@ function ApprovalsInbox() {
         approvers: approvers.length ? approvers : worklistPrintApprovers,
       });
       setPrintComments(comments);
-      setPrintOpen(true);
       if (!detail && parsed.message) toast.warning(`${parsed.message}. Showing available saved details.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not prepare the Print Form");
+      // The dialog remains usable with the same worklist fallback used by Edit.
+      toast.warning(error instanceof Error ? `${error.message}. Showing available saved details.` : "Showing available saved details.");
     } finally {
       setPrintLoading(false);
     }
