@@ -48,6 +48,8 @@ export function PrintFormDialog({
   const [downloading, setDownloading] = useState(false);
   const [docxBusy, setDocxBusy] = useState(false);
   const [workingDocument, setWorkingDocument] = useState<WorkingDocumentInfo | null>(null);
+  const [logoSrc, setLogoSrc] = useState<string | undefined>();
+  const [logoLoading, setLogoLoading] = useState(false);
 
   useEffect(() => {
     if (!open) setEditing(false);
@@ -62,14 +64,55 @@ export function PrintFormDialog({
     return () => { cancelled = true; };
   }, [canEdit, doc.nfaNo, open]);
 
-  async function logoBase64(): Promise<string | undefined> {
-    try {
-      const response = await fetch("/ramky-logo.png");
-      const blob = await response.blob();
-      return await fileToBase64(blob);
-    } catch {
-      return undefined;
+  useEffect(() => {
+    if (!open || !doc.companyCode?.trim()) {
+      setLogoSrc(undefined);
+      setLogoLoading(false);
+      return;
     }
+    const controller = new AbortController();
+    setLogoSrc(undefined);
+    setLogoLoading(true);
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token ?? "";
+        const response = await fetch("/api/public/sap-logo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ companyCode: doc.companyCode }),
+          signal: controller.signal,
+        });
+        const result = (await response.json()) as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
+        if (!response.ok || !result.ok || !result.dataUrl) throw new Error(result.message || result.error || "Company logo is unavailable");
+        setLogoSrc(result.dataUrl);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        toast.warning(error instanceof Error ? error.message : "Company logo is unavailable");
+      } finally {
+        if (!controller.signal.aborted) setLogoLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [doc.companyCode, open]);
+
+  async function pngLogoDataUrl(): Promise<string | undefined> {
+    if (!logoSrc) return undefined;
+    if (logoSrc.startsWith("data:image/png")) return logoSrc;
+    return await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d");
+        if (!context) return reject(new Error("The company logo cannot be converted for Word"));
+        context.drawImage(image, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      image.onerror = () => reject(new Error("The company logo format cannot be opened"));
+      image.src = logoSrc;
+    });
   }
 
   async function createOrDownloadDocx() {
@@ -100,7 +143,7 @@ export function PrintFormDialog({
           descriptionImages: embeddedDescription.images,
           approvers: doc.approvers,
           comments: doc.comments,
-          logoBase64: await logoBase64(),
+          logoBase64: await pngLogoDataUrl(),
         },
       });
       const saved = await saveGeneratedDocx({ enfaNumber: doc.nfaNo, userId, ...generated });
@@ -248,6 +291,7 @@ export function PrintFormDialog({
         <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
            <EnfaDocument
              {...normalizeEnfaDocument({ ...doc, descriptionHtml: description })}
+              logoSrc={logoSrc}
             editableDescription={editing ? description : undefined}
             onDescriptionChange={editing ? setDescription : undefined}
           />
@@ -283,7 +327,7 @@ export function PrintFormDialog({
             <>
               {canEdit && doc.nfaNo ? (
                 <>
-                  <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy}>
+                  <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy || logoLoading}>
                     {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} Download DOCX
                   </Button>
                   <Button variant="outline" className="gap-1.5" onClick={() => uploadRef.current?.click()} disabled={docxBusy}>
@@ -291,13 +335,13 @@ export function PrintFormDialog({
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading}>
+                <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading || logoLoading}>
                   {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
                 </Button>
               )}
             </>
           )}
-          <Button className="gap-1.5" onClick={() => window.print()}>
+          <Button className="gap-1.5" onClick={() => window.print()} disabled={logoLoading}>
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
         </DialogFooter>

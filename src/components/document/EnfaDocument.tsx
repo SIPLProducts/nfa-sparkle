@@ -20,6 +20,7 @@ export interface EnfaDocumentComment {
 }
 
 export interface EnfaDocumentProps {
+  companyCode?: string;
   companyName: string;
   nfaNo: string;
   plantLabel?: string;
@@ -36,6 +37,7 @@ export interface EnfaDocumentProps {
   onDescriptionChange?: (html: string) => void;
   approvers?: EnfaDocumentApprover[];
   comments?: EnfaDocumentComment[];
+  logoSrc?: string;
   className?: string;
 }
 
@@ -72,6 +74,7 @@ export function EnfaDocument({
   onDescriptionChange,
   approvers = [],
   comments = [],
+  logoSrc,
   className,
 }: EnfaDocumentProps) {
   const normalized = normalizeEnfaDocument({
@@ -110,7 +113,7 @@ export function EnfaDocument({
             <td className="enfa-cell enfa-title-row">
               <div className="enfa-company">
                  <span>{normalized.companyName}</span>
-                <img src="/ramky-logo.png" alt="" className="enfa-logo" />
+                {logoSrc ? <img src={logoSrc} alt="" className="enfa-logo" /> : null}
               </div>
             </td>
           </tr>

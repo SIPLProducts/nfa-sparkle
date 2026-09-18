@@ -759,6 +759,7 @@ function NewNfaPage() {
       <PrintFormDialog
         open={printOpen}
         onOpenChange={setPrintOpen}
+        companyCode={company}
         companyName={companies.find((c) => c.code === company)?.name ?? company}
         nfaNo=""
         plantLabel={(() => {

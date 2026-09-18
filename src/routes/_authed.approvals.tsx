@@ -91,7 +91,7 @@ function val(row: SapReportRow, key: string): string {
 }
 
 const EMPTY_PRINT_DOCUMENT: ApprovalPrintDocument = {
-  companyName: "", plantLabel: "", date: "", initiator: "", nfaType: "", functionName: "",
+  companyCode: "", companyName: "", plantLabel: "", date: "", initiator: "", nfaType: "", functionName: "",
   subject: "", scope: "", budget: "", timeline: "", description: "", approvers: [],
 };
 
@@ -587,6 +587,7 @@ function ApprovalsInbox() {
       <PrintFormDialog
         open={printOpen}
         onOpenChange={setPrintOpen}
+        companyCode={printDoc.companyCode}
         companyName={printDoc.companyName}
         nfaNo={selectedEnfaNo}
         plantLabel={printDoc.plantLabel}

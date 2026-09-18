@@ -164,6 +164,70 @@ export async function callSapCompanyF4(): Promise<SapCallResult> {
   });
 }
 
+/** Fetches the selected company's logo through the endpoint registered in SAP API Settings. */
+export async function callSapCompanyLogo(companyCode: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exactEndpoint } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Logo in Detailed Description")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const { data: fallbackEndpoint } = exactEndpoint
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%logo%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exactEndpoint ?? fallbackEndpoint;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error: "The SAP company logo endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  let template: Record<string, unknown> = {};
+  const raw = (ep.request_body ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) template = parsed as Record<string, unknown>;
+    } catch {
+      return { ok: false, status: null, latencyMs: 0, body: "", error: "The company logo request body in SAP API Settings is not valid JSON." };
+    }
+  }
+  const wrapperKey = Object.keys(template).find((key) => key.toLowerCase() === "logo") ?? "logo";
+  const savedInner = template[wrapperKey];
+  const logo = savedInner && typeof savedInner === "object" && !Array.isArray(savedInner)
+    ? { ...(savedInner as Record<string, unknown>), cc_code: companyCode }
+    : { cc_code: companyCode };
+  const body = JSON.stringify({ ...template, [wrapperKey]: logo });
+  const system = await loadSystem(ep.system_id ?? null);
+  const { username, password } = await credentialsFor(ep, system);
+  return callSap({
+    system,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "GET").toUpperCase(),
+    headers: { "Content-Type": "application/json", Accept: "application/json", ...((ep.request_headers ?? {}) as Record<string, string>) },
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body,
+    username: username || undefined,
+    password,
+    maxBytes: 8_000_000,
+    timeoutMs: 60_000,
+  });
+}
+
 export const REPORT_KEYS = [
   "plant_from", "plant_to", "funct_from", "funct_to", "nfano_from", "nfano_to",
   "extra_from", "extra_to", "dat_from", "dat_to", "usrid_from", "usrid_to",

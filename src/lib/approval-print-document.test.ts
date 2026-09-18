@@ -11,7 +11,7 @@ describe("Approvals Print Form data", () => {
     const richHtml = '<p><strong>Details</strong></p><table><tbody><tr><td>1</td></tr></tbody></table><img src="data:image/png;base64,AA==">';
     const resolved = resolveApprovalPrintDocument({
       editDetail: { CC_TEXT: "Ramky Estates & Farms Ltd", FUNCT: "", SUBJECT: "SAP subject" },
-      selectDetail: { PSPNR: "9000", NAME1: "REFL - Head Office", FUNCT: "BUDGET DEVIATION" },
+      selectDetail: { CC_CODE: "9000", PSPNR: "9000", NAME1: "REFL - Head Office", FUNCT: "BUDGET DEVIATION" },
       worklistRow: {
         BEGDA: "11.09.2026", INIT_NAME: "Initiator", EXTR_TXT: "PROJECTS",
         DESIG1: "DIRE-PROJ", USERID1: "1001", APPR1: "Approver One",
@@ -21,6 +21,7 @@ describe("Approvals Print Form data", () => {
     });
 
     expect(resolved.document).toMatchObject({
+      companyCode: "9000",
       companyName: "Ramky Estates & Farms Ltd",
       nfaType: "BUDGET DEVIATION",
       subject: "SAP subject",

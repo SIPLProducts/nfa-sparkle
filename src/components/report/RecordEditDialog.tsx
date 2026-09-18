@@ -465,6 +465,7 @@ export function RecordEditDialog({
       <PrintFormDialog
         open={printOpen}
         onOpenChange={setPrintOpen}
+        companyCode={str(detail, "CC_CODE") || str(detail, "COMPANY_CODE") || str(detail, "BUKRS") || company?.code || ""}
         companyName={str(detail, "CC_TEXT") || (company ? company.name : "")}
         nfaNo={enfa}
         plantLabel={[str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1].filter(Boolean).join(" – ")}
