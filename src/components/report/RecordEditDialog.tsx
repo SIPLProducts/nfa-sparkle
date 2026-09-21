@@ -490,6 +490,7 @@ export function RecordEditDialog({
         onSaved={(html) => set("detailed_description")(html)}
         approvers={printApprovers}
         comments={printComments}
+        documentStatus={row?.STATUS_TXT || row?.STATUS}
 
       />
     </>
