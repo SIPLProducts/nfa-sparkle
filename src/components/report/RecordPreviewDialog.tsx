@@ -9,6 +9,7 @@ import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
+import { fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
 
 
 
@@ -84,26 +85,10 @@ export function RecordPreviewDialog({
     setPdfLoading(true);
     (async () => {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token ?? "";
-        const res = await fetch("/api/public/enfa-print", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            PRINT: { EFNA_NO: enfa },
-            ...(endpoint === "select" ? { variant: "edit" } : {}),
-          }),
-        });
-        const json = await res.json().catch(() => ({}) as any);
+        const pdf = await fetchEnfaPreviewPdf(enfa, endpoint === "select" ? "edit" : "report");
         if (cancelled) return;
-        if (!res.ok || !json?.base64) {
-          setPdfError(json?.error ?? `SAP preview failed (HTTP ${res.status})`);
-          return;
-        }
-        const bin = atob(json.base64 as string);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        url = URL.createObjectURL(new Blob([bytes.slice()], { type: json.mime || "application/pdf" }));
+        const bytes = pdf.bytes;
+        url = URL.createObjectURL(pdf.blob);
 
         // Chrome's PDF plugin is blocked inside embedded/sandboxed frames, so
         // the pages are rendered to canvas with pdf.js instead of an <iframe>.
