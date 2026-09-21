@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
-import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
+import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
@@ -19,7 +19,6 @@ import {
 } from "@/lib/enfa-working-document";
 import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 
 export interface ApprovalFlowRequest {
   plant: string;
@@ -62,7 +61,7 @@ export function PrintFormDialog({
   const [logoLoading, setLogoLoading] = useState(false);
   const [flowApprovers, setFlowApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [approvalLoading, setApprovalLoading] = useState(false);
-  const effectiveApprovers = mergeApprovalFlow(doc.approvers, flowApprovers);
+  const effectiveApprovers = mergeApprovalFlow(doc.approvers, flowApprovers, false);
 
   useEffect(() => {
     if (!open) setEditing(false);
