@@ -123,6 +123,7 @@ export function RecordEditDialog({
   useEffect(() => {
     if (!printOpen || !enfa) return;
     let cancelled = false;
+    setInitiatorName("");
     void Promise.all([
       loadPrintComments(enfa, printApprovers),
       loadPrintInitiator(enfa),

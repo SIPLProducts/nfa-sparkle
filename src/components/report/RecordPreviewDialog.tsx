@@ -52,6 +52,7 @@ export function RecordPreviewDialog({
   useEffect(() => {
     if (!open || !enfa) return;
     let cancelled = false;
+    setInitiatorName("");
     (async () => {
       const { data: d } = await supabase
         .from("sap_record_draft")

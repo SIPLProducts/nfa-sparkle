@@ -25,10 +25,21 @@ export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
       .select("initiator_id")
       .eq("enfa_number", normalizedEnfaNumber)
       .maybeSingle();
-    if (!record?.initiator_id) return "";
+    let creatorId = record?.initiator_id ?? "";
+    if (!creatorId) {
+      const { data: workingDocument } = await supabase
+        .from("enfa_working_document")
+        .select("created_by")
+        .eq("enfa_number", normalizedEnfaNumber)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      creatorId = workingDocument?.created_by ?? "";
+    }
+    if (!creatorId) return "";
 
     const { data: profiles } = await supabase.rpc("get_profiles_basic", {
-      _ids: [record.initiator_id],
+      _ids: [creatorId],
     });
     const profile = (profiles ?? [])[0] as { full_name: string | null } | undefined;
     return profile?.full_name?.trim() ?? "";
