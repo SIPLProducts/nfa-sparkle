@@ -17,7 +17,7 @@ import {
   saveGeneratedDocx,
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
-import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
+import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 
 export interface ApprovalFlowRequest {

@@ -633,7 +633,7 @@ function ApprovalsInbox() {
         }}
         approvers={printDoc.approvers}
         comments={printComments}
-        documentStatus={val(selectedRow ?? ({} as SapReportRow), "STATUS_TXT")}
+        documentStatus={val(selectedRow ?? ({} as SapReportRow), "STATUS_TXT") || val(selectedRow ?? ({} as SapReportRow), "STATUS")}
 
       />
       <ApprovalCommentDialog
