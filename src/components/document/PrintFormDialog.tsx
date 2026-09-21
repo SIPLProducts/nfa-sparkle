@@ -49,6 +49,7 @@ function isFinalDocumentStatus(status: string | undefined): boolean {
   return normalized === "completed"
     || normalized === "closed"
     || normalized === "final"
+    || normalized === "approved"
     || normalized === "finally_approved"
     || normalized === "final_approved";
 }
@@ -275,6 +276,7 @@ export function PrintFormDialog({
     const element = printRef.current;
     if (!element || editing) return;
     setDownloading(true);
+    element.classList.add("enfa-pdf-export");
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas-pro"),
@@ -292,7 +294,6 @@ export function PrintFormDialog({
              printable.style.maxHeight = "none";
              printable.style.height = "auto";
              printable.style.overflow = "visible";
-              printable.style.width = "760px";
               printable.style.padding = "0";
            }
          },
@@ -385,6 +386,7 @@ export function PrintFormDialog({
       const detail = error instanceof Error ? error.message : "";
       toast.error(detail ? `Could not generate the PDF: ${detail}` : "Could not generate the PDF");
     } finally {
+      element.classList.remove("enfa-pdf-export");
       setDownloading(false);
     }
   }
