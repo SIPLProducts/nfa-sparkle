@@ -316,7 +316,7 @@ export function PrintFormDialog({
             image.style.width = "auto";
             image.style.height = "auto";
             image.style.maxWidth = "100%";
-            image.style.maxHeight = "240px";
+            image.style.maxHeight = "160px";
             image.style.objectFit = "contain";
           });
          },
@@ -328,7 +328,7 @@ export function PrintFormDialog({
        const elementRect = element.getBoundingClientRect();
        const safeBoundaries = Array.from(
           element.querySelectorAll(
-            ".enfa-table > tbody > tr, .enfa-comment-block, .rich-content > *, .rich-content img",
+            ".enfa-table > tbody > tr, .enfa-comments, .enfa-comment-block, .rich-content > *, .rich-content img",
           ),
        )
          .flatMap((node) => {

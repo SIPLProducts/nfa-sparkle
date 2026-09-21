@@ -193,7 +193,10 @@ export function EnfaDocument({
             <tr>
               <td className="enfa-cell enfa-comments">
                 {versions.map((v, vi) => (
-                  <div key={`ver-${v ?? "current"}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
+                  <div
+                    key={`ver-${v ?? "current"}`}
+                    className={cn("enfa-comment-block", vi === 0 && "enfa-comment-block-first")}
+                  >
                     <div className="font-bold">
                       {v === undefined ? "Current Version Comments:" : `Version ${v} Comments:`}
                     </div>
