@@ -15,8 +15,10 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
 import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
+import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   component: NewNfaPage,
@@ -501,6 +503,21 @@ function NewNfaPage() {
         if (user?.id) {
           try {
             const logoBase64 = await fetchCompanyLogoForDocx(company, token ?? "");
+            const savedApprovers = approvers.filter((item) => item.email.trim()).map((item) => ({
+              role: `Level ${item.level}`,
+              userId: item.email,
+              name: item.designation,
+            }));
+            let flowApprovers: EnfaDocumentApprover[] = [];
+            try {
+              flowApprovers = await fetchSapApprovalFlow({
+                plant,
+                nfaType: nfaTypes.find((item) => item.code === nfaType)?.name ?? nfaType,
+                functionName: functions.find((item) => item.code === func)?.name ?? func,
+              }, token ?? "");
+            } catch {
+              /* Keep the existing saved approvers when SAP approval flow is unavailable. */
+            }
             const embeddedDescription = await embedDescriptionImages(desc);
             const generated = await generateDocx({
               data: {
@@ -517,11 +534,7 @@ function NewNfaPage() {
                 budgetImpact: budget,
                 descriptionHtml: embeddedDescription.html,
                 descriptionImages: embeddedDescription.images,
-                approvers: approvers.filter((item) => item.email.trim()).map((item) => ({
-                  role: `Level ${item.level}`,
-                  userId: item.email,
-                  name: item.designation,
-                })),
+                approvers: mergeApprovalFlow(savedApprovers, flowApprovers, false),
                 logoBase64,
               },
             });
@@ -798,6 +811,11 @@ function NewNfaPage() {
         timelineDays={timeline}
         budgetImpact={budget}
         descriptionHtml={desc}
+        approvalFlow={{
+          plant,
+          nfaType: nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType,
+          functionName: functions.find((f) => f.code === func)?.name ?? func,
+        }}
         canEdit
         onDescriptionChange={setDesc}
         approvers={approvers

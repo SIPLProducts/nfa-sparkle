@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
-import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
+import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
@@ -18,6 +18,13 @@ import {
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
 import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
+import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+
+export interface ApprovalFlowRequest {
+  plant: string;
+  nfaType: string;
+  functionName: string;
+}
 
 export interface PrintFormDialogProps extends EnfaDocumentProps {
   open: boolean;
@@ -25,6 +32,7 @@ export interface PrintFormDialogProps extends EnfaDocumentProps {
   canEdit?: boolean;
   onDescriptionChange?: (html: string) => void;
   onSaved?: (html: string) => void;
+  approvalFlow?: ApprovalFlowRequest;
 }
 
 /**
@@ -37,6 +45,7 @@ export function PrintFormDialog({
   canEdit = false,
   onDescriptionChange,
   onSaved,
+  approvalFlow,
   ...doc
 }: PrintFormDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -50,6 +59,9 @@ export function PrintFormDialog({
   const [workingDocument, setWorkingDocument] = useState<WorkingDocumentInfo | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | undefined>();
   const [logoLoading, setLogoLoading] = useState(false);
+  const [flowApprovers, setFlowApprovers] = useState<EnfaDocumentApprover[]>([]);
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const effectiveApprovers = mergeApprovalFlow(doc.approvers, flowApprovers, false);
 
   useEffect(() => {
     if (!open) setEditing(false);
@@ -96,6 +108,33 @@ export function PrintFormDialog({
     return () => controller.abort();
   }, [doc.companyCode, open]);
 
+  useEffect(() => {
+    const plant = approvalFlow?.plant.trim() ?? "";
+    const nfaType = approvalFlow?.nfaType.trim() ?? "";
+    const functionName = approvalFlow?.functionName.trim() ?? "";
+    if (!open || !plant || !nfaType || !functionName) {
+      setFlowApprovers([]);
+      setApprovalLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setFlowApprovers([]);
+    setApprovalLoading(true);
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token ?? "";
+        setFlowApprovers(await fetchSapApprovalFlow({ plant, nfaType, functionName }, token, controller.signal));
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        toast.warning(error instanceof Error ? `${error.message}. Showing saved approval details.` : "Showing saved approval details.");
+      } finally {
+        if (!controller.signal.aborted) setApprovalLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [approvalFlow?.functionName, approvalFlow?.nfaType, approvalFlow?.plant, open]);
+
   async function pngLogoDataUrl(): Promise<string | undefined> {
     if (!logoSrc) return undefined;
     if (logoSrc.startsWith("data:image/png")) return logoSrc;
@@ -141,7 +180,7 @@ export function PrintFormDialog({
           budgetImpact: doc.budgetImpact,
           descriptionHtml: embeddedDescription.html,
           descriptionImages: embeddedDescription.images,
-          approvers: doc.approvers,
+          approvers: effectiveApprovers,
           comments: doc.comments,
           logoBase64: await pngLogoDataUrl(),
         },
@@ -290,7 +329,7 @@ export function PrintFormDialog({
 
         <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
            <EnfaDocument
-             {...normalizeEnfaDocument({ ...doc, descriptionHtml: description })}
+             {...normalizeEnfaDocument({ ...doc, descriptionHtml: description, approvers: effectiveApprovers })}
               logoSrc={logoSrc}
             editableDescription={editing ? description : undefined}
             onDescriptionChange={editing ? setDescription : undefined}
@@ -327,7 +366,7 @@ export function PrintFormDialog({
             <>
               {canEdit && doc.nfaNo ? (
                 <>
-                  <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy || logoLoading}>
+                   <Button variant="outline" className="gap-1.5" onClick={() => void createOrDownloadDocx()} disabled={docxBusy || logoLoading || approvalLoading}>
                     {docxBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} Download DOCX
                   </Button>
                   <Button variant="outline" className="gap-1.5" onClick={() => uploadRef.current?.click()} disabled={docxBusy}>
@@ -335,13 +374,13 @@ export function PrintFormDialog({
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading || logoLoading}>
+                 <Button variant="outline" className="gap-1.5" onClick={() => void downloadPdf()} disabled={downloading || logoLoading || approvalLoading}>
                   {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
                 </Button>
               )}
             </>
           )}
-          <Button className="gap-1.5" onClick={() => window.print()} disabled={logoLoading}>
+          <Button className="gap-1.5" onClick={() => window.print()} disabled={logoLoading || approvalLoading}>
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
         </DialogFooter>

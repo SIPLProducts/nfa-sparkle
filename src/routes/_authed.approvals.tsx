@@ -600,6 +600,11 @@ function ApprovalsInbox() {
         timelineDays={printDoc.timeline}
         budgetImpact={printDoc.budget}
         descriptionHtml={printDoc.description}
+        approvalFlow={{
+          plant: val(selectedRow ?? ({} as SapReportRow), "PSPNR") || printDoc.plantLabel.split(/[–-]/)[0]?.trim() || "",
+          nfaType: printDoc.nfaType,
+          functionName: printDoc.functionName,
+        }}
         approvers={printDoc.approvers}
         comments={printComments}
 

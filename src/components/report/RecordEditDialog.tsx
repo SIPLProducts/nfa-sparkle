@@ -478,6 +478,11 @@ export function RecordEditDialog({
         timelineDays={draft.timeline_days}
         budgetImpact={draft.budget_impact}
         descriptionHtml={draft.detailed_description}
+        approvalFlow={{
+          plant: str(detail, "PSPNR") || row?.PSPNR || "",
+          nfaType: str(detail, "FUNCT") || row?.FUNCT_TXT || "",
+          functionName: str(detail, "EXTR_TXT") || row?.EXTR_TXT || "",
+        }}
         canEdit={!readOnly}
         onDescriptionChange={set("detailed_description")}
         onSaved={(html) => set("detailed_description")(html)}
