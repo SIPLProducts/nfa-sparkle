@@ -4,7 +4,10 @@ import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
 /** Reads an approver user id from a SAP row when the service supplies one. */
 export function sapApproverUserId(row: Record<string, unknown> | null | undefined, n: number): string {
   if (!row) return "";
-  for (const key of [`USER${n}`, `USRID${n}`, `UID${n}`, `PERNR${n}`, `EMPID${n}`]) {
+  for (const key of [
+    `USERID${n}`, `USERID_${n}`, `USER_ID${n}`, `USER_ID_${n}`,
+    `USER${n}`, `USER_${n}`, `USRID${n}`, `UID${n}`, `PERNR${n}`, `EMPID${n}`,
+  ]) {
     const v = row[key];
     if (v != null && String(v).trim()) return String(v).trim();
   }

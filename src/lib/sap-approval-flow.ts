@@ -61,7 +61,9 @@ export function mergeApprovalFlow(
   flow: EnfaDocumentApprover[],
   preferExisting = true,
 ): EnfaDocumentApprover[] {
-  const saved = existing ?? [];
+  const saved = (existing ?? []).filter((approver) =>
+    Object.values(approver).some((value) => value?.trim()),
+  );
   const count = Math.max(saved.length, flow.length);
   const first = preferExisting ? saved : flow;
   const second = preferExisting ? flow : saved;

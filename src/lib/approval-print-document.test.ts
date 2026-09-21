@@ -31,4 +31,27 @@ describe("Approvals Print Form data", () => {
     expect(resolved.comments).toEqual([{ name: "Approver One", text: "" }]);
     expect(resolved.missingFields).toEqual([]);
   });
+
+  it("keeps sparse levels and resolves the alternate fields used by saved report rows", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: {
+        REFFLD: "100122", CC_TEXT: "Ramky Estates & Farms Ltd", PSPNR: "9000",
+        BEGDA: "11.09.2026", FUNCT: "BUDGET DEVIATION", EXTR_TXT: "PROJECTS", SUBJECT: "TEST1",
+      },
+      worklistRow: {
+        DESIGNATION1: "DIRE-PROJ", APPROVER1: "Approver One", USER_ID_1: "1001",
+        DESIGNATION4: "GRP. CFO", APPROVER4: "Approver Four", USERID_4: "1004",
+      },
+      comments: [],
+    });
+
+    expect(resolved.document.approvers).toEqual([
+      expect.objectContaining({ role: "DIRE-PROJ", userId: "1001", name: "Approver One" }),
+      expect.objectContaining({ role: "GRP. CFO", userId: "1004", name: "Approver Four" }),
+    ]);
+    expect(resolved.comments).toEqual([
+      { name: "Approver One", text: "" },
+      { name: "Approver Four", text: "" },
+    ]);
+  });
 });

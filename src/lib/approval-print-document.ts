@@ -33,7 +33,7 @@ export interface ResolvedApprovalPrintDocument {
   missingFields: string[];
 }
 
-const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+const LEVELS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 function nonBlank(value: unknown): string {
   if (value === undefined || value === null) return "";
@@ -126,15 +126,26 @@ export function resolveApprovalPrintDocument(input: {
     ?? COMPANIES.find((company) => company.code === savedPlant?.company);
 
   const approvers = LEVELS.map((level): EnfaDocumentApprover => ({
-    role: merged(`ROLE${level}`, `DESIG${level}`, `DESIGNATION${level}`, `APPR_ROLE${level}`),
+    role: merged(
+      `ROLE${level}`, `ROLE_${level}`, `DESIG${level}`, `DESIG_${level}`,
+      `DESIGNATION${level}`, `DESIGNATION_${level}`, `APPR_ROLE${level}`, `APPROVER_ROLE${level}`,
+    ),
     userId: merged(
-      `USERID${level}`, `USER_ID${level}`, `USER${level}`, `USRID${level}`, `UID${level}`,
+      `USERID${level}`, `USERID_${level}`, `USER_ID${level}`, `USER_ID_${level}`,
+      `USER${level}`, `USER_${level}`, `USRID${level}`, `UID${level}`,
       `PERNR${level}`, `EMPID${level}`, `APPR_USER${level}`, `APPR_ID${level}`,
     ),
-    name: merged(`APPR${level}`, `APPROVER${level}`, `APPR_NAME${level}`, `APPROVER_NAME${level}`, `USER_NAME${level}`),
-    status: merged(`STAT${level}`, `STATUS${level}`),
-    actedDate: merged(`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`),
-    actedTime: merged(`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`),
+    name: merged(
+      `APPR${level}`, `APPR_${level}`, `APPROVER${level}`, `APPROVER_${level}`,
+      `APPR_NAME${level}`, `APPROVER_NAME${level}`, `USER_NAME${level}`,
+    ),
+    status: merged(`STAT${level}`, `STAT_${level}`, `STATUS${level}`, `STATUS_${level}`, `APPR_STATUS${level}`),
+    actedDate: merged(
+      `ACT_DATE${level}`, `ACT_DATE_${level}`, `APPR_DATE${level}`, `APPROVAL_DATE${level}`, `DATE${level}`,
+    ),
+    actedTime: merged(
+      `ACT_TIME${level}`, `ACT_TIME_${level}`, `APPR_TIME${level}`, `APPROVAL_TIME${level}`, `TIME${level}`,
+    ),
   })).filter((approver) => Object.values(approver).some((value) => nonBlank(value)));
 
   const document: ApprovalPrintDocument = {
