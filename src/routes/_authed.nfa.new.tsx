@@ -15,6 +15,7 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
 import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
@@ -507,7 +508,7 @@ function NewNfaPage() {
               userId: item.email,
               name: item.designation,
             }));
-            let flowApprovers = [];
+            let flowApprovers: EnfaDocumentApprover[] = [];
             try {
               flowApprovers = await fetchSapApprovalFlow({
                 plant,
