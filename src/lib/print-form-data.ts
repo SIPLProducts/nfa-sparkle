@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { mergePrintCommentSources, pairPrintCommentsWithApprovers, parsePrintCommentHistory } from "@/lib/print-comment-history";
+import { getPrintInitiator } from "@/lib/print-initiator.functions";
 
 /** Reads an approver user id from a SAP row when the service supplies one. */
 export function sapApproverUserId(row: Record<string, unknown> | null | undefined, n: number): string {
@@ -20,29 +21,7 @@ export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
   const normalizedEnfaNumber = enfaNumber.trim();
   if (!normalizedEnfaNumber) return "";
   try {
-    const { data: record } = await supabase
-      .from("nfa")
-      .select("initiator_id")
-      .eq("enfa_number", normalizedEnfaNumber)
-      .maybeSingle();
-    let creatorId = record?.initiator_id ?? "";
-    if (!creatorId) {
-      const { data: workingDocument } = await supabase
-        .from("enfa_working_document")
-        .select("created_by")
-        .eq("enfa_number", normalizedEnfaNumber)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      creatorId = workingDocument?.created_by ?? "";
-    }
-    if (!creatorId) return "";
-
-    const { data: profiles } = await supabase.rpc("get_profiles_basic", {
-      _ids: [creatorId],
-    });
-    const profile = (profiles ?? [])[0] as { full_name: string | null } | undefined;
-    return profile?.full_name?.trim() ?? "";
+    return await getPrintInitiator({ data: { enfaNumber: normalizedEnfaNumber } });
   } catch {
     return "";
   }
