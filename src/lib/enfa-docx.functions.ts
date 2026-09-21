@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
+import { orderedCommentVersions } from "@/lib/print-comment-history";
 
 const ApproverSchema = z.object({
   role: z.string(),
@@ -232,7 +233,18 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       }));
     }
     children.push(oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("COMMENTS", true)] })], true));
-    children.push(oneRow((data.comments?.length ? data.comments : approvers.map((a) => ({ name: a.name, text: "" }))).map((comment) => new Paragraph({ children: [run(comment.name, true), run(comment.name && comment.text ? " — " : ""), run(comment.text)] }))));
+    const comments = data.comments?.length ? data.comments : approvers.map((a) => ({ name: a.name, text: "" }));
+    const commentParagraphs: InstanceType<typeof Paragraph>[] = [];
+    for (const version of orderedCommentVersions(comments)) {
+      commentParagraphs.push(new Paragraph({
+        spacing: { before: commentParagraphs.length ? 180 : 0, after: 80 },
+        children: [run(version === undefined ? "Current Version Comments:" : `Version ${version} Comments:`, true)],
+      }));
+      for (const comment of comments.filter((item) => item.version === version)) {
+        commentParagraphs.push(new Paragraph({ children: [run(comment.name, true), run(comment.name && comment.text ? " — " : ""), run(comment.text)] }));
+      }
+    }
+    children.push(oneRow(commentParagraphs));
 
     const document = new Document({
       styles: { default: { document: { run: { font: "Arial", size: 20 } } } },
