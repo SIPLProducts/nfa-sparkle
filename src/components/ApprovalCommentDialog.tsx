@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { Check, HelpCircle, RotateCcw, X } from "lucide-react";
@@ -78,6 +78,7 @@ export function ApprovalCommentDialog({ open, onOpenChange, enfaNumber, action, 
             <span className="text-muted-foreground">—</span>
             <span>{meta?.title}</span>
           </DialogTitle>
+          <DialogDescription className="sr-only">Enter a comment and confirm the selected approval action.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

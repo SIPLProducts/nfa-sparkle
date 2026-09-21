@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Eye, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export interface Attachment {
   id: string;
@@ -138,6 +138,7 @@ export function AttachmentList({ nfaId, refreshKey = 0, title = "Supporting Atta
                 </Button>
               ) : null}
             </DialogTitle>
+            <DialogDescription className="sr-only">Preview or download the selected attachment.</DialogDescription>
           </DialogHeader>
           <div className="h-[75vh] w-full bg-muted/30">
             {preview?.kind === "pdf" ? (

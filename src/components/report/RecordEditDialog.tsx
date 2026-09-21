@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
@@ -343,6 +343,7 @@ export function RecordEditDialog({
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-base">Edit ENFA · {enfa || "—"}</DialogTitle>
+            <DialogDescription className="sr-only">Review and update the selected eNFA record.</DialogDescription>
           </DialogHeader>
 
           {loading ? (
@@ -449,6 +450,7 @@ export function RecordEditDialog({
         <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-base">Detailed Description · {enfa || "—"}</DialogTitle>
+            <DialogDescription className="sr-only">Edit the rich-text Detailed Description for the selected eNFA record.</DialogDescription>
           </DialogHeader>
           <RichTextEditor
             value={draft.detailed_description}

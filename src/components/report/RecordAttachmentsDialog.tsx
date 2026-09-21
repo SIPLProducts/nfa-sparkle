@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Download, Eye, FileText, Loader2, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -483,6 +483,7 @@ export function RecordAttachmentsDialog({
             <DialogTitle className="flex items-center gap-2 font-display text-base">
               <Paperclip className="h-4 w-4" /> Attached Docs · {enfaNumber ?? "—"}
             </DialogTitle>
+            <DialogDescription className="sr-only">View, upload, or download documents attached to the selected eNFA record.</DialogDescription>
           </DialogHeader>
 
           <section className="space-y-2">
@@ -580,6 +581,7 @@ export function RecordAttachmentsDialog({
         <DialogContent className="max-w-5xl p-0">
           <DialogHeader className="border-b border-border px-5 py-3">
             <DialogTitle className="truncate font-display text-sm">{sapPreview?.name}</DialogTitle>
+            <DialogDescription className="sr-only">Preview the selected attached document.</DialogDescription>
           </DialogHeader>
           <div className="h-[75vh] w-full bg-muted/30">
             {sapPreview ? (

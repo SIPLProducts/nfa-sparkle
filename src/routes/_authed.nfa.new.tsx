@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "sonner";
@@ -739,7 +739,10 @@ function NewNfaPage() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl">
-                      <DialogHeader><DialogTitle className="font-display">Detailed Description</DialogTitle></DialogHeader>
+                      <DialogHeader>
+                        <DialogTitle className="font-display">Detailed Description</DialogTitle>
+                        <DialogDescription className="sr-only">Edit the rich-text Detailed Description in an expanded view.</DialogDescription>
+                      </DialogHeader>
                       <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" />
                       <DialogFooter><Button>Done</Button></DialogFooter>
                     </DialogContent>
