@@ -54,4 +54,29 @@ describe("Approvals Print Form data", () => {
       { name: "Approver Four", text: "" },
     ]);
   });
+
+  it("uses the Reports row to restore approver names when the approval worklist omits them", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: { REFFLD: "100122", PSPNR: "9000", FUNCT: "BUDGET DEVIATION", SUBJECT: "TEST1" },
+      selectDetail: {
+        REFFLD: "100122",
+        ROLE1: "DIRE-PROJ", APPR1: "Mareddy Suresh",
+        ROLE2: "CFO", APPR2: "ABAPER Narender",
+        ROLE3: "REG. HEAD", APPR3: "Ranjit Kumar Neela",
+        ROLE4: "GRP. CFO", APPR4: "D Sreenivasulu",
+      },
+      worklistRow: { REFFLD: "100122", SUBJECT: "TEST1" },
+      comments: [],
+    });
+
+    expect(resolved.document.approvers.map(({ role, name }) => ({ role, name }))).toEqual([
+      { role: "DIRE-PROJ", name: "Mareddy Suresh" },
+      { role: "CFO", name: "ABAPER Narender" },
+      { role: "REG. HEAD", name: "Ranjit Kumar Neela" },
+      { role: "GRP. CFO", name: "D Sreenivasulu" },
+    ]);
+    expect(resolved.comments.map((comment) => comment.name)).toEqual([
+      "Mareddy Suresh", "ABAPER Narender", "Ranjit Kumar Neela", "D Sreenivasulu",
+    ]);
+  });
 });
