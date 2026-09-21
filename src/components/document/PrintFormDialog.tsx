@@ -278,34 +278,57 @@ export function PrintFormDialog({
     setDownloading(true);
     element.classList.add("enfa-pdf-export");
     try {
+      // Let the PDF-only width/containment rules settle before measuring. Rich
+      // content can carry large inline dimensions from Word or screenshots.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas-pro"),
         import("jspdf"),
       ]);
-       const canvas = await html2canvas(element, {
+      const exportWidth = element.offsetWidth;
+      const exportHeight = element.scrollHeight;
+      const canvas = await html2canvas(element, {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
-         onclone: (clonedDocument) => {
-           const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
-           if (printable) {
-              printable.classList.add("enfa-pdf-export");
+        width: exportWidth,
+        height: exportHeight,
+        windowWidth: exportWidth,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (clonedDocument) => {
+          const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
+          if (printable) {
+            printable.classList.add("enfa-pdf-export");
+            printable.style.width = `${exportWidth}px`;
+            printable.style.minWidth = `${exportWidth}px`;
+            printable.style.maxWidth = `${exportWidth}px`;
              printable.style.maxHeight = "none";
              printable.style.height = "auto";
-             printable.style.overflow = "visible";
-              printable.style.padding = "0";
-           }
+            printable.style.overflow = "hidden";
+            printable.style.padding = "0";
+          }
+
+          clonedDocument.querySelectorAll<HTMLImageElement>(".enfa-pdf-export .rich-content img").forEach((image) => {
+            image.removeAttribute("width");
+            image.removeAttribute("height");
+            image.style.width = "auto";
+            image.style.height = "auto";
+            image.style.maxWidth = "100%";
+            image.style.maxHeight = "240px";
+            image.style.objectFit = "contain";
+          });
          },
       });
-       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-        const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
-        const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
+      const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
        const pixelsPerPage = Math.floor((pageHeight / pageWidth) * canvas.width);
        const elementRect = element.getBoundingClientRect();
        const safeBoundaries = Array.from(
           element.querySelectorAll(
-            "tr, .enfa-approver, .enfa-comment, .enfa-comment-block, .rich-content > *, .rich-content tr, .rich-content img",
+            ".enfa-table > tbody > tr, .enfa-comment-block, .rich-content > *, .rich-content img",
           ),
        )
          .flatMap((node) => {

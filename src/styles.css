@@ -349,12 +349,34 @@
 .enfa-pdf-export .rich-content { border-radius: 0 !important; }
 .enfa-print-area.enfa-pdf-export {
   width: 760px;
+  min-width: 760px;
+  max-width: 760px;
+  box-sizing: border-box;
   max-height: none !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   padding: 0 !important;
 }
+.enfa-pdf-export .enfa-doc,
+.enfa-pdf-export .rich-content,
+.enfa-pdf-export .rich-content > *,
+.enfa-pdf-export .rich-content .tableWrapper,
+.enfa-pdf-export .rich-content table {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  overflow: hidden !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .enfa-pdf-export .rich-content img {
-  max-height: 760px !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 240px !important;
+  object-fit: contain;
+  object-position: left top;
+  border: 1px solid #777;
+  padding: 2px;
 }
 
 @media print {
