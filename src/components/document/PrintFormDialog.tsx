@@ -258,7 +258,7 @@ export function PrintFormDialog({
     setDownloading(true);
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
+        import("html2canvas-pro"),
         import("jspdf"),
       ]);
        const canvas = await html2canvas(element, {
@@ -314,7 +314,8 @@ export function PrintFormDialog({
        }
       pdf.save(`ENFA-${doc.nfaNo || "draft"}.pdf`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not generate the PDF");
+      const detail = error instanceof Error ? error.message : "";
+      toast.error(detail ? `Could not generate the PDF: ${detail}` : "Could not generate the PDF");
     } finally {
       setDownloading(false);
     }
