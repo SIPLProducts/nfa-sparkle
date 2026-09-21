@@ -906,6 +906,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_print_initiator: { Args: { _enfa_number: string }; Returns: string }
       get_profiles_basic: {
         Args: { _ids: string[] }
         Returns: {
