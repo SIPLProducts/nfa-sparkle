@@ -1591,3 +1591,79 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
     timeoutMs: 120_000,
   });
 }
+
+/** Loads the Print Form approval flow selected by Plant, NFA Type, and Function. */
+export async function callSapApprovalFlow(input: {
+  plant: string;
+  nfaType: string;
+  functionName: string;
+}): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Approval flow in Detailed Description")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%approval%flow%")
+        .ilike("name", "%detailed%description%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error: "The SAP approval-flow endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  let template: Record<string, unknown> = {};
+  const raw = String(ep.request_body ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) template = parsed as Record<string, unknown>;
+    } catch {
+      return { ok: false, status: null, latencyMs: 0, body: "", error: "The approval-flow request body in SAP API Settings is not valid JSON." };
+    }
+  }
+  const wrapperKey = Object.keys(template).find((key) => key.toLowerCase() === "get_data") ?? "get_data";
+  const savedInner = template[wrapperKey];
+  const getData = savedInner && typeof savedInner === "object" && !Array.isArray(savedInner)
+    ? { ...(savedInner as Record<string, unknown>) }
+    : {};
+  const replace = (key: "plant" | "nfa_type" | "funct", value: string) => {
+    const existingKey = Object.keys(getData).find((candidate) => candidate.toLowerCase() === key) ?? key;
+    getData[existingKey] = value.trim();
+  };
+  replace("plant", input.plant);
+  replace("nfa_type", input.nfaType);
+  replace("funct", input.functionName);
+
+  const system = await loadSystem(ep.system_id ?? null);
+  const { username, password } = await credentialsFor(ep, system);
+  return callSap({
+    system,
+    path: ep.path_or_url ?? "",
+    method: String(ep.http_method ?? "GET").toUpperCase(),
+    headers: { "Content-Type": "application/json", Accept: "application/json", ...((ep.request_headers ?? {}) as Record<string, string>) },
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify({ ...template, [wrapperKey]: getData }),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
