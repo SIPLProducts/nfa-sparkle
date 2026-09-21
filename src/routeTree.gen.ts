@@ -14,6 +14,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
+import { Route as ApiPublicSapPrintCommentsRouteImport } from './routes/api/public/sap-print-comments'
 import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
 import { Route as ApiPublicSapLogoRouteImport } from './routes/api/public/sap-logo'
 import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
@@ -66,6 +67,12 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
   path: '/approvals',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiPublicSapPrintCommentsRoute =
+  ApiPublicSapPrintCommentsRouteImport.update({
+    id: '/api/public/sap-print-comments',
+    path: '/api/public/sap-print-comments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
   id: '/api/public/sap-plant',
   path: '/api/public/sap-plant',
@@ -235,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
+  '/api/public/sap-print-comments': typeof ApiPublicSapPrintCommentsRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -268,6 +276,7 @@ export interface FileRoutesByTo {
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
+  '/api/public/sap-print-comments': typeof ApiPublicSapPrintCommentsRoute
   '/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/admin/sap-api': typeof AuthedAdminSapApiIndexRoute
@@ -303,6 +312,7 @@ export interface FileRoutesById {
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
   '/api/public/sap-plant': typeof ApiPublicSapPlantRoute
+  '/api/public/sap-print-comments': typeof ApiPublicSapPrintCommentsRoute
   '/_authed/admin/sap-api/$id': typeof AuthedAdminSapApiIdRoute
   '/_authed/nfa/$id/change': typeof AuthedNfaIdChangeRoute
   '/_authed/admin/sap-api/': typeof AuthedAdminSapApiIndexRoute
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
     | '/api/public/sap-plant'
+    | '/api/public/sap-print-comments'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api/'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
     | '/api/public/sap-plant'
+    | '/api/public/sap-print-comments'
     | '/admin/sap-api/$id'
     | '/nfa/$id/change'
     | '/admin/sap-api'
@@ -405,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
     | '/api/public/sap-plant'
+    | '/api/public/sap-print-comments'
     | '/_authed/admin/sap-api/$id'
     | '/_authed/nfa/$id/change'
     | '/_authed/admin/sap-api/'
@@ -434,6 +447,7 @@ export interface RootRouteChildren {
   ApiPublicSapFunctionRoute: typeof ApiPublicSapFunctionRoute
   ApiPublicSapLogoRoute: typeof ApiPublicSapLogoRoute
   ApiPublicSapPlantRoute: typeof ApiPublicSapPlantRoute
+  ApiPublicSapPrintCommentsRoute: typeof ApiPublicSapPrintCommentsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -472,6 +486,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/approvals'
       preLoaderRoute: typeof AuthedApprovalsRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/public/sap-print-comments': {
+      id: '/api/public/sap-print-comments'
+      path: '/api/public/sap-print-comments'
+      fullPath: '/api/public/sap-print-comments'
+      preLoaderRoute: typeof ApiPublicSapPrintCommentsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/sap-plant': {
       id: '/api/public/sap-plant'
@@ -726,6 +747,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSapFunctionRoute: ApiPublicSapFunctionRoute,
   ApiPublicSapLogoRoute: ApiPublicSapLogoRoute,
   ApiPublicSapPlantRoute: ApiPublicSapPlantRoute,
+  ApiPublicSapPrintCommentsRoute: ApiPublicSapPrintCommentsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

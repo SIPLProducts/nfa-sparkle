@@ -1,4 +1,4 @@
-import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 
 const HEADING = /^(Current Version|Version\s+(\d+))\s+Comments\s*:\s*$/i;
 const FOOTER = /^E?NFA\s+No\.\s+.+?\s+-\s+\d+\s+of\s+\d+$/i;
@@ -56,6 +56,20 @@ export function mergePrintCommentSources(
 ): EnfaDocumentComment[] {
   if (!apiComments.length) return savedHistory;
   return [...apiComments, ...savedHistory.filter((comment) => typeof comment.version === "number")];
+}
+
+/** Pairs level-based SAP comments with the matching dynamic approver name. */
+export function pairPrintCommentsWithApprovers(
+  comments: EnfaDocumentComment[],
+  approvers: EnfaDocumentApprover[],
+): EnfaDocumentComment[] {
+  return comments.map((comment, index) => ({
+    ...comment,
+    name: comment.name.trim()
+      || (typeof comment.level === "number" ? approvers[comment.level - 1]?.name?.trim() : "")
+      || (comment.version === undefined ? approvers[index]?.name?.trim() : "")
+      || "",
+  }));
 }
 
 /** Converts the version sections in SAP's saved Print Form into document comments. */

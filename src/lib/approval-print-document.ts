@@ -1,5 +1,6 @@
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { COMPANIES, PLANTS } from "@/lib/sap/master";
+import { pairPrintCommentsWithApprovers } from "@/lib/print-comment-history";
 
 export type PrintDataSource = Record<string, unknown>;
 
@@ -164,7 +165,10 @@ export function resolveApprovalPrintDocument(input: {
     approvers,
   };
 
-  const suppliedComments = (input.comments ?? []).filter((comment) => nonBlank(comment.name) || nonBlank(comment.text));
+  const suppliedComments = pairPrintCommentsWithApprovers(
+    (input.comments ?? []).filter((comment) => nonBlank(comment.name) || nonBlank(comment.text)),
+    approvers,
+  );
   const comments = suppliedComments.length
     ? suppliedComments
     : approvers.filter((approver) => nonBlank(approver.name)).map((approver) => ({ name: approver.name, text: "" }));

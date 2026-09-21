@@ -122,9 +122,9 @@ export function RecordEditDialog({
   useEffect(() => {
     if (!printOpen || !enfa) return;
     let cancelled = false;
-    void loadPrintComments(enfa).then((c) => { if (!cancelled) setPrintComments(c); });
+    void loadPrintComments(enfa, printApprovers).then((c) => { if (!cancelled) setPrintComments(c); });
     return () => { cancelled = true; };
-  }, [printOpen, enfa]);
+  }, [printOpen, enfa, row]);
 
   const [detail, setDetail] = useState<SapDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
