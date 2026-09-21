@@ -19,7 +19,6 @@ import {
 } from "@/lib/enfa-working-document";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
-import { downloadEnfaPreviewPdf, fetchEnfaPreviewPdf, type EnfaPreviewVariant } from "@/lib/enfa-preview-pdf";
 
 export interface ApprovalFlowRequest {
   plant: string;
@@ -34,10 +33,25 @@ export interface PrintFormDialogProps extends EnfaDocumentProps {
   onDescriptionChange?: (html: string) => void;
   onSaved?: (html: string) => void;
   approvalFlow?: ApprovalFlowRequest;
-  /** Retained for callers that display workflow status alongside the form. */
+  /** Existing workflow status, used only to decide whether the exported PDF is a draft. */
   documentStatus?: string;
-  /** Selects the same configured Preview document used by the calling screen. */
-  pdfVariant?: EnfaPreviewVariant;
+}
+
+const PDF_PAGE = {
+  widthMm: 210,
+  heightMm: 297,
+  marginMm: 15,
+  footerBaselineMm: 289,
+} as const;
+
+function isFinalDocumentStatus(status: string | undefined): boolean {
+  const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+  return normalized === "completed"
+    || normalized === "closed"
+    || normalized === "final"
+    || normalized === "approved"
+    || normalized === "finally_approved"
+    || normalized === "final_approved";
 }
 
 /**
@@ -51,8 +65,7 @@ export function PrintFormDialog({
   onDescriptionChange,
   onSaved,
   approvalFlow,
-  documentStatus: _documentStatus,
-  pdfVariant = "report",
+  documentStatus,
   ...doc
 }: PrintFormDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -260,15 +273,137 @@ export function PrintFormDialog({
   }
 
   async function downloadPdf() {
-    if (!doc.nfaNo || editing) return;
+    const element = printRef.current;
+    if (!element || editing) return;
     setDownloading(true);
+    element.classList.add("enfa-pdf-export");
     try {
-      const pdf = await fetchEnfaPreviewPdf(doc.nfaNo, pdfVariant);
-      downloadEnfaPreviewPdf(pdf);
+      await document.fonts?.ready;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const exportWidth = element.offsetWidth;
+      const exportHeight = element.scrollHeight;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+        width: exportWidth,
+        height: exportHeight,
+        windowWidth: exportWidth,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (clonedDocument) => {
+          const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
+          if (printable) {
+            printable.classList.add("enfa-pdf-export");
+            printable.style.width = `${exportWidth}px`;
+            printable.style.minWidth = `${exportWidth}px`;
+            printable.style.maxWidth = `${exportWidth}px`;
+            printable.style.maxHeight = "none";
+            printable.style.height = "auto";
+            printable.style.overflow = "hidden";
+            printable.style.padding = "0";
+          }
+
+          clonedDocument.querySelectorAll<HTMLImageElement>(".enfa-pdf-export .rich-content img").forEach((image) => {
+            image.removeAttribute("width");
+            image.removeAttribute("height");
+            image.style.width = "auto";
+            image.style.height = "auto";
+            image.style.maxWidth = "100%";
+            image.style.maxHeight = "160px";
+            image.style.objectFit = "contain";
+          });
+        },
+      });
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
+      const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
+      const pixelsPerPage = Math.floor((pageHeight / pageWidth) * canvas.width);
+      const elementRect = element.getBoundingClientRect();
+      const safeBoundaries = Array.from(
+        element.querySelectorAll(
+          ".enfa-table > tbody > tr, .enfa-comments, .enfa-comment-block, .rich-content > *, .rich-content img",
+        ),
+      )
+        .flatMap((node) => {
+          const rect = node.getBoundingClientRect();
+          return [rect.top - elementRect.top, rect.bottom - elementRect.top];
+        })
+        .map((position) => Math.round(position * (canvas.height / elementRect.height)))
+        .filter((position) => position > 0 && position < canvas.height)
+        .sort((a, b) => a - b);
+
+      const slices: Array<{ start: number; end: number }> = [];
+      let sourceY = 0;
+      while (sourceY < canvas.height) {
+        const desiredEnd = Math.min(canvas.height, sourceY + pixelsPerPage);
+        const earlierBoundary = safeBoundaries
+          .filter((value) => value > sourceY + pixelsPerPage * 0.4 && value <= desiredEnd)
+          .at(-1);
+        const sourceEnd = desiredEnd < canvas.height && earlierBoundary ? earlierBoundary : desiredEnd;
+        slices.push({ start: sourceY, end: sourceEnd });
+        sourceY = sourceEnd;
+      }
+
+      const draft = !isFinalDocumentStatus(documentStatus);
+      for (let pageIndex = 0; pageIndex < slices.length; pageIndex += 1) {
+        const slice = slices[pageIndex];
+        if (!slice) continue;
+        const sliceHeight = Math.max(1, slice.end - slice.start);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const context = pageCanvas.getContext("2d");
+        if (!context) throw new Error("PDF rendering is unavailable in this browser");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        context.drawImage(canvas, 0, slice.start, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+        if (pageIndex > 0) pdf.addPage();
+        const renderedHeight = (sliceHeight * pageWidth) / canvas.width;
+        pdf.addImage(
+          pageCanvas.toDataURL("image/jpeg", 0.92),
+          "JPEG",
+          PDF_PAGE.marginMm,
+          PDF_PAGE.marginMm,
+          pageWidth,
+          renderedHeight,
+          undefined,
+          "MEDIUM",
+        );
+
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.25);
+        pdf.rect(PDF_PAGE.marginMm, PDF_PAGE.marginMm, pageWidth, pageHeight);
+
+        if (draft) {
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(48);
+          pdf.setTextColor(210, 210, 210);
+          pdf.text("DRAFT", PDF_PAGE.widthMm / 2, PDF_PAGE.heightMm / 2, { align: "center", angle: 45 });
+        }
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(
+          `ENFA No. ${doc.nfaNo || "Draft"} – ${pageIndex + 1} of ${slices.length}`,
+          PDF_PAGE.widthMm - PDF_PAGE.marginMm,
+          PDF_PAGE.footerBaselineMm,
+          { align: "right" },
+        );
+      }
+      pdf.save(`ENFA-${doc.nfaNo || "draft"}.pdf`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
-      toast.error(detail ? `Could not download the Preview PDF: ${detail}` : "Could not download the Preview PDF");
+      toast.error(detail ? `Could not generate the Print Form PDF: ${detail}` : "Could not generate the Print Form PDF");
     } finally {
+      element.classList.remove("enfa-pdf-export");
       setDownloading(false);
     }
   }

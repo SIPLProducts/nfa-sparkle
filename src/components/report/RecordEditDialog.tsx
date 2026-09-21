@@ -501,7 +501,6 @@ export function RecordEditDialog({
         approvers={printApprovers}
         comments={printComments}
         documentStatus={row?.STATUS_TXT}
-        pdfVariant={endpoint === "select" ? "edit" : "report"}
 
       />
     </>

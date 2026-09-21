@@ -32,4 +32,4 @@
 - [x] Prevent oversized saved rich-content images from widening the PDF capture or recreating the old Print Form layout.
 - [x] Load current Print Form comments dynamically from the configured Comments API across Preview, Edit, Approvals, PDF, and DOCX.
 - [x] Display the application-record creator as Initiator across Preview, Edit, Approvals, PDF, and DOCX without using SAP initiator data.
-- [x] Make Print Form PDF downloads use the exact configured Preview PDF instead of rebuilding the layout in the browser.
+- [x] Restore Print Form PDF downloads to export the rendered Print Form itself while keeping Preview PDF downloads unchanged.
