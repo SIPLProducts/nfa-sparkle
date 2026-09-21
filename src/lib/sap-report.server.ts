@@ -1667,3 +1667,69 @@ export async function callSapApprovalFlow(input: {
     timeoutMs: 120_000,
   });
 }
+
+/** Loads current Print Form comments from the endpoint configured in SAP API Settings. */
+export async function callSapPrintComments(enfaNumber: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Comments_in_Printform")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%comment%print%form%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error: "The SAP Print Form comments endpoint is not registered or is inactive.",
+    };
+  }
+
+  let template: Record<string, unknown> = {};
+  const raw = String(ep.request_body ?? "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) template = parsed as Record<string, unknown>;
+    } catch {
+      return { ok: false, status: null, latencyMs: 0, body: "", error: "The Print Form comments request body in SAP API Settings is not valid JSON." };
+    }
+  }
+  const wrapperKey = Object.keys(template).find((key) => key.toLowerCase() === "comment") ?? "comment";
+  const savedInner = template[wrapperKey];
+  const comment = savedInner && typeof savedInner === "object" && !Array.isArray(savedInner)
+    ? { ...(savedInner as Record<string, unknown>) }
+    : {};
+  const referenceKey = Object.keys(comment).find((key) => key.toLowerCase() === "reffld") ?? "Reffld";
+  comment[referenceKey] = enfaNumber.trim();
+
+  const system = await loadSystem(ep.system_id ?? null);
+  const { username, password } = await credentialsFor(ep, system);
+  return callSap({
+    system,
+    path: ep.path_or_url ?? "",
+    method: String(ep.http_method ?? "GET").toUpperCase(),
+    headers: { "Content-Type": "application/json", Accept: "application/json", ...((ep.request_headers ?? {}) as Record<string, string>) },
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify({ ...template, [wrapperKey]: comment }),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
