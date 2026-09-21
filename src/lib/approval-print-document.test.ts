@@ -18,18 +18,33 @@ describe("Approvals Print Form data", () => {
       },
       draft: { subject: "Saved subject", detailed_description: richHtml },
       comments: [],
+      initiatorName: "Application Creator",
     });
 
     expect(resolved.document).toMatchObject({
       companyCode: "9000",
       companyName: "Ramky Estates & Farms Ltd",
       nfaType: "BUDGET DEVIATION",
+      initiator: "Application Creator",
       subject: "SAP subject",
       description: richHtml,
     });
     expect(resolved.document.approvers[0]).toMatchObject({ role: "DIRE-PROJ", userId: "1001", name: "Approver One" });
     expect(resolved.comments).toEqual([{ name: "Approver One", text: "" }]);
     expect(resolved.missingFields).toEqual([]);
+  });
+
+  it("uses only the application-resolved creator for the Initiator field", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: { INIT_NAME: "SAP Initiator", SUBJECT: "Test" },
+      worklistRow: { CREATED_BY: "SAP Creator" },
+      initiatorName: "Saved Application Creator",
+    });
+
+    expect(resolved.document.initiator).toBe("Saved Application Creator");
+    expect(resolveApprovalPrintDocument({
+      editDetail: { INIT_NAME: "SAP Initiator" },
+    }).document.initiator).toBe("");
   });
 
   it("keeps sparse levels and resolves the alternate fields used by saved report rows", () => {

@@ -12,7 +12,7 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { FileText, Loader2, Printer, Save } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/print-form-data";
 
 import { toast } from "sonner";
 
@@ -118,11 +118,21 @@ export function RecordEditDialog({
   const [descOpen, setDescOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [printComments, setPrintComments] = useState<EnfaDocumentComment[]>([]);
+  const [initiatorName, setInitiatorName] = useState("");
 
   useEffect(() => {
     if (!printOpen || !enfa) return;
     let cancelled = false;
-    void loadPrintComments(enfa, printApprovers).then((c) => { if (!cancelled) setPrintComments(c); });
+    setInitiatorName("");
+    void Promise.all([
+      loadPrintComments(enfa, printApprovers),
+      loadPrintInitiator(enfa),
+    ]).then(([c, creator]) => {
+      if (!cancelled) {
+        setPrintComments(c);
+        setInitiatorName(creator);
+      }
+    });
     return () => { cancelled = true; };
   }, [printOpen, enfa, row]);
 
@@ -376,7 +386,7 @@ export function RecordEditDialog({
                 />
                 <ReadOnlyField label="NFA Type" value={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")} />
                 <ReadOnlyField label="Function" value={row?.EXTR_TXT ?? ""} />
-                <ReadOnlyField label="Initiator" value={row?.INIT_NAME ?? ""} />
+                 <ReadOnlyField label="Initiator" value={initiatorName} />
                 <ReadOnlyField label="Creation Date" value={row?.BEGDA ?? ""} />
               </div>
 
@@ -472,7 +482,7 @@ export function RecordEditDialog({
         nfaNo={enfa}
         plantLabel={[str(detail, "PSPNR") || row?.PSPNR, str(detail, "NAME1") || row?.NAME1].filter(Boolean).join(" – ")}
         date={row?.BEGDA ?? ""}
-        initiator={row?.INIT_NAME ?? ""}
+        initiator={initiatorName}
         nfaType={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")}
         functionName={str(detail, "EXTR_TXT") || (row?.EXTR_TXT ?? "")}
         subject={draft.subject}

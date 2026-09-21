@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { mergePrintCommentSources, pairPrintCommentsWithApprovers, parsePrintCommentHistory } from "@/lib/print-comment-history";
+import { getPrintInitiator } from "@/lib/print-initiator.functions";
 
 /** Reads an approver user id from a SAP row when the service supplies one. */
 export function sapApproverUserId(row: Record<string, unknown> | null | undefined, n: number): string {
@@ -13,6 +14,17 @@ export function sapApproverUserId(row: Record<string, unknown> | null | undefine
     if (v != null && String(v).trim()) return String(v).trim();
   }
   return "";
+}
+
+/** Resolves the user who created an NFA from application-owned records only. */
+export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
+  const normalizedEnfaNumber = enfaNumber.trim();
+  if (!normalizedEnfaNumber) return "";
+  try {
+    return await getPrintInitiator({ data: { enfaNumber: normalizedEnfaNumber } });
+  } catch {
+    return "";
+  }
 }
 
 /**

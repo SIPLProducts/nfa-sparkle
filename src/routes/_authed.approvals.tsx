@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { loadPrintComments } from "@/lib/print-form-data";
+import { loadPrintComments, loadPrintInitiator } from "@/lib/print-form-data";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import {
   parseApprovalPrintDetail,
@@ -287,7 +287,7 @@ function ApprovalsInbox() {
         })
         .catch(() => null);
 
-      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments] = await Promise.all([
+      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments, initiatorName] = await Promise.all([
         requestDetails("/api/public/enfa-detail"),
         requestDetails("/api/public/enfa-select"),
         reportDetails,
@@ -297,6 +297,7 @@ function ApprovalsInbox() {
           .eq("enfa_number", selectedEnfaNo)
           .maybeSingle(),
         loadPrintComments(selectedEnfaNo),
+        loadPrintInitiator(selectedEnfaNo),
       ]);
 
        const parseResult = (result: typeof editDetailResult) => {
@@ -316,6 +317,7 @@ function ApprovalsInbox() {
          worklistRow: selectedRow as unknown as Record<string, unknown>,
          draft: draftResult.data,
          comments,
+          initiatorName,
        });
        setPrintDoc(resolved.document);
        setPrintComments(resolved.comments);
