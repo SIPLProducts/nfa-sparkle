@@ -24,3 +24,4 @@
 - [x] Load and merge complete Edit-equivalent data before opening the Approvals Print Form and Approver PDF.
 - [x] Replace duplicated Approvals Print Form mapping with a tested shared resolver for nested SAP responses, saved rich content, approval aliases, and comments.
 - [x] Load each Print Form logo dynamically from the configured SAP endpoint using the selected record's Company Code.
+- [x] Load Print Form approval levels dynamically from the configured SAP endpoint using Plant, NFA Type, and Function, with saved-data fallback.

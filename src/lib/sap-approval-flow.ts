@@ -74,3 +74,26 @@ export function mergeApprovalFlow(
     actedTime: first[index]?.actedTime?.trim() || second[index]?.actedTime?.trim() || "",
   })).filter((approver) => Object.values(approver).some((value) => value?.trim()));
 }
+
+/** Calls the authenticated app endpoint while keeping SAP credentials server-side. */
+export async function fetchSapApprovalFlow(
+  input: { plant: string; nfaType: string; functionName: string },
+  token: string,
+  signal?: AbortSignal,
+): Promise<EnfaDocumentApprover[]> {
+  if (!input.plant.trim() || !input.nfaType.trim() || !input.functionName.trim() || !token) return [];
+  const response = await fetch("/api/public/sap-approval-flow", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+    signal,
+  });
+  const result = (await response.json()) as {
+    ok?: boolean;
+    approvers?: EnfaDocumentApprover[];
+    message?: string;
+    error?: string;
+  };
+  if (!response.ok || !result.ok) throw new Error(result.message || result.error || "Approval details are unavailable");
+  return result.approvers ?? [];
+}

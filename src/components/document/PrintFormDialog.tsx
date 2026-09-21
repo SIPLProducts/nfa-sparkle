@@ -18,7 +18,7 @@ import {
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
 import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
-import { mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 
 export interface ApprovalFlowRequest {
@@ -125,15 +125,7 @@ export function PrintFormDialog({
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const response = await fetch("/api/public/sap-approval-flow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ plant, nfaType, functionName }),
-          signal: controller.signal,
-        });
-        const result = (await response.json()) as { ok?: boolean; approvers?: EnfaDocumentApprover[]; message?: string; error?: string };
-        if (!response.ok || !result.ok) throw new Error(result.message || result.error || "Approval details are unavailable");
-        setFlowApprovers(result.approvers ?? []);
+        setFlowApprovers(await fetchSapApprovalFlow({ plant, nfaType, functionName }, token, controller.signal));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         toast.warning(error instanceof Error ? `${error.message}. Showing saved approval details.` : "Showing saved approval details.");
