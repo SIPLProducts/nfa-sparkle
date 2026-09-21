@@ -10,6 +10,7 @@ import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, R
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadPrintComments } from "@/lib/print-form-data";
+import { wrapReportPayload } from "@/lib/sap-api-constants";
 import {
   parseApprovalPrintDetail,
   resolveApprovalPrintDocument,
@@ -264,10 +265,32 @@ function ApprovalsInbox() {
             response: null,
             text: error instanceof Error ? error.message : "Could not load complete SAP details",
           }));
+      const reportPayload = {
+        plant_from: "", plant_to: "", funct_from: "", funct_to: "",
+        nfano_from: selectedEnfaNo, nfano_to: selectedEnfaNo,
+        extra_from: "", extra_to: "", dat_from: "", dat_to: "",
+        usrid_from: "", usrid_to: "", r_proc: "", r_comp: "",
+        r_reje: "", r_init: "", r_clar: "",
+      };
+      const reportDetails = fetch("/api/public/enfa-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(wrapReportPayload(reportPayload, userName)),
+      })
+        .then(async (response) => {
+          if (!response.ok) return null;
+          const parsed = await response.json() as unknown;
+          return normaliseRows(parsed).find((row) => val(row, "REFFLD") === selectedEnfaNo) ?? null;
+        })
+        .catch(() => null);
 
-      const [editDetailResult, selectDetailResult, draftResult, comments] = await Promise.all([
+      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments] = await Promise.all([
         requestDetails("/api/public/enfa-detail"),
         requestDetails("/api/public/enfa-select"),
+        reportDetails,
         supabase
           .from("sap_record_draft")
           .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
@@ -286,7 +309,10 @@ function ApprovalsInbox() {
       const selectParsed = parseResult(selectDetailResult);
        const resolved = resolveApprovalPrintDocument({
          editDetail: editParsed.detail,
-         selectDetail: selectParsed.detail,
+         selectDetail: {
+           ...(selectParsed.detail ?? {}),
+           ...(reportRow as unknown as Record<string, unknown> | null ?? {}),
+         },
          worklistRow: selectedRow as unknown as Record<string, unknown>,
          draft: draftResult.data,
          comments,
