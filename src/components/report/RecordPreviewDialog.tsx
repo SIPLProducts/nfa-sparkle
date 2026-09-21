@@ -59,12 +59,12 @@ export function RecordPreviewDialog({
         .maybeSingle();
       if (cancelled) return;
       setDraft(d ?? null);
-      const c = await loadPrintComments(enfa);
+      const c = await loadPrintComments(enfa, approvers);
       if (!cancelled) setComments(c);
 
     })();
     return () => { cancelled = true; };
-  }, [open, enfa]);
+  }, [open, enfa, row]);
 
   // Fetch the printable document from SAP for the selected record.
   useEffect(() => {

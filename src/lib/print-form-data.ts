@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { parsePrintCommentHistory } from "@/lib/print-comment-history";
+import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
+import { mergePrintCommentSources, pairPrintCommentsWithApprovers, parsePrintCommentHistory } from "@/lib/print-comment-history";
 
 /** Reads an approver user id from a SAP row when the service supplies one. */
 export function sapApproverUserId(row: Record<string, unknown> | null | undefined, n: number): string {
@@ -60,11 +60,31 @@ async function loadSapPrintCommentHistory(enfaNumber: string): Promise<EnfaDocum
   return parsePrintCommentHistory(lines);
 }
 
-export async function loadPrintComments(enfaNumber: string): Promise<EnfaDocumentComment[]> {
+async function loadSapPrintComments(enfaNumber: string): Promise<EnfaDocumentComment[]> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? "";
+  if (!token) return [];
+  const response = await fetch("/api/public/sap-print-comments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ enfaNumber }),
+  });
+  const result = (await response.json()) as { ok?: boolean; comments?: EnfaDocumentComment[] };
+  return response.ok && result.ok ? (result.comments ?? []) : [];
+}
+
+export async function loadPrintComments(
+  enfaNumber: string,
+  approvers: EnfaDocumentApprover[] = [],
+): Promise<EnfaDocumentComment[]> {
   if (!enfaNumber) return [];
   try {
-    const sapHistory = await loadSapPrintCommentHistory(enfaNumber);
-    if (sapHistory.length) return sapHistory;
+    const [apiComments, sapHistory] = await Promise.all([
+      loadSapPrintComments(enfaNumber).catch(() => []),
+      loadSapPrintCommentHistory(enfaNumber).catch(() => []),
+    ]);
+    const mergedSapComments = mergePrintCommentSources(apiComments, sapHistory);
+    if (mergedSapComments.length) return pairPrintCommentsWithApprovers(mergedSapComments, approvers);
 
     const { data: rec } = await supabase
       .from("nfa")
@@ -79,10 +99,11 @@ export async function loadPrintComments(enfaNumber: string): Promise<EnfaDocumen
       .order("level", { ascending: true });
     // Every approver is listed, like the reference sheet; the remark is shown
     // beside the name when one was entered.
-    return (rows ?? []).map((r) => ({
+    return pairPrintCommentsWithApprovers((rows ?? []).map((r) => ({
       name: r.designation ?? "",
       text: (r.comment ?? "").trim(),
-    }));
+      level: r.level ?? undefined,
+    })), approvers);
   } catch {
     return [];
   }

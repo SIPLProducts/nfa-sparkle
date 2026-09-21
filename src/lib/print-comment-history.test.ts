@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { orderedCommentVersions, parsePrintCommentHistory } from "./print-comment-history";
+import {
+  mergePrintCommentSources,
+  orderedCommentVersions,
+  pairPrintCommentsWithApprovers,
+  parsePrintCommentHistory,
+  parseSapPrintComments,
+} from "./print-comment-history";
 
 describe("Print Form comment history", () => {
   it("parses current and numbered SAP comment sections without page footers", () => {
@@ -31,5 +37,34 @@ describe("Print Form comment history", () => {
       { name: "C", text: "", version: 8 },
       { name: "D", text: "", version: 3 },
     ])).toEqual([undefined, 8, 3, 0]);
+  });
+
+  it("parses COMMENT fields in level order and ignores blanks", () => {
+    expect(parseSapPrintComments(JSON.stringify({ body: JSON.stringify([{
+      REFFLD: "100006",
+      COMMENT3: "Third remark",
+      COMMENT1: "First remark",
+      COMMENT2: "  ",
+    }]) }))).toEqual([
+      { name: "", text: "First remark", version: undefined, level: 1 },
+      { name: "", text: "Third remark", version: undefined, level: 3 },
+    ]);
+  });
+
+  it("pairs comments to dynamic approvers and preserves numbered Preview history", () => {
+    const api = parseSapPrintComments([{ COMMENT1: "Current one", COMMENT3: "Current three" }]);
+    const merged = mergePrintCommentSources(api, [
+      { name: "Old approver", text: "Old remark", version: 2 },
+      { name: "Ignored current", text: "Stale current" },
+    ]);
+    expect(pairPrintCommentsWithApprovers(merged, [
+      { role: "L1", userId: "1", name: "First approver" },
+      { role: "L2", userId: "2", name: "Second approver" },
+      { role: "L3", userId: "3", name: "Third approver" },
+    ])).toEqual([
+      { name: "First approver", text: "Current one", version: undefined, level: 1 },
+      { name: "Third approver", text: "Current three", version: undefined, level: 3 },
+      { name: "Old approver", text: "Old remark", version: 2 },
+    ]);
   });
 });

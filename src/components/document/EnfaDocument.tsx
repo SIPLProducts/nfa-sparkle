@@ -18,6 +18,8 @@ export interface EnfaDocumentComment {
   text: string;
   /** Optional round number; when present, comments are grouped per version. */
   version?: number;
+  /** Optional SAP approval level used to pair COMMENTn with the matching approver. */
+  level?: number;
 }
 
 export interface EnfaDocumentProps {
