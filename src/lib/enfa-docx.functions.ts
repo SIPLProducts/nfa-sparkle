@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ENFA_PAGE, normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { orderedCommentVersions } from "@/lib/print-comment-history";
+import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
 
 const ApproverSchema = z.object({
   role: z.string(),
@@ -233,7 +234,9 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
       }));
     }
     children.push(oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("COMMENTS", true)] })], true));
-    const comments = data.comments?.length ? data.comments : approvers.map((a) => ({ name: a.name, text: "" }));
+    const comments: EnfaDocumentComment[] = data.comments?.length
+      ? data.comments
+      : approvers.map((a) => ({ name: a.name, text: "" }));
     const commentParagraphs: InstanceType<typeof Paragraph>[] = [];
     for (const version of orderedCommentVersions(comments)) {
       commentParagraphs.push(new Paragraph({
