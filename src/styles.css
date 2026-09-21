@@ -347,6 +347,12 @@
 .enfa-pdf-export .enfa-doc,
 .enfa-pdf-export .enfa-table,
 .enfa-pdf-export .rich-content { border-radius: 0 !important; }
+.enfa-print-area.enfa-pdf-export {
+  width: 760px;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
 .enfa-pdf-export .rich-content img {
   max-height: 760px !important;
 }
