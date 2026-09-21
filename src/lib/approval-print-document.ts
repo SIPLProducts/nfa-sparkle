@@ -111,6 +111,7 @@ export function resolveApprovalPrintDocument(input: {
   worklistRow?: PrintDataSource | null;
   draft?: ApprovalPrintDraft | null;
   comments?: EnfaDocumentComment[] | null;
+  initiatorName?: string | null;
 }): ResolvedApprovalPrintDocument {
   const editDetail = normalizeRecord(input.editDetail);
   const selectDetail = normalizeRecord(input.selectDetail);
@@ -154,7 +155,7 @@ export function resolveApprovalPrintDocument(input: {
     companyName: merged("CC_TEXT", "COMPANY_NAME", "BUKRS_TEXT", "BUTXT") || savedCompany?.name || "",
     plantLabel: [plantCode, plantName].filter(Boolean).join(" – "),
     date: merged("BEGDA", "DATE", "CREATED_AT"),
-    initiator: merged("INIT_NAME", "INITIATOR_NAME", "INITIATOR", "CREATED_BY"),
+    initiator: nonBlank(input.initiatorName),
     nfaType: merged("FUNCT", "FUNCT_TXT", "NFA_TYPE"),
     functionName: merged("EXTR_TXT", "FUNCTION_NAME", "FUNCTION"),
     subject: merged("SUBJECT") || nonBlank(draft?.subject),

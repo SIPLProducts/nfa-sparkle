@@ -15,6 +15,28 @@ export function sapApproverUserId(row: Record<string, unknown> | null | undefine
   return "";
 }
 
+/** Resolves the user who created an NFA from application-owned records only. */
+export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
+  const normalizedEnfaNumber = enfaNumber.trim();
+  if (!normalizedEnfaNumber) return "";
+  try {
+    const { data: record } = await supabase
+      .from("nfa")
+      .select("initiator_id")
+      .eq("enfa_number", normalizedEnfaNumber)
+      .maybeSingle();
+    if (!record?.initiator_id) return "";
+
+    const { data: profiles } = await supabase.rpc("get_profiles_basic", {
+      _ids: [record.initiator_id],
+    });
+    const profile = (profiles ?? [])[0] as { full_name: string | null } | undefined;
+    return profile?.full_name?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Current-version approval remarks for the Print Form, taken from the local
  * record. Returns an empty list when the record has no stored comments.

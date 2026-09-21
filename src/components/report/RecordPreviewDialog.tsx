@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextView } from "@/components/RichTextView";
 import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
+import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/print-form-data";
 
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
@@ -41,6 +41,7 @@ export function RecordPreviewDialog({
     subject: string | null;
   } | null>(null);
   const [comments, setComments] = useState<EnfaDocumentComment[]>([]);
+  const [initiatorName, setInitiatorName] = useState("");
   const [view, setView] = useState<"sap" | "formatted">("sap");
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -59,8 +60,14 @@ export function RecordPreviewDialog({
         .maybeSingle();
       if (cancelled) return;
       setDraft(d ?? null);
-      const c = await loadPrintComments(enfa, approvers);
-      if (!cancelled) setComments(c);
+      const [c, creator] = await Promise.all([
+        loadPrintComments(enfa, approvers),
+        loadPrintInitiator(enfa),
+      ]);
+      if (!cancelled) {
+        setComments(c);
+        setInitiatorName(creator);
+      }
 
     })();
     return () => { cancelled = true; };
@@ -202,7 +209,7 @@ export function RecordPreviewDialog({
               nfaNo={enfa}
               plantLabel={plant ? `${plant.code} – ${plant.name}` : (row?.PSPNR ?? "")}
               date={row?.BEGDA ?? ""}
-              initiator={row?.INIT_NAME ?? ""}
+               initiator={initiatorName}
               nfaType={row?.EXTR_TXT ?? ""}
               functionName={row?.FUNCT_TXT ?? ""}
               subject={draft?.subject ?? row?.SUBJECT ?? ""}

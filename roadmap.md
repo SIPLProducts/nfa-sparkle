@@ -31,3 +31,4 @@
 - [x] Match downloaded PDFs to the reference A4 frame, spacing, safe pagination, footer numbering, and final-status watermark rule.
 - [x] Prevent oversized saved rich-content images from widening the PDF capture or recreating the old Print Form layout.
 - [x] Load current Print Form comments dynamically from the configured Comments API across Preview, Edit, Approvals, PDF, and DOCX.
+- [x] Display the application-record creator as Initiator across Preview, Edit, Approvals, PDF, and DOCX without using SAP initiator data.

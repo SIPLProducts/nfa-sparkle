@@ -92,6 +92,7 @@ function NewNfaPage() {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+  const [initiatorName, setInitiatorName] = useState("");
   const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
@@ -108,6 +109,21 @@ function NewNfaPage() {
   const [functionsError, setFunctionsError] = useState("");
   const [functionReload, setFunctionReload] = useState(0);
   const plainDesc = htmlToPlainText(desc);
+
+  useEffect(() => {
+    const userId = user?.id ?? "";
+    if (!userId) {
+      setInitiatorName("");
+      return;
+    }
+    let cancelled = false;
+    void supabase.rpc("get_profiles_basic", { _ids: [userId] }).then(({ data }) => {
+      if (cancelled) return;
+      const profile = (data ?? [])[0] as { full_name: string | null } | undefined;
+      setInitiatorName(profile?.full_name?.trim() ?? "");
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
 
   // Company list comes from the SAP "Company F4" endpoint registered in Admin → SAP API Settings.
@@ -525,7 +541,7 @@ function NewNfaPage() {
                 nfaNo: enfaNo,
                 plantLabel: plantName ? `${plant} – ${plantName}` : plant,
                 date: new Date().toLocaleDateString(),
-                initiator: user.email ?? sapUser,
+                 initiator: initiatorName,
                 nfaType: nfaTypes.find((item) => item.code === nfaType)?.name ?? nfaType,
                 functionName: functions.find((item) => item.code === func)?.name ?? func,
                 subject,
@@ -806,7 +822,7 @@ function NewNfaPage() {
           return p ? `${p.code} – ${p.name}` : plant;
         })()}
         date={new Date().toLocaleDateString()}
-        initiator={user?.email ?? ""}
+         initiator={initiatorName}
         nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
         functionName={functions.find((f) => f.code === func)?.name ?? func}
         subject={subject}
