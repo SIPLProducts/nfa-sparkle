@@ -28,3 +28,4 @@
 - [x] Restore Approvals Print Form approver names and fallback comments from the same record-specific Reports row used by Edit.
 - [x] Remove missing-description dialog warnings and avoid flagging an optional blank Initiator as a failed Print Form source.
 - [x] Display saved Print Form comments version-wise in previews, PDFs, and editable DOCX files.
+- [x] Match downloaded PDFs to the reference A4 frame, spacing, safe pagination, footer numbering, and final-status watermark rule.

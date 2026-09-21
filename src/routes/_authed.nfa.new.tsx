@@ -821,6 +821,7 @@ function NewNfaPage() {
         }}
         canEdit
         onDescriptionChange={setDesc}
+        documentStatus="draft"
         approvers={approvers
           .filter((a) => a.email.trim())
           .map((a) => ({ role: `Level ${a.level}`, userId: a.email, name: a.designation }))}

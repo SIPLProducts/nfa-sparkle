@@ -33,6 +33,24 @@ export interface PrintFormDialogProps extends EnfaDocumentProps {
   onDescriptionChange?: (html: string) => void;
   onSaved?: (html: string) => void;
   approvalFlow?: ApprovalFlowRequest;
+  /** Existing workflow status, used only to decide whether the exported PDF is a draft. */
+  documentStatus?: string;
+}
+
+const PDF_PAGE = {
+  widthMm: 210,
+  heightMm: 297,
+  marginMm: 15,
+  footerBaselineMm: 289,
+} as const;
+
+function isFinalDocumentStatus(status: string | undefined): boolean {
+  const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+  return normalized === "completed"
+    || normalized === "closed"
+    || normalized === "final"
+    || normalized === "finally_approved"
+    || normalized === "final_approved";
 }
 
 /**
@@ -46,6 +64,7 @@ export function PrintFormDialog({
   onDescriptionChange,
   onSaved,
   approvalFlow,
+  documentStatus,
   ...doc
 }: PrintFormDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -269,19 +288,24 @@ export function PrintFormDialog({
          onclone: (clonedDocument) => {
            const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
            if (printable) {
+              printable.classList.add("enfa-pdf-export");
              printable.style.maxHeight = "none";
              printable.style.height = "auto";
              printable.style.overflow = "visible";
+              printable.style.width = "760px";
+              printable.style.padding = "0";
            }
          },
       });
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-       const pageWidth = ENFA_PAGE.pdfWidthMm;
-       const pageHeight = ENFA_PAGE.pdfHeightMm;
+       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
+        const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
        const pixelsPerPage = Math.floor((pageHeight / pageWidth) * canvas.width);
        const elementRect = element.getBoundingClientRect();
        const safeBoundaries = Array.from(
-         element.querySelectorAll("tr, .enfa-comment, .enfa-comment-block, .rich-content img"),
+          element.querySelectorAll(
+            "tr, .enfa-approver, .enfa-comment, .enfa-comment-block, .rich-content > *, .rich-content tr, .rich-content img",
+          ),
        )
          .flatMap((node) => {
            const rect = node.getBoundingClientRect();
@@ -291,14 +315,26 @@ export function PrintFormDialog({
          .filter((position) => position > 0 && position < canvas.height)
          .sort((a, b) => a - b);
 
-       let sourceY = 0;
+        const slices: Array<{ start: number; end: number }> = [];
+        let sourceY = 0;
        while (sourceY < canvas.height) {
          const desiredEnd = Math.min(canvas.height, sourceY + pixelsPerPage);
-         const earlierBoundary = safeBoundaries.filter((value) => value > sourceY && value <= desiredEnd).at(-1);
-         const sourceEnd = desiredEnd < canvas.height && earlierBoundary && earlierBoundary - sourceY > pixelsPerPage * 0.55
+          const earlierBoundary = safeBoundaries
+            .filter((value) => value > sourceY + pixelsPerPage * 0.4 && value <= desiredEnd)
+            .at(-1);
+          const sourceEnd = desiredEnd < canvas.height && earlierBoundary
            ? earlierBoundary
            : desiredEnd;
-         const sliceHeight = Math.max(1, sourceEnd - sourceY);
+          slices.push({ start: sourceY, end: sourceEnd });
+          sourceY = sourceEnd;
+        }
+
+        const draft = !isFinalDocumentStatus(documentStatus);
+        for (let pageIndex = 0; pageIndex < slices.length; pageIndex += 1) {
+          const slice = slices[pageIndex];
+          if (!slice) continue;
+          const { start, end } = slice;
+          const sliceHeight = Math.max(1, end - start);
          const pageCanvas = document.createElement("canvas");
          pageCanvas.width = canvas.width;
          pageCanvas.height = sliceHeight;
@@ -306,11 +342,43 @@ export function PrintFormDialog({
          if (!context) throw new Error("PDF rendering is unavailable in this browser");
          context.fillStyle = "#ffffff";
          context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-         context.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
-         if (sourceY > 0) pdf.addPage();
+          context.drawImage(canvas, 0, start, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+          if (pageIndex > 0) pdf.addPage();
          const renderedHeight = (sliceHeight * pageWidth) / canvas.width;
-         pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", 12, 12, pageWidth, renderedHeight);
-         sourceY = sourceEnd;
+          pdf.addImage(
+            pageCanvas.toDataURL("image/jpeg", 0.92),
+            "JPEG",
+            PDF_PAGE.marginMm,
+            PDF_PAGE.marginMm,
+            pageWidth,
+            renderedHeight,
+            undefined,
+            "MEDIUM",
+          );
+
+          pdf.setDrawColor(0, 0, 0);
+          pdf.setLineWidth(0.25);
+          pdf.rect(PDF_PAGE.marginMm, PDF_PAGE.marginMm, pageWidth, pageHeight);
+
+          if (draft) {
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(48);
+            pdf.setTextColor(210, 210, 210);
+            pdf.text("DRAFT", PDF_PAGE.widthMm / 2, PDF_PAGE.heightMm / 2, {
+              align: "center",
+              angle: 45,
+            });
+          }
+
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(
+            `ENFA No. ${doc.nfaNo || "Draft"} – ${pageIndex + 1} of ${slices.length}`,
+            PDF_PAGE.widthMm - PDF_PAGE.marginMm,
+            PDF_PAGE.footerBaselineMm,
+            { align: "right" },
+          );
        }
       pdf.save(`ENFA-${doc.nfaNo || "draft"}.pdf`);
     } catch (error) {
