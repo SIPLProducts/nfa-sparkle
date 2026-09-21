@@ -2,6 +2,7 @@ import { RichTextView } from "@/components/RichTextView";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
+import { orderedCommentVersions } from "@/lib/print-comment-history";
 
 export interface EnfaDocumentApprover {
   role: string;
@@ -101,9 +102,7 @@ export function EnfaDocument({
       : approvers
           .filter((a) => (a.name ?? "").trim())
           .map((a) => ({ name: a.name, text: "" }));
-  const versions = Array.from(
-    new Set(shown.map((c) => (typeof c.version === "number" ? c.version : -1))),
-  ).sort((a, b) => b - a);
+  const versions = orderedCommentVersions(shown);
 
   return (
     <article className={cn("enfa-doc", className)}>
@@ -194,14 +193,14 @@ export function EnfaDocument({
             <tr>
               <td className="enfa-cell enfa-comments">
                 {versions.map((v, vi) => (
-                  <div key={`ver-${v}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
+                  <div key={`ver-${v ?? "current"}`} className={vi > 0 ? "enfa-comment-block" : undefined}>
                     <div className="font-bold">
-                      {vi === 0 ? "Current Version Comments:" : `Version ${v} Comments:`}
+                      {v === undefined ? "Current Version Comments:" : `Version ${v} Comments:`}
                     </div>
                     {shown
-                      .filter((c) => (typeof c.version === "number" ? c.version : -1) === v)
+                      .filter((c) => c.version === v)
                       .map((c, i) => (
-                        <div key={`cmt-${v}-${i}`} className="enfa-comment">
+                        <div key={`cmt-${v ?? "current"}-${i}`} className="enfa-comment">
                           <span className="font-bold">{c.name || ""}</span>
                           {c.name && c.text ? " — " : ""}
                           {c.text}
