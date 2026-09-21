@@ -172,7 +172,6 @@ export function resolveApprovalPrintDocument(input: {
     ["Company", document.companyName],
     ["Plant", document.plantLabel],
     ["Date", document.date],
-    ["Initiator", document.initiator],
     ["NFA Type", document.nfaType],
     ["Function", document.functionName],
     ["Subject", document.subject],

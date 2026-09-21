@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
 import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
@@ -325,6 +325,7 @@ export function PrintFormDialog({
       <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-base">Print Form · {doc.nfaNo || "—"}</DialogTitle>
+          <DialogDescription className="sr-only">Review and export the complete Note for Approval document.</DialogDescription>
         </DialogHeader>
 
         <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">

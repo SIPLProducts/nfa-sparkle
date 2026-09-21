@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Upload, ArrowLeft, FileEdit, Check, X, Undo2, HelpCircle, Clock, User, Filter, Loader2, Inbox, SearchX, RotateCcw, ArrowUp, ArrowDown, ArrowUpDown, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -317,6 +317,7 @@ function NfaDetail() {
           <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display text-base">Note for Approval · {nfa.enfa_number}</DialogTitle>
+              <DialogDescription className="sr-only">Review the formatted Note for Approval document.</DialogDescription>
             </DialogHeader>
             <EnfaDocument
               companyName={nfa.company}

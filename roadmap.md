@@ -26,3 +26,4 @@
 - [x] Load each Print Form logo dynamically from the configured SAP endpoint using the selected record's Company Code.
 - [x] Load Print Form approval levels dynamically from the configured SAP endpoint using Plant, NFA Type, and Function, with saved-data fallback.
 - [x] Restore Approvals Print Form approver names and fallback comments from the same record-specific Reports row used by Edit.
+- [x] Remove missing-description dialog warnings and avoid flagging an optional blank Initiator as a failed Print Form source.

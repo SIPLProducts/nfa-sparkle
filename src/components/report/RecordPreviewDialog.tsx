@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RichTextView } from "@/components/RichTextView";
 import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadPrintComments, sapApproverUserId } from "@/lib/print-form-data";
@@ -175,6 +175,7 @@ export function RecordPreviewDialog({
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-base">Preview · {enfa || "—"}</DialogTitle>
+          <DialogDescription className="sr-only">Preview the selected eNFA record as an SAP or formatted document.</DialogDescription>
         </DialogHeader>
 
         <div className="flex gap-1 rounded-md border border-border p-0.5 text-xs">
