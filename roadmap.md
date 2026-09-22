@@ -42,3 +42,4 @@
 - [x] Rebuild Print Form PDF export as independently framed A4 pages matching the supplied reference layout.
 - [x] Keep all four downloaded PDF borders visible and enlarge/reposition the DRAFT watermark to match the reference.
 - [x] Preserve dynamic company logos losslessly in the Print Form preview and downloaded PDF without changing their reference placement.
+- [x] Prevent Vite dependency re-optimization from splitting React's hook runtime and blanking the preview.
