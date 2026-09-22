@@ -38,6 +38,27 @@ from Git.
 
 Check it: `curl http://localhost:3008/health`
 
+### Port 3008 is already in use
+
+If startup says that the eNFA middleware is already running, keep that copy
+running and do not start a second one. Confirm it with:
+
+```powershell
+Invoke-RestMethod http://localhost:3008/health
+```
+
+If another application owns the port, identify it in PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3008 | Select-Object LocalAddress,LocalPort,State,OwningProcess
+Get-Process -Id (Get-NetTCPConnection -LocalPort 3008).OwningProcess
+```
+
+Close that application normally. If it cannot be closed normally, stop only the
+identified process with `Stop-Process -Id <OwningProcess>`. Alternatively, change
+`PORT` in `.env`; then use that same port in the ngrok command and the portal's
+Middleware Port setting.
+
 > **Upgrade required (v1.1.0):** earlier versions dropped the JSON body from `GET`
 > requests, which broke SAP value-help services such as **Company F4**. Replace your
 > local `server.js` with this file and restart the service. Confirm with
@@ -128,4 +149,5 @@ Returns the ZENFA rows (`REFFLD`, `PSPNR`, `NAME1`, `FUNCT_TXT`, `EXTR_TXT`, `SU
 - Passwords are never logged and `/systems` masks them.
 - `.env` and `systems.json` are git-ignored — keep credentials on your machine only.
 - First startup creates both local files but never overwrites existing configuration.
+- Port conflicts are reported clearly; an already-running middleware is not duplicated.
 - Rotate the SAP service-user password if it has ever been shared in a document or chat.
