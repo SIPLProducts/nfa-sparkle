@@ -43,6 +43,10 @@ const PDF_PAGE = {
   marginMm: 15,
   footerBaselineMm: 289,
   stageWidthPx: 760,
+  frameInsetMm: 0.25,
+  frameLineWidthMm: 0.35,
+  draftFontSizePt: 72,
+  draftCenterYmm: 157,
 } as const;
 
 function tableWithRows(source: HTMLTableElement, rows: HTMLTableRowElement[]): HTMLTableElement {
@@ -476,11 +480,23 @@ export function PrintFormDialog({
           "MEDIUM",
         );
 
+        // Draw the page frame as a PDF vector so JPEG scaling cannot clip or
+        // soften the right and bottom edges of the captured document.
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(PDF_PAGE.frameLineWidthMm);
+        pdf.rect(
+          PDF_PAGE.marginMm + PDF_PAGE.frameInsetMm,
+          PDF_PAGE.marginMm + PDF_PAGE.frameInsetMm,
+          pageWidth - PDF_PAGE.frameInsetMm * 2,
+          pageHeight - PDF_PAGE.frameInsetMm * 2,
+          "S",
+        );
+
         if (draft) {
           pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(48);
-          pdf.setTextColor(210, 210, 210);
-          pdf.text("DRAFT", PDF_PAGE.widthMm / 2, PDF_PAGE.heightMm / 2, { align: "center", angle: 45 });
+          pdf.setFontSize(PDF_PAGE.draftFontSizePt);
+          pdf.setTextColor(175, 175, 175);
+          pdf.text("DRAFT", PDF_PAGE.widthMm / 2, PDF_PAGE.draftCenterYmm, { align: "center", angle: 45 });
         }
 
         pdf.setFont("helvetica", "normal");
