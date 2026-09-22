@@ -175,19 +175,17 @@ export function PrintFormDialog({
     return () => controller.abort();
   }, [approvalFlow?.functionName, approvalFlow?.nfaType, approvalFlow?.plant, open]);
 
-  async function pngLogoDataUrl(): Promise<string | undefined> {
+  async function preparedLogo(): Promise<{ dataUrl: string; width: number; height: number } | undefined> {
     if (!logoSrc) return undefined;
-    if (logoSrc.startsWith("data:image/png")) return logoSrc;
     return await new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const context = canvas.getContext("2d");
-        if (!context) return reject(new Error("The company logo cannot be converted for Word"));
-        context.drawImage(image, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
+        const scale = Math.min(1, 120 / image.naturalWidth, 58 / image.naturalHeight);
+        resolve({
+          dataUrl: logoSrc,
+          width: Math.max(1, Math.round(image.naturalWidth * scale)),
+          height: Math.max(1, Math.round(image.naturalHeight * scale)),
+        });
       };
       image.onerror = () => reject(new Error("The company logo format cannot be opened"));
       image.src = logoSrc;
@@ -222,6 +220,7 @@ export function PrintFormDialog({
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error("Your session has expired. Please sign in again.");
       const embeddedDescription = await embedDescriptionImages(description);
+      const logo = await preparedLogo();
       const generated = await generateDocx({
         data: {
           companyName: doc.companyName,
@@ -239,7 +238,9 @@ export function PrintFormDialog({
           descriptionImages: embeddedDescription.images,
           approvers: effectiveApprovers,
           comments: doc.comments,
-          logoBase64: await pngLogoDataUrl(),
+          logoBase64: logo?.dataUrl,
+          logoWidth: logo?.width,
+          logoHeight: logo?.height,
         },
       });
       const saved = await saveGeneratedDocx({ enfaNumber: doc.nfaNo, userId, ...generated });

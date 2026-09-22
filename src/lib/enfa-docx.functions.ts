@@ -44,6 +44,8 @@ const GenerateSchema = z.object({
   approvers: z.array(ApproverSchema).max(30).optional(),
   comments: z.array(CommentSchema).max(200).optional(),
   logoBase64: z.string().max(2_000_000).optional(),
+  logoWidth: z.number().int().positive().max(120).optional(),
+  logoHeight: z.number().int().positive().max(58).optional(),
 });
 
 type InlinePiece = { text: string; bold?: boolean; italics?: boolean; underline?: boolean };
@@ -212,7 +214,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     const titleRuns: Array<InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>> = [
       new TextRun({ text: normalized.companyName, bold: true, font: "Arial", size: 32 }),
     ];
-    if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: 108, height: 58 }, altText: { title: "Company logo", description: "Company logo", name: "Company logo" } }));
+    if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: data.logoWidth ?? 108, height: data.logoHeight ?? 58 }, altText: { title: "Company logo", description: "Company logo", name: "Company logo" } }));
 
     const children: Array<InstanceType<typeof Paragraph> | InstanceType<typeof Table>> = [
        oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: titleRuns })]),
