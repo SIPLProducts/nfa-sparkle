@@ -42,7 +42,126 @@ const PDF_PAGE = {
   heightMm: 297,
   marginMm: 15,
   footerBaselineMm: 289,
+  stageWidthPx: 760,
 } as const;
+
+function tableWithRows(source: HTMLTableElement, rows: HTMLTableRowElement[]): HTMLTableElement {
+  const table = source.cloneNode(false) as HTMLTableElement;
+  const body = document.createElement("tbody");
+  rows.forEach((row) => body.append(row.cloneNode(true)));
+  table.append(body);
+  return table;
+}
+
+function contentTable(
+  sourceTable: HTMLTableElement,
+  sourceCell: HTMLTableCellElement,
+  child?: Element,
+): HTMLTableElement {
+  const row = document.createElement("tr");
+  const cell = sourceCell.cloneNode(false) as HTMLTableCellElement;
+  const richContent = sourceCell.querySelector<HTMLElement>(".rich-content");
+  if (richContent && child) {
+    const richClone = richContent.cloneNode(false) as HTMLElement;
+    richClone.append(child.cloneNode(true));
+    cell.append(richClone);
+  } else {
+    Array.from(sourceCell.childNodes).forEach((node) => cell.append(node.cloneNode(true)));
+  }
+  row.append(cell);
+  return tableWithRows(sourceTable, [row]);
+}
+
+function commentTable(
+  sourceTable: HTMLTableElement,
+  sourceCell: HTMLTableCellElement,
+  block: Element,
+): HTMLTableElement {
+  const row = document.createElement("tr");
+  const cell = sourceCell.cloneNode(false) as HTMLTableCellElement;
+  cell.append(block.cloneNode(true));
+  row.append(cell);
+  return tableWithRows(sourceTable, [row]);
+}
+
+function createPdfBlocks(element: HTMLElement): HTMLElement[] {
+  const documentRoot = element.querySelector<HTMLElement>(".enfa-doc");
+  if (!documentRoot) return [];
+  const tables = Array.from(documentRoot.querySelectorAll<HTMLTableElement>(":scope > .enfa-table"));
+  const headerTable = tables[0];
+  if (!headerTable) return [];
+
+  const headerRows = Array.from(headerTable.tBodies[0]?.rows ?? []);
+  const descriptionIndex = headerRows.findIndex((row) => Boolean(row.querySelector(".enfa-doc-content")));
+  const blocks: HTMLElement[] = [];
+  const fixedRows = descriptionIndex >= 0 ? headerRows.slice(0, descriptionIndex) : headerRows;
+  if (fixedRows.length > 0) blocks.push(tableWithRows(headerTable, fixedRows));
+
+  if (descriptionIndex >= 0) {
+    const descriptionCell = headerRows[descriptionIndex]?.querySelector<HTMLTableCellElement>(".enfa-doc-content");
+    if (descriptionCell) {
+      const richChildren = Array.from(descriptionCell.querySelector<HTMLElement>(".rich-content")?.children ?? []);
+      if (richChildren.length > 0) {
+        richChildren.forEach((child) => blocks.push(contentTable(headerTable, descriptionCell, child)));
+      } else {
+        blocks.push(contentTable(headerTable, descriptionCell));
+      }
+    }
+  }
+
+  const approvalTable = tables.find((table) => Boolean(table.querySelector(".enfa-approver")));
+  if (approvalTable) {
+    Array.from(approvalTable.tBodies[0]?.rows ?? []).forEach((row) => {
+      blocks.push(tableWithRows(approvalTable, [row]));
+    });
+  }
+
+  const commentsTable = tables.find((table) => Boolean(table.querySelector(".enfa-comments")));
+  const commentsCell = commentsTable?.querySelector<HTMLTableCellElement>(".enfa-comments");
+  if (commentsTable && commentsCell) {
+    const commentBlocks = Array.from(commentsCell.querySelectorAll<HTMLElement>(":scope > .enfa-comment-block"));
+    commentBlocks.forEach((block) => blocks.push(commentTable(commentsTable, commentsCell, block)));
+  }
+
+  return blocks;
+}
+
+function createPdfPage(staging: HTMLElement): { page: HTMLElement; article: HTMLElement } {
+  const page = document.createElement("section");
+  page.className = "enfa-pdf-page";
+  const content = document.createElement("div");
+  content.className = "enfa-pdf-page-content";
+  const article = document.createElement("article");
+  article.className = "enfa-doc";
+  content.append(article);
+  page.append(content);
+  staging.append(page);
+  return { page, article };
+}
+
+function stagePdfPages(element: HTMLElement): { staging: HTMLElement; pages: HTMLElement[] } {
+  const staging = document.createElement("div");
+  staging.className = "enfa-pdf-staging enfa-pdf-export";
+  document.body.append(staging);
+  const blocks = createPdfBlocks(element);
+  const pages: HTMLElement[] = [];
+  let current = createPdfPage(staging);
+  pages.push(current.page);
+
+  for (const block of blocks) {
+    current.article.append(block);
+    const content = current.page.querySelector<HTMLElement>(".enfa-pdf-page-content");
+    if (!content) continue;
+    if (current.article.scrollHeight > content.clientHeight && current.article.children.length > 1) {
+      block.remove();
+      current = createPdfPage(staging);
+      pages.push(current.page);
+      current.article.append(block);
+    }
+  }
+
+  return { staging, pages };
+}
 
 function isFinalDocumentStatus(status: string | undefined): boolean {
   const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
@@ -314,116 +433,48 @@ export function PrintFormDialog({
     const element = printRef.current;
     if (!element || editing) return;
     setDownloading(true);
-    element.classList.add("enfa-pdf-export");
+    let staging: HTMLElement | undefined;
     try {
       await document.fonts?.ready;
       await waitForPrintImages(element);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas-pro"),
         import("jspdf"),
       ]);
-      const exportWidth = element.offsetWidth;
-      const exportHeight = element.scrollHeight;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        logging: false,
-        width: exportWidth,
-        height: exportHeight,
-        windowWidth: exportWidth,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDocument) => {
-          const printable = clonedDocument.querySelector<HTMLElement>("[data-enfa-print-area]");
-          if (printable) {
-            printable.classList.add("enfa-pdf-export");
-            printable.style.width = `${exportWidth}px`;
-            printable.style.minWidth = `${exportWidth}px`;
-            printable.style.maxWidth = `${exportWidth}px`;
-            printable.style.maxHeight = "none";
-            printable.style.height = "auto";
-            printable.style.overflow = "hidden";
-            printable.style.padding = "0";
-          }
-
-          clonedDocument.querySelectorAll<HTMLImageElement>(".enfa-pdf-export .rich-content img").forEach((image) => {
-            image.removeAttribute("width");
-            image.removeAttribute("height");
-            image.style.width = "auto";
-            image.style.height = "auto";
-            image.style.maxWidth = "100%";
-            image.style.maxHeight = "160px";
-            image.style.objectFit = "contain";
-          });
-
-          clonedDocument.querySelectorAll<HTMLImageElement>(".enfa-pdf-export .enfa-logo").forEach((image) => {
-            image.style.imageRendering = "auto";
-            image.style.objectFit = "contain";
-          });
-        },
-      });
-
+      const staged = stagePdfPages(element);
+      staging = staged.staging;
+      await waitForPrintImages(staging);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
       const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
       const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
-      const pixelsPerPage = Math.floor((pageHeight / pageWidth) * canvas.width);
-      const elementRect = element.getBoundingClientRect();
-      const safeBoundaries = Array.from(
-        element.querySelectorAll(
-          ".enfa-table > tbody > tr, .enfa-comments, .enfa-comment-block, .rich-content > *, .rich-content img",
-        ),
-      )
-        .flatMap((node) => {
-          const rect = node.getBoundingClientRect();
-          return [rect.top - elementRect.top, rect.bottom - elementRect.top];
-        })
-        .map((position) => Math.round(position * (canvas.height / elementRect.height)))
-        .filter((position) => position > 0 && position < canvas.height)
-        .sort((a, b) => a - b);
-
-      const slices: Array<{ start: number; end: number }> = [];
-      let sourceY = 0;
-      while (sourceY < canvas.height) {
-        const desiredEnd = Math.min(canvas.height, sourceY + pixelsPerPage);
-        const earlierBoundary = safeBoundaries
-          .filter((value) => value > sourceY + pixelsPerPage * 0.4 && value <= desiredEnd)
-          .at(-1);
-        const sourceEnd = desiredEnd < canvas.height && earlierBoundary ? earlierBoundary : desiredEnd;
-        slices.push({ start: sourceY, end: sourceEnd });
-        sourceY = sourceEnd;
-      }
-
       const draft = !isFinalDocumentStatus(documentStatus);
-      for (let pageIndex = 0; pageIndex < slices.length; pageIndex += 1) {
-        const slice = slices[pageIndex];
-        if (!slice) continue;
-        const sliceHeight = Math.max(1, slice.end - slice.start);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceHeight;
-        const context = pageCanvas.getContext("2d");
-        if (!context) throw new Error("PDF rendering is unavailable in this browser");
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-        context.drawImage(canvas, 0, slice.start, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+      for (let pageIndex = 0; pageIndex < staged.pages.length; pageIndex += 1) {
+        const page = staged.pages[pageIndex];
+        if (!page) continue;
+        const pageCanvas = await html2canvas(page, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          logging: false,
+          width: PDF_PAGE.stageWidthPx,
+          height: page.offsetHeight,
+          windowWidth: PDF_PAGE.stageWidthPx,
+          scrollX: 0,
+          scrollY: 0,
+        });
         if (pageIndex > 0) pdf.addPage();
-        const renderedHeight = (sliceHeight * pageWidth) / canvas.width;
         pdf.addImage(
           pageCanvas.toDataURL("image/jpeg", 0.92),
           "JPEG",
           PDF_PAGE.marginMm,
           PDF_PAGE.marginMm,
           pageWidth,
-          renderedHeight,
+          pageHeight,
           undefined,
           "MEDIUM",
         );
-
-        pdf.setDrawColor(0, 0, 0);
-        pdf.setLineWidth(0.25);
-        pdf.rect(PDF_PAGE.marginMm, PDF_PAGE.marginMm, pageWidth, pageHeight);
 
         if (draft) {
           pdf.setFont("helvetica", "bold");
@@ -436,7 +487,7 @@ export function PrintFormDialog({
         pdf.setFontSize(8);
         pdf.setTextColor(0, 0, 0);
         pdf.text(
-          `ENFA No. ${doc.nfaNo || "Draft"} – ${pageIndex + 1} of ${slices.length}`,
+          `ENFA No. ${doc.nfaNo || "Draft"} – ${pageIndex + 1} of ${staged.pages.length}`,
           PDF_PAGE.widthMm - PDF_PAGE.marginMm,
           PDF_PAGE.footerBaselineMm,
           { align: "right" },
@@ -447,7 +498,7 @@ export function PrintFormDialog({
       const detail = error instanceof Error ? error.message : "";
       toast.error(detail ? `Could not generate the Print Form PDF: ${detail}` : "Could not generate the Print Form PDF");
     } finally {
-      element.classList.remove("enfa-pdf-export");
+      staging?.remove();
       setDownloading(false);
     }
   }
