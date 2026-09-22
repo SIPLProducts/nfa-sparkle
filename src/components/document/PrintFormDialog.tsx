@@ -117,7 +117,27 @@ export function PrintFormDialog({
         });
         const result = (await response.json()) as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
         if (!response.ok || !result.ok || !result.dataUrl) throw new Error(result.message || result.error || "Company logo is unavailable");
-        setLogoSrc(result.dataUrl);
+        const image = new Image();
+        image.decoding = "async";
+        image.src = result.dataUrl;
+        await image.decode();
+
+        // Normalise SAP's bitmap response once at its native resolution. This
+        // preserves every source pixel and gives browser, PDF and Word exports
+        // the same lossless image without stretching its aspect ratio.
+        if (result.dataUrl.startsWith("data:image/png")) {
+          setLogoSrc(result.dataUrl);
+        } else {
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("The company logo cannot be prepared");
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "high";
+          context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+          setLogoSrc(canvas.toDataURL("image/png"));
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         toast.warning(error instanceof Error ? error.message : "Company logo is unavailable");
@@ -155,23 +175,38 @@ export function PrintFormDialog({
     return () => controller.abort();
   }, [approvalFlow?.functionName, approvalFlow?.nfaType, approvalFlow?.plant, open]);
 
-  async function pngLogoDataUrl(): Promise<string | undefined> {
+  async function preparedLogo(): Promise<{ dataUrl: string; width: number; height: number } | undefined> {
     if (!logoSrc) return undefined;
-    if (logoSrc.startsWith("data:image/png")) return logoSrc;
     return await new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const context = canvas.getContext("2d");
-        if (!context) return reject(new Error("The company logo cannot be converted for Word"));
-        context.drawImage(image, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
+        const scale = Math.min(1, 120 / image.naturalWidth, 58 / image.naturalHeight);
+        resolve({
+          dataUrl: logoSrc,
+          width: Math.max(1, Math.round(image.naturalWidth * scale)),
+          height: Math.max(1, Math.round(image.naturalHeight * scale)),
+        });
       };
       image.onerror = () => reject(new Error("The company logo format cannot be opened"));
       image.src = logoSrc;
     });
+  }
+
+  async function waitForPrintImages(element: HTMLElement): Promise<void> {
+    const images = Array.from(element.querySelectorAll("img"));
+    await Promise.all(images.map(async (image) => {
+      if (!image.complete) {
+        await new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }
+      try {
+        await image.decode();
+      } catch {
+        // A failed optional image must not prevent the rest of the form export.
+      }
+    }));
   }
 
   async function createOrDownloadDocx() {
@@ -185,6 +220,7 @@ export function PrintFormDialog({
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error("Your session has expired. Please sign in again.");
       const embeddedDescription = await embedDescriptionImages(description);
+      const logo = await preparedLogo();
       const generated = await generateDocx({
         data: {
           companyName: doc.companyName,
@@ -202,7 +238,9 @@ export function PrintFormDialog({
           descriptionImages: embeddedDescription.images,
           approvers: effectiveApprovers,
           comments: doc.comments,
-          logoBase64: await pngLogoDataUrl(),
+          logoBase64: logo?.dataUrl,
+          logoWidth: logo?.width,
+          logoHeight: logo?.height,
         },
       });
       const saved = await saveGeneratedDocx({ enfaNumber: doc.nfaNo, userId, ...generated });
@@ -279,6 +317,7 @@ export function PrintFormDialog({
     element.classList.add("enfa-pdf-export");
     try {
       await document.fonts?.ready;
+      await waitForPrintImages(element);
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas-pro"),
@@ -316,6 +355,11 @@ export function PrintFormDialog({
             image.style.height = "auto";
             image.style.maxWidth = "100%";
             image.style.maxHeight = "160px";
+            image.style.objectFit = "contain";
+          });
+
+          clonedDocument.querySelectorAll<HTMLImageElement>(".enfa-pdf-export .enfa-logo").forEach((image) => {
+            image.style.imageRendering = "auto";
             image.style.objectFit = "contain";
           });
         },

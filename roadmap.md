@@ -33,3 +33,4 @@
 - [x] Load current Print Form comments dynamically from the configured Comments API across Preview, Edit, Approvals, PDF, and DOCX.
 - [x] Display the application-record creator as Initiator across Preview, Edit, Approvals, PDF, and DOCX without using SAP initiator data.
 - [x] Restore Print Form PDF downloads to export the rendered Print Form itself while keeping Preview PDF downloads unchanged.
+- [x] Improve the dynamic Print Form logo clarity, proportions, and alignment across screen, print, PDF, and DOCX.

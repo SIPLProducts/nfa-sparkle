@@ -275,16 +275,29 @@
   font-size: 18px;
   font-weight: 700;
   text-align: center;
+  padding-inline: 132px;
 }
-.enfa-doc .enfa-logo {
+.enfa-doc .enfa-logo-frame {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  height: 54px;
+  width: 120px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.enfa-doc .enfa-logo {
+  display: block;
   width: auto;
-  max-width: 150px;
+  height: auto;
+  max-width: 120px;
+  max-height: 58px;
   object-fit: contain;
+  object-position: center right;
+  image-rendering: auto;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
 }
@@ -403,6 +416,10 @@
   .enfa-doc .enfa-approver,
   .enfa-doc .enfa-comment,
   .enfa-doc .enfa-comment-block { break-inside: avoid; }
+  .enfa-doc .enfa-logo-frame {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   .enfa-description-editor > :first-child { display: none !important; }
   @page { size: A4; margin: 12mm; }
 }
