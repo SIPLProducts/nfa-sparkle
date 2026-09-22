@@ -26,7 +26,9 @@ node server.js
 
 On the first start, the middleware automatically:
 
-- creates `.env` beside `server.js` with a strong random `PROXY_SECRET`;
+- creates `.env` beside `server.js`, preserving an explicit `PROXY_SECRET` from
+  `.env.example` or generating a strong random value when the template still
+  contains its placeholder;
 - creates `systems.json` from `systems.example.json` when it is missing; and
 - displays the generated Proxy Secret once in the terminal.
 
@@ -37,6 +39,18 @@ secret is not displayed again on later starts. Both local files remain excluded
 from Git.
 
 Check it: `curl http://localhost:3008/health`
+
+The portal's **Test middleware** button verifies both connectivity and the Proxy
+Secret. If it reports `401 Invalid Proxy Secret`, open `middleware\.env` and make
+sure `PROXY_SECRET` exactly matches the value saved in **Admin → SAP API Settings
+→ Middleware Configuration**. Then restart the process that owns port 3008 so it
+loads the updated `.env`:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3008 | Select-Object OwningProcess
+Stop-Process -Id <OwningProcess>
+node server.js
+```
 
 ### Port 3008 is already in use
 
