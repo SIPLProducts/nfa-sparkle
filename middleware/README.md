@@ -13,27 +13,28 @@ eNFA portal (cloud)  --https-->  ngrok  -->  middleware :3008  --LAN-->  SAP 10.
 ```bash
 cd middleware
 npm install
-cp .env.example .env                 # set PROXY_SECRET to a long random string
-cp systems.example.json systems.json # add your SAP hosts / clients / users
 npm start
 ```
 
-On Windows PowerShell, use these commands instead of `cp`:
+On Windows PowerShell:
 
 ```powershell
 Set-Location middleware
 npm install
-Copy-Item .env.example .env
-Copy-Item systems.example.json systems.json
-Get-ChildItem -Force .env, systems.json
-notepad .env
-notepad systems.json
 node server.js
 ```
 
-The file must be named exactly `.env`, not `.env.txt`. Set `PROXY_SECRET` to a
-long random value and enter that same value in **Admin → SAP API Settings →
-Middleware Configuration → Proxy Secret**. Do not commit or share the value.
+On the first start, the middleware automatically:
+
+- creates `.env` beside `server.js` with a strong random `PROXY_SECRET`;
+- creates `systems.json` from `systems.example.json` when it is missing; and
+- displays the generated Proxy Secret once in the terminal.
+
+Enter that value in **Admin → SAP API Settings → Middleware Configuration →
+Proxy Secret**. Then review the SAP host and credentials in `systems.json` before
+live calls. Existing `.env` and `systems.json` files are never replaced, and the
+secret is not displayed again on later starts. Both local files remain excluded
+from Git.
 
 Check it: `curl http://localhost:3008/health`
 
@@ -126,4 +127,5 @@ Returns the ZENFA rows (`REFFLD`, `PSPNR`, `NAME1`, `FUNCT_TXT`, `EXTR_TXT`, `SU
 - Optional `ALLOW_IPS` restricts callers by source IP.
 - Passwords are never logged and `/systems` masks them.
 - `.env` and `systems.json` are git-ignored — keep credentials on your machine only.
+- First startup creates both local files but never overwrites existing configuration.
 - Rotate the SAP service-user password if it has ever been shared in a document or chat.
