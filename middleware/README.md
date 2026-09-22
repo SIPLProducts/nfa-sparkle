@@ -5,7 +5,7 @@ SAP systems. The portal never talks to SAP directly — it posts to this middlew
 which forwards the call over your LAN and returns the response.
 
 ```
-eNFA portal (cloud)  --https-->  ngrok  -->  middleware :3005  --LAN-->  SAP 10.200.1.2:8000
+eNFA portal (cloud)  --https-->  ngrok  -->  middleware :3008  --LAN-->  SAP 10.200.1.2:8000
 ```
 
 ## 1. Install and run
@@ -18,12 +18,29 @@ cp systems.example.json systems.json # add your SAP hosts / clients / users
 npm start
 ```
 
-Check it: `curl http://localhost:3005/health`
+On Windows PowerShell, use these commands instead of `cp`:
+
+```powershell
+Set-Location middleware
+npm install
+Copy-Item .env.example .env
+Copy-Item systems.example.json systems.json
+Get-ChildItem -Force .env, systems.json
+notepad .env
+notepad systems.json
+node server.js
+```
+
+The file must be named exactly `.env`, not `.env.txt`. Set `PROXY_SECRET` to a
+long random value and enter that same value in **Admin → SAP API Settings →
+Middleware Configuration → Proxy Secret**. Do not commit or share the value.
+
+Check it: `curl http://localhost:3008/health`
 
 > **Upgrade required (v1.1.0):** earlier versions dropped the JSON body from `GET`
 > requests, which broke SAP value-help services such as **Company F4**. Replace your
 > local `server.js` with this file and restart the service. Confirm with
-> `curl http://localhost:3005/health` — it must report `"version": "1.1.0"` and
+> `curl http://localhost:3008/health` — it must report `"version": "1.1.0"` and
 > `"getBodySupported": true`.
 
 Keep it running permanently with pm2 (Linux) or nssm (Windows service):
@@ -35,7 +52,7 @@ npm i -g pm2 && pm2 start server.js --name enfa-sap-middleware && pm2 save
 ## 2. Expose it with ngrok
 
 ```bash
-ngrok http 3005
+ngrok http 3008
 ```
 
 Copy the `https://xxxx.ngrok-free.app` URL. A reserved ngrok domain is recommended
@@ -48,7 +65,7 @@ In the app: **Admin → SAP API Settings**
 - **Middleware Configuration** tab
   - Connection Mode: `Via Proxy Server`
   - Node.js Middleware URL: your ngrok URL (e.g. `https://xxxx.ngrok-free.app`)
-  - Middleware Port: `3005`
+  - Middleware Port: `3008`
   - Proxy Secret: the same value as `PROXY_SECRET` in `.env`
   - Press **Test middleware** — it calls `GET /health`.
 - **SAP Systems** tab — add one row per SAP system (Host/IP, Port, Client, Username,
@@ -89,7 +106,7 @@ Response:
 ### ZENFA report example
 
 ```bash
-curl -X POST http://localhost:3005/sap/call \
+curl -X POST http://localhost:3008/sap/call \
   -H "content-type: application/json" \
   -H "x-proxy-secret: $PROXY_SECRET" \
   -d '{
