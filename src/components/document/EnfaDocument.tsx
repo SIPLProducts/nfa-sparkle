@@ -114,7 +114,11 @@ export function EnfaDocument({
             <td className="enfa-cell enfa-title-row">
               <div className="enfa-company">
                  <span>{normalized.companyName}</span>
-                {logoSrc ? <img src={logoSrc} alt="" className="enfa-logo" /> : null}
+                {logoSrc ? (
+                  <span className="enfa-logo-frame" aria-hidden="true">
+                    <img src={logoSrc} alt="" className="enfa-logo" decoding="async" />
+                  </span>
+                ) : null}
               </div>
             </td>
           </tr>

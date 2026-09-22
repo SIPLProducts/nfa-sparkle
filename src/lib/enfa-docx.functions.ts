@@ -212,7 +212,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
     const titleRuns: Array<InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>> = [
       new TextRun({ text: normalized.companyName, bold: true, font: "Arial", size: 32 }),
     ];
-    if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: 120, height: 54 }, altText: { title: "Ramky logo", description: "Ramky logo", name: "Ramky logo" } }));
+    if (logo) titleRuns.push(new ImageRun({ type: "png", data: Uint8Array.from(atob(logo), (c) => c.charCodeAt(0)), transformation: { width: 108, height: 58 }, altText: { title: "Company logo", description: "Company logo", name: "Company logo" } }));
 
     const children: Array<InstanceType<typeof Paragraph> | InstanceType<typeof Table>> = [
        oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: titleRuns })]),
