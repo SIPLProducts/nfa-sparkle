@@ -19,6 +19,7 @@ const ENV_FILE = path.join(__dirname, ".env");
 const ENV_EXAMPLE_FILE = path.join(__dirname, ".env.example");
 const SYSTEMS_FILE = path.join(__dirname, "systems.json");
 const SYSTEMS_EXAMPLE_FILE = path.join(__dirname, "systems.example.json");
+let generatedProxySecret = "";
 
 function createFirstRunFiles() {
   if (!fs.existsSync(ENV_FILE)) {
@@ -40,6 +41,7 @@ function createFirstRunFiles() {
 
     try {
       fs.writeFileSync(ENV_FILE, configured, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      generatedProxySecret = needsGeneratedSecret ? secret : "";
       console.log(`[middleware] Created local configuration: ${ENV_FILE}`);
     } catch (error) {
       if (!error || error.code !== "EEXIST") {
@@ -98,6 +100,15 @@ const MAX_BODY = process.env.MAX_BODY || "60mb";
 if (!PROXY_SECRET) {
   console.error(`[middleware] PROXY_SECRET is empty or missing in ${ENV_FILE}. Set a strong secret and restart.`);
   process.exit(1);
+}
+
+function showGeneratedProxySecret() {
+  if (!generatedProxySecret) return;
+  console.log("[middleware] First-time setup generated this Proxy Secret:");
+  console.log(generatedProxySecret);
+  console.log("[middleware] Enter it in Admin -> SAP API Settings -> Middleware Configuration -> Proxy Secret.");
+  console.log("[middleware] It will not be displayed on later starts.");
+  generatedProxySecret = "";
 }
 
 function checkExistingMiddleware() {
@@ -361,6 +372,8 @@ app.post("/sap/call", requireSecret, async (req, res) => {
 });
 
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+
+showGeneratedProxySecret();
 
 const server = app.listen(PORT, () => {
   console.log(`[middleware] eNFA SAP middleware v${VERSION} listening on http://localhost:${PORT}`);

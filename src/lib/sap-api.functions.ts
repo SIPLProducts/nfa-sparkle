@@ -156,7 +156,7 @@ async function callSap(opts: {
   }
 
   if (viaProxy) {
-    const secret = (await getSecret("middleware_secret")) ?? "";
+    const secret = (await getSecret("middleware_secret"))?.trim() ?? "";
     const url = `${mw!.url.replace(/\/+$/, "")}/sap/call`;
     const payload = {
       system: opts.system?.key ?? undefined,
@@ -509,7 +509,7 @@ export const testMiddleware = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: mw } = await db.from("sap_middleware_config").select("*").limit(1).maybeSingle();
     if (!mw?.url) throw new Error("Set the Node.js Middleware URL first");
-    const secret = await getSecret("middleware_secret");
+    const secret = (await getSecret("middleware_secret"))?.trim();
     const headers: Record<string, string> = {};
     if (secret) headers["x-proxy-secret"] = secret;
     const systemsUrl = `${mw.url.replace(/\/+$/, "")}/systems`;
