@@ -17,6 +17,27 @@ export default defineConfig({
     resolve: {
       dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     },
+    // Pre-bundle the complete client runtime before serving the first page.
+    // If Vite discovers these TanStack helpers later, it creates a second
+    // optimizer generation and React hooks can briefly bind to two dispatchers.
+    optimizeDeps: {
+      include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "react-dom",
+        "react-dom/client",
+        "@tanstack/react-query",
+        "@tanstack/react-router",
+        "@tanstack/react-store",
+        "@tanstack/history",
+        "@tanstack/router-core",
+        "@tanstack/router-core/ssr/client",
+        "@tanstack/router-core/ssr/server",
+        "h3-v2",
+        "seroval",
+      ],
+    },
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
