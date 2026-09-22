@@ -469,15 +469,18 @@ export function PrintFormDialog({
           scrollY: 0,
         });
         if (pageIndex > 0) pdf.addPage();
+        // Keep logos and other fine image detail lossless. JPEG compression
+        // visibly softened the small company mark even though the source logo
+        // had already been prepared as a full-quality PNG.
         pdf.addImage(
-          pageCanvas.toDataURL("image/jpeg", 0.92),
-          "JPEG",
+          pageCanvas.toDataURL("image/png"),
+          "PNG",
           PDF_PAGE.marginMm,
           PDF_PAGE.marginMm,
           pageWidth,
           pageHeight,
           undefined,
-          "MEDIUM",
+          "FAST",
         );
 
         // Draw the page frame as a PDF vector so JPEG scaling cannot clip or
