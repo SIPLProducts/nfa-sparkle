@@ -40,3 +40,4 @@
 - [x] Keep explicit first-run Proxy Secrets and make the portal connection test verify authentication.
 - [x] Distinguish middleware Proxy Secret failures from SAP authentication failures across SAP calls.
 - [x] Rebuild Print Form PDF export as independently framed A4 pages matching the supplied reference layout.
+- [x] Keep all four downloaded PDF borders visible and enlarge/reposition the DRAFT watermark to match the reference.
