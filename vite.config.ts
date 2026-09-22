@@ -12,6 +12,12 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const isLovableBuild = process.env.LOVABLE_SANDBOX === "1" || !!process.env.SANDBOX;
 
 export default defineConfig({
+  vite: {
+    // React hooks must be shared by the renderer and every TanStack package.
+    resolve: {
+      dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
