@@ -52,6 +52,47 @@ if (!PROXY_SECRET) {
   process.exit(1);
 }
 
+function checkExistingMiddleware() {
+  return new Promise((resolve) => {
+    const request = http.get(
+      { hostname: "127.0.0.1", port: PORT, path: "/health", timeout: 2000 },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { body += chunk; });
+        response.on("end", () => {
+          try {
+            const health = JSON.parse(body);
+            resolve(Boolean(health && health.service === "enfa-sap-middleware"));
+          } catch (_error) {
+            resolve(false);
+          }
+        });
+      },
+    );
+    request.on("timeout", () => request.destroy());
+    request.on("error", () => resolve(false));
+  });
+}
+
+async function handleListenError(error) {
+  if (!error || error.code !== "EADDRINUSE") {
+    console.error(`[middleware] Could not start: ${(error && error.message) || error}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const middlewareIsRunning = await checkExistingMiddleware();
+  if (middlewareIsRunning) {
+    console.error(`[middleware] eNFA SAP middleware is already running on port ${PORT}. Do not start a second copy.`);
+  } else {
+    console.error(`[middleware] Port ${PORT} is already being used by another application.`);
+    console.error(`[middleware] PowerShell: Get-NetTCPConnection -LocalPort ${PORT} | Select-Object OwningProcess`);
+    console.error("[middleware] Stop that process, or change PORT in .env and use the same port for ngrok and API Settings.");
+  }
+  process.exitCode = 1;
+}
+
 /* ------------------------------- systems ------------------------------- */
 
 const SYSTEMS_FILE = path.join(__dirname, "systems.json");
@@ -275,10 +316,12 @@ app.post("/sap/call", requireSecret, async (req, res) => {
 
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[middleware] eNFA SAP middleware v${VERSION} listening on http://localhost:${PORT}`);
   const systems = loadSystems();
   if (systems.length) {
     systems.forEach((s) => console.log(`  · ${s.key} -> ${baseUrlOf(s)} (client ${s.client || "-"})`));
   }
 });
+
+server.on("error", handleListenError);
