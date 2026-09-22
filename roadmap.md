@@ -35,3 +35,4 @@
 - [x] Restore Print Form PDF downloads to export the rendered Print Form itself while keeping Preview PDF downloads unchanged.
 - [x] Improve the dynamic Print Form logo clarity, proportions, and alignment across screen, print, PDF, and DOCX.
 - [x] Make the downloaded SAP middleware load its own `.env` reliably on Windows and use port 3008 consistently.
+- [x] Make the downloaded middleware securely create missing `.env` and `systems.json` files on first startup.
