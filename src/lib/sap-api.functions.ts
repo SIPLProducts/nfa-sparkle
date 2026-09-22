@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { parseProxyResponse } from "./sap-proxy-response";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 
@@ -174,27 +175,7 @@ async function callSap(opts: {
       body: JSON.stringify(payload),
     });
     if (!r.ok && r.status === null) return r;
-    try {
-      const parsed = JSON.parse(r.body) as {
-        ok?: boolean;
-        status?: number | null;
-        latencyMs?: number;
-        body?: unknown;
-        error?: string | null;
-      };
-      return {
-        ok: !!parsed.ok,
-        status: parsed.status ?? r.status,
-        latencyMs: parsed.latencyMs ?? r.latencyMs,
-        body:
-          typeof parsed.body === "string"
-            ? parsed.body
-            : JSON.stringify(parsed.body ?? "", null, 2).slice(0, 200000),
-        error: parsed.error ?? null,
-      };
-    } catch {
-      return r;
-    }
+    return parseProxyResponse(r, 200000);
   }
 
   if (!isAbsolute && !base) {

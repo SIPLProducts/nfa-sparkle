@@ -1,5 +1,7 @@
 /** Server-only SAP access helpers shared by server functions and API routes. */
 
+import { parseProxyResponse } from "./sap-proxy-response";
+
 export interface SapCallResult {
   ok: boolean;
   status: number | null;
@@ -159,28 +161,7 @@ export async function callSap(opts: {
       body: JSON.stringify(payload),
     }, timeoutMs + 5000, Math.max(limit + 4000, 8000));
     if (!r.ok && r.status === null) return { ...r, request: requestInfo };
-    try {
-      const parsed = JSON.parse(r.body) as {
-        ok?: boolean;
-        status?: number | null;
-        latencyMs?: number;
-        body?: unknown;
-        error?: string | null;
-      };
-      return {
-        ok: !!parsed.ok,
-        status: parsed.status ?? r.status,
-        latencyMs: parsed.latencyMs ?? r.latencyMs,
-        body:
-          typeof parsed.body === "string"
-            ? parsed.body
-            : JSON.stringify(parsed.body ?? "").slice(0, limit),
-        error: parsed.error ?? null,
-        request: requestInfo,
-      };
-    } catch {
-      return { ...r, request: requestInfo };
-    }
+    return { ...parseProxyResponse(r, limit), request: requestInfo };
   }
 
   if (!isAbsolute && !base) {
