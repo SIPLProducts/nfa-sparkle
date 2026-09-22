@@ -385,7 +385,8 @@ export const saveMiddlewareConfig = createServerFn({ method: "POST" })
     };
     if (row) await db.from("sap_middleware_config").update(payload).eq("id", row.id);
     else await db.from("sap_middleware_config").insert(payload);
-    await setSecret("middleware_secret", data.secret);
+    const normalizedSecret = data.secret?.trim();
+    await setSecret("middleware_secret", normalizedSecret);
     return { ok: true };
   });
 
@@ -511,8 +512,11 @@ export const testMiddleware = createServerFn({ method: "POST" })
     const secret = await getSecret("middleware_secret");
     const headers: Record<string, string> = {};
     if (secret) headers["x-proxy-secret"] = secret;
-    const healthUrl = `${mw.url.replace(/\/+$/, "")}/health`;
-    const r = await fetchWithTimeout(healthUrl, { method: "GET", headers });
+    const systemsUrl = `${mw.url.replace(/\/+$/, "")}/systems`;
+    const r = await fetchWithTimeout(systemsUrl, { method: "GET", headers });
+    if (r.status === 401) {
+      r.error = "Invalid Proxy Secret — it must exactly match PROXY_SECRET in the middleware .env file";
+    }
     await logTest(null, "middleware", r, (context as any).userId);
     return r;
   });

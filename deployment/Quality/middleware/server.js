@@ -14,7 +14,55 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const ENV_FILE = path.join(__dirname, ".env");
+const ENV_EXAMPLE_FILE = path.join(__dirname, ".env.example");
+const SYSTEMS_FILE = path.join(__dirname, "systems.json");
+const SYSTEMS_EXAMPLE_FILE = path.join(__dirname, "systems.example.json");
+
+function createFirstRunFiles() {
+  if (!fs.existsSync(ENV_FILE)) {
+    if (!fs.existsSync(ENV_EXAMPLE_FILE)) {
+      console.error(`[middleware] Cannot create ${ENV_FILE}: ${ENV_EXAMPLE_FILE} is missing.`);
+      process.exit(1);
+    }
+
+    const template = fs.readFileSync(ENV_EXAMPLE_FILE, "utf8");
+    const configuredSecret = template.match(/^PROXY_SECRET=(.*)$/m)?.[1]?.trim() ?? "";
+    const needsGeneratedSecret =
+      !configuredSecret ||
+      configuredSecret === "replace-with-a-long-random-secret" ||
+      /^<.*>$/.test(configuredSecret);
+    const secret = needsGeneratedSecret ? crypto.randomBytes(32).toString("hex") : configuredSecret;
+    const configured = /^PROXY_SECRET=.*$/m.test(template)
+      ? template.replace(/^PROXY_SECRET=.*$/m, `PROXY_SECRET=${secret}`)
+      : `${template.trimEnd()}\nPROXY_SECRET=${secret}\n`;
+
+    try {
+      fs.writeFileSync(ENV_FILE, configured, { encoding: "utf8", flag: "wx", mode: 0o600 });
+      console.log(`[middleware] Created local configuration: ${ENV_FILE}`);
+    } catch (error) {
+      if (!error || error.code !== "EEXIST") {
+        console.error(`[middleware] Could not create ${ENV_FILE}: ${(error && error.message) || error}`);
+        process.exit(1);
+      }
+    }
+  }
+
+  if (!fs.existsSync(SYSTEMS_FILE) && fs.existsSync(SYSTEMS_EXAMPLE_FILE)) {
+    try {
+      fs.copyFileSync(SYSTEMS_EXAMPLE_FILE, SYSTEMS_FILE, fs.constants.COPYFILE_EXCL);
+      console.log(`[middleware] Created ${SYSTEMS_FILE}. Review its SAP host and credentials before live calls.`);
+    } catch (error) {
+      if (!error || error.code !== "EEXIST") {
+        console.error(`[middleware] Could not create ${SYSTEMS_FILE}: ${(error && error.message) || error}`);
+        process.exit(1);
+      }
+    }
+  }
+}
+
+createFirstRunFiles();
 const envResult = require("dotenv").config({ path: ENV_FILE });
 
 if (envResult.error) {
@@ -94,8 +142,6 @@ async function handleListenError(error) {
 }
 
 /* ------------------------------- systems ------------------------------- */
-
-const SYSTEMS_FILE = path.join(__dirname, "systems.json");
 
 function loadSystems() {
   if (!fs.existsSync(SYSTEMS_FILE)) return [];

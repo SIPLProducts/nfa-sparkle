@@ -137,7 +137,7 @@ export async function callSap(opts: {
   const requestInfo = { url: sapUrl, method: opts.method, body: opts.body ?? "" };
 
   if (viaProxy) {
-    const secret = secretValue ?? "";
+    const secret = secretValue?.trim() ?? "";
 
     const limit = opts.maxBytes ?? 4000;
     const timeoutMs = opts.timeoutMs ?? 20000;

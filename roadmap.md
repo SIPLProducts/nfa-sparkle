@@ -37,3 +37,4 @@
 - [x] Make the downloaded SAP middleware load its own `.env` reliably on Windows and use port 3008 consistently.
 - [x] Make the downloaded middleware securely create missing `.env` and `systems.json` files on first startup.
 - [x] Handle middleware port conflicts without an unhandled crash and preserve first-run secret guidance.
+- [x] Keep explicit first-run Proxy Secrets and make the portal connection test verify authentication.

@@ -28,15 +28,20 @@ function createFirstRunFiles() {
       process.exit(1);
     }
 
-    const secret = crypto.randomBytes(32).toString("hex");
     const template = fs.readFileSync(ENV_EXAMPLE_FILE, "utf8");
+    const configuredSecret = template.match(/^PROXY_SECRET=(.*)$/m)?.[1]?.trim() ?? "";
+    const needsGeneratedSecret =
+      !configuredSecret ||
+      configuredSecret === "replace-with-a-long-random-secret" ||
+      /^<.*>$/.test(configuredSecret);
+    const secret = needsGeneratedSecret ? crypto.randomBytes(32).toString("hex") : configuredSecret;
     const configured = /^PROXY_SECRET=.*$/m.test(template)
       ? template.replace(/^PROXY_SECRET=.*$/m, `PROXY_SECRET=${secret}`)
       : `${template.trimEnd()}\nPROXY_SECRET=${secret}\n`;
 
     try {
       fs.writeFileSync(ENV_FILE, configured, { encoding: "utf8", flag: "wx", mode: 0o600 });
-      generatedProxySecret = secret;
+      generatedProxySecret = needsGeneratedSecret ? secret : "";
       console.log(`[middleware] Created local configuration: ${ENV_FILE}`);
     } catch (error) {
       if (!error || error.code !== "EEXIST") {
