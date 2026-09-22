@@ -34,3 +34,4 @@
 - [x] Display the application-record creator as Initiator across Preview, Edit, Approvals, PDF, and DOCX without using SAP initiator data.
 - [x] Restore Print Form PDF downloads to export the rendered Print Form itself while keeping Preview PDF downloads unchanged.
 - [x] Improve the dynamic Print Form logo clarity, proportions, and alignment across screen, print, PDF, and DOCX.
+- [x] Make the downloaded SAP middleware load its own `.env` reliably on Windows and use port 3008 consistently.

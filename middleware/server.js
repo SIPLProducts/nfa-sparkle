@@ -8,22 +8,35 @@
  *   npm install
  *   cp .env.example .env      # set PROXY_SECRET
  *   cp systems.example.json systems.json
- *   npm start                 # http://localhost:3005
- *   ngrok http 3005           # paste the https URL into API Settings
+ *   npm start                 # http://localhost:3008
+ *   ngrok http 3008           # paste the https URL into API Settings
  */
-
-require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
+const ENV_FILE = path.join(__dirname, ".env");
+const envResult = require("dotenv").config({ path: ENV_FILE });
+
+if (envResult.error) {
+  if (envResult.error.code === "ENOENT") {
+    const windowsHint = fs.existsSync(`${ENV_FILE}.txt`)
+      ? ` Found "${ENV_FILE}.txt"; rename it to exactly ".env".`
+      : ' On Windows, confirm File Explorer did not save it as ".env.txt".';
+    console.error(`[middleware] Configuration file not found: ${ENV_FILE}.${windowsHint}`);
+  } else {
+    console.error(`[middleware] Could not load configuration file ${ENV_FILE}: ${envResult.error.message}`);
+  }
+  process.exit(1);
+}
+
 const http = require("http");
 const https = require("https");
 const express = require("express");
 const cors = require("cors");
 
 const VERSION = "1.1.0";
-const PORT = Number(process.env.PORT || 3005);
-const PROXY_SECRET = process.env.PROXY_SECRET || "";
+const PORT = Number(process.env.PORT || 3008);
+const PROXY_SECRET = (process.env.PROXY_SECRET || "").trim();
 const ALLOW_IPS = (process.env.ALLOW_IPS || "")
   .split(",")
   .map((s) => s.trim())
@@ -35,7 +48,7 @@ const MAX_BODY = process.env.MAX_BODY || "60mb";
 
 
 if (!PROXY_SECRET) {
-  console.error("[middleware] PROXY_SECRET is not set. Copy .env.example to .env and set a strong secret.");
+  console.error(`[middleware] PROXY_SECRET is empty or missing in ${ENV_FILE}. Set a strong secret and restart.`);
   process.exit(1);
 }
 
