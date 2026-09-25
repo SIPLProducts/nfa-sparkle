@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           /* fall through with empty user_name */
         }
 
-        let input: { reffld?: string; comment?: string; action?: string } = {};
+        let input: { reffld?: string; comment?: string; action?: string; file_path?: string; file?: string } = {};
         try {
           input = (await request.json()) as typeof input;
         } catch {
@@ -71,11 +71,31 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           return Response.json({ ok: false, message: `Unsupported action: ${rawAction}` }, { status: 200 });
         }
 
+        const filePath = String(input.file_path ?? "").trim();
+        const file = String(input.file ?? "").replace(/\s+/g, "");
+        if (rawAction === "approve") {
+          if (!filePath || !file) {
+            return Response.json({ ok: false, message: "The Print Form PDF could not be prepared for approval" }, { status: 200 });
+          }
+          if (!/^[A-Za-z0-9+/]+={0,2}$/.test(file) || file.length > 25_200_000) {
+            return Response.json({ ok: false, message: "The Print Form PDF is invalid or too large" }, { status: 200 });
+          }
+          try {
+            if (atob(file.slice(0, 8)).slice(0, 5) !== "%PDF-") {
+              return Response.json({ ok: false, message: "The approval attachment is not a valid PDF" }, { status: 200 });
+            }
+          } catch {
+            return Response.json({ ok: false, message: "The approval attachment is not valid Base64" }, { status: 200 });
+          }
+        }
+
         const result = await callEnfaApprovalAction({
           action: rawAction as (typeof allowed)[number],
           reffld,
           comment: String(input.comment ?? ""),
           user_name: userName,
+          file_path: rawAction === "approve" ? filePath.replace(/^.*[\\/]/, "") : undefined,
+          file: rawAction === "approve" ? file : undefined,
         });
 
         const headers: Record<string, string> = {
@@ -84,7 +104,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           "x-sap-status": String(result.status ?? ""),
           "x-sap-url": result.request?.url ?? "",
           "x-sap-method": result.request?.method ?? "",
-          "x-sap-request": String(result.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
+          "x-sap-request": safeRequestSummary(result.request?.body),
           "x-sap-latency-ms": String(result.latencyMs ?? 0),
         };
 
@@ -139,5 +159,21 @@ function tryParse(text: string): unknown {
     return JSON.parse(text);
   } catch {
     return text;
+  }
+}
+
+function safeRequestSummary(body: string | undefined): string {
+  if (!body) return "";
+  try {
+    const value = JSON.parse(body) as Record<string, unknown>;
+    for (const wrapper of Object.values(value)) {
+      if (!wrapper || typeof wrapper !== "object" || Array.isArray(wrapper)) continue;
+      for (const key of Object.keys(wrapper)) {
+        if (key.toLowerCase() === "file") (wrapper as Record<string, unknown>)[key] = "[PDF omitted]";
+      }
+    }
+    return JSON.stringify(value).replace(/[^\x20-\x7E]/g, " ").slice(0, 2000);
+  } catch {
+    return "[request body omitted]";
   }
 }

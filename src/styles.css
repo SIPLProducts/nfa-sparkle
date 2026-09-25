@@ -401,6 +401,17 @@
   z-index: -1;
   pointer-events: none;
 }
+.enfa-pdf-source {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 760px;
+  min-width: 760px;
+  max-width: 760px;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
 .enfa-pdf-page {
   width: 760px;
   height: 1127px;

@@ -32,6 +32,7 @@ async function loadCompanyLogo(companyCode: string, token: string): Promise<stri
 }
 
 export async function createApprovalPrintFormPdf(input: {
+  nfaNo: string;
   document: ApprovalPrintDocument;
   comments: EnfaDocumentComment[];
   approvalFlow: { plant: string; nfaType: string; functionName: string };
@@ -40,9 +41,10 @@ export async function createApprovalPrintFormPdf(input: {
   approvalComment: string;
   approverName: string;
 }): Promise<{ base64: string; filename: string; byteLength: number }> {
+  const hasApprovalFlow = Object.values(input.approvalFlow).every((value) => value.trim());
   const [logoSrc, flowApprovers] = await Promise.all([
     loadCompanyLogo(input.document.companyCode, input.token),
-    fetchSapApprovalFlow(input.approvalFlow, input.token),
+    hasApprovalFlow ? fetchSapApprovalFlow(input.approvalFlow, input.token) : Promise.resolve([]),
   ]);
   const approvers = mergeApprovalFlow(input.document.approvers, flowApprovers, false);
   const comments = input.approvalComment.trim()
@@ -57,7 +59,7 @@ export async function createApprovalPrintFormPdf(input: {
       <EnfaDocument
         companyCode={input.document.companyCode}
         companyName={input.document.companyName}
-        nfaNo={input.document.companyCode ? input.document.companyCode && input.document.companyCode !== input.document.companyName ? input.document.companyCode : "" : ""}
+        nfaNo={input.nfaNo}
         plantLabel={input.document.plantLabel}
         date={input.document.date}
         initiator={input.document.initiator}
@@ -74,8 +76,7 @@ export async function createApprovalPrintFormPdf(input: {
       />,
     );
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const nfaNo = source.dataset.enfaNumber ?? "";
-    const pdf = await createPrintFormPdf(source, { nfaNo, documentStatus: input.documentStatus });
+    const pdf = await createPrintFormPdf(source, { nfaNo: input.nfaNo, documentStatus: input.documentStatus });
     return { base64: pdf.base64, filename: pdf.filename, byteLength: pdf.bytes.length };
   } finally {
     root.unmount();

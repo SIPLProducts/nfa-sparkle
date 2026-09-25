@@ -1294,6 +1294,8 @@ export async function callEnfaApprovalAction(opts: {
   reffld: string;
   comment: string;
   user_name?: string;
+  file_path?: string;
+  file?: string;
 }): Promise<SapCallResult> {
   const config = {
     approve: { exactName: "Approved Button", pattern: "%approve%", wrapper: "approve" },
@@ -1371,6 +1373,16 @@ export async function callEnfaApprovalAction(opts: {
   inner[refKey] = opts.reffld;
   inner[cmtKey] = opts.comment ?? "";
 
+  if (opts.action === "approve" && opts.file && opts.file_path) {
+    const pathKey = Object.keys(inner).find((k) => k.toLowerCase() === "file_path") ?? "file_path";
+    const fileKey = Object.keys(inner).find((k) => k.toLowerCase() === "file") ?? "file";
+    const configuredPath = String(inner[pathKey] ?? "").trim();
+    const separatorIndex = Math.max(configuredPath.lastIndexOf("/"), configuredPath.lastIndexOf("\\"));
+    const prefix = separatorIndex >= 0 ? configuredPath.slice(0, separatorIndex + 1) : "";
+    inner[pathKey] = `${prefix}${opts.file_path}`;
+    inner[fileKey] = opts.file;
+  }
+
   // Inject the logged-in user's User ID as `user_name`, emitted as the first
   // key of the wrapper's inner object so SAP receives
   // { "reject": { "user_name": "...", "REFFLD": "...", "Comment": "..." } }.
@@ -1396,7 +1408,7 @@ export async function callEnfaApprovalAction(opts: {
     username: username || undefined,
     password,
     maxBytes: 200_000,
-    timeoutMs: 120_000,
+    timeoutMs: opts.action === "approve" && opts.file ? 180_000 : 120_000,
   });
 }
 
