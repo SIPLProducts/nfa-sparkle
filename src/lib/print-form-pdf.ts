@@ -131,13 +131,13 @@ export async function createPrintFormPdf(
   try {
     await document.fonts?.ready;
     await waitForPrintImages(element);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
     const staged = stagePdfPages(element);
     staging = staged.staging;
     if (!staged.pages.length) throw new Error("The Print Form has no printable pages");
     await waitForPrintImages(staging);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
     const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
     const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;

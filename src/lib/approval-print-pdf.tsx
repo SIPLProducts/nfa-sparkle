@@ -75,7 +75,7 @@ export async function createApprovalPrintFormPdf(input: {
         logoSrc={logoSrc}
       />,
     );
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const pdf = await createPrintFormPdf(source, { nfaNo: input.nfaNo, documentStatus: input.documentStatus });
     return { base64: pdf.base64, filename: pdf.filename, byteLength: pdf.bytes.length };
   } finally {
