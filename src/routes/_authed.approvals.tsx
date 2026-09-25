@@ -23,6 +23,7 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
+import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -365,13 +366,82 @@ function ApprovalsInbox() {
       ) {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token ?? "";
+        if (!token) throw new Error("Your session has expired. Please sign in again.");
+        let approvalPdf: { base64: string; filename: string } | null = null;
+        const isFinalApproval = action === "approve" && selectedRow
+          ? currentLevel(selectedRow) >= totalLevels(selectedRow)
+          : false;
+        if (isFinalApproval) {
+          if (!selectedRow) throw new Error("Select a record first.");
+          const userId = sessionData.session?.user?.id ?? "";
+          const userName = await resolveMySapUser(userId);
+          const requestDetails = (endpoint: string) => fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ edit: { user_name: userName, reffld: selectedEnfaNo } }),
+          }).then(async (response) => ({ response, text: await response.text() }));
+          const reportPayload = {
+            plant_from: "", plant_to: "", funct_from: "", funct_to: "",
+            nfano_from: selectedEnfaNo, nfano_to: selectedEnfaNo,
+            extra_from: "", extra_to: "", dat_from: "", dat_to: "",
+            usrid_from: "", usrid_to: "", r_proc: "", r_comp: "",
+            r_reje: "", r_init: "", r_clar: "",
+          };
+          const reportDetails = fetch("/api/public/enfa-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify(wrapReportPayload(reportPayload, userName)),
+          }).then(async (response) => response.ok
+            ? normaliseRows(await response.json()).find((row) => val(row, "REFFLD") === selectedEnfaNo) ?? null
+            : null).catch(() => null);
+          const [editResult, selectResult, reportRow, draftResult, comments, initiatorName] = await Promise.all([
+            requestDetails("/api/public/enfa-detail"),
+            requestDetails("/api/public/enfa-select"),
+            reportDetails,
+            supabase.from("sap_record_draft")
+              .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+              .eq("enfa_number", selectedEnfaNo).maybeSingle(),
+            loadPrintComments(selectedEnfaNo),
+            loadPrintInitiator(selectedEnfaNo),
+          ]);
+          const editDetail = editResult.response.ok ? parseApprovalPrintDetail(editResult.text).detail : null;
+          const selectDetail = selectResult.response.ok ? parseApprovalPrintDetail(selectResult.text).detail : null;
+          const resolved = resolveApprovalPrintDocument({
+            editDetail,
+            selectDetail: { ...(selectDetail ?? {}), ...(reportRow as unknown as Record<string, unknown> | null ?? {}) },
+            worklistRow: selectedRow as unknown as Record<string, unknown>,
+            draft: draftResult.data,
+            comments,
+            initiatorName,
+          });
+          const generated = await createApprovalPrintFormPdf({
+            nfaNo: selectedEnfaNo,
+            document: resolved.document,
+            comments: resolved.comments,
+            approvalFlow: {
+              plant: val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "",
+              nfaType: resolved.document.nfaType,
+              functionName: resolved.document.functionName,
+            },
+            documentStatus: val(selectedRow, "STATUS_TXT") || val(selectedRow, "STATUS"),
+            token,
+            approvalComment: comment,
+            approverName: userName,
+          });
+          approvalPdf = { base64: generated.base64, filename: generated.filename };
+        }
         const res = await fetch("/api/public/enfa-approve", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ action, reffld: selectedEnfaNo, comment }),
+          body: JSON.stringify({
+            action,
+            reffld: selectedEnfaNo,
+            comment,
+            ...(approvalPdf ? { file_path: approvalPdf.filename, file: approvalPdf.base64 } : {}),
+          }),
         });
         const text = await res.text();
         let parsed: Record<string, unknown> | null = null;
