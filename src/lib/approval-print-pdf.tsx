@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { EnfaDocument, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import type { ApprovalPrintDocument } from "@/lib/approval-print-document";
-import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { createPrintFormPdf } from "@/lib/print-form-pdf";
 
 async function loadCompanyLogo(companyCode: string, token: string): Promise<string | undefined> {
@@ -41,12 +41,14 @@ export async function createApprovalPrintFormPdf(input: {
   approvalComment: string;
   approverName: string;
 }): Promise<{ base64: string; filename: string; byteLength: number }> {
-  const hasApprovalFlow = Object.values(input.approvalFlow).every((value) => value.trim());
-  const [logoSrc, flowApprovers] = await Promise.all([
+  const canLoadApprovalFlow = Boolean(input.approvalFlow.plant.trim() && input.approvalFlow.nfaType.trim());
+  const [logoSrc, flow] = await Promise.all([
     loadCompanyLogo(input.document.companyCode, input.token).catch(() => undefined),
-    hasApprovalFlow ? fetchSapApprovalFlow(input.approvalFlow, input.token).catch(() => []) : Promise.resolve([]),
+    canLoadApprovalFlow
+      ? fetchResolvedSapApprovalFlow(input.approvalFlow, input.token).catch(() => ({ approvers: [], functionName: "" }))
+      : Promise.resolve({ approvers: [], functionName: "" }),
   ]);
-  const approvers = mergeApprovalFlow(input.document.approvers, flowApprovers, false);
+  const approvers = mergeApprovalFlow(input.document.approvers, flow.approvers, false);
   const comments = input.approvalComment.trim()
     ? [...input.comments, { name: input.approverName.trim(), text: input.approvalComment.trim() }]
     : input.comments;
@@ -64,7 +66,7 @@ export async function createApprovalPrintFormPdf(input: {
         date={input.document.date}
         initiator={input.document.initiator}
         nfaType={input.document.nfaType}
-        functionName={input.document.functionName}
+        functionName={input.document.functionName || flow.functionName}
         subject={input.document.subject}
         scopeImpact={input.document.scope}
         timelineDays={input.document.timeline}

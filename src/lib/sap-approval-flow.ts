@@ -1,4 +1,5 @@
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import { parseApprovalChains } from "@/lib/sap/master";
 
 type SapObject = Record<string, unknown>;
 
@@ -98,4 +99,76 @@ export async function fetchSapApprovalFlow(
   };
   if (!response.ok || !result.ok) throw new Error(result.message || result.error || "Approval details are unavailable");
   return result.approvers ?? [];
+}
+
+function sameSapValue(left: string, right: string): boolean {
+  return left.trim().toUpperCase() === right.trim().toUpperCase();
+}
+
+/** Loads a matching chain from SAP's configured Approval Chain endpoint. */
+export async function fetchSapApprovalChain(
+  input: { plant: string; nfaType: string; functionName?: string },
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ approvers: EnfaDocumentApprover[]; functionName: string }> {
+  if (!token) return { approvers: [], functionName: "" };
+  const response = await fetch("/api/public/sap-approval-chain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ approver: "" }),
+    signal,
+  });
+  const result = await response.json() as unknown;
+  if (!response.ok) {
+    const message = result && typeof result === "object" && !Array.isArray(result)
+      ? String((result as SapObject)["error"] ?? "Approval chain is unavailable")
+      : "Approval chain is unavailable";
+    throw new Error(message);
+  }
+
+  const chains = parseApprovalChains(result);
+  const plantMatches = input.plant.trim()
+    ? chains.filter((chain) => sameSapValue(chain.pspnr, input.plant))
+    : chains;
+  const typeMatches = input.nfaType.trim()
+    ? plantMatches.filter((chain) => sameSapValue(chain.funct, input.nfaType))
+    : plantMatches;
+  const candidates = typeMatches.length ? typeMatches : plantMatches;
+  const exactFunction = input.functionName?.trim()
+    ? candidates.find((chain) => sameSapValue(chain.extraTxt, input.functionName ?? ""))
+    : undefined;
+  const chain = exactFunction ?? (candidates.length === 1 ? candidates[0] : undefined);
+  if (!chain) return { approvers: [], functionName: "" };
+
+  return {
+    functionName: chain.extraTxt,
+    approvers: chain.levels.map((level) => ({
+      role: level.designation,
+      userId: level.userId,
+      name: "",
+      status: "",
+      actedDate: "",
+      actedTime: "",
+    })),
+  };
+}
+
+/** Loads the record-specific flow, falling back to the configured chain API. */
+export async function fetchResolvedSapApprovalFlow(
+  input: { plant: string; nfaType: string; functionName: string },
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ approvers: EnfaDocumentApprover[]; functionName: string }> {
+  const plant = input.plant.trim();
+  const nfaType = input.nfaType.trim();
+  const functionName = input.functionName.trim();
+  if (plant && nfaType && functionName) {
+    try {
+      const approvers = await fetchSapApprovalFlow({ plant, nfaType, functionName }, token, signal);
+      if (approvers.length) return { approvers, functionName };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+    }
+  }
+  return fetchSapApprovalChain({ plant, nfaType, functionName }, token, signal);
 }
