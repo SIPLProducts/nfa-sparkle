@@ -73,9 +73,9 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
 
         const filePath = String(input.file_path ?? "").trim();
         const file = String(input.file ?? "").replace(/\s+/g, "");
-        if (rawAction === "approve") {
+        if (rawAction === "approve" && (filePath || file)) {
           if (!filePath || !file) {
-            return Response.json({ ok: false, message: "The Print Form PDF could not be prepared for approval" }, { status: 200 });
+            return Response.json({ ok: false, message: "The Final Approval PDF is incomplete" }, { status: 200 });
           }
           if (!/^[A-Za-z0-9+/]+={0,2}$/.test(file) || file.length > 25_200_000) {
             return Response.json({ ok: false, message: "The Print Form PDF is invalid or too large" }, { status: 200 });
@@ -94,8 +94,8 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           reffld,
           comment: String(input.comment ?? ""),
           user_name: userName,
-          file_path: rawAction === "approve" ? filePath.replace(/^.*[\\/]/, "") : undefined,
-          file: rawAction === "approve" ? file : undefined,
+          file_path: rawAction === "approve" && file ? filePath.replace(/^.*[\\/]/, "") : undefined,
+          file: rawAction === "approve" && file ? file : undefined,
         });
 
         const headers: Record<string, string> = {

@@ -43,4 +43,4 @@
 - [x] Keep all four downloaded PDF borders visible and enlarge/reposition the DRAFT watermark to match the reference.
 - [x] Preserve dynamic company logos losslessly in the Print Form preview and downloaded PDF without changing their reference placement.
 - [x] Prevent Vite dependency re-optimization from splitting React's hook runtime and blanking the preview.
-- [x] Attach the latest dynamic Print Form PDF to every Approve request using the configured SAP payload.
+- [x] Attach the latest dynamic Print Form PDF only at the last configured approval level using the configured SAP payload.

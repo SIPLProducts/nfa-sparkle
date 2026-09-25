@@ -368,7 +368,10 @@ function ApprovalsInbox() {
         const token = sessionData.session?.access_token ?? "";
         if (!token) throw new Error("Your session has expired. Please sign in again.");
         let approvalPdf: { base64: string; filename: string } | null = null;
-        if (action === "approve") {
+        const isFinalApproval = action === "approve" && selectedRow
+          ? currentLevel(selectedRow) >= totalLevels(selectedRow)
+          : false;
+        if (isFinalApproval) {
           if (!selectedRow) throw new Error("Select a record first.");
           const userId = sessionData.session?.user?.id ?? "";
           const userName = await resolveMySapUser(userId);
