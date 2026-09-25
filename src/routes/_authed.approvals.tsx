@@ -24,6 +24,7 @@ import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDi
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
 import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
+import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -320,11 +321,29 @@ function ApprovalsInbox() {
          comments,
           initiatorName,
        });
-       setPrintDoc(resolved.document);
+       const plant = val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
+       let apiFlow = { approvers: [] as typeof resolved.document.approvers, functionName: "" };
+       if (token && plant && resolved.document.nfaType) {
+         apiFlow = await fetchResolvedSapApprovalFlow({
+           plant,
+           nfaType: resolved.document.nfaType,
+           functionName: resolved.document.functionName,
+         }, token).catch(() => apiFlow);
+       }
+       const printDocument = {
+         ...resolved.document,
+         functionName: resolved.document.functionName || apiFlow.functionName,
+         approvers: mergeApprovalFlow(resolved.document.approvers, apiFlow.approvers, false),
+       };
+       const missingFields = resolved.missingFields.filter((field) =>
+         !(field === "Function" && printDocument.functionName)
+         && !(field === "Approval Chain" && printDocument.approvers.length),
+       );
+       setPrintDoc(printDocument);
        setPrintComments(resolved.comments);
       setPrintOpen(true);
-       if (resolved.missingFields.length) {
-         toast.warning(`Some source data is unavailable: ${resolved.missingFields.join(", ")}. Showing all saved details.`);
+       if (missingFields.length) {
+         toast.warning(`Some source data is unavailable: ${missingFields.join(", ")}. Showing all saved details.`);
        } else if (!editParsed.detail && !selectParsed.detail) {
          const message = editParsed.message || selectParsed.message;
          if (message) toast.warning(`${message}. Showing complete saved and worklist details.`);
