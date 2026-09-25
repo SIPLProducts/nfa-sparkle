@@ -18,7 +18,7 @@ import {
   type WorkingDocumentInfo,
 } from "@/lib/enfa-working-document";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
-import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { createPrintFormPdf, downloadPrintFormPdf } from "@/lib/print-form-pdf";
 
 export interface ApprovalFlowRequest {
@@ -64,6 +64,7 @@ export function PrintFormDialog({
   const [logoSrc, setLogoSrc] = useState<string | undefined>();
   const [logoLoading, setLogoLoading] = useState(false);
   const [flowApprovers, setFlowApprovers] = useState<EnfaDocumentApprover[]>([]);
+  const [flowFunctionName, setFlowFunctionName] = useState("");
   const [approvalLoading, setApprovalLoading] = useState(false);
   const effectiveApprovers = mergeApprovalFlow(doc.approvers, flowApprovers, false);
 
@@ -136,19 +137,23 @@ export function PrintFormDialog({
     const plant = approvalFlow?.plant.trim() ?? "";
     const nfaType = approvalFlow?.nfaType.trim() ?? "";
     const functionName = approvalFlow?.functionName.trim() ?? "";
-    if (!open || !plant || !nfaType || !functionName) {
+    if (!open || !plant || !nfaType) {
       setFlowApprovers([]);
+      setFlowFunctionName("");
       setApprovalLoading(false);
       return;
     }
     const controller = new AbortController();
     setFlowApprovers([]);
+    setFlowFunctionName("");
     setApprovalLoading(true);
     void (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        setFlowApprovers(await fetchSapApprovalFlow({ plant, nfaType, functionName }, token, controller.signal));
+        const flow = await fetchResolvedSapApprovalFlow({ plant, nfaType, functionName }, token, controller.signal);
+        setFlowApprovers(flow.approvers);
+        setFlowFunctionName(flow.functionName);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         toast.warning(error instanceof Error ? `${error.message}. Showing saved approval details.` : "Showing saved approval details.");
@@ -301,7 +306,12 @@ export function PrintFormDialog({
 
         <div ref={printRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-white p-2">
            <EnfaDocument
-             {...normalizeEnfaDocument({ ...doc, descriptionHtml: description, approvers: effectiveApprovers })}
+             {...normalizeEnfaDocument({
+               ...doc,
+               descriptionHtml: description,
+               functionName: doc.functionName || flowFunctionName,
+               approvers: effectiveApprovers,
+             })}
               logoSrc={logoSrc}
             editableDescription={editing ? description : undefined}
             onDescriptionChange={editing ? setDescription : undefined}

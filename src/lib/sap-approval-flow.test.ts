@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeApprovalFlow, parseSapApprovalFlow } from "./sap-approval-flow";
+import { fetchResolvedSapApprovalFlow, mergeApprovalFlow, parseSapApprovalFlow } from "./sap-approval-flow";
 
 const sapRow = {
   DESIG1: "DIRE-PROJ", USERID1: "22007746",
@@ -30,5 +30,27 @@ describe("SAP approval flow", () => {
       parseSapApprovalFlow([sapRow]),
     );
     expect(merged[0]).toMatchObject({ role: "DIRE-PROJ", userId: "22007746", name: "Approver One", status: "Pending" });
+  });
+
+  it("recovers a missing Function and all seven levels from the Approval Chain API", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      expect(String(input)).toBe("/api/public/sap-approval-chain");
+      const levels = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [
+        [`DESIG${index + 1}`, `Role ${index + 1}`],
+        [`USERID${index + 1}`, `User ${index + 1}`],
+      ]).flat());
+      return Response.json([{ PSPNR: "9000", FUNCT: "BUDGET DEVIATION", EXTR_TXT: "PROJECTS", ...levels }]);
+    };
+    try {
+      const result = await fetchResolvedSapApprovalFlow({
+        plant: "9000", nfaType: "BUDGET DEVIATION", functionName: "",
+      }, "header.payload.signature");
+      expect(result.functionName).toBe("PROJECTS");
+      expect(result.approvers).toHaveLength(7);
+      expect(result.approvers[6]).toMatchObject({ role: "Role 7", userId: "User 7" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
