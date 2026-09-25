@@ -1,5 +1,6 @@
 import { admin, callSap, getSecret, loadSystem, type SapCallResult } from "./sap-call.server";
 import { wrapReportPayload } from "./sap-api-constants";
+import { buildApprovalActionPayload } from "./approval-action-payload";
 
 /** Resolves credentials for an endpoint row (endpoint override -> system -> legacy global). */
 async function credentialsFor(ep: Record<string, any>, sys: Record<string, any> | null) {
@@ -1346,57 +1347,11 @@ export async function callEnfaApprovalAction(opts: {
   };
   const { username, password } = await credentialsFor(ep, sys);
 
-  // Start from the endpoint's saved body template when it parses, so admins
-  // can change the wrapper/keys in API Settings without a code change.
-  const defaultWrapper = opts.action === "back_to_initiator" ? "INITIATOR" : config.wrapper;
-  let payload: Record<string, any> = { [defaultWrapper]: { REFFLD: "", Comment: "" } };
-  const tpl = (ep.request_body ?? "").trim();
-  if (tpl) {
-    try {
-      const parsed = JSON.parse(tpl);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed;
-    } catch {
-      /* keep the default shape */
-    }
-  }
-
-  const wrapperKey =
-    Object.keys(payload).find((k) => k.toLowerCase() === config.wrapper) ?? defaultWrapper;
-
-  const inner =
-    payload[wrapperKey] && typeof payload[wrapperKey] === "object" && !Array.isArray(payload[wrapperKey])
-      ? { ...(payload[wrapperKey] as Record<string, any>) }
-      : {};
-
-  const refKey = Object.keys(inner).find((k) => k.toLowerCase() === "reffld") ?? "REFFLD";
-  const cmtKey = Object.keys(inner).find((k) => k.toLowerCase() === "comment") ?? "Comment";
-  inner[refKey] = opts.reffld;
-  inner[cmtKey] = opts.comment ?? "";
-
-  if (opts.action === "approve" && opts.file && opts.file_path) {
-    const pathKey = Object.keys(inner).find((k) => k.toLowerCase() === "file_path") ?? "file_path";
-    const fileKey = Object.keys(inner).find((k) => k.toLowerCase() === "file") ?? "file";
-    const configuredPath = String(inner[pathKey] ?? "").trim();
-    const separatorIndex = Math.max(configuredPath.lastIndexOf("/"), configuredPath.lastIndexOf("\\"));
-    const prefix = separatorIndex >= 0 ? configuredPath.slice(0, separatorIndex + 1) : "";
-    inner[pathKey] = `${prefix}${opts.file_path}`;
-    inner[fileKey] = opts.file;
-  }
-
-  // Inject the logged-in user's User ID as `user_name`, emitted as the first
-  // key of the wrapper's inner object so SAP receives
-  // { "reject": { "user_name": "...", "REFFLD": "...", "Comment": "..." } }.
-  const callerUser = (opts.user_name ?? "").trim();
-  if (callerUser) {
-    const usrKey = Object.keys(inner).find((k) => k.toLowerCase() === "user_name") ?? "user_name";
-    const reordered: Record<string, any> = { [usrKey]: callerUser };
-    for (const [k, v] of Object.entries(inner)) {
-      if (k.toLowerCase() !== "user_name") reordered[k] = v;
-    }
-    payload[wrapperKey] = reordered;
-  } else {
-    payload[wrapperKey] = inner;
-  }
+  const payload = buildApprovalActionPayload({
+    action: opts.action, wrapper: config.wrapper, template: ep.request_body,
+    reffld: opts.reffld, comment: opts.comment ?? "", userName: opts.user_name,
+    filePath: opts.file_path, file: opts.file,
+  });
 
   return callSap({
     system: sys,

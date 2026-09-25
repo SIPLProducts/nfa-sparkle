@@ -43,8 +43,8 @@ export async function createApprovalPrintFormPdf(input: {
 }): Promise<{ base64: string; filename: string; byteLength: number }> {
   const hasApprovalFlow = Object.values(input.approvalFlow).every((value) => value.trim());
   const [logoSrc, flowApprovers] = await Promise.all([
-    loadCompanyLogo(input.document.companyCode, input.token),
-    hasApprovalFlow ? fetchSapApprovalFlow(input.approvalFlow, input.token) : Promise.resolve([]),
+    loadCompanyLogo(input.document.companyCode, input.token).catch(() => undefined),
+    hasApprovalFlow ? fetchSapApprovalFlow(input.approvalFlow, input.token).catch(() => []) : Promise.resolve([]),
   ]);
   const approvers = mergeApprovalFlow(input.document.approvers, flowApprovers, false);
   const comments = input.approvalComment.trim()
