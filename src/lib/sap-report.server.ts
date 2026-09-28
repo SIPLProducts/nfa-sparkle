@@ -1363,7 +1363,7 @@ export async function callEnfaApprovalAction(opts: {
     username: username || undefined,
     password,
     maxBytes: 200_000,
-    timeoutMs: opts.action === "approve" && opts.file ? 180_000 : 120_000,
+    timeoutMs: (opts.action === "approve" || opts.action === "reject") && opts.file ? 180_000 : 120_000,
   });
 }
 

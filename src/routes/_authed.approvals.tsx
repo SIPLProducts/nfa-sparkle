@@ -386,11 +386,12 @@ function ApprovalsInbox() {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token ?? "";
         if (!token) throw new Error("Your session has expired. Please sign in again.");
-        let approvalPdf: { base64: string; filename: string } | null = null;
+        let actionPdf: { base64: string; filename: string } | null = null;
         const isFinalApproval = action === "approve" && selectedRow
           ? currentLevel(selectedRow) >= totalLevels(selectedRow)
           : false;
-        if (isFinalApproval) {
+        const needsActionPdf = action === "reject" || isFinalApproval;
+        if (needsActionPdf) {
           if (!selectedRow) throw new Error("Select a record first.");
           const userId = sessionData.session?.user?.id ?? "";
           const userName = await resolveMySapUser(userId);
@@ -447,7 +448,7 @@ function ApprovalsInbox() {
             approvalComment: comment,
             approverName: userName,
           });
-          approvalPdf = { base64: generated.base64, filename: generated.filename };
+          actionPdf = { base64: generated.base64, filename: generated.filename };
         }
         const res = await fetch("/api/public/enfa-approve", {
           method: "POST",
@@ -459,7 +460,7 @@ function ApprovalsInbox() {
             action,
             reffld: selectedEnfaNo,
             comment,
-            ...(approvalPdf ? { file_path: approvalPdf.filename, file: approvalPdf.base64 } : {}),
+            ...(actionPdf ? { file_path: actionPdf.filename, file: actionPdf.base64 } : {}),
           }),
         });
         const text = await res.text();

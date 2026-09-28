@@ -73,7 +73,8 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
 
         const filePath = String(input.file_path ?? "").trim();
         const file = String(input.file ?? "").replace(/\s+/g, "");
-        if (rawAction === "approve" && (filePath || file)) {
+        const acceptsPdf = rawAction === "approve" || rawAction === "reject";
+        if (acceptsPdf && (filePath || file)) {
           if (!filePath || !file) {
             return Response.json({ ok: false, message: "The Final Approval PDF is incomplete" }, { status: 200 });
           }
@@ -94,8 +95,8 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           reffld,
           comment: String(input.comment ?? ""),
           user_name: userName,
-          file_path: rawAction === "approve" && file ? filePath.replace(/^.*[\\/]/, "") : undefined,
-          file: rawAction === "approve" && file ? file : undefined,
+          file_path: acceptsPdf && file ? filePath.replace(/^.*[\\/]/, "") : undefined,
+          file: acceptsPdf && file ? file : undefined,
         });
 
         const headers: Record<string, string> = {
