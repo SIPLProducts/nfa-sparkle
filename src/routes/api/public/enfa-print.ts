@@ -116,7 +116,7 @@ export const Route = createFileRoute("/api/public/enfa-print")({
           console.warn("[enfa-print] SAP call failed:", result.status, result.error);
           return new Response(
             JSON.stringify({
-              error: result.error ?? result.body || "SAP request failed",
+              error: result.error ?? (result.body || "SAP request failed"),
               status: result.status,
             }),
             // A SAP or middleware outage is an expected upstream failure, not
