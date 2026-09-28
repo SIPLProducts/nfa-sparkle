@@ -443,7 +443,9 @@ function ApprovalsInbox() {
               nfaType: resolved.document.nfaType,
               functionName: resolved.document.functionName,
             },
-            documentStatus: val(selectedRow, "STATUS_TXT") || val(selectedRow, "STATUS"),
+            documentStatus: isFinalApproval
+              ? "approved"
+              : val(selectedRow, "STATUS_TXT") || val(selectedRow, "STATUS"),
             token,
             approvalComment: comment,
             approverName: userName,

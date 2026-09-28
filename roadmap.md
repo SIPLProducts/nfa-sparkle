@@ -47,3 +47,4 @@
 - [x] Restore missing Approvals Print Form Function and Approval Chain from the configured SAP APIs without changing its layout.
 - [x] Send the latest dynamic Print Form PDF with the Reject payload while preserving the configured endpoint and existing UI.
 - [x] Keep SAP Preview connection failures inside Print Form flows instead of surfacing a global HTTP 502 error page.
+- [x] Show an APPROVED watermark on final-approved Print Forms while preserving DRAFT for every non-final state.
