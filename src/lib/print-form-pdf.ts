@@ -111,6 +111,10 @@ function isFinalDocumentStatus(status: string | undefined): boolean {
   return ["completed", "closed", "final", "approved", "finally_approved", "final_approved"].includes(normalized);
 }
 
+export function printFormStatusLabel(status: string | undefined): "DRAFT" | "APPROVED" {
+  return isFinalDocumentStatus(status) ? "APPROVED" : "DRAFT";
+}
+
 async function waitForPrintImages(element: HTMLElement): Promise<void> {
   await Promise.all(Array.from(element.querySelectorAll("img")).map(async (image) => {
     if (!image.complete) {
@@ -141,7 +145,7 @@ export async function createPrintFormPdf(
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
     const pageWidth = PDF_PAGE.widthMm - PDF_PAGE.marginMm * 2;
     const pageHeight = PDF_PAGE.heightMm - PDF_PAGE.marginMm * 2 - 9;
-    const draft = !isFinalDocumentStatus(input.documentStatus);
+    const statusLabel = printFormStatusLabel(input.documentStatus);
     for (let pageIndex = 0; pageIndex < staged.pages.length; pageIndex += 1) {
       const page = staged.pages[pageIndex];
       if (!page) continue;
@@ -156,12 +160,10 @@ export async function createPrintFormPdf(
       pdf.setLineWidth(PDF_PAGE.frameLineWidthMm);
       pdf.rect(PDF_PAGE.marginMm + PDF_PAGE.frameInsetMm, PDF_PAGE.marginMm + PDF_PAGE.frameInsetMm,
         pageWidth - PDF_PAGE.frameInsetMm * 2, pageHeight - PDF_PAGE.frameInsetMm * 2, "S");
-      if (draft) {
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(PDF_PAGE.draftFontSizePt);
-        pdf.setTextColor(175, 175, 175);
-        pdf.text("DRAFT", PDF_PAGE.widthMm / 2, PDF_PAGE.draftCenterYmm, { align: "center", angle: 45 });
-      }
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(PDF_PAGE.draftFontSizePt);
+      pdf.setTextColor(175, 175, 175);
+      pdf.text(statusLabel, PDF_PAGE.widthMm / 2, PDF_PAGE.draftCenterYmm, { align: "center", angle: 45 });
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(0, 0, 0);
