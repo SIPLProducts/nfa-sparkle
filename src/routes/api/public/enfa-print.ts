@@ -113,10 +113,16 @@ export const Route = createFileRoute("/api/public/enfa-print")({
         };
 
         if (!result.ok) {
-          console.error("[enfa-print] SAP call failed:", result.status, result.error);
+          console.warn("[enfa-print] SAP call failed:", result.status, result.error);
           return new Response(
-            JSON.stringify({ error: result.error ?? "SAP request failed", status: result.status }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
+            JSON.stringify({
+              error: result.error ?? (result.body || "SAP request failed"),
+              status: result.status,
+            }),
+            // A SAP or middleware outage is an expected upstream failure, not
+            // an application crash. Consumers already inspect the JSON body
+            // and can fall back to saved Print Form data when base64 is absent.
+            { status: 200, headers },
           );
         }
 
