@@ -28,7 +28,7 @@ export function buildApprovalActionPayload(input: {
   inner[refKey] = input.reffld;
   inner[commentKey] = input.comment;
 
-  if (input.action === "approve" && input.file && input.filePath) {
+  if ((input.action === "approve" || input.action === "reject") && input.file && input.filePath) {
     const pathKey = Object.keys(inner).find((key) => key.toLowerCase() === "file_path") ?? "file_path";
     const fileKey = Object.keys(inner).find((key) => key.toLowerCase() === "file") ?? "file";
     const configuredPath = String(inner[pathKey] ?? "").trim();

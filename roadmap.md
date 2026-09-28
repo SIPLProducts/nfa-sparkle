@@ -45,3 +45,4 @@
 - [x] Prevent Vite dependency re-optimization from splitting React's hook runtime and blanking the preview.
 - [x] Attach the latest dynamic Print Form PDF only at the last configured approval level using the configured SAP payload.
 - [x] Restore missing Approvals Print Form Function and Approval Chain from the configured SAP APIs without changing its layout.
+- [x] Send the latest dynamic Print Form PDF with the Reject payload while preserving the configured endpoint and existing UI.
