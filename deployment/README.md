@@ -209,14 +209,21 @@ The database volume `nfa-quality-db-data` is reused, so users, roles and data
 are preserved. Then run the dashboard recovery in section 3b if Studio still
 shows the `supabase_admin` password error.
 
-### If `nfa-quality-auth` or `nfa-quality-realtime` stays unhealthy
+### If login fails or Studio returns 502
 
-GoTrue connects to Postgres and Realtime runs its own migrations at startup.
-If either fails, `kong` and `studio` never start. Check each log separately:
+Auth connects to Postgres and Realtime runs its own migrations at startup.
+If Auth, Realtime, or Meta fails, Kong and Studio never start. Nginx then
+returns `502 Bad Gateway` for Studio even though Nginx itself is working.
+Check the dependency chain without printing secrets:
 
 ```bash
-docker logs nfa-quality-auth --tail 50
-docker logs nfa-quality-realtime --tail 50
+cd /apps/webapplications/NFA_Approval/Quality
+docker ps -a --filter 'name=nfa-quality' --format 'table {{.Names}}\t{{.Status}}'
+docker logs nfa-quality-auth --since 10m --tail 100
+docker logs nfa-quality-realtime --since 10m --tail 100
+docker logs nfa-quality-meta --since 10m --tail 100
+curl -i --max-time 5 http://127.0.0.1:54321/auth/v1/health
+curl -i --max-time 5 http://127.0.0.1:54323/api/profile
 ```
 
 Usual causes and fixes:
@@ -230,7 +237,7 @@ Usual causes and fixes:
    cd /apps/webapplications/NFA_Approval/Quality
    chmod +x scripts/fix-db-roles.sh
    ./scripts/fix-db-roles.sh
-   curl -i http://127.0.0.1:8001/auth/v1/health
+   curl -i http://127.0.0.1:54321/auth/v1/health
    ```
 
    The script restarts only `nfa-quality-auth`, `nfa-quality-realtime`, and
@@ -249,7 +256,8 @@ Usual causes and fixes:
 
 ## 3b. Dashboard recovery — run this in order
 
-Use this whole section when Studio (`http://10.200.1.7:8082`) shows
+Use this whole section when Studio (`http://10.200.1.7:8021` in the supplied
+active Nginx file, or `:8082` in the repository default) shows
 **"Failed to load schemas — password authentication failed for user
 `supabase_admin`"**, or when the dashboard opens without asking for a
 username and password.
@@ -297,22 +305,33 @@ cd /apps/webapplications/NFA_Approval/Quality
 ./scripts/fix-db-roles.sh
 ```
 
+The repair script accepts either `backend/docker-compose.yml` or
+`backend/docker-compose-quality.yml`. If both exist and differ, it stops rather
+than guessing. Select the file that was actually deployed:
+
+```bash
+COMPOSE_FILE=backend/docker-compose-quality.yml ./scripts/fix-db-roles.sh
+```
+
 The script reads `POSTGRES_PASSWORD` from `backend/.env` (never from the
 running container, which can still hold an older value), applies it to the
 internal roles, then **recreates** the Quality containers so they load the
 current settings — a plain `docker compose restart` keeps the old values and
 is why the error came back before.
 
-It only reports success after it has actually signed in as `supabase_admin`
-over TCP and confirmed the dashboard schema service answers. If anything is
-still wrong it prints the failing container's log instead. Let it finish —
+It only reports success after it has actually signed in as both
+`supabase_auth_admin` and `supabase_admin` over TCP and confirmed the dashboard
+schema service answers. It stops before restarting anything if the API keys do
+not match `JWT_SECRET`. If anything is still wrong it prints the failing
+container's log instead. Let it finish —
 it waits up to two minutes and prints progress each poll. Do **not** press
 Ctrl+C while `nfa-quality-meta` still says `Restarting`.
 
 ### Step 3 — turn on the dashboard login prompt (one time)
 
 `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` in `backend/.env` are enforced by
-Kong on port 8001 only. Port 8082 goes straight to the Studio container, so
+Kong on port 8001 only. The Studio Nginx port (8021 in the supplied active
+file, 8082 in the repository default) goes straight to the Studio container, so
 without the block below the dashboard opens with no login at all. Create the
 password file, using the same username as in `backend/.env`:
 
@@ -337,7 +356,7 @@ curl -i http://127.0.0.1:8001/auth/v1/health
 docker logs nfa-quality-meta --tail 30
 ```
 
-Then open `http://10.200.1.7:8082`. It must ask for the username and password,
+Then open the Studio address from the active Nginx file. It must ask for the username and password,
 and the Table Editor must list the tables. Only continue to the migrations
 once this is true.
 

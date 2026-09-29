@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Approval and Reject PDF attachments use the shared Print Form generator and settings-driven payload builder so SAP receives current record data without hardcoded values.
+- Quality backend recovery must select exactly one deployed Compose file and preserve the existing database volume, because mixing stack definitions or recreating volumes risks data loss.
