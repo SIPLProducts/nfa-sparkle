@@ -50,3 +50,4 @@
 - [x] Send the latest dynamic Print Form PDF with the Reject payload while preserving the configured endpoint and existing UI.
 - [x] Keep SAP Preview connection failures inside Print Form flows instead of surfacing a global HTTP 502 error page.
 - [x] Show an APPROVED watermark on final-approved Print Forms while preserving DRAFT for every non-final state.
+- [x] Add a safe Quality-only migration that synchronizes all required SAP API settings without replacing application data or SAP credentials.
