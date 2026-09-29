@@ -49,6 +49,18 @@ VALUES
   ('Approval flow in Detailed Description', 'Loads the approval flow for the selected Plant, NFA Type, and Function', 'Common', '/e-nfa/enfa_approval/APPROVAL?sap-client=300', 'GET', 'basic', 'fetch', true, '{}', '{}', '{"get_data":{"plant":"","nfa_type":"","funct":""}}'),
   ('Comments_in_Printform', 'Loads saved comments version-wise for the Print Form', 'Common', '/e-nfa/enfa_approval/APPROVAL?sap-client=300', 'GET', 'basic', 'fetch', true, '{}', '{}', '{"comment":{"Reffld":""}}');
 
+-- Older Quality installations called the worklist endpoint "Approval Report".
+-- Reuse that row so its SAP system and endpoint-specific credentials survive.
+UPDATE public.sap_endpoint legacy
+SET name = 'Approval Get Data',
+    updated_at = now()
+WHERE lower(btrim(legacy.name)) = lower('Approval Report')
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.sap_endpoint current_endpoint
+    WHERE lower(btrim(current_endpoint.name)) = lower('Approval Get Data')
+  );
+
 -- Normalize accidental duplicate names first, retaining the oldest configured row.
 WITH ranked AS (
   SELECT id, row_number() OVER (PARTITION BY lower(btrim(name)) ORDER BY created_at, id) AS position
