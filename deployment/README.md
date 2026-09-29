@@ -431,6 +431,27 @@ PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' backend/.env | cut -d= -f2-)" \
 Note: uploaded attachment files themselves live in the file-storage bucket
 `nfa-attachments`; this import copies the attachment records, not the binaries.
 
+### Merge only User Management data
+
+Use `backend/migrations/9100_user_management_merge.sql` when Quality already
+contains data that must be kept. It adds or updates the portal login accounts,
+profiles, roles and screen permissions without deleting Quality-only users or
+touching NFA, SAP or attachment data. The file also supports custom role
+assignments and approval chains when the source snapshot contains them.
+
+Copy that single file into the server's existing migration folder, then run:
+
+```bash
+cd /apps/webapplications/NFA_Approval/Quality
+sed -i 's/\r$//' backend/migrations/9100_user_management_merge.sql scripts/run-migrations.sh
+chmod +x scripts/run-migrations.sh
+./scripts/run-migrations.sh
+```
+
+The runner records the filename after a successful transaction, so later runs
+skip it. Do not rename or edit an already applied file. Do not run
+`docker compose down -v`; this import does not require recreating the database.
+
 ### Creating a login manually (only if you did not import the data)
 
 Create the first login in Studio (`http://10.200.1.7:8082`, dashboard
