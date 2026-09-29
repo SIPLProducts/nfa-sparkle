@@ -84,12 +84,22 @@ UPDATE auth.users u SET
 FROM import_users iu JOIN import_user_id_map m ON m.source_id=iu.id
 WHERE u.id=m.target_id;
 
+UPDATE auth.identities ai SET
+ identity_data=jsonb_set(COALESCE(ii.identity_data,'{}'::jsonb),'{sub}',to_jsonb(m.target_id::text),true),
+ last_sign_in_at=greatest(ai.last_sign_in_at,ii.last_sign_in_at),
+ updated_at=greatest(ai.updated_at,ii.updated_at)
+FROM import_identities ii JOIN import_user_id_map m ON m.source_id=ii.user_id
+WHERE ai.user_id=m.target_id AND ai.provider=ii.provider;
+
 INSERT INTO auth.identities (id,user_id,identity_data,provider,provider_id,last_sign_in_at,created_at,updated_at)
 SELECT ii.id,m.target_id,
  jsonb_set(COALESCE(ii.identity_data,'{}'::jsonb),'{sub}',to_jsonb(m.target_id::text),true),
  ii.provider,CASE WHEN ii.provider_id=ii.user_id::text THEN m.target_id::text ELSE ii.provider_id END,
  ii.last_sign_in_at,ii.created_at,ii.updated_at
 FROM import_identities ii JOIN import_user_id_map m ON m.source_id=ii.user_id
+WHERE NOT EXISTS (
+ SELECT 1 FROM auth.identities ai WHERE ai.user_id=m.target_id AND ai.provider=ii.provider
+)
 ON CONFLICT (provider_id,provider) DO UPDATE SET
  user_id=EXCLUDED.user_id,identity_data=EXCLUDED.identity_data,
  last_sign_in_at=greatest(auth.identities.last_sign_in_at,EXCLUDED.last_sign_in_at),
