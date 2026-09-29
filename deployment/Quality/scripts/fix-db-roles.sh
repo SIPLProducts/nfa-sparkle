@@ -8,6 +8,9 @@
 # Usage:
 #   cd /apps/webapplications/NFA_Approval/Quality
 #   ./scripts/fix-db-roles.sh
+#
+# If both compose filenames exist and differ, select the deployed one explicitly:
+#   COMPOSE_FILE=backend/docker-compose-quality.yml ./scripts/fix-db-roles.sh
 set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-nfa-quality}"
@@ -28,13 +31,44 @@ step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 [[ "$PROJECT_NAME" == "nfa-quality" ]] || { echo "Refusing non-Quality project: $PROJECT_NAME"; exit 1; }
 [[ "$DB_CONTAINER" == "nfa-quality-db" ]] || { echo "Refusing non-Quality database: $DB_CONTAINER"; exit 1; }
-[[ -f "$BACKEND_DIR/docker-compose.yml" ]] || { echo "Missing $BACKEND_DIR/docker-compose.yml"; exit 1; }
 [[ -f "$BACKEND_DIR/.env" ]] || { echo "Missing $BACKEND_DIR/.env"; exit 1; }
 
-COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$BACKEND_DIR/docker-compose.yml" --env-file "$BACKEND_DIR/.env")
+if [[ -n "${COMPOSE_FILE:-}" ]]; then
+  if [[ "$COMPOSE_FILE" != /* ]]; then
+    COMPOSE_FILE="$(pwd)/$COMPOSE_FILE"
+  fi
+  [[ -f "$COMPOSE_FILE" ]] || { echo "Missing selected compose file: $COMPOSE_FILE"; exit 1; }
+else
+  COMPOSE_STANDARD="$BACKEND_DIR/docker-compose.yml"
+  COMPOSE_QUALITY="$BACKEND_DIR/docker-compose-quality.yml"
+  if [[ -f "$COMPOSE_STANDARD" && -f "$COMPOSE_QUALITY" ]]; then
+    if cmp -s "$COMPOSE_STANDARD" "$COMPOSE_QUALITY"; then
+      COMPOSE_FILE="$COMPOSE_QUALITY"
+    else
+      echo "Both compose files exist and differ. Refusing to guess which stack definition is deployed."
+      echo "Run one of these explicitly:"
+      echo "  COMPOSE_FILE=$COMPOSE_QUALITY ./scripts/fix-db-roles.sh"
+      echo "  COMPOSE_FILE=$COMPOSE_STANDARD ./scripts/fix-db-roles.sh"
+      exit 1
+    fi
+  elif [[ -f "$COMPOSE_QUALITY" ]]; then
+    COMPOSE_FILE="$COMPOSE_QUALITY"
+  elif [[ -f "$COMPOSE_STANDARD" ]]; then
+    COMPOSE_FILE="$COMPOSE_STANDARD"
+  else
+    echo "No Quality compose file found in $BACKEND_DIR"
+    exit 1
+  fi
+fi
+
+COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$BACKEND_DIR/.env")
 QUALITY_SERVICES=(auth rest realtime storage meta kong studio)
 WATCH=(nfa-quality-auth nfa-quality-realtime nfa-quality-meta nfa-quality-kong nfa-quality-studio)
 NOT_READY='starting|unhealthy|created|exited|restarting'
+
+step "Using one Quality compose file"
+echo "$COMPOSE_FILE"
+"${COMPOSE[@]}" config -q
 
 read_env() {
   grep -E "^[[:space:]]*$1[[:space:]]*=" "$BACKEND_DIR/.env" \
@@ -52,11 +86,11 @@ case "$TARGET_PASSWORD" in
 esac
 echo "OK (value hidden)"
 
-step "Warning if the API keys do not match JWT_SECRET"
+step "Validating that the API keys match JWT_SECRET"
 if command -v python3 >/dev/null 2>&1; then
-  JWT_SECRET="$(read_env JWT_SECRET)" \
-  ANON_KEY="$(read_env ANON_KEY)" \
-  SERVICE_ROLE_KEY="$(read_env SERVICE_ROLE_KEY)" python3 - <<'PY' || true
+  if ! JWT_SECRET="$(read_env JWT_SECRET)" \
+    ANON_KEY="$(read_env ANON_KEY)" \
+    SERVICE_ROLE_KEY="$(read_env SERVICE_ROLE_KEY)" python3 - <<'PY'
 import base64, hashlib, hmac, os
 secret = os.environ.get("JWT_SECRET", "").encode()
 bad = []
@@ -73,11 +107,17 @@ for name in ("ANON_KEY", "SERVICE_ROLE_KEY"):
     if not ok:
         bad.append(name)
 if bad:
-    print("\n  These keys do not match JWT_SECRET. The stack will keep failing")
-    print("  until they are replaced. Run ./scripts/generate-keys.sh first.\n")
+    raise SystemExit(1)
 PY
+  then
+    echo
+    echo "ANON_KEY or SERVICE_ROLE_KEY is invalid for the current JWT_SECRET."
+    echo "Run ./scripts/generate-keys.sh, replace both lines in backend/.env, then rerun this repair."
+    exit 1
+  fi
 else
-  echo "  python3 not available - skipped"
+  echo "python3 is required to validate the Quality API keys."
+  exit 1
 fi
 
 step "Checking the Quality database"
@@ -114,20 +154,23 @@ WHERE rolname IN (
 SQL
 echo "Role passwords synchronized."
 
-step "Verifying a real supabase_admin login"
-if docker exec -i \
-  -e PGPASSWORD="$TARGET_PASSWORD" \
-  -e TARGET_DB="$POSTGRES_DB_NAME" \
-  "$DB_CONTAINER" sh -eu -c '
-    psql --host 127.0.0.1 --port 5432 --username supabase_admin \
-      --dbname "$TARGET_DB" --set=ON_ERROR_STOP=1 -tAq -c "select 1" >/dev/null
-  '; then
-  echo "supabase_admin can sign in with the backend/.env password."
-else
-  echo "supabase_admin STILL cannot sign in. Recent database log:"
-  docker logs "$DB_CONTAINER" --since 5m --tail 60 2>&1 || true
-  exit 1
-fi
+step "Verifying the Auth and dashboard database accounts"
+for db_user in supabase_auth_admin supabase_admin; do
+  if docker exec -i \
+    -e PGPASSWORD="$TARGET_PASSWORD" \
+    -e TARGET_DB="$POSTGRES_DB_NAME" \
+    -e TARGET_USER="$db_user" \
+    "$DB_CONTAINER" sh -eu -c '
+      psql --host 127.0.0.1 --port 5432 --username "$TARGET_USER" \
+        --dbname "$TARGET_DB" --set=ON_ERROR_STOP=1 -tAq -c "select 1" >/dev/null
+    '; then
+    echo "$db_user can sign in with the backend/.env password."
+  else
+    echo "$db_user STILL cannot sign in. Recent database log:"
+    docker logs "$DB_CONTAINER" --since 5m --tail 60 2>&1 || true
+    exit 1
+  fi
+done
 
 step "Recreating only the Quality services so they reload backend/.env"
 # `restart` reuses the old environment; `up -d --force-recreate` does not.
@@ -173,5 +216,6 @@ cat <<'TXT'
 
 Done. Next:
   ./scripts/run-migrations.sh      # apply the schema and data
-Then reload http://10.200.1.7:8082 and press "Reload schemas".
+Then reload the Studio port configured in your active Nginx file (8021 or 8082)
+and press "Reload schemas".
 TXT
