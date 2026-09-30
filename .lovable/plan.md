@@ -6,6 +6,7 @@
 - Both current middleware copies expose `POST /sap/call`, validate the secret, preserve GET request bodies, add Basic authentication, and forward the configured SAP URL, query, headers, and body.
 - The response `No route for POST /sap/call` is not produced by the current middleware. SAP was therefore not reached; the request is landing on another service, an incorrect port/path, or an older middleware process.
 - In the Quality deployment, the intended route is public port `3004` → nginx → middleware port `3005`. Port `8081` is the portal and must not be saved as the Middleware URL.
+- The supplied server nginx file already has the correct middleware mapping: its port `3004` block forwards every path unchanged to `enfa_quality_middleware`, which resolves to `127.0.0.1:3005`. The app upstream being `127.0.0.1:3006` is also consistent with the running portal and does not affect `/sap/call` on port 3004.
 
 ## Plan
 
@@ -16,7 +17,7 @@
 
 2. **Correct only the broken middleware hop**
    - If the saved URL targets `8081`, another port, or includes an API path, change only the Middleware URL to `http://10.200.1.7:3004`.
-   - If port 3004 is misrouted, restore its existing nginx proxy to `127.0.0.1:3005` and reload nginx.
+   - Keep the supplied nginx middleware block unchanged unless the live `nginx -T` output differs from the uploaded file.
    - If an old process owns port 3005, restart only `enfa-quality-middleware` from the packaged Quality middleware; do not restart unrelated apps or recreate database volumes.
 
 3. **Verify request integrity end to end**
