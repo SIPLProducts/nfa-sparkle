@@ -47,6 +47,7 @@ export function AppShell({
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
+  const isReport = pathname === "/report";
 
   const visibleNav = NAV.filter((n) => canAccess(n.screen));
   const visibleAdmin = ADMIN_NAV.filter((n) => canAccess(n.screen));
@@ -204,7 +205,7 @@ export function AppShell({
       </aside>
 
       {/* Main */}
-      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", isReport ? "overflow-hidden" : "overflow-y-auto")}>
         <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
@@ -283,8 +284,8 @@ export function AppShell({
           )}
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        <main className={cn("flex-1 px-4 py-6 sm:px-6 lg:px-8", isReport && "min-h-0 overflow-hidden")}>
+          <div className={cn("mx-auto w-full max-w-[1600px]", isReport && "h-full min-h-0")}>{children}</div>
         </main>
       </div>
     </div>
