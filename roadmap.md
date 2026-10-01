@@ -57,3 +57,4 @@
 - [x] Keep the Report input card unchanged; show a properly sized results card only after Execute, with fixed controls/headings and row-only scrolling.
 - [x] Keep My NFAs search, actions, and column headings fixed while only records scroll.
 - [x] Keep Approvals search, actions, and column headings fixed while only records scroll.
+- [x] Remove Detailed Description from the shared Preview while preserving Print Form and SAP document actions.
