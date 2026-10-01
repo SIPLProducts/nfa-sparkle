@@ -1,39 +1,33 @@
-# Consistent SweetAlert messages across the portal
+# Use SweetAlert consistently for application messages
 
-## User-facing result
+## Goal
+Replace the portal's mixed toast and confirmation experiences with SweetAlert2 while preserving all existing workflows, API calls, validations, dynamic SAP replies, and page layouts.
 
-- Replace every transient success, error, warning, and information toast with a SweetAlert popup.
-- The NFA submission result, including the dynamic SAP-returned eNFA number, appears in SweetAlert instead of the current top-right toast.
-- Replace confirmation windows with SweetAlert confirmations, including:
-  - Approve
-  - Reject / Cancel
-  - Back To Initiator
-  - Clarification
-  - SAP endpoint deletion
-  - SAP system deletion
-  - Role deletion and any other destructive action found during implementation
-- Approval actions continue to collect comments inside SweetAlert. Mandatory remarks remain mandatory, while approval comments remain optional where currently allowed.
-- Preserve messages returned by SAP and the backend verbatim. Existing fallback wording remains only where no dynamic message is supplied.
+## Changes
+1. **Shared Swal message layer**
+   - Add one reusable, browser-safe helper for success, error, warning, information, and confirmation alerts.
+   - Match the portal's existing colors, typography, focus behavior, and accessible labels.
+   - Preserve dynamic messages returned by SAP and the backend; fallback wording remains only where a response has no message.
 
-## Implementation
+2. **Replace transient messages throughout the portal**
+   - Convert current toast notifications in sign-in, NFA creation/details/change, My NFAs, Approvals, Reports, Print Form, attachments, User Management, and SAP API Settings.
+   - Include the current dynamic “NFA created successfully” response in the Swal success alert.
+   - Keep loading text, field validation hints, empty states, and persistent retryable page errors in their existing context because they are page content, not transient messages.
 
-1. Add SweetAlert2 and create one shared portal alert utility for success, error, warning, information, and confirmation prompts.
-2. Style SweetAlert through the existing portal theme so popups are consistent on desktop and mobile, with accessible focus, keyboard, cancel, loading, and disabled states.
-3. Replace all Sonner calls across login, NFA creation/details/change, My NFAs, Approvals, Reports, Print Form, attachments, User Management, and SAP API Settings.
-4. Replace the current approval-comment dialog with a SweetAlert prompt that retains the selected eNFA number, action-specific labels, mandatory-comment rules, and current submission handlers.
-5. Replace existing delete dialogs and direct destructive actions with awaited SweetAlert confirmation before running the unchanged mutation.
-6. Remove the global toast renderer and obsolete message-dialog usage after confirming no callers remain.
-7. Keep persistent page content that is not a popup message—loading indicators, empty-list states, field help, validation labels, and status badges—unchanged. Persistent access/service errors may remain visible on their page in addition to the one-time SweetAlert so users can still retry and understand why data is absent.
+3. **Use Swal for confirmations**
+   - Replace endpoint and SAP-system deletion dialogs with Swal confirmations.
+   - Add Swal confirmation before role deletion and user deactivation; activation keeps its existing direct action.
+   - Keep the approval remark form because it collects mandatory workflow data, then use Swal for validation, outcome, and confirmation feedback without changing approval behavior.
+
+4. **Remove obsolete toast setup**
+   - Remove the global toast renderer and unused toast imports only after every caller has moved to the shared Swal helper.
+   - Keep unrelated dialogs, business rules, SAP payloads, database behavior, navigation, and permissions unchanged.
 
 ## Verification
+- Check that no toast calls or browser-native alert/confirm calls remain.
+- Verify success, error, warning, and destructive confirmation examples in the live portal.
+- Confirm dynamic SAP text is displayed unchanged and cancelled confirmations perform no action.
+- Run focused tests and confirm the preview reports no build or runtime errors.
 
-- Verify NFA creation shows the exact SAP success text and returned eNFA number in SweetAlert before navigation completes.
-- Verify error, warning, and information paths use the correct SweetAlert icon and dynamic message.
-- Verify all four approval actions collect and submit remarks correctly, including mandatory validation and cancellation without an API call.
-- Verify destructive actions run only after confirmation and cancellation changes nothing.
-- Search for remaining Sonner calls, then run type checks, focused workflow tests, and browser checks at desktop and mobile sizes.
-
-## Scope safeguards
-
-- No SAP endpoint, payload, response handling, workflow rule, permission, database schema, saved data, or page layout changes.
-- No hardcoded eNFA numbers, users, SAP responses, or record data.
+## Technical scope
+Frontend presentation only, using the installed SweetAlert2 package and a shared utility. No schema, API contract, workflow, or deployment changes.
