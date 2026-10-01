@@ -95,15 +95,6 @@ export function ApprovalCommentDialog({ open, onOpenChange, enfaNumber, action, 
             </label>
             <Textarea
               id="approval-comment"
-              placeholder={
-                action === "approve"
-                  ? "Add an optional comment for approval"
-                  : action === "reject"
-                    ? "Enter reason for rejection"
-                    : action === "back_to_initiator"
-                      ? "Enter reason for sending back to initiator"
-                      : "Describe what clarification is needed"
-              }
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               className="min-h-[120px] resize-y"
