@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { AttachmentList } from "@/components/AttachmentList";
+import { RichTextView } from "@/components/RichTextView";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -213,7 +214,13 @@ function NfaDetail() {
           <ReadField label="Timeline (Days)" value={timelineDays} />
           <ReadField label="Initiator" value={nameFor(profiles, nfa.initiator_id)} />
           <ReadField label="Created" value={created} />
-          <ReadField label="Detailed Description" value={detailedDescription} className="md:col-span-2" multiline />
+          <div className="md:col-span-2">
+            <Label className="text-xs text-muted-foreground">Detailed Description</Label>
+            <RichTextView
+              html={detailedDescription}
+              className="mt-1 min-h-16 rounded border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </div>
         </div>
       </Card>
 
@@ -255,17 +262,15 @@ function ReadField({
   label,
   value,
   className,
-  multiline = false,
 }: {
   label: string;
   value: string;
   className?: string;
-  multiline?: boolean;
 }) {
   return (
     <div className={className}>
       <Label className="text-xs text-muted-foreground">{label}</Label>
-      <div className={`mt-1 rounded border border-border bg-background px-3 py-2 text-foreground ${multiline ? "min-h-16 whitespace-pre-wrap break-words" : "min-h-9"}`}>
+      <div className="mt-1 min-h-9 rounded border border-border bg-background px-3 py-2 text-foreground">
         {value || <span className="text-muted-foreground">—</span>}
       </div>
     </div>
