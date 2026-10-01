@@ -109,9 +109,9 @@ export function ApprovalCommentDialog({ open, onOpenChange, enfaNumber, action, 
               className="min-h-[120px] resize-y"
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              {meta?.requireComment ? "A comment is mandatory for this action." : "Comment is optional for approval."}
-            </p>
+            {meta?.requireComment && (
+              <p className="text-xs text-muted-foreground">A comment is mandatory for this action.</p>
+            )}
           </div>
         </div>
 
