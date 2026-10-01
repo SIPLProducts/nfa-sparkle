@@ -140,14 +140,16 @@ function NfaDetail() {
 
   async function uploadFiles(files: FileList | null) {
     if (!files || !user) return;
+    const currentNfa = nfa;
+    if (!currentNfa) return;
     setBusy(true);
     try {
       for (const file of Array.from(files)) {
-        const path = `${nfa.id}/${Date.now()}-${file.name}`;
+        const path = `${currentNfa.id}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
         if (uploadError) throw uploadError;
         const { error: insertError } = await supabase.from("nfa_attachment").insert({
-          nfa_id: nfa.id,
+          nfa_id: currentNfa.id,
           storage_path: path,
           filename: file.name,
           mime: file.type || null,
@@ -156,7 +158,7 @@ function NfaDetail() {
         });
         if (insertError) throw insertError;
       }
-      await supabase.from("nfa_audit").insert({ nfa_id: nfa.id, actor_id: user.id, action: "Uploaded attachment(s)" });
+      await supabase.from("nfa_audit").insert({ nfa_id: currentNfa.id, actor_id: user.id, action: "Uploaded attachment(s)" });
       toast.success("Uploaded");
       setAttachmentsKey((key) => key + 1);
     } catch (error) {
