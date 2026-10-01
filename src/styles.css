@@ -135,6 +135,40 @@
   letter-spacing: -0.01em;
 }
 
+/* SweetAlert uses the same semantic design roles as the portal. */
+.nfa-swal-popup {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font-family: var(--font-sans);
+  box-shadow: 0 20px 45px color-mix(in oklab, var(--color-foreground) 18%, transparent);
+}
+.nfa-swal-title {
+  color: var(--color-foreground);
+  font-family: var(--font-serif);
+  letter-spacing: 0;
+}
+.nfa-swal-content { color: var(--color-muted-foreground); }
+.nfa-swal-confirm,
+.nfa-swal-cancel {
+  min-height: 2.5rem;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+}
+.nfa-swal-confirm { background: var(--color-primary); color: var(--color-primary-foreground); }
+.nfa-swal-confirm:hover { background: color-mix(in oklab, var(--color-primary) 90%, black); }
+.nfa-swal-destructive { background: var(--color-destructive); color: var(--color-destructive-foreground); }
+.nfa-swal-destructive:hover { background: color-mix(in oklab, var(--color-destructive) 90%, black); }
+.nfa-swal-cancel {
+  margin-right: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+.nfa-swal-cancel:hover { background: var(--color-muted); }
+
 /* Rich text (Detailed Description) content rendering */
 .rich-content {
   line-height: 1.65;

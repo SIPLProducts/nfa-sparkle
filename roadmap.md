@@ -52,4 +52,5 @@
 - [x] Show an APPROVED watermark on final-approved Print Forms while preserving DRAFT for every non-final state.
 - [x] Add a safe Quality-only migration that synchronizes all required SAP API settings without replacing application data or SAP credentials.
 - [x] Show only the dynamic eNFA number returned by SAP after creation instead of retaining the temporary local number.
+- [x] Standardize transient messages and destructive confirmations with SweetAlert.
 - [x] Show only dynamic created NFA details and uploaded files on the Note for Approval page.
