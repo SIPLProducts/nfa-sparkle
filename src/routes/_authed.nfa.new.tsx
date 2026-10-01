@@ -404,15 +404,6 @@ function NewNfaPage() {
         }
       }
 
-      if (!asDraft) {
-        // Route for approval only on Submit.
-        const { error: perr } = await supabase
-          .from("nfa")
-          .update({ status: "in_process", current_level: 1 })
-          .eq("id", created.id);
-        if (perr) throw perr;
-      }
-
       if (asDraft) toast.success("Draft saved");
 
       // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
@@ -420,6 +411,16 @@ function NewNfaPage() {
       const sap = await submitToSap(created.id, plantObj?.name ?? "");
       if (sap.ok) toast.success(sap.message);
       else toast.error(sap.message);
+
+      if (!asDraft) {
+        // Keep the record editable until SAP's returned eNFA number has been
+        // stored, then route it into the existing approval workflow.
+        const { error: perr } = await supabase
+          .from("nfa")
+          .update({ status: "in_process", current_level: 1 })
+          .eq("id", created.id);
+        if (perr) throw perr;
+      }
 
       nav({ to: "/nfa/$id", params: { id: created.id } });
     } catch (e) {
@@ -501,7 +502,16 @@ function NewNfaPage() {
       }
       const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
       if (parsed?.STATUS === "S" && enfaNo) {
-        await supabase.from("nfa").update({ enfa_number: enfaNo }).eq("id", nfaId);
+        const { error: numberSaveError } = await supabase
+          .from("nfa")
+          .update({ enfa_number: enfaNo })
+          .eq("id", nfaId);
+        if (numberSaveError) {
+          return {
+            ok: false,
+            message: `SAP created eNFA ${enfaNo}, but its number could not be saved: ${numberSaveError.message}`,
+          };
+        }
         // Keep the rich Detailed Description (and the header values) against the
         // SAP number so the Print Form can render it later.
         await supabase.from("sap_record_draft").upsert({
