@@ -47,8 +47,6 @@ export function AppShell({
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
-  const isReport = pathname === "/report";
-
   const visibleNav = NAV.filter((n) => canAccess(n.screen));
   const visibleAdmin = ADMIN_NAV.filter((n) => canAccess(n.screen));
   const sections = Array.from(new Set(visibleNav.map((n) => n.section)));
