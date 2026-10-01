@@ -15,6 +15,16 @@ import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 
 export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
+  head: () => ({
+    meta: [
+      { title: "My NFAs | NFA Portal" },
+      { name: "description", content: "Review, search, and manage NFAs you have initiated." },
+      { property: "og:title", content: "My NFAs | NFA Portal" },
+      { property: "og:description", content: "Review, search, and manage NFAs you have initiated." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
