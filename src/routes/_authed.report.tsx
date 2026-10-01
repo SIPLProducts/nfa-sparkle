@@ -400,7 +400,7 @@ function Report() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <div className="mt-4 grid grid-cols-1 gap-2 md:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
           <div className="shrink-0 pb-0.5 text-sm text-muted-foreground">
             {filteredRows.length} result{filteredRows.length === 1 ? "" : "s"}
@@ -501,21 +501,63 @@ function Report() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden h-full overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-        <div className="h-full overflow-auto">
+      <section className="hidden h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm md:flex">
+        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <div className="mb-2 flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+              <span className="shrink-0 font-semibold uppercase text-foreground">E-NFA Report Results</span>
+              <span className="truncate">
+                {filteredRows.length} record{filteredRows.length === 1 ? "" : "s"}
+                {search && rows.length !== filteredRows.length ? ` of ${rows.length}` : ""}
+                {selectedRow ? " · 1 selected" : " · 0 selected"}
+              </span>
+            </div>
+            <div className="relative max-w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search…"
+                aria-label="Search report records"
+                className="h-9 pl-9"
+              />
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={uploading}
+              onClick={() => requireSelection() && uploadRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Upload File, If Any"}
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setDocsOpen(true)}>
+              <Paperclip className="h-3.5 w-3.5" /> Attached Docs
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requireSelection() && setPreviewOpen(true)}>
+              <Eye className="h-3.5 w-3.5" /> Preview
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => requireSelection() && setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
           <table className="min-w-full text-sm">
-            <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-20 border-b border-primary bg-primary text-left text-[11px] uppercase text-primary-foreground shadow-sm">
               <tr>
                 <th className="w-9 px-3 py-2.5" />
-                {BASE_COLS.map((c, idx) => (
-                  <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-30 bg-muted" : "")}>{c.label}</th>
+                {BASE_COLS.map((c) => (
+                  <th key={c.key} className="whitespace-nowrap px-3 py-2.5 font-semibold">{c.label}</th>
                 ))}
                 {LEVELS.flatMap((l) => [
-                  <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Designation{l}</th>,
-                  <th key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Approver{l}</th>,
-                  <th key={`s${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Status{l}</th>,
+                  <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-semibold">Designation{l}</th>,
+                  <th key={`a${l}`} className="whitespace-nowrap px-3 py-2.5 font-semibold">Approver{l}</th>,
+                  <th key={`s${l}`} className="whitespace-nowrap px-3 py-2.5 font-semibold">Status{l}</th>,
                 ])}
-                <th className="whitespace-nowrap px-3 py-2.5 font-medium">ENFA Status</th>
+                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ENFA Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -548,7 +590,7 @@ function Report() {
                       className={
                         "px-3 py-2.5 " +
                         (idx === 0
-                          ? "sticky left-0 z-10 bg-card font-mono text-xs font-medium text-accent"
+                          ? "whitespace-nowrap font-mono text-xs font-medium text-accent"
                           : c.key === "SUBJECT"
                             ? "max-w-[240px] truncate"
                             : "whitespace-nowrap")
@@ -578,7 +620,7 @@ function Report() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
       </div>
 
       <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
