@@ -13,3 +13,4 @@
 - Quality backend recovery must select exactly one deployed Compose file and preserve the existing database volume, because mixing stack definitions or recreating volumes risks data loss.
 - Quality SAP API synchronization must use a standalone, rerunnable upsert migration that preserves endpoint identities, credentials, SAP systems, and application records.
 - Transient notifications and destructive confirmations use the shared SweetAlert layer so messaging stays consistent without changing workflow logic.
+- Route-specific viewport scrolling is controlled by AppShell using the active pathname so fixed report controls do not alter other screens.
