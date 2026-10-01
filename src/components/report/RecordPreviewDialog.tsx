@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RichTextView } from "@/components/RichTextView";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
 import { fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
@@ -30,32 +28,10 @@ export function RecordPreviewDialog({
   endpoint?: "report" | "select";
 }) {
   const enfa = row?.REFFLD ?? "";
-  const [draft, setDraft] = useState<{
-    scope_impact: string | null;
-    budget_impact: number | null;
-    timeline_days: number | null;
-    detailed_description: string | null;
-    subject: string | null;
-  } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const pagesRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open || !enfa) return;
-    let cancelled = false;
-    (async () => {
-      const { data: d } = await supabase
-        .from("sap_record_draft")
-        .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
-        .eq("enfa_number", enfa)
-        .maybeSingle();
-      if (cancelled) return;
-      setDraft(d ?? null);
-    })();
-    return () => { cancelled = true; };
-  }, [open, enfa, row]);
 
   // Fetch the printable document from SAP for the selected record.
   useEffect(() => {
@@ -158,18 +134,6 @@ export function RecordPreviewDialog({
             </>
           ) : null}
 
-          {pdfUrl ? null : (
-          <>
-
-
-          {draft?.detailed_description ? (
-            <section className="rounded-lg border border-border p-4">
-              <h3 className="mb-2 font-display text-sm font-bold">Detailed Description</h3>
-              <RichTextView html={draft.detailed_description} />
-            </section>
-          ) : null}
-          </>
-          )}
         </div>
 
         <DialogFooter>
