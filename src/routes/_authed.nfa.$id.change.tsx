@@ -13,7 +13,7 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AttachmentList } from "@/components/AttachmentList";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { ArrowLeft, Save, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id/change")({

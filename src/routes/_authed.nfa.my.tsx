@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { PlusCircle, Search, FileText, Upload, Paperclip, Eye, Pencil, RefreshCw } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog, uploadToSap } from "@/components/report/RecordAttachmentsDialog";
 import { RecordEditDialog } from "@/components/report/RecordEditDialog";

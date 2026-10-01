@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { swalConfirm, toast } from "@/lib/swal";
 import {
   Plug,
   Database,
@@ -35,16 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   SAP_AUTH_TYPES,
   SAP_ENVIRONMENTS,
@@ -155,7 +145,6 @@ function EndpointsTab() {
   const remove = useServerFn(deleteSapEndpoint);
   const test = useServerFn(testSapEndpoint);
   const [open, setOpen] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -298,7 +287,15 @@ function EndpointsTab() {
                   aria-label={`Delete ${ep.name}`}
                   title="Delete endpoint"
                   className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setConfirmId(ep.id)}
+                   onClick={async () => {
+                     const confirmed = await swalConfirm({
+                       title: "Delete this endpoint?",
+                       text: "The endpoint definition and its stored credentials will be removed. This cannot be undone.",
+                       confirmText: "Delete",
+                       destructive: true,
+                     });
+                     if (confirmed) deleteMut.mutate(ep.id);
+                   }}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -411,27 +408,6 @@ function EndpointsTab() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this endpoint?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The endpoint definition and its stored credentials will be removed. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirmId) deleteMut.mutate(confirmId);
-                setConfirmId(null);
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -523,7 +499,6 @@ function SystemsTab() {
 
   const [form, setForm] = useState(BLANK_SYSTEM);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -775,7 +750,15 @@ function SystemsTab() {
                     aria-label={`Delete ${s.label || s.key}`}
                     title="Delete system"
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => setConfirmId(s.id)}
+                    onClick={async () => {
+                      const confirmed = await swalConfirm({
+                        title: "Delete this SAP system?",
+                        text: "Endpoints pinned to it will fall back to the active system. Stored credentials are removed.",
+                        confirmText: "Delete",
+                        destructive: true,
+                      });
+                      if (confirmed) deleteMut.mutate(s.id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -786,27 +769,6 @@ function SystemsTab() {
         </SectionCard>
       )}
 
-      <AlertDialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this SAP system?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Endpoints pinned to it will fall back to the active system. Stored credentials are removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirmId) deleteMut.mutate(confirmId);
-                setConfirmId(null);
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

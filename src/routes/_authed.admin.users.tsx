@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { swalConfirm, toast } from "@/lib/swal";
 import {
   KeyRound,
   Loader2,
@@ -316,7 +316,19 @@ function UsersTab() {
                           variant="outline"
                           className="gap-1.5"
                           disabled={toggleActive.isPending}
-                          onClick={() => toggleActive.mutate({ id: u.id, active: !u.is_active })}
+                           onClick={async () => {
+                             if (!u.is_active) {
+                               toggleActive.mutate({ id: u.id, active: true });
+                               return;
+                             }
+                             const confirmed = await swalConfirm({
+                               title: "Deactivate this user?",
+                               text: "The user will no longer be able to sign in until reactivated.",
+                               confirmText: "Deactivate",
+                               destructive: true,
+                             });
+                             if (confirmed) toggleActive.mutate({ id: u.id, active: false });
+                           }}
                         >
                           {u.is_active ? (
                             <>
@@ -1037,7 +1049,15 @@ function RolesTab() {
                         className="gap-1.5 text-destructive"
                         disabled={r.is_system || remove.isPending}
                         title={r.is_system ? "Built-in roles cannot be deleted" : "Delete role"}
-                        onClick={() => remove.mutate(r.key)}
+                        onClick={async () => {
+                          const confirmed = await swalConfirm({
+                            title: "Delete this role?",
+                            text: "The role and its screen permissions will be removed. This cannot be undone.",
+                            confirmText: "Delete",
+                            destructive: true,
+                          });
+                          if (confirmed) remove.mutate(r.key);
+                        }}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </Button>

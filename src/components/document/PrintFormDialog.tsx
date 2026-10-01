@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download, FileDown, FileUp, Loader2, Pencil, Printer, Save } from "lucide-react";
 import { EnfaDocument, type EnfaDocumentApprover, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import {
   DOCX_MIME,
