@@ -205,7 +205,7 @@ export function AppShell({
       </aside>
 
       {/* Main */}
-      <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", isReport ? "overflow-hidden" : "overflow-y-auto")}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
@@ -284,8 +284,8 @@ export function AppShell({
           )}
         </header>
 
-        <main className={cn("flex-1 px-4 py-6 sm:px-6 lg:px-8", isReport && "min-h-0 overflow-hidden")}>
-          <div className={cn("mx-auto w-full max-w-[1600px]", isReport && "h-full min-h-0")}>{children}</div>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
     </div>

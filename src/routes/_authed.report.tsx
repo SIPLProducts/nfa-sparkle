@@ -354,8 +354,8 @@ function Report() {
   const visibleRows = filteredRows.slice(0, visibleCount);
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="shrink-0">
+    <div className="flex flex-col">
+      <div>
         <PageHeader
           eyebrow="Insights"
           title="E-NFA Report"
@@ -400,7 +400,7 @@ function Report() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 md:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      {(ran || busy) && <div className="mt-4 grid grid-cols-1 gap-2 md:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
           <div className="shrink-0 pb-0.5 text-sm text-muted-foreground">
             {filteredRows.length} result{filteredRows.length === 1 ? "" : "s"}
@@ -439,10 +439,10 @@ function Report() {
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
         </div>
-      </div>
+      </div>}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pt-2 md:overflow-hidden">
+      {(ran || busy) && <div className="min-h-0 flex-1 overflow-y-auto pt-2 md:overflow-visible">
 
         {/* Mobile card list */}
         <div className="space-y-2.5 md:hidden">
@@ -501,7 +501,7 @@ function Report() {
       </div>
 
       {/* Desktop table */}
-      <section className="hidden h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm md:flex">
+      <section className="hidden h-[clamp(22rem,58vh,32rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm md:flex">
         <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-border px-4 py-3">
           <div className="min-w-0">
             <div className="mb-2 flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
@@ -621,7 +621,7 @@ function Report() {
           </table>
         </div>
       </section>
-      </div>
+      </div>}
 
       <RecordAttachmentsDialog enfaNumber={selectedRow?.REFFLD ?? null} open={docsOpen} onOpenChange={setDocsOpen} />
 
