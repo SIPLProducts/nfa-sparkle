@@ -54,4 +54,4 @@
 - [x] Show only the dynamic eNFA number returned by SAP after creation instead of retaining the temporary local number.
 - [x] Standardize transient messages and destructive confirmations with SweetAlert.
 - [x] Show only dynamic created NFA details and uploaded files on the Note for Approval page.
-- [x] Match the E-NFA Report reference with a fixed results header, search, action buttons, blue column headings, and row-only scrolling.
+- [ ] Keep the Report input card unchanged; show a properly sized results card only after Execute, with fixed controls/headings and row-only scrolling.
