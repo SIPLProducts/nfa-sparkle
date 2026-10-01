@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "@/lib/swal";
-import { Download, Play, BarChart3, RotateCcw, Upload, Paperclip, Eye, Pencil } from "lucide-react";
+import { Download, Play, BarChart3, RotateCcw, Upload, Paperclip, Eye, Pencil, Search } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { RecordAttachmentsDialog, uploadToSap } from "@/components/report/RecordAttachmentsDialog";
 import { RecordEditDialog } from "@/components/report/RecordEditDialog";
@@ -185,12 +185,24 @@ function Report() {
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [search, setSearch] = useState("");
   const uploadRef = useRef<HTMLInputElement>(null);
+
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => !query || Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(query)));
+  }, [rows, search]);
 
   const selectedRow = useMemo(
     () => (selected != null && selected < rows.length ? rows[selected]! : null),
     [selected, rows],
   );
+
+  useEffect(() => {
+    if (selected != null && !filteredRows.some((item) => item.index === selected)) setSelected(null);
+  }, [filteredRows, selected]);
 
   function requireSelection(): SapReportRow | null {
     if (!selectedRow) {
@@ -308,6 +320,7 @@ function Report() {
     setEditOpen(false);
     setPreviewOpen(false);
     setUploading(false);
+    setSearch("");
   });
 
   function exportCsv() {
@@ -337,8 +350,8 @@ function Report() {
     URL.revokeObjectURL(url);
   }
 
-  const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(rows.length, 10, 10);
-  const visibleRows = rows.slice(0, visibleCount);
+  const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filteredRows.length, 10, 10);
+  const visibleRows = filteredRows.slice(0, visibleCount);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -387,12 +400,25 @@ function Report() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {rows.length} result{rows.length === 1 ? "" : "s"}
-          {selectedRow ? <span className="ml-2 font-mono text-xs text-accent">{selectedRow.REFFLD}</span> : null}
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="shrink-0 pb-0.5 text-sm text-muted-foreground">
+            {filteredRows.length} result{filteredRows.length === 1 ? "" : "s"}
+            {search && rows.length !== filteredRows.length ? <span> of {rows.length}</span> : null}
+            {selectedRow ? <span className="ml-2 font-mono text-xs text-accent">{selectedRow.REFFLD}</span> : null}
+          </div>
+          <div className="relative w-full sm:max-w-72">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search records…"
+              aria-label="Search report records"
+              className="h-9 pl-8"
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
           <Button
             size="sm"
             variant="outline"
@@ -416,18 +442,18 @@ function Report() {
       </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto pt-2 md:overflow-hidden">
 
         {/* Mobile card list */}
-        <div className="mt-2 space-y-2.5 md:hidden">
+        <div className="space-y-2.5 md:hidden">
 
-        {rows.length === 0 && (
+        {filteredRows.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-            {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
+            {busy ? "Calling SAP…" : error ? error : search && rows.length ? "No records match your search." : ran ? "No records returned by SAP." : "Run the report to see results."}
           </div>
         )}
-        {visibleRows.map((r, i) => (
-          <details key={`${r.REFFLD}-${i}`} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+        {visibleRows.map(({ row: r, index }) => (
+          <details key={`${r.REFFLD}-${index}`} className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <summary className="cursor-pointer list-none">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
@@ -435,9 +461,9 @@ function Report() {
                     type="radio"
                     name="enfa-record"
                     className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                    checked={selected === i}
+                    checked={selected === index}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={() => setSelected(i)}
+                    onChange={() => setSelected(index)}
                     aria-label={`Select ${r.REFFLD}`}
                   />
                   <span className="font-mono text-[11px] font-semibold text-accent">{r.REFFLD || "—"}</span>
@@ -469,20 +495,20 @@ function Report() {
         ))}
         {hasMore && (
           <div ref={setSentinel} className="py-3 text-center text-[11px] text-muted-foreground">
-            Loading more… <span className="text-foreground/60">({visibleCount} of {rows.length})</span>
+            Loading more… <span className="text-foreground/60">({visibleCount} of {filteredRows.length})</span>
           </div>
         )}
       </div>
 
       {/* Desktop table */}
-      <div className="mt-2 hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-        <div className="overflow-x-auto">
+      <div className="hidden h-full overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
+        <div className="h-full overflow-auto">
           <table className="min-w-full text-sm">
-            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="w-9 px-3 py-2.5" />
                 {BASE_COLS.map((c, idx) => (
-                  <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-10 bg-muted/50" : "")}>{c.label}</th>
+                  <th key={c.key} className={"whitespace-nowrap px-3 py-2.5 font-medium" + (idx === 0 ? " sticky left-0 z-30 bg-muted" : "")}>{c.label}</th>
                 ))}
                 {LEVELS.flatMap((l) => [
                   <th key={`r${l}`} className="whitespace-nowrap px-3 py-2.5 font-medium">Designation{l}</th>,
@@ -493,26 +519,26 @@ function Report() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr>
                   <td colSpan={BASE_COLS.length + LEVELS.length * 3 + 2} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {busy ? "Calling SAP…" : error ? error : ran ? "No records returned by SAP." : "Run the report to see results."}
+                    {busy ? "Calling SAP…" : error ? error : search && rows.length ? "No records match your search." : ran ? "No records returned by SAP." : "Run the report to see results."}
                   </td>
                 </tr>
               )}
-              {rows.map((r, i) => (
+              {filteredRows.map(({ row: r, index }) => (
                 <tr
-                  key={`${r.REFFLD}-${i}`}
-                  className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
-                  onClick={() => setSelected(i)}
+                  key={`${r.REFFLD}-${index}`}
+                  className={"cursor-pointer hover:bg-muted/40 " + (selected === index ? "bg-accent/5" : "")}
+                  onClick={() => setSelected(index)}
                 >
                   <td className="px-3 py-2.5">
                     <input
                       type="radio"
                       name="enfa-record-desktop"
                       className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                      checked={selected === i}
-                      onChange={() => setSelected(i)}
+                      checked={selected === index}
+                      onChange={() => setSelected(index)}
                       aria-label={`Select ${r.REFFLD}`}
                     />
                   </td>
