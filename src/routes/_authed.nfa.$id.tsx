@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Upload } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { AttachmentList } from "@/components/AttachmentList";
 import { RichTextView } from "@/components/RichTextView";
 import { Card } from "@/components/ui/card";

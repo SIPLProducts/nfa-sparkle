@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { Download, Play, BarChart3, RotateCcw, Upload, Paperclip, Eye, Pencil } from "lucide-react";
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
 import { RecordAttachmentsDialog, uploadToSap } from "@/components/report/RecordAttachmentsDialog";

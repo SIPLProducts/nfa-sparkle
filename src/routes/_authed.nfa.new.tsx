@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";

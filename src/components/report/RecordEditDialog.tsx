@@ -14,7 +14,7 @@ import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/print-form-data";
 
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */

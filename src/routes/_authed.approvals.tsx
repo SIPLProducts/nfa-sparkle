@@ -18,7 +18,7 @@ import {
 } from "@/lib/approval-print-document";
 
 import { useInfiniteVisible } from "@/hooks/use-infinite-visible";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { RecordAttachmentsDialog } from "@/components/report/RecordAttachmentsDialog";
 import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
