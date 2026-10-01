@@ -127,7 +127,7 @@ function ApprovalsInbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<SapReportRow | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -217,12 +217,15 @@ function ApprovalsInbox() {
     if (!q.trim()) return rows;
     const s = q.toLowerCase();
     return rows.filter((r) =>
-      val(r, "REFFLD").toLowerCase().includes(s) ||
-      val(r, "SUBJECT").toLowerCase().includes(s) ||
-      nfaType(r).toLowerCase().includes(s) ||
-      val(r, "NAME1").toLowerCase().includes(s),
+      Object.values(r as unknown as Record<string, unknown>).some((value) =>
+        String(value ?? "").toLowerCase().includes(s),
+      ),
     );
   }, [q, rows]);
+
+  useEffect(() => {
+    if (selected && !filtered.includes(selected)) setSelected(null);
+  }, [filtered, selected]);
 
   /** Status / level columns only render when SAP actually returns those keys. */
   const hasStatus = useMemo(() => rows.some((r) => val(r, "STATUS_TXT")), [rows]);
@@ -234,7 +237,7 @@ function ApprovalsInbox() {
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filtered.length, 10, 10);
   const visible = filtered.slice(0, visibleCount);
 
-  const selectedRow = selected !== null ? filtered[selected] ?? null : null;
+  const selectedRow = selected;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
   useEffect(() => {
@@ -505,7 +508,7 @@ function ApprovalsInbox() {
       : "SAP returned no records.";
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         eyebrow="Workspace"
         title="Approvals Inbox"
@@ -520,8 +523,8 @@ function ApprovalsInbox() {
         }
       />
 
-      <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
             {filtered.length} item{filtered.length === 1 ? "" : "s"}
             {selectedEnfaNo ? <span className="ml-2 font-mono text-xs text-accent">{selectedEnfaNo}</span> : null}
@@ -555,7 +558,7 @@ function ApprovalsInbox() {
         </div>
 
         {/* Mobile card list */}
-        <div className="space-y-2.5 md:hidden">
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto md:hidden">
           {loading && <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Loading…</div>}
           {!loading && filtered.length === 0 && (
             <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
@@ -577,8 +580,8 @@ function ApprovalsInbox() {
               <button
                 key={`${val(r, "REFFLD")}-${i}`}
                 type="button"
-                onClick={() => setSelected(i)}
-                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+                onClick={() => setSelected(r)}
+                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
@@ -586,8 +589,8 @@ function ApprovalsInbox() {
                       type="radio"
                       name="approval-record"
                       className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                      checked={selected === i}
-                      onChange={() => setSelected(i)}
+                      checked={selected === r}
+                      onChange={() => setSelected(r)}
                       aria-label={`Select ${val(r, "REFFLD")}`}
                     />
                     <span className="font-mono text-[11px] font-semibold text-accent">{val(r, "REFFLD") || "—"}</span>
@@ -622,10 +625,10 @@ function ApprovalsInbox() {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-          <div className="overflow-x-auto">
+        <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
+          <div className="h-full overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground shadow-sm">
                 <tr>
                   <Th> </Th>
                   <Th>ENFA No</Th>
@@ -659,16 +662,16 @@ function ApprovalsInbox() {
                   return (
                     <tr
                       key={`${val(r, "REFFLD")}-${i}`}
-                      onClick={() => setSelected(i)}
-                      className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+                      onClick={() => setSelected(r)}
+                      className={"cursor-pointer hover:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
                     >
                       <Td>
                         <input
                           type="radio"
                           name="approval-record-desktop"
                           className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                          checked={selected === i}
-                          onChange={() => setSelected(i)}
+                          checked={selected === r}
+                          onChange={() => setSelected(r)}
                           aria-label={`Select ${val(r, "REFFLD")}`}
                         />
                       </Td>
