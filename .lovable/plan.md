@@ -1,38 +1,15 @@
-# Fix SAP middleware 404 without changing API behavior
+# Show the SAP-returned eNFA number
 
-## Confirmed finding
+## Goal
+Display only the eNFA number returned by the successful Create NFA API response on the Note for Approval page, without changing its layout or workflow.
 
-- The app correctly sends `POST <saved middleware URL>/sap/call` with JSON and `x-proxy-secret`.
-- Both current middleware copies expose `POST /sap/call`, validate the secret, preserve GET request bodies, add Basic authentication, and forward the configured SAP URL, query, headers, and body.
-- The response `No route for POST /sap/call` is not produced by the current middleware. SAP was therefore not reached; the request is landing on another service, an incorrect port/path, or an older middleware process.
-- In the Quality deployment, the intended route is public port `3004` → nginx → middleware port `3005`. Port `8081` is the portal and must not be saved as the Middleware URL.
-- The supplied server nginx file already has the correct middleware mapping: its port `3004` block forwards every path unchanged to `enfa_quality_middleware`, which resolves to `127.0.0.1:3005`. The app upstream being `127.0.0.1:3006` is also consistent with the running portal and does not affect `/sap/call` on port 3004.
+## Changes
+- Keep the record editable until the successful SAP response number has been saved.
+- Check that saving the returned number succeeds instead of silently continuing with the temporary local number.
+- Move the existing in-process transition immediately after the SAP submission step, preserving the current approval state, messages, navigation, attachments, document creation, and failure behavior.
+- Add a focused regression test for extracting and persisting the dynamic response number if the existing test structure supports this flow.
 
-## Plan
-
-1. **Identify the actual destination on the Quality server**
-   - Read the saved Middleware URL from `sap_middleware_config` without exposing the Proxy Secret.
-   - Compare requests in the middleware nginx access log, middleware PM2 log, and portal PM2 log.
-   - Test `/health`, authenticated `/systems`, and `POST /sap/call` directly on ports 3005 and 3004 to identify the first failing hop.
-
-2. **Correct only the broken middleware hop**
-   - If the saved URL targets `8081`, another port, or includes an API path, change only the Middleware URL to `http://10.200.1.7:3004`.
-   - Keep the supplied nginx middleware block unchanged unless the live `nginx -T` output differs from the uploaded file.
-   - If an old process owns port 3005, restart only `enfa-quality-middleware` from the packaged Quality middleware; do not restart unrelated apps or recreate database volumes.
-
-3. **Verify request integrity end to end**
-   - Confirm the middleware receives `POST /sap/call`, accepts `x-proxy-secret`, and logs the resolved SAP method, URL, payload size, status, and response without exposing credentials.
-   - Verify the saved endpoint method, path, `sap-client`, JSON payload, Content-Type/Accept headers, and Basic-auth source remain settings-driven.
-   - Re-test Display Edit Data, Company F4, and NFA Type F4; confirm browser requests no longer return 404/424 and SAP returns its actual response.
-
-4. **Prevent recurrence without changing SAP functionality**
-   - Make the middleware connection check require the expected service identity/version from `/health` before API calls are considered healthy.
-   - Improve this specific 404 message to report that the Middleware URL reached the wrong service, while preserving all existing endpoint payloads, methods, authentication, and response handling.
-
-## Validation
-
-- `/health` on public port 3004 identifies `enfa-sap-middleware` version 1.1.0.
-- Authenticated `/systems` succeeds with the existing Proxy Secret.
-- A protected `/sap/call` test reaches SAP and returns the middleware response envelope rather than a route 404.
-- My NFAs loads without the red 404 banner; Company and NFA Type requests no longer return 424 caused by the same middleware routing issue.
-- No SAP endpoint definitions, payload templates, credentials, users, application data, ports, or unrelated APIs are changed.
+## Verification
+- Confirm a successful response such as `ENFA_NO: 100134` results in the Note for Approval badge showing `100134`, not the earlier locally generated number.
+- Confirm no hardcoded eNFA number is introduced and existing submission behavior remains unchanged.
+- Run focused tests and verify the preview build reports no errors.
