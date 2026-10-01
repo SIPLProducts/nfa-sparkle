@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,16 @@ import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 
 export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
+  head: () => ({
+    meta: [
+      { title: "My NFAs | NFA Portal" },
+      { name: "description", content: "Review, search, and manage NFAs you have initiated." },
+      { property: "og:title", content: "My NFAs | NFA Portal" },
+      { property: "og:description", content: "Review, search, and manage NFAs you have initiated." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
@@ -76,7 +86,7 @@ function MyNfas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<SapReportRow | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -165,19 +175,22 @@ function MyNfas() {
 
   const filtered = useMemo(() => {
     if (!q.trim()) return rows;
-    const s = q.toLowerCase();
+    const s = q.trim().toLowerCase();
     return rows.filter((r) =>
-      val(r, "REFFLD").toLowerCase().includes(s) ||
-      val(r, "SUBJECT").toLowerCase().includes(s) ||
-      val(r, "FUNCT_TXT").toLowerCase().includes(s) ||
-      val(r, "NAME1").toLowerCase().includes(s),
+      Object.values(r as unknown as Record<string, unknown>).some((value) =>
+        String(value ?? "").toLowerCase().includes(s),
+      ),
     );
   }, [q, rows]);
+
+  useEffect(() => {
+    if (selected && !filtered.includes(selected)) setSelected(null);
+  }, [filtered, selected]);
 
   const { count: visibleCount, setSentinel, hasMore } = useInfiniteVisible(filtered.length, 10, 10);
   const visible = filtered.slice(0, visibleCount);
 
-  const selectedRow = selected !== null ? filtered[selected] ?? null : null;
+  const selectedRow = selected;
   const selectedEnfaNo = selectedRow ? val(selectedRow, "REFFLD") : "";
 
   function requireSelection() {
@@ -213,7 +226,7 @@ function MyNfas() {
       : "SAP returned no records.";
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         eyebrow="Workspace"
         title="My NFAs"
@@ -229,7 +242,7 @@ function MyNfas() {
         }
       />
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-3 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {filtered.length} record{filtered.length === 1 ? "" : "s"}
           {selectedEnfaNo ? <span className="ml-2 font-mono text-xs text-accent">{selectedEnfaNo}</span> : null}
@@ -261,7 +274,7 @@ function MyNfas() {
       </div>
 
       {/* Mobile card list */}
-      <div className="space-y-2.5 md:hidden">
+      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto md:hidden">
         {loading && <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Loading…</div>}
         {!loading && filtered.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-card px-4 py-10 text-center">
@@ -276,8 +289,8 @@ function MyNfas() {
             <button
               key={`${val(r, "REFFLD")}-${i}`}
               type="button"
-              onClick={() => setSelected(i)}
-              className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+              onClick={() => setSelected(r)}
+              className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
@@ -285,8 +298,8 @@ function MyNfas() {
                     type="radio"
                     name="my-nfa-record"
                     className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                    checked={selected === i}
-                    onChange={() => setSelected(i)}
+                    checked={selected === r}
+                    onChange={() => setSelected(r)}
                     aria-label={`Select ${val(r, "REFFLD")}`}
                   />
                   <span className="font-mono text-[11px] font-semibold text-accent">{val(r, "REFFLD") || "—"}</span>
@@ -311,10 +324,10 @@ function MyNfas() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
-        <div className="overflow-x-auto">
+      <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
+        <div className="h-full overflow-auto">
           <table className="min-w-full text-sm">
-            <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground shadow-sm">
               <tr>
                 <Th> </Th>
                 <Th>ENFA Number</Th><Th>Status</Th><Th>Plant</Th><Th>NFA Type</Th><Th>Subject</Th><Th>Created</Th>
@@ -336,16 +349,16 @@ function MyNfas() {
                 return (
                   <tr
                     key={`${val(r, "REFFLD")}-${i}`}
-                    onClick={() => setSelected(i)}
-                    className={"cursor-pointer hover:bg-muted/40 " + (selected === i ? "bg-accent/5" : "")}
+                    onClick={() => setSelected(r)}
+                    className={"cursor-pointer hover:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
                   >
                     <Td>
                       <input
                         type="radio"
                         name="my-nfa-record-desktop"
                         className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
-                        checked={selected === i}
-                        onChange={() => setSelected(i)}
+                        checked={selected === r}
+                        onChange={() => setSelected(r)}
                         aria-label={`Select ${val(r, "REFFLD")}`}
                       />
                     </Td>

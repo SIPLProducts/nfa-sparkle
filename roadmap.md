@@ -55,3 +55,4 @@
 - [x] Standardize transient messages and destructive confirmations with SweetAlert.
 - [x] Show only dynamic created NFA details and uploaded files on the Note for Approval page.
 - [x] Keep the Report input card unchanged; show a properly sized results card only after Execute, with fixed controls/headings and row-only scrolling.
+- [x] Keep My NFAs search, actions, and column headings fixed while only records scroll.
