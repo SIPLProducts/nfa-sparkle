@@ -127,4 +127,29 @@ describe("Approvals Print Form data", () => {
     expect(resolved.document.functionName).toBe("SAP FUNCTION");
     expect(resolved.document.approvers[0]).toMatchObject({ role: "SAP ROLE", name: "SAP Approver" });
   });
+
+  it("fills every omitted SAP approval field from the complete saved chain", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: {
+        EXTR_TXT: "SAP FUNCTION",
+        ROLE1: "SAP Level One",
+        APPR1: "Current SAP Approver",
+      },
+      savedDetail: {
+        EXTR_TXT: "SAVED FUNCTION",
+        ROLE1: "Saved Level One", USERID1: "1001", APPR1: "Saved Approver One", STAT1: "approved",
+        ROLE2: "Saved Level Two", USERID2: "1002", APPR2: "Saved Approver Two", STAT2: "pending",
+        ROLE3: "Saved Level Three", USERID3: "1003", APPR3: "Saved Approver Three", STAT3: "pending",
+      },
+    });
+
+    expect(resolved.document.functionName).toBe("SAP FUNCTION");
+    expect(resolved.document.approvers).toEqual([
+      expect.objectContaining({ role: "SAP Level One", userId: "1001", name: "Current SAP Approver", status: "approved" }),
+      expect.objectContaining({ role: "Saved Level Two", userId: "1002", name: "Saved Approver Two", status: "pending" }),
+      expect.objectContaining({ role: "Saved Level Three", userId: "1003", name: "Saved Approver Three", status: "pending" }),
+    ]);
+    expect(resolved.missingFields).not.toContain("Function");
+    expect(resolved.missingFields).not.toContain("Approval Chain");
+  });
 });

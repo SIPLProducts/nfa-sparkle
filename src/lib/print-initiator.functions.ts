@@ -6,6 +6,20 @@ export interface ApprovalPrintContext {
   initiatorName: string;
 }
 
+interface SavedApprovalLevel {
+  level: number;
+  approver_id: string;
+  designation: string | null;
+  status: string;
+  acted_at: string | null;
+}
+
+interface SavedPrintProfile {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+}
+
 function formatActionTime(value: string | null | undefined): { date: string; time: string } {
   if (!value) return { date: "", time: "" };
   const parsed = new Date(value);
@@ -64,29 +78,35 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ApprovalPrintContext> => {
     if (!data.enfaNumber) return { savedDetail: null, initiatorName: "" };
 
-    const { data: record } = await context.supabase
+    const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
+    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], "approvals");
+    const db = await getAdminClient();
+
+    const { data: record, error: recordError } = await db
       .from("nfa")
       .select("id, initiator_id, company, plant, plant_name, nfa_type, function, subject, scope_impact, budget_impact, timeline_days, detailed_description, created_at")
       .eq("enfa_number", data.enfaNumber)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
+    if (recordError) throw new Error("Unable to load the saved Print Form record");
     if (!record) return { savedDetail: null, initiatorName: "" };
 
-    const { data: levels } = await context.supabase
+    const { data: levels, error: levelsError } = await db
       .from("nfa_approver")
       .select("level, approver_id, designation, status, acted_at")
       .eq("nfa_id", record.id)
       .order("level", { ascending: true });
-    const profileIds = [record.initiator_id, ...(levels ?? []).map((level) => level.approver_id)].filter(Boolean);
-    const { data: basicProfiles } = profileIds.length
-      ? await context.supabase.rpc("get_profiles_basic", { _ids: profileIds })
+    if (levelsError) throw new Error("Unable to load the saved approval levels");
+    const savedLevels = (levels ?? []) as SavedApprovalLevel[];
+    const profileIds = [record.initiator_id, ...savedLevels.map((level) => level.approver_id)].filter(Boolean);
+    const { data: profiles, error: profilesError } = profileIds.length
+      ? await db.from("profiles").select("id, full_name, username").in("id", profileIds)
       : { data: [] };
-    const { data: usernames } = profileIds.length
-      ? await context.supabase.from("profiles").select("id, username").in("id", profileIds)
-      : { data: [] };
-    const nameById = new Map((basicProfiles ?? []).map((profile) => [profile.id, profile.full_name ?? ""]));
-    const usernameById = new Map((usernames ?? []).map((profile) => [profile.id, profile.username ?? ""]));
+    if (profilesError) throw new Error("Unable to load the saved approver details");
+    const savedProfiles = (profiles ?? []) as SavedPrintProfile[];
+    const nameById = new Map(savedProfiles.map((profile) => [profile.id, profile.full_name ?? ""]));
+    const usernameById = new Map(savedProfiles.map((profile) => [profile.id, profile.username ?? ""]));
     const initiatorName = nameById.get(record.initiator_id)?.trim() ?? "";
     const savedDetail: Record<string, string | number | null> = {
       REFFLD: data.enfaNumber,
@@ -102,7 +122,7 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       TIMELINE_DAYS: record.timeline_days,
       DETAILED_DESCRIPTION: record.detailed_description,
     };
-    for (const level of levels ?? []) {
+    for (const level of savedLevels) {
       const acted = formatActionTime(level.acted_at);
       savedDetail[`ROLE${level.level}`] = level.designation ?? "";
       savedDetail[`USERID${level.level}`] = usernameById.get(level.approver_id) ?? "";
