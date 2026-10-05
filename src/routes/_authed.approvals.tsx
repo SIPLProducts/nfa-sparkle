@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
-import { loadPrintComments, loadPrintInitiator } from "@/lib/print-form-data";
+import { loadApprovalPrintContext, loadPrintComments } from "@/lib/print-form-data";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import {
   parseApprovalPrintDetail,
@@ -292,7 +292,7 @@ function ApprovalsInbox() {
         })
         .catch(() => null);
 
-      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments, initiatorName] = await Promise.all([
+      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments, savedContext] = await Promise.all([
         requestDetails("/api/public/enfa-detail"),
         requestDetails("/api/public/enfa-select"),
         reportDetails,
@@ -302,7 +302,7 @@ function ApprovalsInbox() {
           .eq("enfa_number", selectedEnfaNo)
           .maybeSingle(),
         loadPrintComments(selectedEnfaNo),
-        loadPrintInitiator(selectedEnfaNo),
+        loadApprovalPrintContext(selectedEnfaNo),
       ]);
 
        const parseResult = (result: typeof editDetailResult) => {
@@ -320,9 +320,10 @@ function ApprovalsInbox() {
            ...(reportRow as unknown as Record<string, unknown> | null ?? {}),
          },
          worklistRow: selectedRow as unknown as Record<string, unknown>,
+          savedDetail: savedContext.savedDetail,
          draft: draftResult.data,
          comments,
-          initiatorName,
+          initiatorName: savedContext.initiatorName,
        });
        const plant = val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
        let apiFlow = { approvers: [] as typeof resolved.document.approvers, functionName: "" };
@@ -417,7 +418,7 @@ function ApprovalsInbox() {
           }).then(async (response) => response.ok
             ? normaliseRows(await response.json()).find((row) => val(row, "REFFLD") === selectedEnfaNo) ?? null
             : null).catch(() => null);
-          const [editResult, selectResult, reportRow, draftResult, comments, initiatorName] = await Promise.all([
+          const [editResult, selectResult, reportRow, draftResult, comments, savedContext] = await Promise.all([
             requestDetails("/api/public/enfa-detail"),
             requestDetails("/api/public/enfa-select"),
             reportDetails,
@@ -425,7 +426,7 @@ function ApprovalsInbox() {
               .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
               .eq("enfa_number", selectedEnfaNo).maybeSingle(),
             loadPrintComments(selectedEnfaNo),
-            loadPrintInitiator(selectedEnfaNo),
+            loadApprovalPrintContext(selectedEnfaNo),
           ]);
           const editDetail = editResult.response.ok ? parseApprovalPrintDetail(editResult.text).detail : null;
           const selectDetail = selectResult.response.ok ? parseApprovalPrintDetail(selectResult.text).detail : null;
@@ -433,9 +434,10 @@ function ApprovalsInbox() {
             editDetail,
             selectDetail: { ...(selectDetail ?? {}), ...(reportRow as unknown as Record<string, unknown> | null ?? {}) },
             worklistRow: selectedRow as unknown as Record<string, unknown>,
+            savedDetail: savedContext.savedDetail,
             draft: draftResult.data,
             comments,
-            initiatorName,
+            initiatorName: savedContext.initiatorName,
           });
           const generated = await createApprovalPrintFormPdf({
             nfaNo: selectedEnfaNo,
