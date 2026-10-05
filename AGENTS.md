@@ -20,3 +20,4 @@
 - Authorization uses dynamic Custom Role assignments; legacy System Role storage remains inactive for schema compatibility.
 - Screen authorization uses the assigned Custom Role permission for both page access and its server-side actions so delegated users receive the screen's complete existing functionality.
 - Approval Chain management uses the configured SAP endpoint and serializes editable rows into SAP's seven approval slots so no business values are hardcoded.
+- Approval Chain reads require Approvals access, while approval-chain mutations require User Management access, so Print Form works without granting administrative rights.
