@@ -18,3 +18,4 @@
 - Authentication access checks remain pending until the current user's shared role-and-permission load completes, preventing transient false denials.
 - Global styles use both the root module import and the root head link so route reloads cannot leave the portal unstyled.
 - Authorization uses dynamic Custom Role assignments; legacy System Role storage remains inactive for schema compatibility.
+- Approval Chain management uses the configured SAP endpoint and serializes editable rows into SAP's seven approval slots so no business values are hardcoded.
