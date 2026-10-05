@@ -33,7 +33,8 @@ export async function loadApprovalPrintContext(enfaNumber: string): Promise<Appr
   if (!normalizedEnfaNumber) return { savedDetail: null, initiatorName: "" };
   try {
     return await getApprovalPrintContext({ data: { enfaNumber: normalizedEnfaNumber } });
-  } catch {
+  } catch (error) {
+    console.warn("Saved Print Form details could not be loaded", error);
     return { savedDetail: null, initiatorName: "" };
   }
 }

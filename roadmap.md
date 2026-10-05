@@ -73,3 +73,4 @@
 - [x] Allow Approvals users to load Print Form approval-chain details while keeping approval-chain management restricted.
 
 - [x] Make every approver level load the same complete Print Form details as the Initiator without changing workflows.
+- [x] Permanently bypass per-row visibility gaps for Approvals-authorized Print Form fallbacks while preserving SAP-first values.
