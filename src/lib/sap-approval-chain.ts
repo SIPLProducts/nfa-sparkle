@@ -72,10 +72,11 @@ export function buildApprovalChainPayload(
 export function approvalChainResponseMessage(raw: unknown): { ok: boolean; message: string } {
   let value = raw;
   if (typeof value === "string") {
+    const text = value;
     try {
-      value = JSON.parse(value);
+      value = JSON.parse(text);
     } catch {
-      return { ok: true, message: value.trim() || "Approval chain saved" };
+      return { ok: true, message: text.trim() || "Approval chain saved" };
     }
   }
   if (value && typeof value === "object" && !Array.isArray(value) && "body" in value) {
