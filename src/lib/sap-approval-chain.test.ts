@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { approvalChainResponseMessage, buildApprovalChainPayload, type EditableApprovalChain } from "./sap-approval-chain";
+import { parseApprovalChains } from "./sap/master";
 
 const chain: EditableApprovalChain = {
   pspnr: "9000",
@@ -56,5 +57,11 @@ describe("SAP approval chain management", () => {
   it("surfaces SAP business errors even when HTTP succeeds", () => {
     expect(approvalChainResponseMessage([{ TYPE: "E", MESSAGE: "Data Not Inserted" }]))
       .toEqual({ ok: false, message: "Data Not Inserted" });
+  });
+
+  it("loads the SAP line identity needed for later updates and deletion", () => {
+    const parsed = parseApprovalChains([{ ...buildApprovalChainPayload(chain).create_user, LINE_INDEX: "12" }]);
+    expect(parsed[0]?.lineIndex).toBe("12");
+    expect(parsed[0]?.levels).toHaveLength(2);
   });
 });
