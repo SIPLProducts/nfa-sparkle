@@ -65,3 +65,5 @@
 - [x] Make Delete remove the selected user from User Management while preserving linked business history.
 - [x] Hide system roles from the User Management Roles tab without changing saved role data or assignments.
 - [x] Explain reserved system-role name conflicts without changing protected roles or custom-role creation.
+- [x] Separate System and Custom Roles into dedicated views without changing saved role data.
+- [x] Allow same-named custom roles with independent keys and distinguish them in user assignment controls.
