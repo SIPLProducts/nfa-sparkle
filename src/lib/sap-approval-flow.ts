@@ -46,6 +46,7 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
   return Array.from({ length: 7 }, (_, index): EnfaDocumentApprover => {
     const level = index + 1;
     return {
+      level,
       role: text(record, [`DESIG${level}`, `ROLE${level}`, `DESIGNATION${level}`]),
       userId: text(record, [`USERID${level}`, `USER_ID${level}`, `USER${level}`, `USRID${level}`, `UID${level}`]),
       name: text(record, [`APPR${level}`, `APPROVER${level}`, `APPR_NAME${level}`, `USER_NAME${level}`]),
@@ -53,7 +54,14 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
       actedDate: text(record, [`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`]),
       actedTime: text(record, [`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`]),
     };
-  }).filter((approver) => Object.values(approver).some((value) => value?.trim()));
+  }).filter((approver) => [
+    approver.role,
+    approver.userId,
+    approver.name,
+    approver.status,
+    approver.actedDate,
+    approver.actedTime,
+  ].some((value) => value?.trim()));
 }
 
 /** Fills fields level-by-level without discarding richer saved record data. */
@@ -63,19 +71,30 @@ export function mergeApprovalFlow(
   preferExisting = true,
 ): EnfaDocumentApprover[] {
   const saved = (existing ?? []).filter((approver) =>
-    Object.values(approver).some((value) => value?.trim()),
+    [approver.role, approver.userId, approver.name, approver.status, approver.actedDate, approver.actedTime]
+      .some((value) => value?.trim()),
   );
-  const count = Math.max(saved.length, flow.length);
+  const levels = Array.from(new Set([
+    ...saved.map((approver, index) => approver.level ?? index + 1),
+    ...flow.map((approver, index) => approver.level ?? index + 1),
+  ])).sort((left, right) => left - right);
   const first = preferExisting ? saved : flow;
   const second = preferExisting ? flow : saved;
-  return Array.from({ length: count }, (_, index): EnfaDocumentApprover => ({
-    role: first[index]?.role?.trim() || second[index]?.role?.trim() || "",
-    userId: first[index]?.userId?.trim() || second[index]?.userId?.trim() || "",
-    name: first[index]?.name?.trim() || second[index]?.name?.trim() || "",
-    status: first[index]?.status?.trim() || second[index]?.status?.trim() || "",
-    actedDate: first[index]?.actedDate?.trim() || second[index]?.actedDate?.trim() || "",
-    actedTime: first[index]?.actedTime?.trim() || second[index]?.actedTime?.trim() || "",
-  })).filter((approver) => Object.values(approver).some((value) => value?.trim()));
+  const atLevel = (items: EnfaDocumentApprover[], level: number) =>
+    items.find((approver, index) => (approver.level ?? index + 1) === level);
+  return levels.map((level): EnfaDocumentApprover => {
+    const primary = atLevel(first, level);
+    const fallback = atLevel(second, level);
+    return {
+      level,
+      role: primary?.role?.trim() || fallback?.role?.trim() || "",
+      userId: primary?.userId?.trim() || fallback?.userId?.trim() || "",
+      name: primary?.name?.trim() || fallback?.name?.trim() || "",
+      status: primary?.status?.trim() || fallback?.status?.trim() || "",
+      actedDate: primary?.actedDate?.trim() || fallback?.actedDate?.trim() || "",
+      actedTime: primary?.actedTime?.trim() || fallback?.actedTime?.trim() || "",
+    };
+  }).filter((approver) => Object.values(approver).some((value) => typeof value === "string" && value.trim()));
 }
 
 /** Calls the authenticated app endpoint while keeping SAP credentials server-side. */
@@ -143,6 +162,7 @@ export async function fetchSapApprovalChain(
   return {
     functionName: chain.extraTxt,
     approvers: chain.levels.map((level) => ({
+      level: level.level,
       role: level.designation,
       userId: level.userId,
       name: "",

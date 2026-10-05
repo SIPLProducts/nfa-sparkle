@@ -17,6 +17,16 @@ import { toast } from "@/lib/swal";
 import { ArrowLeft, Save, Send, FileEdit, AlertCircle, Paperclip, Upload, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authed/nfa/$id/change")({
+  head: () => ({
+    meta: [
+      { title: "Change NFA | NFA Portal" },
+      { name: "description", content: "Update and resubmit an NFA request." },
+      { property: "og:title", content: "Change NFA | NFA Portal" },
+      { property: "og:description", content: "Update and resubmit an NFA request." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ChangeRequestPage,
 });
 

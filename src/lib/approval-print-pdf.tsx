@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { EnfaDocument, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import type { ApprovalPrintDocument } from "@/lib/approval-print-document";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { pairPrintCommentsWithApprovers } from "@/lib/print-comment-history";
 import { createPrintFormPdf } from "@/lib/print-form-pdf";
 
 async function loadCompanyLogo(companyCode: string, token: string): Promise<string | undefined> {
@@ -49,9 +50,9 @@ export async function createApprovalPrintFormPdf(input: {
       : Promise.resolve({ approvers: [], functionName: "" }),
   ]);
   const approvers = mergeApprovalFlow(input.document.approvers, flow.approvers, false);
-  const comments = input.approvalComment.trim()
+  const comments = pairPrintCommentsWithApprovers(input.approvalComment.trim()
     ? [...input.comments, { name: input.approverName.trim(), text: input.approvalComment.trim() }]
-    : input.comments;
+    : input.comments, approvers);
   const source = document.createElement("div");
   source.className = "enfa-print-area enfa-pdf-source";
   document.body.append(source);

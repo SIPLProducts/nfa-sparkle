@@ -71,8 +71,8 @@ describe("Approvals Print Form data", () => {
     });
 
     expect(resolved.document.approvers).toEqual([
-      expect.objectContaining({ role: "DIRE-PROJ", userId: "1001", name: "Approver One" }),
-      expect.objectContaining({ role: "GRP. CFO", userId: "1004", name: "Approver Four" }),
+      expect.objectContaining({ level: 1, role: "DIRE-PROJ", userId: "1001", name: "Approver One" }),
+      expect.objectContaining({ level: 4, role: "GRP. CFO", userId: "1004", name: "Approver Four" }),
     ]);
     expect(resolved.comments).toEqual([
       { name: "Approver One", text: "" },
@@ -120,9 +120,9 @@ describe("Approvals Print Form data", () => {
 
     expect(resolved.document.functionName).toBe("PROJECTS");
     expect(resolved.document.approvers).toEqual([
-      expect.objectContaining({ role: "Initiator Manager", userId: "1001", name: "Approver One", status: "approved" }),
-      expect.objectContaining({ role: "Finance", userId: "1002", name: "Approver Two", status: "pending" }),
-      expect.objectContaining({ role: "Regional Head", userId: "1003", name: "Approver Three", status: "pending" }),
+      expect.objectContaining({ level: 1, role: "Initiator Manager", userId: "1001", name: "Approver One", status: "approved" }),
+      expect.objectContaining({ level: 2, role: "Finance", userId: "1002", name: "Approver Two", status: "pending" }),
+      expect.objectContaining({ level: 3, role: "Regional Head", userId: "1003", name: "Approver Three", status: "pending" }),
     ]);
     expect(resolved.missingFields).not.toContain("Function");
     expect(resolved.missingFields).not.toContain("Approval Chain");
@@ -155,9 +155,9 @@ describe("Approvals Print Form data", () => {
 
     expect(resolved.document.functionName).toBe("SAP FUNCTION");
     expect(resolved.document.approvers).toEqual([
-      expect.objectContaining({ role: "SAP Level One", userId: "1001", name: "Current SAP Approver", status: "approved" }),
-      expect.objectContaining({ role: "Saved Level Two", userId: "1002", name: "Saved Approver Two", status: "pending" }),
-      expect.objectContaining({ role: "Saved Level Three", userId: "1003", name: "Saved Approver Three", status: "pending" }),
+      expect.objectContaining({ level: 1, role: "SAP Level One", userId: "1001", name: "Current SAP Approver", status: "approved" }),
+      expect.objectContaining({ level: 2, role: "Saved Level Two", userId: "1002", name: "Saved Approver Two", status: "pending" }),
+      expect.objectContaining({ level: 3, role: "Saved Level Three", userId: "1003", name: "Saved Approver Three", status: "pending" }),
     ]);
     expect(resolved.missingFields).not.toContain("Function");
     expect(resolved.missingFields).not.toContain("Approval Chain");

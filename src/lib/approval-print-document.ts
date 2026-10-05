@@ -140,6 +140,7 @@ export function resolveApprovalPrintDocument(input: {
     ?? COMPANIES.find((company) => company.code === savedPlant?.company);
 
   const approvers = LEVELS.map((level): EnfaDocumentApprover => ({
+    level,
     role: merged(
       `ROLE${level}`, `ROLE_${level}`, `DESIG${level}`, `DESIG_${level}`,
       `DESIGNATION${level}`, `DESIGNATION_${level}`, `APPR_ROLE${level}`, `APPROVER_ROLE${level}`,
@@ -160,7 +161,14 @@ export function resolveApprovalPrintDocument(input: {
     actedTime: merged(
       `ACT_TIME${level}`, `ACT_TIME_${level}`, `APPR_TIME${level}`, `APPROVAL_TIME${level}`, `TIME${level}`,
     ),
-  })).filter((approver) => Object.values(approver).some((value) => nonBlank(value)));
+  })).filter((approver) => [
+    approver.role,
+    approver.userId,
+    approver.name,
+    approver.status,
+    approver.actedDate,
+    approver.actedTime,
+  ].some((value) => nonBlank(value)));
 
   const document: ApprovalPrintDocument = {
     companyCode: merged("CC_CODE", "COMPANY_CODE", "BUKRS", "COMP_CODE") || savedCompany?.code || "",

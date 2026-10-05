@@ -66,10 +66,44 @@ export function pairPrintCommentsWithApprovers(
   return comments.map((comment, index) => ({
     ...comment,
     name: comment.name.trim()
-      || (typeof comment.level === "number" ? approvers[comment.level - 1]?.name?.trim() : "")
+      || (typeof comment.level === "number"
+        ? approvers.find((approver, index) => (approver.level ?? index + 1) === comment.level)?.name?.trim()
+        : "")
       || (comment.version === undefined ? approvers[index]?.name?.trim() : "")
       || "",
   }));
+}
+
+/** Keeps current SAP remarks first and fills missing levels from the complete saved approval rows. */
+export function mergeCompletePrintComments(
+  current: EnfaDocumentComment[],
+  saved: EnfaDocumentComment[],
+  approvers: EnfaDocumentApprover[],
+): EnfaDocumentComment[] {
+  const merged = current.map((comment) => ({ ...comment }));
+  for (const fallback of saved) {
+    const matchIndex = typeof fallback.level === "number"
+      ? merged.findIndex((comment) => comment.version === undefined && comment.level === fallback.level)
+      : -1;
+    if (matchIndex >= 0) {
+      const existing = merged[matchIndex];
+      if (existing) {
+        merged[matchIndex] = {
+          ...existing,
+          name: existing.name.trim() || fallback.name.trim(),
+          text: existing.text.trim() || fallback.text.trim(),
+        };
+      }
+      continue;
+    }
+    const duplicate = merged.some((comment) =>
+      comment.version === fallback.version
+      && comment.name.trim() === fallback.name.trim()
+      && comment.text.trim() === fallback.text.trim(),
+    );
+    if (!duplicate) merged.push({ ...fallback });
+  }
+  return pairPrintCommentsWithApprovers(merged, approvers);
 }
 
 /** Converts the version sections in SAP's saved Print Form into document comments. */

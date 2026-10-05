@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export interface ApprovalPrintContext {
   savedDetail: Record<string, string | number | null> | null;
   initiatorName: string;
+  savedComments: Array<{ name: string; text: string; level: number }>;
 }
 
 interface SavedApprovalLevel {
@@ -11,6 +12,7 @@ interface SavedApprovalLevel {
   approver_id: string;
   designation: string | null;
   status: string;
+  comment: string | null;
   acted_at: string | null;
 }
 
@@ -76,7 +78,7 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
     enfaNumber: input.enfaNumber.trim(),
   }))
   .handler(async ({ data, context }): Promise<ApprovalPrintContext> => {
-    if (!data.enfaNumber) return { savedDetail: null, initiatorName: "" };
+    if (!data.enfaNumber) return { savedDetail: null, initiatorName: "", savedComments: [] };
 
     const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
     await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], "approvals");
@@ -90,11 +92,11 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
     if (recordError) throw new Error("Unable to load the saved Print Form record");
-    if (!record) return { savedDetail: null, initiatorName: "" };
+    if (!record) return { savedDetail: null, initiatorName: "", savedComments: [] };
 
     const { data: levels, error: levelsError } = await db
       .from("nfa_approver")
-      .select("level, approver_id, designation, status, acted_at")
+      .select("level, approver_id, designation, status, comment, acted_at")
       .eq("nfa_id", record.id)
       .order("level", { ascending: true });
     if (levelsError) throw new Error("Unable to load the saved approval levels");
@@ -132,5 +134,11 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       savedDetail[`ACT_TIME${level.level}`] = acted.time;
     }
 
-    return { savedDetail, initiatorName };
+    const savedComments = savedLevels.map((level) => ({
+      name: nameById.get(level.approver_id)?.trim() || level.designation?.trim() || "",
+      text: level.comment?.trim() ?? "",
+      level: level.level,
+    }));
+
+    return { savedDetail, initiatorName, savedComments };
   });
