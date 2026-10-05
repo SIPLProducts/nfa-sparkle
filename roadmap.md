@@ -61,3 +61,4 @@
 - [x] Add safe administrator-only user deletion with confirmation and linked-record protection.
 - [x] Prevent false “Admins only” redirects while administrator roles are still loading after sign-in.
 - [x] Keep global portal styles attached after Lovable preview route and hot reloads.
+- [x] Align every User Management detail under a dedicated table heading without changing user actions.

@@ -215,6 +215,7 @@ function UsersTab() {
         u.email.toLowerCase().includes(term) ||
         (u.username ?? "").toLowerCase().includes(term) ||
         (u.employee_id ?? "").toLowerCase().includes(term) ||
+        (u.company_code ?? "").toLowerCase().includes(term) ||
         (u.department ?? "").toLowerCase().includes(term) ||
         (u.contact ?? "").toLowerCase().includes(term) ||
         (u.full_name ?? "").toLowerCase().includes(term),
@@ -269,10 +270,27 @@ function UsersTab() {
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[1480px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[150px]" />
+                <col className="w-[130px]" />
+                <col className="w-[210px]" />
+                <col className="w-[210px]" />
+                <col className="w-[140px]" />
+                <col className="w-[130px]" />
+                <col className="w-[130px]" />
+                <col className="w-[100px]" />
+                <col className="w-[110px]" />
+                <col className="w-[360px]" />
+              </colgroup>
               <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-medium">User</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Name</th>
+                  <th className="px-4 py-2.5 text-left font-medium">User ID</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Email</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Company</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Department</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Contact</th>
                   <th className="px-4 py-2.5 text-left font-medium">Roles</th>
                   <th className="px-4 py-2.5 text-left font-medium">Status</th>
                   <th className="px-4 py-2.5 text-left font-medium">Created</th>
@@ -282,16 +300,29 @@ function UsersTab() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id} className="border-t border-border/70 odd:bg-muted/20">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{u.full_name || "—"}</div>
-                      <div className="text-xs font-medium text-primary">{u.username ?? "—"}</div>
-                      <div className="text-xs text-muted-foreground">{u.email}</div>
-                      {(u.employee_id || u.department || u.contact) && (
-                        <div className="text-xs text-muted-foreground">
-                          {[u.employee_id, u.department, u.contact].filter(Boolean).join(" · ")}
+                    <td className="px-4 py-3 font-medium">
+                      <div className="break-words">{u.full_name || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-primary">
+                      <div className="break-words">{u.username || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <div className="break-all">{u.email || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {u.company_code || u.employee_id ? (
+                        <div className="space-y-0.5">
+                          <div className="font-medium text-foreground">{u.company_code || "—"}</div>
+                          <div className="break-words text-xs">{u.employee_id || "—"}</div>
                         </div>
+                      ) : (
+                        "—"
                       )}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <div className="break-words">{u.department || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{u.contact || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {u.roles.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
