@@ -6,6 +6,20 @@ export interface ApprovalPrintContext {
   initiatorName: string;
 }
 
+interface SavedApprovalLevel {
+  level: number;
+  approver_id: string;
+  designation: string | null;
+  status: string;
+  acted_at: string | null;
+}
+
+interface SavedPrintProfile {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+}
+
 function formatActionTime(value: string | null | undefined): { date: string; time: string } {
   if (!value) return { date: "", time: "" };
   const parsed = new Date(value);
@@ -84,13 +98,15 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       .eq("nfa_id", record.id)
       .order("level", { ascending: true });
     if (levelsError) throw new Error("Unable to load the saved approval levels");
-    const profileIds = [record.initiator_id, ...(levels ?? []).map((level) => level.approver_id)].filter(Boolean);
+    const savedLevels = (levels ?? []) as SavedApprovalLevel[];
+    const profileIds = [record.initiator_id, ...savedLevels.map((level) => level.approver_id)].filter(Boolean);
     const { data: profiles, error: profilesError } = profileIds.length
       ? await db.from("profiles").select("id, full_name, username").in("id", profileIds)
       : { data: [] };
     if (profilesError) throw new Error("Unable to load the saved approver details");
-    const nameById = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name ?? ""]));
-    const usernameById = new Map((profiles ?? []).map((profile) => [profile.id, profile.username ?? ""]));
+    const savedProfiles = (profiles ?? []) as SavedPrintProfile[];
+    const nameById = new Map(savedProfiles.map((profile) => [profile.id, profile.full_name ?? ""]));
+    const usernameById = new Map(savedProfiles.map((profile) => [profile.id, profile.username ?? ""]));
     const initiatorName = nameById.get(record.initiator_id)?.trim() ?? "";
     const savedDetail: Record<string, string | number | null> = {
       REFFLD: data.enfaNumber,
@@ -106,7 +122,7 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       TIMELINE_DAYS: record.timeline_days,
       DETAILED_DESCRIPTION: record.detailed_description,
     };
-    for (const level of levels ?? []) {
+    for (const level of savedLevels) {
       const acted = formatActionTime(level.acted_at);
       savedDetail[`ROLE${level.level}`] = level.designation ?? "";
       savedDetail[`USERID${level.level}`] = usernameById.get(level.approver_id) ?? "";
