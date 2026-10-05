@@ -153,7 +153,9 @@ export function ApprovalChainTab() {
       const target = index + direction;
       if (target < 0 || target >= current.levels.length) return current;
       const levels = [...current.levels];
-      [levels[index], levels[target]] = [levels[target], levels[index]];
+      const selected = levels.splice(index, 1)[0];
+      if (!selected) return current;
+      levels.splice(target, 0, selected);
       return { ...current, levels };
     });
 

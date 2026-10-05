@@ -40,6 +40,13 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
           if (claimsErr || !claimsData?.claims?.sub) {
             return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
           }
+          const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
+            _user_id: String(claimsData.claims.sub),
+            _role: "admin",
+          });
+          if (roleError || !isAdmin) {
+            return Response.json({ error: "Forbidden: admin role required" }, { status: 403 });
+          }
         } catch {
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
