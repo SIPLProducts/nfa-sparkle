@@ -1,6 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export interface ApprovalPrintContext {
+  savedDetail: Record<string, unknown> | null;
+  initiatorName: string;
+}
+
+function formatActionTime(value: string | null | undefined): { date: string; time: string } {
+  if (!value) return { date: "", time: "" };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { date: "", time: "" };
+  return {
+    date: parsed.toLocaleDateString("en-GB"),
+    time: parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }),
+  };
+}
+
 /** Returns the creator's display name from application-owned records only. */
 export const getPrintInitiator = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -38,4 +53,62 @@ export const getPrintInitiator = createServerFn({ method: "GET" })
       .eq("id", creatorId)
       .maybeSingle();
     return profile?.full_name?.trim() ?? "";
+  });
+
+/** Returns the original saved NFA and every ordered approval level as Print Form fallbacks. */
+export const getApprovalPrintContext = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { enfaNumber: string }) => ({
+    enfaNumber: input.enfaNumber.trim(),
+  }))
+  .handler(async ({ data }): Promise<ApprovalPrintContext> => {
+    if (!data.enfaNumber) return { savedDetail: null, initiatorName: "" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: record } = await supabaseAdmin
+      .from("nfa")
+      .select("id, initiator_id, company, plant, plant_name, nfa_type, function, subject, scope_impact, budget_impact, timeline_days, detailed_description, created_at")
+      .eq("enfa_number", data.enfaNumber)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!record) return { savedDetail: null, initiatorName: "" };
+
+    const { data: levels } = await supabaseAdmin
+      .from("nfa_approver")
+      .select("level, approver_id, designation, status, acted_at")
+      .eq("nfa_id", record.id)
+      .order("level", { ascending: true });
+    const profileIds = [record.initiator_id, ...(levels ?? []).map((level) => level.approver_id)].filter(Boolean);
+    const { data: profiles } = profileIds.length
+      ? await supabaseAdmin.from("profiles").select("id, full_name, username").in("id", profileIds)
+      : { data: [] };
+    const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+    const initiatorName = profileById.get(record.initiator_id)?.full_name?.trim() ?? "";
+    const savedDetail: Record<string, unknown> = {
+      REFFLD: data.enfaNumber,
+      CC_CODE: record.company,
+      PSPNR: record.plant,
+      NAME1: record.plant_name,
+      CREATED_AT: record.created_at,
+      FUNCT: record.nfa_type,
+      EXTR_TXT: record.function,
+      SUBJECT: record.subject,
+      SCOPE_IMPACT: record.scope_impact,
+      BUDGET_IMPACT: record.budget_impact,
+      TIMELINE_DAYS: record.timeline_days,
+      DETAILED_DESCRIPTION: record.detailed_description,
+    };
+    for (const level of levels ?? []) {
+      const profile = profileById.get(level.approver_id);
+      const acted = formatActionTime(level.acted_at);
+      savedDetail[`ROLE${level.level}`] = level.designation ?? "";
+      savedDetail[`USERID${level.level}`] = profile?.username ?? "";
+      savedDetail[`APPR${level.level}`] = profile?.full_name ?? "";
+      savedDetail[`STAT${level.level}`] = level.status ?? "";
+      savedDetail[`ACT_DATE${level.level}`] = acted.date;
+      savedDetail[`ACT_TIME${level.level}`] = acted.time;
+    }
+
+    return { savedDetail, initiatorName };
   });
