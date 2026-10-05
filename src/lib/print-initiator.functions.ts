@@ -61,11 +61,10 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
   .inputValidator((input: { enfaNumber: string }) => ({
     enfaNumber: input.enfaNumber.trim(),
   }))
-  .handler(async ({ data }): Promise<ApprovalPrintContext> => {
+  .handler(async ({ data, context }): Promise<ApprovalPrintContext> => {
     if (!data.enfaNumber) return { savedDetail: null, initiatorName: "" };
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: record } = await supabaseAdmin
+    const { data: record } = await context.supabase
       .from("nfa")
       .select("id, initiator_id, company, plant, plant_name, nfa_type, function, subject, scope_impact, budget_impact, timeline_days, detailed_description, created_at")
       .eq("enfa_number", data.enfaNumber)
@@ -74,17 +73,21 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!record) return { savedDetail: null, initiatorName: "" };
 
-    const { data: levels } = await supabaseAdmin
+    const { data: levels } = await context.supabase
       .from("nfa_approver")
       .select("level, approver_id, designation, status, acted_at")
       .eq("nfa_id", record.id)
       .order("level", { ascending: true });
     const profileIds = [record.initiator_id, ...(levels ?? []).map((level) => level.approver_id)].filter(Boolean);
-    const { data: profiles } = profileIds.length
-      ? await supabaseAdmin.from("profiles").select("id, full_name, username").in("id", profileIds)
+    const { data: basicProfiles } = profileIds.length
+      ? await context.supabase.rpc("get_profiles_basic", { _ids: profileIds })
       : { data: [] };
-    const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-    const initiatorName = profileById.get(record.initiator_id)?.full_name?.trim() ?? "";
+    const { data: usernames } = profileIds.length
+      ? await context.supabase.from("profiles").select("id, username").in("id", profileIds)
+      : { data: [] };
+    const nameById = new Map((basicProfiles ?? []).map((profile) => [profile.id, profile.full_name ?? ""]));
+    const usernameById = new Map((usernames ?? []).map((profile) => [profile.id, profile.username ?? ""]));
+    const initiatorName = nameById.get(record.initiator_id)?.trim() ?? "";
     const savedDetail: Record<string, unknown> = {
       REFFLD: data.enfaNumber,
       CC_CODE: record.company,
@@ -100,11 +103,10 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       DETAILED_DESCRIPTION: record.detailed_description,
     };
     for (const level of levels ?? []) {
-      const profile = profileById.get(level.approver_id);
       const acted = formatActionTime(level.acted_at);
       savedDetail[`ROLE${level.level}`] = level.designation ?? "";
-      savedDetail[`USERID${level.level}`] = profile?.username ?? "";
-      savedDetail[`APPR${level.level}`] = profile?.full_name ?? "";
+      savedDetail[`USERID${level.level}`] = usernameById.get(level.approver_id) ?? "";
+      savedDetail[`APPR${level.level}`] = nameById.get(level.approver_id) ?? "";
       savedDetail[`STAT${level.level}`] = level.status ?? "";
       savedDetail[`ACT_DATE${level.level}`] = acted.date;
       savedDetail[`ACT_TIME${level.level}`] = acted.time;

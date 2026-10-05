@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { mergePrintCommentSources, pairPrintCommentsWithApprovers, parsePrintCommentHistory } from "@/lib/print-comment-history";
-import { getPrintInitiator } from "@/lib/print-initiator.functions";
+import { getApprovalPrintContext, getPrintInitiator, type ApprovalPrintContext } from "@/lib/print-initiator.functions";
 
 /** Reads an approver user id from a SAP row when the service supplies one. */
 export function sapApproverUserId(row: Record<string, unknown> | null | undefined, n: number): string {
@@ -24,6 +24,17 @@ export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
     return await getPrintInitiator({ data: { enfaNumber: normalizedEnfaNumber } });
   } catch {
     return "";
+  }
+}
+
+/** Loads the original saved NFA and all of its approval levels for Print Form fallback data. */
+export async function loadApprovalPrintContext(enfaNumber: string): Promise<ApprovalPrintContext> {
+  const normalizedEnfaNumber = enfaNumber.trim();
+  if (!normalizedEnfaNumber) return { savedDetail: null, initiatorName: "" };
+  try {
+    return await getApprovalPrintContext({ data: { enfaNumber: normalizedEnfaNumber } });
+  } catch {
+    return { savedDetail: null, initiatorName: "" };
   }
 }
 

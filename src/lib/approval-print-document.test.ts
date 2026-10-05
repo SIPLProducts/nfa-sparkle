@@ -94,4 +94,37 @@ describe("Approvals Print Form data", () => {
       "Mareddy Suresh", "ABAPER Narender", "Ranjit Kumar Neela", "D Sreenivasulu",
     ]);
   });
+
+  it("restores Function and every approval level from the original saved NFA when SAP omits them", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: { REFFLD: "100145", PSPNR: "9000", FUNCT: "BUDGET DEVIATION", SUBJECT: "Testing" },
+      worklistRow: { REFFLD: "100145", SUBJECT: "Testing" },
+      savedDetail: {
+        EXTR_TXT: "PROJECTS",
+        ROLE1: "Initiator Manager", USERID1: "1001", APPR1: "Approver One", STAT1: "approved",
+        ROLE2: "Finance", USERID2: "1002", APPR2: "Approver Two", STAT2: "pending",
+        ROLE3: "Regional Head", USERID3: "1003", APPR3: "Approver Three", STAT3: "pending",
+      },
+      initiatorName: "Application Creator",
+    });
+
+    expect(resolved.document.functionName).toBe("PROJECTS");
+    expect(resolved.document.approvers).toEqual([
+      expect.objectContaining({ role: "Initiator Manager", userId: "1001", name: "Approver One", status: "approved" }),
+      expect.objectContaining({ role: "Finance", userId: "1002", name: "Approver Two", status: "pending" }),
+      expect.objectContaining({ role: "Regional Head", userId: "1003", name: "Approver Three", status: "pending" }),
+    ]);
+    expect(resolved.missingFields).not.toContain("Function");
+    expect(resolved.missingFields).not.toContain("Approval Chain");
+  });
+
+  it("keeps current SAP approval data ahead of saved fallback values", () => {
+    const resolved = resolveApprovalPrintDocument({
+      editDetail: { EXTR_TXT: "SAP FUNCTION", ROLE1: "SAP ROLE", APPR1: "SAP Approver" },
+      savedDetail: { EXTR_TXT: "SAVED FUNCTION", ROLE1: "SAVED ROLE", APPR1: "Saved Approver" },
+    });
+
+    expect(resolved.document.functionName).toBe("SAP FUNCTION");
+    expect(resolved.document.approvers[0]).toMatchObject({ role: "SAP ROLE", name: "SAP Approver" });
+  });
 });

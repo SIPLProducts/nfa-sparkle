@@ -109,6 +109,7 @@ export function resolveApprovalPrintDocument(input: {
   editDetail?: PrintDataSource | null;
   selectDetail?: PrintDataSource | null;
   worklistRow?: PrintDataSource | null;
+  savedDetail?: PrintDataSource | null;
   draft?: ApprovalPrintDraft | null;
   comments?: EnfaDocumentComment[] | null;
   initiatorName?: string | null;
@@ -116,9 +117,10 @@ export function resolveApprovalPrintDocument(input: {
   const editDetail = normalizeRecord(input.editDetail);
   const selectDetail = normalizeRecord(input.selectDetail);
   const worklistRow = normalizeRecord(input.worklistRow);
+  const savedDetail = normalizeRecord(input.savedDetail);
   const draft = input.draft;
   const merged = (...keys: string[]) =>
-    read(editDetail, keys) || read(selectDetail, keys) || read(worklistRow, keys);
+    read(editDetail, keys) || read(selectDetail, keys) || read(worklistRow, keys) || read(savedDetail, keys);
 
   const plantCode = merged("PSPNR", "PLANT", "PLANT_CODE");
   const savedPlant = PLANTS.find((plant) => plant.code === plantCode);
