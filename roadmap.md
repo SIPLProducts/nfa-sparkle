@@ -63,3 +63,4 @@
 - [x] Keep global portal styles attached after Lovable preview route and hot reloads.
 - [x] Align every User Management detail under a dedicated table heading without changing user actions.
 - [x] Make Delete remove the selected user from User Management while preserving linked business history.
+- [x] Hide system roles from the User Management Roles tab without changing saved role data or assignments.
