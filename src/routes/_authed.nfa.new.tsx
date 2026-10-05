@@ -21,6 +21,16 @@ import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/e
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
+  head: () => ({
+    meta: [
+      { title: "Create NFA | NFA Portal" },
+      { name: "description", content: "Create and submit a new NFA request." },
+      { property: "og:title", content: "Create NFA | NFA Portal" },
+      { property: "og:description", content: "Create and submit a new NFA request." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: NewNfaPage,
 });
 
