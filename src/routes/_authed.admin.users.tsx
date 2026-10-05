@@ -986,6 +986,7 @@ function PasswordDialog({
 function RolesTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useRoleDefs();
+  const systemRoles = (data ?? []).filter((role) => role.is_system);
   const customRoles = (data ?? []).filter((role) => !role.is_system);
   const createFn = useServerFn(createRoleDef);
   const updateFn = useServerFn(updateRoleDef);
@@ -1011,74 +1012,40 @@ function RolesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Roles decide which screens a user can open.
-        </p>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> Create role
-        </Button>
-      </div>
+      <p className="text-sm text-muted-foreground">Roles decide which screens a user can open.</p>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-sm">
-            <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Role</th>
-                <th className="px-4 py-2.5 text-left font-medium">Users</th>
-                <th className="px-4 py-2.5 text-left font-medium">Screens</th>
-                <th className="px-4 py-2.5 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customRoles.map((r) => (
-                <tr key={r.key} className="border-t border-border/70 odd:bg-muted/20">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{r.name}</div>
-                    <div className="text-xs text-muted-foreground">{r.description || "—"}</div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.user_count}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {r.screen_count} / {SCREENS.length}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        title="Edit role"
-                        onClick={() => setEditing(r)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" /> Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-destructive"
-                        disabled={remove.isPending}
-                        title="Delete role"
-                        onClick={async () => {
-                          const confirmed = await swalConfirm({
-                            title: "Delete this role?",
-                            text: "The role and its screen permissions will be removed. This cannot be undone.",
-                            confirmText: "Delete",
-                            destructive: true,
-                          });
-                          if (confirmed) remove.mutate(r.key);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Tabs defaultValue="system" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="system">System Roles</TabsTrigger>
+          <TabsTrigger value="custom">Custom Roles</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="system" className="mt-0">
+          <RoleTable roles={systemRoles} readOnly />
+        </TabsContent>
+
+        <TabsContent value="custom" className="mt-0 space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setCreateOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Create role
+            </Button>
+          </div>
+          <RoleTable
+            roles={customRoles}
+            removePending={remove.isPending}
+            onEdit={setEditing}
+            onDelete={async (role) => {
+              const confirmed = await swalConfirm({
+                title: "Delete this role?",
+                text: "The role and its screen permissions will be removed. This cannot be undone.",
+                confirmText: "Delete",
+                destructive: true,
+              });
+              if (confirmed) remove.mutate(role.key);
+            }}
+          />
+        </TabsContent>
+      </Tabs>
 
       <RoleDialog
         open={createOpen}
@@ -1101,6 +1068,86 @@ function RolesTab() {
           invalidate();
         }}
       />
+    </div>
+  );
+}
+
+function RoleTable({
+  roles,
+  readOnly = false,
+  removePending = false,
+  onEdit,
+  onDelete,
+}: {
+  roles: RoleDef[];
+  readOnly?: boolean;
+  removePending?: boolean;
+  onEdit?: (role: RoleDef) => void;
+  onDelete?: (role: RoleDef) => Promise<void>;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
+          <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium">Role</th>
+              <th className="px-4 py-2.5 text-left font-medium">Users</th>
+              <th className="px-4 py-2.5 text-left font-medium">Screens</th>
+              <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roles.length === 0 ? (
+              <tr className="border-t border-border/70">
+                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  No roles found.
+                </td>
+              </tr>
+            ) : (
+              roles.map((role) => (
+                <tr key={role.key} className="border-t border-border/70 odd:bg-muted/20">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{role.name}</div>
+                    <div className="text-xs text-muted-foreground">{role.description || "—"}</div>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{role.user_count}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {role.screen_count} / {SCREENS.length}
+                  </td>
+                  <td className="px-4 py-3">
+                    {!readOnly && onEdit && onDelete ? (
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          title="Edit role"
+                          onClick={() => onEdit(role)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-destructive"
+                          disabled={removePending}
+                          title="Delete role"
+                          onClick={() => void onDelete(role)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-right text-xs text-muted-foreground">Protected</div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
