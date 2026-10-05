@@ -72,4 +72,4 @@
 - [x] Enforce assigned Custom Role screen permissions across every page and its existing actions without changing saved users or permissions.
 - [x] Allow Approvals users to load Print Form approval-chain details while keeping approval-chain management restricted.
 
-- [ ] Make every approver level load the same complete Print Form details as the Initiator without changing workflows.
+- [x] Make every approver level load the same complete Print Form details as the Initiator without changing workflows.
