@@ -54,7 +54,14 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
       actedDate: text(record, [`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`]),
       actedTime: text(record, [`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`]),
     };
-  }).filter((approver) => Object.values(approver).some((value) => value?.trim()));
+  }).filter((approver) => [
+    approver.role,
+    approver.userId,
+    approver.name,
+    approver.status,
+    approver.actedDate,
+    approver.actedTime,
+  ].some((value) => value?.trim()));
 }
 
 /** Fills fields level-by-level without discarding richer saved record data. */
@@ -64,7 +71,8 @@ export function mergeApprovalFlow(
   preferExisting = true,
 ): EnfaDocumentApprover[] {
   const saved = (existing ?? []).filter((approver) =>
-    Object.values(approver).some((value) => value?.trim()),
+    [approver.role, approver.userId, approver.name, approver.status, approver.actedDate, approver.actedTime]
+      .some((value) => value?.trim()),
   );
   const levels = Array.from(new Set([
     ...saved.map((approver, index) => approver.level ?? index + 1),
@@ -78,14 +86,14 @@ export function mergeApprovalFlow(
     const primary = atLevel(first, level);
     const fallback = atLevel(second, level);
     return {
-    level,
-    role: primary?.role?.trim() || fallback?.role?.trim() || "",
-    userId: primary?.userId?.trim() || fallback?.userId?.trim() || "",
-    name: primary?.name?.trim() || fallback?.name?.trim() || "",
-    status: primary?.status?.trim() || fallback?.status?.trim() || "",
-    actedDate: primary?.actedDate?.trim() || fallback?.actedDate?.trim() || "",
-    actedTime: primary?.actedTime?.trim() || fallback?.actedTime?.trim() || "",
-  };
+      level,
+      role: primary?.role?.trim() || fallback?.role?.trim() || "",
+      userId: primary?.userId?.trim() || fallback?.userId?.trim() || "",
+      name: primary?.name?.trim() || fallback?.name?.trim() || "",
+      status: primary?.status?.trim() || fallback?.status?.trim() || "",
+      actedDate: primary?.actedDate?.trim() || fallback?.actedDate?.trim() || "",
+      actedTime: primary?.actedTime?.trim() || fallback?.actedTime?.trim() || "",
+    };
   }).filter((approver) => Object.values(approver).some((value) => typeof value === "string" && value.trim()));
 }
 

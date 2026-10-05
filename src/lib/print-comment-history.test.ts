@@ -79,7 +79,7 @@ describe("Print Form comment history", () => {
       [{ name: "Saved first", text: "Saved first", level: 1 }, { name: "", text: "Saved third", level: 3 }],
       approvers,
     )).toEqual([
-      { name: "First approver", text: "SAP first", level: 1 },
+      { name: "Saved first", text: "SAP first", level: 1 },
       { name: "Old", text: "History", version: 2 },
       { name: "Third approver", text: "Saved third", level: 3 },
     ]);

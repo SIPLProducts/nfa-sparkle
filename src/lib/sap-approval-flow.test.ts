@@ -12,10 +12,10 @@ const sapRow = {
 describe("SAP approval flow", () => {
   it("maps every populated designation and user ID in order", () => {
     expect(parseSapApprovalFlow([sapRow])).toEqual([
-      { role: "DIRE-PROJ", userId: "22007746", name: "", status: "", actedDate: "", actedTime: "" },
-      { role: "CFO", userId: "ABAPCON2", name: "", status: "", actedDate: "", actedTime: "" },
-      { role: "REG. HEAD", userId: "22011077", name: "", status: "", actedDate: "", actedTime: "" },
-      { role: "GRP. CFO", userId: "22011580", name: "", status: "", actedDate: "", actedTime: "" },
+      { level: 1, role: "DIRE-PROJ", userId: "22007746", name: "", status: "", actedDate: "", actedTime: "" },
+      { level: 2, role: "CFO", userId: "ABAPCON2", name: "", status: "", actedDate: "", actedTime: "" },
+      { level: 3, role: "REG. HEAD", userId: "22011077", name: "", status: "", actedDate: "", actedTime: "" },
+      { level: 4, role: "GRP. CFO", userId: "22011580", name: "", status: "", actedDate: "", actedTime: "" },
     ]);
   });
 
