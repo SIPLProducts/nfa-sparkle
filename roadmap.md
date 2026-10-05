@@ -70,3 +70,4 @@
 - [x] Replace all active System Roles with matching Custom Roles while preserving users, permissions, and access.
 - [x] Make the existing Approval Chain tab dynamically add, update, delete, save, and reload SAP approval levels without changing User Creation.
 - [x] Enforce assigned Custom Role screen permissions across every page and its existing actions without changing saved users or permissions.
+- [x] Allow Approvals users to load Print Form approval-chain details while keeping approval-chain management restricted.
