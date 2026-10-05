@@ -67,3 +67,4 @@
 - [x] Explain reserved system-role name conflicts without changing protected roles or custom-role creation.
 - [x] Separate System and Custom Roles into dedicated views without changing saved role data.
 - [x] Allow same-named custom roles with independent keys and distinguish them in user assignment controls.
+- [x] Replace all active System Roles with matching Custom Roles while preserving users, permissions, and access.
