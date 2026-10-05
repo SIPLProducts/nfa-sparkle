@@ -1,4 +1,5 @@
 export type AdminContext = { supabase: any; userId: string };
+export type PermissionContext = AdminContext;
 export interface CreateManagedUserInput {
   USER_ID: string;
   FIRST_NAME: string;
@@ -14,12 +15,19 @@ export interface CreateManagedUserInput {
   DEPT: string;
 }
 
-export async function assertAdmin(ctx: AdminContext) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin role required");
+export async function assertScreenAccess(ctx: PermissionContext, screen: string) {
+  const [{ data: assignments, error: roleError }, { data: permissions, error: permissionError }] = await Promise.all([
+    ctx.supabase.from("user_role_assignment").select("role_key").eq("user_id", ctx.userId),
+    ctx.supabase.from("role_permission").select("role_key, screen, allowed").eq("screen", screen),
+  ]);
+  if (roleError || permissionError) throw new Error("Unable to verify screen access");
+
+  const roles = new Set((assignments ?? []).map((row: { role_key: string }) => row.role_key));
+  const hasPermission = (permissions ?? []).some(
+    (row: { role_key: string | null; allowed: boolean }) =>
+      !!row.role_key && row.allowed && roles.has(row.role_key),
+  );
+  if (!hasPermission) throw new Error(`Forbidden: ${screen} permission required`);
 }
 
 export async function getAdminClient() {
@@ -97,7 +105,7 @@ function validateCreateManagedUserInput(raw: CreateManagedUserInput): CreateMana
 }
 
 export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateManagedUserInput) {
-  await assertAdmin(ctx);
+  await assertScreenAccess(ctx, "user_management");
   const data = validateCreateManagedUserInput(raw);
   const db = await getAdminClient();
   await assertUsernameFree(db, data.USER_ID);

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { parseProxyResponse } from "./sap-proxy-response";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
+import { assertScreenAccess } from "./user-admin.server";
 
 export interface SapEndpoint {
   id: string;
@@ -53,14 +54,6 @@ export interface SapSystem {
   is_active: boolean;
   notes: string | null;
   has_password: boolean;
-}
-
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin role required");
 }
 
 async function admin() {

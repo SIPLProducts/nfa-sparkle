@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   applyRoles,
-  assertAdmin,
+  assertScreenAccess,
   assertUsernameFree,
   createManagedUserForAdmin,
   getAdminClient as admin,
@@ -87,7 +87,7 @@ export const createRoleDef = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const nameKey = slugify(data.name);
     if (!nameKey) throw new Error("Role name must contain letters or numbers");
@@ -111,7 +111,7 @@ export const updateRoleDef = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { data: row } = await db.from("app_role_def").select("is_system").eq("key", data.key).maybeSingle();
     if (!row) throw new Error("Role not found");
@@ -128,7 +128,7 @@ export const deleteRoleDef = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { key: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { data: row } = await db.from("app_role_def").select("is_system").eq("key", data.key).maybeSingle();
     if (!row) throw new Error("Role not found");
@@ -149,7 +149,7 @@ export const deleteRoleDef = createServerFn({ method: "POST" })
 export const listManagedUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ManagedUser[]> => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { data: list, error } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (error) throw error;
@@ -229,7 +229,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const roles = parseRoleKeys(data.ROLE);
     if (data.ID === context.userId && !roles.includes("custom_admin")) {
@@ -270,7 +270,7 @@ export const resetManagedUserPassword = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { error } = await db.auth.admin.updateUserById(data.id, { password: data.password });
     if (error) throw new Error(error.message);
@@ -281,7 +281,7 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; active: boolean }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     if (data.id === context.userId && !data.active) throw new Error("You cannot deactivate your own account");
     const db = await admin();
     const { error } = await db.auth.admin.updateUserById(data.id, {
@@ -302,7 +302,7 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
     return { id: d.id.trim() };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     if (data.id === context.userId) throw new Error("You cannot delete your own account");
 
     const db = await admin();
@@ -359,6 +359,7 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
 export const listRolePermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RolePermissionRow[]> => {
+    await assertScreenAccess(context as any, "user_management");
     const { data, error } = await context.supabase.from("role_permission").select("role_key, screen, allowed");
     if (error) throw error;
     return ((data ?? []) as any[])
@@ -370,7 +371,7 @@ export const saveRolePermissions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { rows: RolePermissionRow[] }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const rows = data.rows.map((r) => ({
       role_key: r.role_key,
