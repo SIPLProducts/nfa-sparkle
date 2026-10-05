@@ -515,7 +515,7 @@ function CompanyNameField({
               return value.toLowerCase().includes(term) ? 1 : 0;
             }}
           >
-            <CommandInput placeholder="Search company…" />
+            <CommandInput />
             <CommandList>
               <CommandEmpty>No company found.</CommandEmpty>
               <CommandGroup>
@@ -667,7 +667,6 @@ function CreateUserDialog({
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="SHARVI_RSSPL"
               maxLength={12}
               autoComplete="off"
             />
@@ -677,11 +676,11 @@ function CreateUserDialog({
           </div>
           <div className="space-y-1.5">
             <Label>First name *</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="SAI" />
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Last name *</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="SAMPATH" />
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Email *</Label>
@@ -689,7 +688,6 @@ function CreateUserDialog({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@company.com"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -698,7 +696,6 @@ function CreateUserDialog({
               <Input
                 value={contact}
                 onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                placeholder="9876543212"
                 inputMode="numeric"
                 autoComplete="off"
               />
@@ -730,7 +727,6 @@ function CreateUserDialog({
               <Input
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                placeholder="Projects"
                 autoComplete="off"
               />
             </div>
@@ -742,7 +738,6 @@ function CreateUserDialog({
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="8-10 characters"
                 className="pr-10"
               />
               <button
@@ -762,7 +757,6 @@ function CreateUserDialog({
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter password"
                 className="pr-10"
               />
               <button
