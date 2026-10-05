@@ -9,113 +9,135 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
-import { Route as AuthedAdminUsersRouteImport } from './routes/_authed.admin.users'
-import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
-import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
-import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
-import { Route as ApiPublicCreateUserRouteImport } from './routes/api/public/create-user'
-import { Route as ApiPublicEnfaApprovalRouteImport } from './routes/api/public/enfa-approval'
-import { Route as ApiPublicEnfaApproveRouteImport } from './routes/api/public/enfa-approve'
-import { Route as ApiPublicEnfaAttachmentsRouteImport } from './routes/api/public/enfa-attachments'
-import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enfa-create'
-import { Route as ApiPublicEnfaDetailRouteImport } from './routes/api/public/enfa-detail'
-import { Route as ApiPublicEnfaDisplayEditRouteImport } from './routes/api/public/enfa-display-edit'
-import { Route as ApiPublicEnfaMyUpdateRouteImport } from './routes/api/public/enfa-my-update'
-import { Route as ApiPublicEnfaPrintRouteImport } from './routes/api/public/enfa-print'
-import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
-import { Route as ApiPublicEnfaSelectRouteImport } from './routes/api/public/enfa-select'
-import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
-import { Route as ApiPublicEnfaUploadRouteImport } from './routes/api/public/enfa-upload'
-import { Route as ApiPublicSapApprovalChainRouteImport } from './routes/api/public/sap-approval-chain'
-import { Route as ApiPublicSapApprovalFlowRouteImport } from './routes/api/public/sap-approval-flow'
-import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
-import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
-import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
-import { Route as ApiPublicSapLogoRouteImport } from './routes/api/public/sap-logo'
-import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
+import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as ApiPublicSapPrintCommentsRouteImport } from './routes/api/public/sap-print-comments'
+import { Route as ApiPublicSapPlantRouteImport } from './routes/api/public/sap-plant'
+import { Route as ApiPublicSapLogoRouteImport } from './routes/api/public/sap-logo'
+import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
+import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
+import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
+import { Route as ApiPublicSapApprovalFlowRouteImport } from './routes/api/public/sap-approval-flow'
+import { Route as ApiPublicSapApprovalChainRouteImport } from './routes/api/public/sap-approval-chain'
+import { Route as ApiPublicEnfaUploadRouteImport } from './routes/api/public/enfa-upload'
+import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enfa-update'
+import { Route as ApiPublicEnfaSelectRouteImport } from './routes/api/public/enfa-select'
+import { Route as ApiPublicEnfaReportRouteImport } from './routes/api/public/enfa-report'
+import { Route as ApiPublicEnfaPrintRouteImport } from './routes/api/public/enfa-print'
+import { Route as ApiPublicEnfaMyUpdateRouteImport } from './routes/api/public/enfa-my-update'
+import { Route as ApiPublicEnfaDisplayEditRouteImport } from './routes/api/public/enfa-display-edit'
+import { Route as ApiPublicEnfaDetailRouteImport } from './routes/api/public/enfa-detail'
+import { Route as ApiPublicEnfaCreateRouteImport } from './routes/api/public/enfa-create'
+import { Route as ApiPublicEnfaAttachmentsRouteImport } from './routes/api/public/enfa-attachments'
+import { Route as ApiPublicEnfaApproveRouteImport } from './routes/api/public/enfa-approve'
+import { Route as ApiPublicEnfaApprovalRouteImport } from './routes/api/public/enfa-approval'
+import { Route as ApiPublicCreateUserRouteImport } from './routes/api/public/create-user'
+import { Route as AuthedNfaNewRouteImport } from './routes/_authed.nfa.new'
+import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
+import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
+import { Route as AuthedAdminUsersRouteImport } from './routes/_authed.admin.users'
 import { Route as AuthedAdminSapApiIndexRouteImport } from './routes/_authed.admin.sap-api.index'
-import { Route as AuthedAdminSapApiIdRouteImport } from './routes/_authed.admin.sap-api.$id'
 import { Route as AuthedNfaIdChangeRouteImport } from './routes/_authed.nfa.$id.change'
+import { Route as AuthedAdminSapApiIdRouteImport } from './routes/_authed.admin.sap-api.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
-  id: '/approvals',
-  path: '/approvals',
-  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedReportRoute = AuthedReportRouteImport.update({
   id: '/report',
   path: '/report',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedAdminUsersRoute = AuthedAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
+const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
-  id: '/nfa/$id',
-  path: '/nfa/$id',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedNfaMyRoute = AuthedNfaMyRouteImport.update({
-  id: '/nfa/my',
-  path: '/nfa/my',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
-  id: '/nfa/new',
-  path: '/nfa/new',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const ApiPublicCreateUserRoute = ApiPublicCreateUserRouteImport.update({
-  id: '/api/public/create-user',
-  path: '/api/public/create-user',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaApprovalRoute = ApiPublicEnfaApprovalRouteImport.update({
-  id: '/api/public/enfa-approval',
-  path: '/api/public/enfa-approval',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaApproveRoute = ApiPublicEnfaApproveRouteImport.update({
-  id: '/api/public/enfa-approve',
-  path: '/api/public/enfa-approve',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaAttachmentsRoute =
-  ApiPublicEnfaAttachmentsRouteImport.update({
-    id: '/api/public/enfa-attachments',
-    path: '/api/public/enfa-attachments',
+const ApiPublicSapPrintCommentsRoute =
+  ApiPublicSapPrintCommentsRouteImport.update({
+    id: '/api/public/sap-print-comments',
+    path: '/api/public/sap-print-comments',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicEnfaCreateRoute = ApiPublicEnfaCreateRouteImport.update({
-  id: '/api/public/enfa-create',
-  path: '/api/public/enfa-create',
+const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
+  id: '/api/public/sap-plant',
+  path: '/api/public/sap-plant',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicEnfaDetailRoute = ApiPublicEnfaDetailRouteImport.update({
-  id: '/api/public/enfa-detail',
-  path: '/api/public/enfa-detail',
+const ApiPublicSapLogoRoute = ApiPublicSapLogoRouteImport.update({
+  id: '/api/public/sap-logo',
+  path: '/api/public/sap-logo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapFunctionRoute = ApiPublicSapFunctionRouteImport.update({
+  id: '/api/public/sap-function',
+  path: '/api/public/sap-function',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapEnfaTypeRoute = ApiPublicSapEnfaTypeRouteImport.update({
+  id: '/api/public/sap-enfa-type',
+  path: '/api/public/sap-enfa-type',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
+  id: '/api/public/sap-company',
+  path: '/api/public/sap-company',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSapApprovalFlowRoute =
+  ApiPublicSapApprovalFlowRouteImport.update({
+    id: '/api/public/sap-approval-flow',
+    path: '/api/public/sap-approval-flow',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSapApprovalChainRoute =
+  ApiPublicSapApprovalChainRouteImport.update({
+    id: '/api/public/sap-approval-chain',
+    path: '/api/public/sap-approval-chain',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicEnfaUploadRoute = ApiPublicEnfaUploadRouteImport.update({
+  id: '/api/public/enfa-upload',
+  path: '/api/public/enfa-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaUpdateRoute = ApiPublicEnfaUpdateRouteImport.update({
+  id: '/api/public/enfa-update',
+  path: '/api/public/enfa-update',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaSelectRoute = ApiPublicEnfaSelectRouteImport.update({
+  id: '/api/public/enfa-select',
+  path: '/api/public/enfa-select',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaReportRoute = ApiPublicEnfaReportRouteImport.update({
+  id: '/api/public/enfa-report',
+  path: '/api/public/enfa-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaPrintRoute = ApiPublicEnfaPrintRouteImport.update({
+  id: '/api/public/enfa-print',
+  path: '/api/public/enfa-print',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEnfaMyUpdateRoute = ApiPublicEnfaMyUpdateRouteImport.update({
+  id: '/api/public/enfa-my-update',
+  path: '/api/public/enfa-my-update',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicEnfaDisplayEditRoute =
@@ -124,93 +146,71 @@ const ApiPublicEnfaDisplayEditRoute =
     path: '/api/public/enfa-display-edit',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicEnfaMyUpdateRoute = ApiPublicEnfaMyUpdateRouteImport.update({
-  id: '/api/public/enfa-my-update',
-  path: '/api/public/enfa-my-update',
+const ApiPublicEnfaDetailRoute = ApiPublicEnfaDetailRouteImport.update({
+  id: '/api/public/enfa-detail',
+  path: '/api/public/enfa-detail',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicEnfaPrintRoute = ApiPublicEnfaPrintRouteImport.update({
-  id: '/api/public/enfa-print',
-  path: '/api/public/enfa-print',
+const ApiPublicEnfaCreateRoute = ApiPublicEnfaCreateRouteImport.update({
+  id: '/api/public/enfa-create',
+  path: '/api/public/enfa-create',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicEnfaReportRoute = ApiPublicEnfaReportRouteImport.update({
-  id: '/api/public/enfa-report',
-  path: '/api/public/enfa-report',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaSelectRoute = ApiPublicEnfaSelectRouteImport.update({
-  id: '/api/public/enfa-select',
-  path: '/api/public/enfa-select',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaUpdateRoute = ApiPublicEnfaUpdateRouteImport.update({
-  id: '/api/public/enfa-update',
-  path: '/api/public/enfa-update',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicEnfaUploadRoute = ApiPublicEnfaUploadRouteImport.update({
-  id: '/api/public/enfa-upload',
-  path: '/api/public/enfa-upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicSapApprovalChainRoute =
-  ApiPublicSapApprovalChainRouteImport.update({
-    id: '/api/public/sap-approval-chain',
-    path: '/api/public/sap-approval-chain',
+const ApiPublicEnfaAttachmentsRoute =
+  ApiPublicEnfaAttachmentsRouteImport.update({
+    id: '/api/public/enfa-attachments',
+    path: '/api/public/enfa-attachments',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicSapApprovalFlowRoute =
-  ApiPublicSapApprovalFlowRouteImport.update({
-    id: '/api/public/sap-approval-flow',
-    path: '/api/public/sap-approval-flow',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
-  id: '/api/public/sap-company',
-  path: '/api/public/sap-company',
+const ApiPublicEnfaApproveRoute = ApiPublicEnfaApproveRouteImport.update({
+  id: '/api/public/enfa-approve',
+  path: '/api/public/enfa-approve',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSapEnfaTypeRoute = ApiPublicSapEnfaTypeRouteImport.update({
-  id: '/api/public/sap-enfa-type',
-  path: '/api/public/sap-enfa-type',
+const ApiPublicEnfaApprovalRoute = ApiPublicEnfaApprovalRouteImport.update({
+  id: '/api/public/enfa-approval',
+  path: '/api/public/enfa-approval',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSapFunctionRoute = ApiPublicSapFunctionRouteImport.update({
-  id: '/api/public/sap-function',
-  path: '/api/public/sap-function',
+const ApiPublicCreateUserRoute = ApiPublicCreateUserRouteImport.update({
+  id: '/api/public/create-user',
+  path: '/api/public/create-user',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSapLogoRoute = ApiPublicSapLogoRouteImport.update({
-  id: '/api/public/sap-logo',
-  path: '/api/public/sap-logo',
-  getParentRoute: () => rootRouteImport,
+const AuthedNfaNewRoute = AuthedNfaNewRouteImport.update({
+  id: '/nfa/new',
+  path: '/nfa/new',
+  getParentRoute: () => AuthedRoute,
 } as any)
-const ApiPublicSapPlantRoute = ApiPublicSapPlantRouteImport.update({
-  id: '/api/public/sap-plant',
-  path: '/api/public/sap-plant',
-  getParentRoute: () => rootRouteImport,
+const AuthedNfaMyRoute = AuthedNfaMyRouteImport.update({
+  id: '/nfa/my',
+  path: '/nfa/my',
+  getParentRoute: () => AuthedRoute,
 } as any)
-const ApiPublicSapPrintCommentsRoute =
-  ApiPublicSapPrintCommentsRouteImport.update({
-    id: '/api/public/sap-print-comments',
-    path: '/api/public/sap-print-comments',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const AuthedNfaIdRoute = AuthedNfaIdRouteImport.update({
+  id: '/nfa/$id',
+  path: '/nfa/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAdminUsersRoute = AuthedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedAdminSapApiIndexRoute = AuthedAdminSapApiIndexRouteImport.update({
   id: '/admin/sap-api/',
   path: '/admin/sap-api/',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedAdminSapApiIdRoute = AuthedAdminSapApiIdRouteImport.update({
-  id: '/admin/sap-api/$id',
-  path: '/admin/sap-api/$id',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedNfaIdChangeRoute = AuthedNfaIdChangeRouteImport.update({
   id: '/change',
   path: '/change',
   getParentRoute: () => AuthedNfaIdRoute,
+} as any)
+const AuthedAdminSapApiIdRoute = AuthedAdminSapApiIdRouteImport.update({
+  id: '/admin/sap-api/$id',
+  path: '/admin/sap-api/$id',
+  getParentRoute: () => AuthedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -452,11 +452,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -466,19 +466,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authed/approvals': {
-      id: '/_authed/approvals'
-      path: '/approvals'
-      fullPath: '/approvals'
-      preLoaderRoute: typeof AuthedApprovalsRouteImport
-      parentRoute: typeof AuthedRoute
     }
     '/_authed/report': {
       id: '/_authed/report'
@@ -487,165 +480,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedReportRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/admin/users': {
-      id: '/_authed/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AuthedAdminUsersRouteImport
+    '/_authed/approvals': {
+      id: '/_authed/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthedApprovalsRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/nfa/$id': {
-      id: '/_authed/nfa/$id'
-      path: '/nfa/$id'
-      fullPath: '/nfa/$id'
-      preLoaderRoute: typeof AuthedNfaIdRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/nfa/my': {
-      id: '/_authed/nfa/my'
-      path: '/nfa/my'
-      fullPath: '/nfa/my'
-      preLoaderRoute: typeof AuthedNfaMyRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/nfa/new': {
-      id: '/_authed/nfa/new'
-      path: '/nfa/new'
-      fullPath: '/nfa/new'
-      preLoaderRoute: typeof AuthedNfaNewRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/api/public/create-user': {
-      id: '/api/public/create-user'
-      path: '/api/public/create-user'
-      fullPath: '/api/public/create-user'
-      preLoaderRoute: typeof ApiPublicCreateUserRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-approval': {
-      id: '/api/public/enfa-approval'
-      path: '/api/public/enfa-approval'
-      fullPath: '/api/public/enfa-approval'
-      preLoaderRoute: typeof ApiPublicEnfaApprovalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-approve': {
-      id: '/api/public/enfa-approve'
-      path: '/api/public/enfa-approve'
-      fullPath: '/api/public/enfa-approve'
-      preLoaderRoute: typeof ApiPublicEnfaApproveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-attachments': {
-      id: '/api/public/enfa-attachments'
-      path: '/api/public/enfa-attachments'
-      fullPath: '/api/public/enfa-attachments'
-      preLoaderRoute: typeof ApiPublicEnfaAttachmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-create': {
-      id: '/api/public/enfa-create'
-      path: '/api/public/enfa-create'
-      fullPath: '/api/public/enfa-create'
-      preLoaderRoute: typeof ApiPublicEnfaCreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-detail': {
-      id: '/api/public/enfa-detail'
-      path: '/api/public/enfa-detail'
-      fullPath: '/api/public/enfa-detail'
-      preLoaderRoute: typeof ApiPublicEnfaDetailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-display-edit': {
-      id: '/api/public/enfa-display-edit'
-      path: '/api/public/enfa-display-edit'
-      fullPath: '/api/public/enfa-display-edit'
-      preLoaderRoute: typeof ApiPublicEnfaDisplayEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-my-update': {
-      id: '/api/public/enfa-my-update'
-      path: '/api/public/enfa-my-update'
-      fullPath: '/api/public/enfa-my-update'
-      preLoaderRoute: typeof ApiPublicEnfaMyUpdateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-print': {
-      id: '/api/public/enfa-print'
-      path: '/api/public/enfa-print'
-      fullPath: '/api/public/enfa-print'
-      preLoaderRoute: typeof ApiPublicEnfaPrintRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-report': {
-      id: '/api/public/enfa-report'
-      path: '/api/public/enfa-report'
-      fullPath: '/api/public/enfa-report'
-      preLoaderRoute: typeof ApiPublicEnfaReportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-select': {
-      id: '/api/public/enfa-select'
-      path: '/api/public/enfa-select'
-      fullPath: '/api/public/enfa-select'
-      preLoaderRoute: typeof ApiPublicEnfaSelectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-update': {
-      id: '/api/public/enfa-update'
-      path: '/api/public/enfa-update'
-      fullPath: '/api/public/enfa-update'
-      preLoaderRoute: typeof ApiPublicEnfaUpdateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/enfa-upload': {
-      id: '/api/public/enfa-upload'
-      path: '/api/public/enfa-upload'
-      fullPath: '/api/public/enfa-upload'
-      preLoaderRoute: typeof ApiPublicEnfaUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-approval-chain': {
-      id: '/api/public/sap-approval-chain'
-      path: '/api/public/sap-approval-chain'
-      fullPath: '/api/public/sap-approval-chain'
-      preLoaderRoute: typeof ApiPublicSapApprovalChainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-approval-flow': {
-      id: '/api/public/sap-approval-flow'
-      path: '/api/public/sap-approval-flow'
-      fullPath: '/api/public/sap-approval-flow'
-      preLoaderRoute: typeof ApiPublicSapApprovalFlowRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-company': {
-      id: '/api/public/sap-company'
-      path: '/api/public/sap-company'
-      fullPath: '/api/public/sap-company'
-      preLoaderRoute: typeof ApiPublicSapCompanyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-enfa-type': {
-      id: '/api/public/sap-enfa-type'
-      path: '/api/public/sap-enfa-type'
-      fullPath: '/api/public/sap-enfa-type'
-      preLoaderRoute: typeof ApiPublicSapEnfaTypeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-function': {
-      id: '/api/public/sap-function'
-      path: '/api/public/sap-function'
-      fullPath: '/api/public/sap-function'
-      preLoaderRoute: typeof ApiPublicSapFunctionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/sap-logo': {
-      id: '/api/public/sap-logo'
-      path: '/api/public/sap-logo'
-      fullPath: '/api/public/sap-logo'
-      preLoaderRoute: typeof ApiPublicSapLogoRouteImport
+    '/api/public/sap-print-comments': {
+      id: '/api/public/sap-print-comments'
+      path: '/api/public/sap-print-comments'
+      fullPath: '/api/public/sap-print-comments'
+      preLoaderRoute: typeof ApiPublicSapPrintCommentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sap-plant': {
@@ -655,12 +501,166 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSapPlantRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/sap-print-comments': {
-      id: '/api/public/sap-print-comments'
-      path: '/api/public/sap-print-comments'
-      fullPath: '/api/public/sap-print-comments'
-      preLoaderRoute: typeof ApiPublicSapPrintCommentsRouteImport
+    '/api/public/sap-logo': {
+      id: '/api/public/sap-logo'
+      path: '/api/public/sap-logo'
+      fullPath: '/api/public/sap-logo'
+      preLoaderRoute: typeof ApiPublicSapLogoRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-function': {
+      id: '/api/public/sap-function'
+      path: '/api/public/sap-function'
+      fullPath: '/api/public/sap-function'
+      preLoaderRoute: typeof ApiPublicSapFunctionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-enfa-type': {
+      id: '/api/public/sap-enfa-type'
+      path: '/api/public/sap-enfa-type'
+      fullPath: '/api/public/sap-enfa-type'
+      preLoaderRoute: typeof ApiPublicSapEnfaTypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-company': {
+      id: '/api/public/sap-company'
+      path: '/api/public/sap-company'
+      fullPath: '/api/public/sap-company'
+      preLoaderRoute: typeof ApiPublicSapCompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-approval-flow': {
+      id: '/api/public/sap-approval-flow'
+      path: '/api/public/sap-approval-flow'
+      fullPath: '/api/public/sap-approval-flow'
+      preLoaderRoute: typeof ApiPublicSapApprovalFlowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sap-approval-chain': {
+      id: '/api/public/sap-approval-chain'
+      path: '/api/public/sap-approval-chain'
+      fullPath: '/api/public/sap-approval-chain'
+      preLoaderRoute: typeof ApiPublicSapApprovalChainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-upload': {
+      id: '/api/public/enfa-upload'
+      path: '/api/public/enfa-upload'
+      fullPath: '/api/public/enfa-upload'
+      preLoaderRoute: typeof ApiPublicEnfaUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-update': {
+      id: '/api/public/enfa-update'
+      path: '/api/public/enfa-update'
+      fullPath: '/api/public/enfa-update'
+      preLoaderRoute: typeof ApiPublicEnfaUpdateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-select': {
+      id: '/api/public/enfa-select'
+      path: '/api/public/enfa-select'
+      fullPath: '/api/public/enfa-select'
+      preLoaderRoute: typeof ApiPublicEnfaSelectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-report': {
+      id: '/api/public/enfa-report'
+      path: '/api/public/enfa-report'
+      fullPath: '/api/public/enfa-report'
+      preLoaderRoute: typeof ApiPublicEnfaReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-print': {
+      id: '/api/public/enfa-print'
+      path: '/api/public/enfa-print'
+      fullPath: '/api/public/enfa-print'
+      preLoaderRoute: typeof ApiPublicEnfaPrintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-my-update': {
+      id: '/api/public/enfa-my-update'
+      path: '/api/public/enfa-my-update'
+      fullPath: '/api/public/enfa-my-update'
+      preLoaderRoute: typeof ApiPublicEnfaMyUpdateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-display-edit': {
+      id: '/api/public/enfa-display-edit'
+      path: '/api/public/enfa-display-edit'
+      fullPath: '/api/public/enfa-display-edit'
+      preLoaderRoute: typeof ApiPublicEnfaDisplayEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-detail': {
+      id: '/api/public/enfa-detail'
+      path: '/api/public/enfa-detail'
+      fullPath: '/api/public/enfa-detail'
+      preLoaderRoute: typeof ApiPublicEnfaDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-create': {
+      id: '/api/public/enfa-create'
+      path: '/api/public/enfa-create'
+      fullPath: '/api/public/enfa-create'
+      preLoaderRoute: typeof ApiPublicEnfaCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-attachments': {
+      id: '/api/public/enfa-attachments'
+      path: '/api/public/enfa-attachments'
+      fullPath: '/api/public/enfa-attachments'
+      preLoaderRoute: typeof ApiPublicEnfaAttachmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-approve': {
+      id: '/api/public/enfa-approve'
+      path: '/api/public/enfa-approve'
+      fullPath: '/api/public/enfa-approve'
+      preLoaderRoute: typeof ApiPublicEnfaApproveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/enfa-approval': {
+      id: '/api/public/enfa-approval'
+      path: '/api/public/enfa-approval'
+      fullPath: '/api/public/enfa-approval'
+      preLoaderRoute: typeof ApiPublicEnfaApprovalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/create-user': {
+      id: '/api/public/create-user'
+      path: '/api/public/create-user'
+      fullPath: '/api/public/create-user'
+      preLoaderRoute: typeof ApiPublicCreateUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/nfa/new': {
+      id: '/_authed/nfa/new'
+      path: '/nfa/new'
+      fullPath: '/nfa/new'
+      preLoaderRoute: typeof AuthedNfaNewRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/nfa/my': {
+      id: '/_authed/nfa/my'
+      path: '/nfa/my'
+      fullPath: '/nfa/my'
+      preLoaderRoute: typeof AuthedNfaMyRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/nfa/$id': {
+      id: '/_authed/nfa/$id'
+      path: '/nfa/$id'
+      fullPath: '/nfa/$id'
+      preLoaderRoute: typeof AuthedNfaIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/admin/users': {
+      id: '/_authed/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthedAdminUsersRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/admin/sap-api/': {
       id: '/_authed/admin/sap-api/'
@@ -669,19 +669,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAdminSapApiIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/admin/sap-api/$id': {
-      id: '/_authed/admin/sap-api/$id'
-      path: '/admin/sap-api/$id'
-      fullPath: '/admin/sap-api/$id'
-      preLoaderRoute: typeof AuthedAdminSapApiIdRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/nfa/$id/change': {
       id: '/_authed/nfa/$id/change'
       path: '/change'
       fullPath: '/nfa/$id/change'
       preLoaderRoute: typeof AuthedNfaIdChangeRouteImport
       parentRoute: typeof AuthedNfaIdRoute
+    }
+    '/_authed/admin/sap-api/$id': {
+      id: '/_authed/admin/sap-api/$id'
+      path: '/admin/sap-api/$id'
+      fullPath: '/admin/sap-api/$id'
+      preLoaderRoute: typeof AuthedAdminSapApiIdRouteImport
+      parentRoute: typeof AuthedRoute
     }
   }
 }
