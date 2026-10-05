@@ -55,13 +55,13 @@ export interface RolePermissionRow {
 export const listRoleDefs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RoleDef[]> => {
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const [{ data: defs }, { data: customAssign }, { data: perms }] = await Promise.all([
       db.from("app_role_def").select("key, name, description, is_system").eq("is_system", false).order("name"),
       db.from("user_role_assignment").select("user_id, role_key"),
       db.from("role_permission").select("role_key, allowed"),
     ]);
-    void context;
     const counts = new Map<string, number>();
     for (const r of customAssign ?? []) {
       counts.set(r.role_key, (counts.get(r.role_key) ?? 0) + 1);
