@@ -2,7 +2,16 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { swalConfirm, toast } from "@/lib/swal";
 import {
   KeyRound,
@@ -169,17 +178,35 @@ function UserManagement() {
 function RolePicker({ value, onChange }: { value: Role | ""; onChange: (r: Role) => void }) {
   const { data: roleDefs, isLoading } = useRoleDefs();
   if (isLoading) return <Skeleton className="h-10 w-full" />;
+  const systemRoles = (roleDefs ?? []).filter((role) => role.is_system);
+  const customRoles = (roleDefs ?? []).filter((role) => !role.is_system);
   return (
     <Select value={value || undefined} onValueChange={(v) => onChange(v as Role)}>
       <SelectTrigger>
         <SelectValue placeholder="Select a role" />
       </SelectTrigger>
       <SelectContent>
-        {(roleDefs ?? []).map((r) => (
-          <SelectItem key={r.key} value={r.key}>
-            {r.name}
-          </SelectItem>
-        ))}
+        <SelectGroup>
+          <SelectLabel>System Roles</SelectLabel>
+          {systemRoles.map((role) => (
+            <SelectItem key={role.key} value={role.key}>
+              System — {role.name}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+        {customRoles.length > 0 ? (
+          <>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel>Custom Roles</SelectLabel>
+              {customRoles.map((role) => (
+                <SelectItem key={role.key} value={role.key}>
+                  Custom — {role.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </>
+        ) : null}
       </SelectContent>
     </Select>
   );
@@ -1286,7 +1313,12 @@ function PermissionsTab() {
             <tbody>
               {roles.map((r) => (
                 <tr key={r.key} className="border-t border-border/70 odd:bg-muted/20">
-                  <td className="px-4 py-3 font-medium">{r.name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <div>{r.name}</div>
+                    <div className="text-xs font-normal text-muted-foreground">
+                      {r.is_system ? "System Role" : "Custom Role"}
+                    </div>
+                  </td>
                   {SCREENS.map((s) => (
                     <td key={s.key} className="px-3 py-3 text-center">
                       <Checkbox
