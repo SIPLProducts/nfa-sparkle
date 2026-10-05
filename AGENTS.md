@@ -15,3 +15,4 @@
 - Transient notifications and destructive confirmations use the shared SweetAlert layer so messaging stays consistent without changing workflow logic.
 - Route-specific viewport scrolling is controlled by AppShell using the active pathname so fixed data controls do not alter other screens.
 - Permanent user deletion is server-authorized and blocked whenever the account is linked to business records, preventing workflow-history loss.
+- Authentication access checks remain pending until the current user's shared role-and-permission load completes, preventing transient false denials.
