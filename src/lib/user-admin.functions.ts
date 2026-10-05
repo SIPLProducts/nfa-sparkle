@@ -95,7 +95,10 @@ export const createRoleDef = createServerFn({ method: "POST" })
     const db = await admin();
     const key = slugify(data.name);
     if (!key) throw new Error("Role name must contain letters or numbers");
-    const { data: existing } = await db.from("app_role_def").select("key").eq("key", key).maybeSingle();
+    const { data: existing } = await db.from("app_role_def").select("key, is_system").eq("key", key).maybeSingle();
+    if (existing?.is_system) {
+      throw new Error("This role name is reserved for system access. Please enter a different role name.");
+    }
     if (existing) throw new Error("A role with a similar name already exists");
     const { error } = await db.from("app_role_def").insert({
       key,
