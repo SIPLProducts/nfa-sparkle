@@ -51,23 +51,6 @@ function AuthPage() {
       setBusy(false);
     }
   }
-
-
-  async function signInDemo() {
-    setBusy(true);
-    try {
-      const creds = { email: "demo@nfa.local", password: "Demo@12345" };
-      setEmail(creds.email);
-      setPwd(creds.password);
-      const { error } = await supabase.auth.signInWithPassword({ email: creds.email, password: creds.password });
-      if (error) toast.error(error.message);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Demo sign-in failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2 bg-slate-50">
       {/* Left brand panel */}
@@ -148,17 +131,6 @@ function AuthPage() {
                   <p className="pt-1 text-center text-xs text-slate-500">
                     Protected by role-based access. Unauthorized use is prohibited.
                   </p>
-
-                  <div className="mt-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Demo account</div>
-                    <div className="mb-2 space-y-0.5 font-mono text-xs text-slate-700">
-                      <div><span className="text-slate-500">User ID:</span> demo@nfa.local</div>
-                      <div><span className="text-slate-500">Password:</span> Demo@12345</div>
-                    </div>
-                    <Button onClick={signInDemo} disabled={busy} variant="outline" size="sm" className="w-full border-slate-300">
-                      {busy ? "Signing in…" : "Login as Demo User"}
-                    </Button>
-                  </div>
               </div>
             </CardContent>
           </Card>
