@@ -125,7 +125,7 @@ export function PrintFormDialog({
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        toast.warning(error instanceof Error ? error.message : "Company logo is unavailable");
+        console.warn("Optional Print Form logo could not be loaded", error);
       } finally {
         if (!controller.signal.aborted) setLogoLoading(false);
       }
@@ -156,7 +156,7 @@ export function PrintFormDialog({
         setFlowFunctionName(flow.functionName);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        toast.warning(error instanceof Error ? `${error.message}. Showing saved approval details.` : "Showing saved approval details.");
+        console.warn("Optional Print Form approval refresh could not be loaded; using supplied details", error);
       } finally {
         if (!controller.signal.aborted) setApprovalLoading(false);
       }

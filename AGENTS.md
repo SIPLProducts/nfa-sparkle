@@ -22,3 +22,4 @@
 - Approval Chain management uses the configured SAP endpoint and serializes editable rows into SAP's seven approval slots so no business values are hardcoded.
 - Approval Chain reads require Approvals access, while approval-chain mutations require User Management access, so Print Form works without granting administrative rights.
 - Approver Print Forms authorize through the Approvals screen permission, then merge current SAP responses with the complete server-read saved NFA and ordered approval levels, using saved values only when SAP omits them.
+- Optional Print Form SAP refreshes must never block saved-detail rendering or expose raw gateway error pages.

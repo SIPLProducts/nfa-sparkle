@@ -74,3 +74,4 @@
 
 - [x] Make every approver level load the same complete Print Form details as the Initiator without changing workflows.
 - [x] Permanently bypass per-row visibility gaps for Approvals-authorized Print Form fallbacks while preserving SAP-first values.
+- [x] Keep Approvals Print Forms usable with complete saved details when optional SAP requests hit an ngrok gateway failure.

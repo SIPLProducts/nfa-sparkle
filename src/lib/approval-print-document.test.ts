@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { parseApprovalPrintDetail, resolveApprovalPrintDocument } from "./approval-print-document";
+import { parseApprovalPrintDetail, resolveApprovalPrintDocument, safeApprovalDetailMessage } from "./approval-print-document";
 
 describe("Approvals Print Form data", () => {
   it("parses nested stringified SAP responses", () => {
     const response = JSON.stringify({ body: JSON.stringify({ data: [{ REFFLD: "100122", FUNCT: "BUDGET DEVIATION" }] }) });
     expect(parseApprovalPrintDetail(response).detail).toMatchObject({ REFFLD: "100122", FUNCT: "BUDGET DEVIATION" });
+  });
+
+  it("never exposes an ngrok gateway page as a SAP business message", () => {
+    const gatewayPage = "<html><body>ngrok gateway error The server returned an invalid response. ERR_NGROK_3004</body></html>";
+
+    expect(parseApprovalPrintDetail(gatewayPage)).toEqual({
+      detail: null,
+      message: "SAP record details are temporarily unavailable",
+    });
+    expect(safeApprovalDetailMessage("ERR_NGROK_3004")).toBe("SAP record details are temporarily unavailable");
   });
 
   it("merges partial details without allowing blanks to erase worklist approval data", () => {

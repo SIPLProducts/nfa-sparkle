@@ -56,6 +56,16 @@ function read(source: PrintDataSource | null, keys: string[]): string {
   return "";
 }
 
+/** Prevents proxy error pages from being presented as SAP business messages. */
+export function safeApprovalDetailMessage(value: unknown): string {
+  const message = nonBlank(value);
+  if (!message) return "SAP record details are temporarily unavailable";
+  if (/ERR_NGROK_\d+|ngrok gateway error|<!doctype html|<html/i.test(message)) {
+    return "SAP record details are temporarily unavailable";
+  }
+  return message.slice(0, 500);
+}
+
 /** Parses the nested and occasionally stringified response envelopes returned by SAP. */
 export function parseApprovalPrintDetail(text: string): { detail: PrintDataSource | null; message: string | null } {
   const trimmed = text.trim();
@@ -65,7 +75,7 @@ export function parseApprovalPrintDetail(text: string): { detail: PrintDataSourc
   try {
     value = JSON.parse(trimmed);
   } catch {
-    return { detail: null, message: trimmed.slice(0, 500) };
+    return { detail: null, message: safeApprovalDetailMessage(trimmed) };
   }
 
   for (let depth = 0; depth < 6; depth += 1) {
@@ -74,7 +84,7 @@ export function parseApprovalPrintDetail(text: string): { detail: PrintDataSourc
       try {
         value = JSON.parse(nested);
       } catch {
-        return { detail: null, message: nested.slice(0, 500) };
+        return { detail: null, message: safeApprovalDetailMessage(nested) };
       }
       continue;
     }
@@ -96,7 +106,7 @@ export function parseApprovalPrintDetail(text: string): { detail: PrintDataSourc
   }
 
   const detail = normalizeRecord(value as PrintDataSource);
-  const message = read(detail, ["MESSAGE", "ERROR"]);
+  const message = safeApprovalDetailMessage(read(detail, ["MESSAGE", "ERROR"]));
   const hasRecord = ["REFFLD", "SUBJECT", "CC_TEXT", "PSPNR", "FUNCT", "FUNCT_TXT", "APPR1"]
     .some((key) => read(detail, [key]));
   return hasRecord

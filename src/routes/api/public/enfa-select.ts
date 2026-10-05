@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
 
 export const Route = createFileRoute("/api/public/enfa-select")({
   server: {
@@ -67,11 +68,27 @@ export const Route = createFileRoute("/api/public/enfa-select")({
 
         if (!result.ok) {
           console.error("[enfa-select] SAP call failed:", result.status, result.error);
-          return new Response(
-            result.body && result.body.trim()
-              ? result.body
-              : JSON.stringify({ error: result.error ?? "SAP request failed" }),
-            { status: result.status && result.status >= 400 ? result.status : 502, headers },
+          let message = safeApprovalDetailMessage(result.error);
+          const raw = result.body.trim();
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw) as unknown;
+              if (typeof parsed === "string") message = safeApprovalDetailMessage(parsed);
+              else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const value = (parsed as Record<string, unknown>)["message"]
+                  ?? (parsed as Record<string, unknown>)["error"];
+                if (value) message = safeApprovalDetailMessage(value);
+              }
+            } catch {
+              message = safeApprovalDetailMessage(raw);
+            }
+          }
+          return Response.json(
+            { ok: false, message },
+            {
+              status: result.status && result.status >= 400 && result.status < 500 ? result.status : 200,
+              headers,
+            },
           );
         }
 
