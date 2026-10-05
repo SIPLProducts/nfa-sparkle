@@ -348,10 +348,7 @@ function ApprovalsInbox() {
       setPrintOpen(true);
        if (missingFields.length) {
          toast.warning(`Some source data is unavailable: ${missingFields.join(", ")}. Showing all saved details.`);
-       } else if (!editParsed.detail && !selectParsed.detail) {
-         const message = editParsed.message || selectParsed.message;
-         if (message) toast.warning(`${message}. Showing complete saved and worklist details.`);
-      }
+        }
     } catch (error) {
        const fallback = resolveApprovalPrintDocument({
          worklistRow: selectedRow as unknown as Record<string, unknown>,

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
 
 export const Route = createFileRoute("/api/public/enfa-detail")({
   server: {
@@ -80,19 +81,19 @@ export const Route = createFileRoute("/api/public/enfa-detail")({
           // failure, not an application crash. Return valid JSON so dialogs can
           // show their saved-data fallback instead of the global 502 overlay.
           console.warn("[enfa-detail] SAP call failed:", result.status, result.error);
-          let message = result.error ?? "SAP record details are unavailable";
+          let message = safeApprovalDetailMessage(result.error);
           const raw = result.body.trim();
           if (raw) {
             try {
               const parsed = JSON.parse(raw) as unknown;
-              if (typeof parsed === "string" && parsed.trim()) message = parsed.trim();
+              if (typeof parsed === "string" && parsed.trim()) message = safeApprovalDetailMessage(parsed);
               else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
                 const value = (parsed as Record<string, unknown>)["message"]
                   ?? (parsed as Record<string, unknown>)["error"];
-                if (typeof value === "string" && value.trim()) message = value.trim();
+                if (typeof value === "string" && value.trim()) message = safeApprovalDetailMessage(value);
               }
             } catch {
-              message = raw.slice(0, 500);
+              message = safeApprovalDetailMessage(raw);
             }
           }
           return Response.json(
