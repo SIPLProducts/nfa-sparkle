@@ -44,7 +44,7 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        let input: { approver?: string } = {};
+        let input: { approver?: string; payload?: Record<string, unknown> } = {};
         try {
           input = (await request.json()) as typeof input;
         } catch {
@@ -53,11 +53,16 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
 
         let result;
         try {
-          result = await callApprovalChain(String(input.approver ?? "").trim());
+          if (input.payload && typeof input.payload === "object" && !Array.isArray(input.payload)) {
+            const { callManageApprovalChain } = await import("@/lib/sap-report.server");
+            result = await callManageApprovalChain(input.payload);
+          } else {
+            result = await callApprovalChain(String(input.approver ?? "").trim());
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : "Approval chain service failed";
           return Response.json(
-            { error: `Could not load approval chains from SAP: ${message}` },
+            { error: `Could not process approval chains in SAP: ${message}` },
             { status: 424, headers: { "cache-control": "no-store" } },
           );
         }
