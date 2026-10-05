@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { parseProxyResponse } from "./sap-proxy-response";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
+import { assertScreenAccess } from "./user-admin.server";
 
 export interface SapEndpoint {
   id: string;
@@ -53,14 +54,6 @@ export interface SapSystem {
   is_active: boolean;
   notes: string | null;
   has_password: boolean;
-}
-
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin role required");
 }
 
 async function admin() {
@@ -202,7 +195,7 @@ async function callSap(opts: {
 export const listSapSystems = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data } = await db.from("sap_system").select("*").order("created_at", { ascending: true });
     const rows = (data ?? []) as Record<string, any>[];
@@ -231,7 +224,7 @@ export const saveSapSystem = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     if (!data.key.trim()) throw new Error("System key is required");
     if (!data.host.trim()) throw new Error("Host / IP is required");
     const db = await admin();
@@ -270,7 +263,7 @@ export const activateSapSystem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     await db.from("sap_system").update({ is_active: false }).eq("is_active", true);
     const { error } = await db.from("sap_system").update({ is_active: true }).eq("id", data.id);
@@ -282,7 +275,7 @@ export const deleteSapSystem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     await db.from("sap_system").delete().eq("id", data.id);
     await db.from("sap_secret").delete().eq("key", `system:${data.id}`);
@@ -293,7 +286,7 @@ export const testSapSystem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; path?: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const sys = await loadSystem(data.id);
     if (!sys) throw new Error("System not found");
     const r = await callSap({
@@ -312,7 +305,7 @@ export const testSapSystem = createServerFn({ method: "POST" })
 export const getSapSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const [{ data: conn }, { data: mw }] = await Promise.all([
       db.from("sap_connection").select("*").limit(1).maybeSingle(),
@@ -339,7 +332,7 @@ export const saveSapConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { environment: string; base_url: string; username: string; password?: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: row } = await db.from("sap_connection").select("id").limit(1).maybeSingle();
     const payload = { environment: data.environment, base_url: data.base_url.trim(), username: data.username.trim() };
@@ -355,7 +348,7 @@ export const saveMiddlewareConfig = createServerFn({ method: "POST" })
     (d: { connection_mode: string; deployment_mode: string; port: number; url: string; secret?: string }) => d,
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: row } = await db.from("sap_middleware_config").select("id").limit(1).maybeSingle();
     const payload = {
@@ -376,7 +369,7 @@ export const saveMiddlewareConfig = createServerFn({ method: "POST" })
 export const listSapEndpoints = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data } = await db.from("sap_endpoint").select("*").order("created_at", { ascending: true });
     return (data ?? []) as SapEndpoint[];
@@ -386,7 +379,7 @@ export const getSapEndpoint = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: row } = await db.from("sap_endpoint").select("*").eq("id", data.id).maybeSingle();
     if (!row) throw new Error("Endpoint not found");
@@ -406,7 +399,7 @@ export const createSapEndpoint = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     if (!data.name.trim()) throw new Error("Name is required");
     const db = await admin();
     const { data: row, error } = await db
@@ -429,7 +422,7 @@ export const updateSapEndpoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; patch: Record<string, unknown>; password?: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { error } = await db.from("sap_endpoint").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -441,7 +434,7 @@ export const deleteSapEndpoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     await db.from("sap_endpoint").delete().eq("id", data.id);
     await db.from("sap_secret").delete().eq("key", `endpoint:${data.id}`);
@@ -471,7 +464,7 @@ async function logTest(
 export const testSapConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: conn } = await db.from("sap_connection").select("*").limit(1).maybeSingle();
     if (!conn?.base_url) throw new Error("Set the SAP Base URL first");
@@ -486,7 +479,7 @@ export const testSapConnection = createServerFn({ method: "POST" })
 export const testMiddleware = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: mw } = await db.from("sap_middleware_config").select("*").limit(1).maybeSingle();
     if (!mw?.url) throw new Error("Set the Node.js Middleware URL first");
@@ -506,7 +499,7 @@ export const testSapEndpoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: ep } = await db.from("sap_endpoint").select("*").eq("id", data.id).maybeSingle();
     if (!ep) throw new Error("Endpoint not found");
@@ -554,7 +547,7 @@ export const listSapTestLog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { endpointId: string }) => d)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "sap_api");
     const db = await admin();
     const { data: rows } = await db
       .from("sap_test_log")

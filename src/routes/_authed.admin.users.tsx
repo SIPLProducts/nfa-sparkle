@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -107,18 +107,10 @@ function useRoleDefs() {
 }
 
 function UserManagement() {
-  const { hasRole, loading } = useAuth();
-  const nav = useNavigate();
+  const { canAccess } = useAuth();
   const qc = useQueryClient();
-  const isAdmin = hasRole("admin");
+  const hasAccess = canAccess("user_management");
   const [tab, setTab] = useState("users");
-
-  useEffect(() => {
-    if (!loading && !isAdmin) {
-      toast.error("Admins only");
-      nav({ to: "/", replace: true });
-    }
-  }, [loading, isAdmin, nav]);
 
   // Navigating into this screen refreshes its data once; switching the tabs
   // inside the screen reuses the cache and never refetches.
@@ -127,9 +119,9 @@ function UserManagement() {
     const keys = ["managed-users", "role-defs", "role-permissions", "approval-chains"];
     keys.forEach((k) => qc.resetQueries({ queryKey: [k], exact: false }));
     return () => keys.forEach((k) => qc.removeQueries({ queryKey: [k], exact: false }));
-  }, isAdmin);
+  }, hasAccess);
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
 
   return (
     <div>

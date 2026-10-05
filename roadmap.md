@@ -69,3 +69,4 @@
 - [x] Allow same-named custom roles with independent keys and distinguish them in user assignment controls.
 - [x] Replace all active System Roles with matching Custom Roles while preserving users, permissions, and access.
 - [x] Make the existing Approval Chain tab dynamically add, update, delete, save, and reload SAP approval levels without changing User Creation.
+- [x] Enforce assigned Custom Role screen permissions across every page and its existing actions without changing saved users or permissions.

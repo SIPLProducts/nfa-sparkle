@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertScreenAccess } from "./user-admin.server";
 
 export interface ChainLevel {
   level: number;
@@ -25,14 +26,6 @@ export interface ChainLevelInput {
   designation?: string | null;
 }
 
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden: admin role required");
-}
-
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin as any;
@@ -41,7 +34,7 @@ async function admin() {
 export const listApprovalChains = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ApprovalChain[]> => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const [{ data: chains, error }, { data: levels }, { data: profiles }] = await Promise.all([
       db.from("approval_chain").select("*").order("created_at", { ascending: false }),
@@ -86,7 +79,7 @@ export const saveApprovalChain = createServerFn({ method: "POST" })
     levels: ChainLevelInput[];
   }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const name = (data.name ?? "").trim();
     if (!name) throw new Error("Chain name is required");
     const levels = (data.levels ?? []).filter((l) => l.approver_id);
@@ -136,7 +129,7 @@ export const setApprovalChainActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; is_active: boolean }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { error } = await db.from("approval_chain").update({ is_active: data.is_active }).eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -147,7 +140,7 @@ export const deleteApprovalChain = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    await assertScreenAccess(context as any, "user_management");
     const db = await admin();
     const { error } = await db.from("approval_chain").delete().eq("id", data.id);
     if (error) throw new Error(error.message);

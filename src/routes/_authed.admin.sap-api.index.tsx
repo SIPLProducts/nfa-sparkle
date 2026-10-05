@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -80,18 +80,10 @@ function resultToast(r: TestResult, label: string) {
 }
 
 function SapApiSettings() {
-  const { hasRole, loading } = useAuth();
-  const nav = useNavigate();
+  const { canAccess } = useAuth();
   const qc = useQueryClient();
-  const isAdmin = hasRole("admin");
+  const hasAccess = canAccess("sap_api");
   const [tab, setTab] = useState("apis");
-
-  useEffect(() => {
-    if (!loading && !isAdmin) {
-      toast.error("Admins only");
-      nav({ to: "/", replace: true });
-    }
-  }, [loading, isAdmin, nav]);
 
   // Refresh once per navigation into the screen; in-screen tab switches reuse cache.
   useScreenEntryEffect("/admin/sap-api", () => {
@@ -99,9 +91,9 @@ function SapApiSettings() {
     const keys = ["sap-endpoints", "sap-systems", "sap-settings"];
     keys.forEach((k) => qc.resetQueries({ queryKey: [k], exact: false }));
     return () => keys.forEach((k) => qc.removeQueries({ queryKey: [k], exact: false }));
-  }, isAdmin);
+  }, hasAccess);
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
 
   return (
     <div>

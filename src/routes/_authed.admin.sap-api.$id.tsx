@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -82,10 +82,9 @@ function KVEditor({ rows, onChange, label }: { rows: KV[]; onChange: (r: KV[]) =
 
 function EndpointDetail() {
   const { id } = Route.useParams();
-  const { hasRole, loading } = useAuth();
-  const nav = useNavigate();
+  const { canAccess } = useAuth();
   const qc = useQueryClient();
-  const isAdmin = hasRole("admin");
+  const hasAccess = canAccess("sap_api");
 
   const get = useServerFn(getSapEndpoint);
   const update = useServerFn(updateSapEndpoint);
@@ -109,32 +108,25 @@ function EndpointDetail() {
     void qc.resetQueries({ queryKey: ["sap-endpoint", id], exact: true });
     void qc.resetQueries({ queryKey: ["sap-endpoint-log", id], exact: true });
     void qc.resetQueries({ queryKey: ["sap-systems"], exact: true });
-  }, isAdmin);
-
-  useEffect(() => {
-    if (!loading && !isAdmin) {
-      toast.error("Admins only");
-      nav({ to: "/", replace: true });
-    }
-  }, [loading, isAdmin, nav]);
+  }, hasAccess);
 
   const { data, isLoading } = useQuery({
     queryKey: ["sap-endpoint", id],
     queryFn: () => get({ data: { id } }),
-    enabled: isAdmin,
+    enabled: hasAccess,
     refetchOnMount: "always",
   });
   const { data: history } = useQuery({
     queryKey: ["sap-endpoint-log", id],
     queryFn: () => logs({ data: { endpointId: id } }),
-    enabled: isAdmin,
+    enabled: hasAccess,
     refetchOnMount: "always",
   });
   const listSystems = useServerFn(listSapSystems);
   const { data: systems } = useQuery({
     queryKey: ["sap-systems"],
     queryFn: () => listSystems(),
-    enabled: isAdmin,
+    enabled: hasAccess,
     refetchOnMount: "always",
   });
 
@@ -205,7 +197,7 @@ function EndpointDetail() {
     }
   }
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
   if (isLoading || !ep) return <Skeleton className="h-96 w-full rounded-lg" />;
 
   const set = (patch: Partial<SapEndpoint>) => setEp({ ...ep, ...patch });
