@@ -1,50 +1,22 @@
-# Make SAP the single source of truth for NFA business data
+# Show fresh SAP data on the NFA Details screen
 
-## Confirmed current behavior
+## Confirmed issue
 
-- Create NFA first inserts the complete record, approvers, attachments, and audit entries into the portal database, then calls SAP. It also saves a second editable copy in `sap_record_draft` and generates a locally stored working document.
-- The pictured NFA detail screen first loads the local `nfa` row and only overlays selected SAP values; several fields, status, initiator, description, and attachments can therefore come from local data.
-- The legacy change-request screen reads and updates local NFA tables and uses hardcoded NFA Type and Function lists.
-- My NFAs, Approvals, and the main Report already load their rows from SAP, but Edit/Print still use local draft fallbacks. Report filters and some display-name fallbacks still use hardcoded master lists.
-- SAP attachment display currently persists a ten-minute duplicate response cache in the portal database.
+The pictured page currently opens by loading a local `nfa` record using its database ID. It then calls SAP and overlays only some returned values. If SAP omits a field or cannot be reached, the page displays locally stored Company, Plant, NFA Type, Function, Subject, impacts, description, status, initiator, date, and attachments. This is why the page can show local or stale data instead of the exact SAP record.
 
 ## Changes
 
-1. **Create directly in SAP**
-   - Build the request entirely from the form and staged files, including the Detailed Description in SAP `TEXT`.
-   - Call the configured Create ENFA endpoint without first inserting an `nfa`, approver, attachment, audit, draft, or working-document row locally.
-   - Treat SAP’s response as authoritative: show its exact status/message and returned ENFA number; navigate only after SAP confirms success.
-   - If SAP rejects or times out, remain on the completed form with no local NFA created and no misleading “saved locally” message.
-
-2. **Make the NFA detail and change flows SAP-only**
-   - Use the ENFA number as the route identifier and fetch the complete record from the configured SAP detail/select endpoint on every open.
-   - Render Company, Plant, NFA Type, Function, Subject, impacts, description, initiator, date, status, and approval levels only from SAP response fields—no local merge or fallback.
-   - Send edits/resubmissions through the existing configured SAP update/action endpoints, then refetch SAP and display the returned values.
-   - If SAP is unavailable, show the SAP error and do not display stale local values.
-
-3. **Remove local/static sources from all NFA screens**
-   - Keep My NFAs, Approvals, and Report driven by their existing SAP APIs, while removing `sap_record_draft` and local NFA-table fallbacks from Edit, Print Form, action PDFs, descriptions, comments, initiator names, and previews.
-   - Load Company, Plant, NFA Type, and Function options from their configured SAP F4 endpoints wherever selectors or filters need them; remove hardcoded master-data fallbacks and the sample NFA filler.
-   - Build downloadable/printable documents on demand from the current SAP response without saving a duplicate working copy locally.
-
-4. **Keep attachments in SAP only**
-   - Create and later uploads continue sending Base64 files to the configured SAP endpoints.
-   - Lists, previews, and downloads always fetch the current SAP attachment response.
-   - Remove writes to local attachment tables/storage and remove both the process-memory and database attachment-response caches, so refresh always reflects SAP.
-
-5. **Preserve unrelated portal functionality**
-   - Keep login, users, Custom Roles, screen permissions, SAP API Settings, approval-chain configuration, navigation, and presentation unchanged.
-   - Do not delete historical local rows or user data; the application will simply stop using and creating local NFA business copies.
-   - Keep local storage only for portal configuration and identity/authorization data, not NFA records or SAP response data.
+1. Use the ENFA number to request the current record from the configured SAP Select/Detail endpoint whenever this page opens.
+2. Display Company, Plant, NFA Type, Function, Subject, Scope Impact, Budget, Timeline, Initiator, Created date, status, Detailed Description, and approval information only from the SAP response.
+3. Remove all local `nfa`, profile, hardcoded master-data, and locally saved description fallbacks from this page.
+4. Load supporting documents from the existing SAP Attachments endpoint and send new uploads directly to SAP; do not read or write the local NFA attachment store from this page.
+5. If SAP returns no record or an error, show that response clearly instead of displaying stale local values.
+6. Keep the current layout, Back navigation, permissions, login, other screens, users, and existing historical data unchanged.
 
 ## Verification
 
-- Create an NFA and confirm one SAP request is made, no local NFA/draft/attachment/document row is added, and SAP’s exact message and ENFA number appear.
-- Reopen the returned ENFA, My NFAs, Approvals, Report, Edit, Print Form, and Attached Docs; confirm every business value matches a fresh SAP response.
-- Change a value in SAP and refresh the portal; confirm the new value appears with no stale local fallback.
-- Simulate an SAP error and confirm the form remains intact, no local record is created, and the SAP error is shown clearly.
-- Run existing approval payload, print/PDF, permissions, and navigation tests, then verify desktop and mobile screens.
-
-## Scope assumption
-
-“Local/static storage” means NFA business records and SAP response copies. Portal users, roles, permissions, and SAP connection/endpoint settings remain stored in the portal because they are required to authenticate and securely reach SAP.
+- Open the pictured record and compare every displayed field with the live SAP detail response.
+- Change a value in SAP, refresh the page, and confirm the new value appears immediately.
+- Confirm an SAP error shows an error state and never falls back to local data.
+- Confirm attachment list, preview, download, and upload operate through SAP only.
+- Verify the page on desktop and mobile and confirm the rest of the portal still builds and works.
