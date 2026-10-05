@@ -339,7 +339,7 @@ function UsersTab() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
-                    <td className="sticky right-0 bg-card px-4 py-3 odd:[tr_&]:bg-muted">
+                    <td className="sticky right-0 bg-card px-4 py-3">
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(u)}>
                           <Pencil className="h-3.5 w-3.5" /> Edit
