@@ -225,6 +225,7 @@ export interface SapApprovalChain {
   extraTxt: string;
   begda: string;
   endda: string;
+  lineIndex: string;
   levels: ApprovalChainLevel[];
 }
 
@@ -272,6 +273,7 @@ export function parseApprovalChains(raw: unknown): SapApprovalChain[] {
       extraTxt: str("extr_txt"),
       begda: str("begda"),
       endda: str("endda"),
+      lineIndex: str("line_index"),
       levels,
     };
     if (!chain.pspnr && !chain.funct && !levels.length) continue;

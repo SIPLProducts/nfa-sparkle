@@ -1559,6 +1559,61 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
   });
 }
 
+/** Saves or removes an approval chain through the same settings-driven SAP endpoint. */
+export async function callManageApprovalChain(payload: Record<string, unknown>): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint")
+    .select("*")
+    .ilike("name", "Approval Chain")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "%chain%")
+        .not("name", "ilike", "%get data%")
+        .not("name", "ilike", "%button%")
+        .not("name", "ilike", "%tiator%")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error: "The SAP Approval Chain endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+
+  const sys = await loadSystem(ep.system_id ?? null);
+  const { username, password } = await credentialsFor(ep, sys);
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "POST").toUpperCase(),
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...((ep.request_headers ?? {}) as Record<string, string>),
+    },
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(payload),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
+
 /** Loads the Print Form approval flow selected by Plant, NFA Type, and Function. */
 export async function callSapApprovalFlow(input: {
   plant: string;
