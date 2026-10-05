@@ -67,32 +67,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let currentUserId: string | null = null;
+    let accessLoad: Promise<void> | null = null;
 
     async function bootstrap(s: Session | null, initial: boolean) {
       const nextId = s?.user?.id ?? null;
       const sameUser = nextId !== null && nextId === currentUserId;
-      currentUserId = nextId;
 
       setSession(s);
       setUser(s?.user ?? null);
 
       // Token refresh / tab focus events re-fire with the same user: keep the
-      // tree mounted and skip the role reload so open dialogs and typed data
-      // are never discarded.
-      if (!sameUser) {
-        if (s?.user) {
-          try {
-            await Promise.all([loadRoles(s.user.id), loadPermissions()]);
-          } catch (e) {
-            console.error("Unable to load access during bootstrap", e);
-            setRoles([]);
-            setPerms({});
-          }
-        } else {
-          setRoles([]);
-          setPerms({});
-          setPermissionError(null);
+      // tree mounted. If getSession and INITIAL_SESSION overlap, both wait
+      // for the same access request before the app can consider auth ready.
+      if (s?.user) {
+        if (!sameUser) {
+          currentUserId = nextId;
+          accessLoad = Promise.all([loadRoles(s.user.id), loadPermissions()])
+            .then(() => undefined)
+            .catch((e) => {
+              console.error("Unable to load access during bootstrap", e);
+              setRoles([]);
+              setPerms({});
+            });
         }
+        await accessLoad;
+      } else {
+        currentUserId = null;
+        accessLoad = null;
+        setRoles([]);
+        setPerms({});
+        setPermissionError(null);
       }
       if (!cancelled && initial) setLoading(false);
     }
