@@ -10,6 +10,9 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+// Keep a module-level CSS import so Vite can restore styles after a route HMR reload.
+// The explicit head link below remains the SSR/production delivery path.
+import "../styles.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth-context";
