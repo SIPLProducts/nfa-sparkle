@@ -986,6 +986,7 @@ function PasswordDialog({
 function RolesTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useRoleDefs();
+  const customRoles = (data ?? []).filter((role) => !role.is_system);
   const createFn = useServerFn(createRoleDef);
   const updateFn = useServerFn(updateRoleDef);
   const deleteFn = useServerFn(deleteRoleDef);
@@ -1012,7 +1013,7 @@ function RolesTab() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Roles decide which screens a user can open. Built-in roles cannot be renamed or removed.
+          Roles decide which screens a user can open.
         </p>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> Create role
@@ -1031,17 +1032,10 @@ function RolesTab() {
               </tr>
             </thead>
             <tbody>
-              {(data ?? []).map((r) => (
+              {customRoles.map((r) => (
                 <tr key={r.key} className="border-t border-border/70 odd:bg-muted/20">
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{r.name}</span>
-                      {r.is_system && (
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                          System
-                        </Badge>
-                      )}
-                    </div>
+                    <div className="font-medium">{r.name}</div>
                     <div className="text-xs text-muted-foreground">{r.description || "—"}</div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{r.user_count}</td>
@@ -1054,8 +1048,7 @@ function RolesTab() {
                         size="sm"
                         variant="outline"
                         className="gap-1.5"
-                        disabled={r.is_system}
-                        title={r.is_system ? "Built-in roles cannot be edited" : "Edit role"}
+                        title="Edit role"
                         onClick={() => setEditing(r)}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Edit
@@ -1064,8 +1057,8 @@ function RolesTab() {
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-destructive"
-                        disabled={r.is_system || remove.isPending}
-                        title={r.is_system ? "Built-in roles cannot be deleted" : "Delete role"}
+                        disabled={remove.isPending}
+                        title="Delete role"
                         onClick={async () => {
                           const confirmed = await swalConfirm({
                             title: "Delete this role?",
