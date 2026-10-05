@@ -1,30 +1,50 @@
-# Restore User ID login on the self-hosted server
+# Make SAP the single source of truth for NFA business data
 
-## Confirmed cause in the deployment package
+## Confirmed current behavior
 
-- Email login works directly and does not use the User ID resolver.
-- User ID login calls `public.resolve_login_email()` to map `profiles.username` to the account email before checking the password.
-- The resolver exists in the local migration `20260812123128_d8d83593-2ea6-464b-b8d4-158984fd1356.sql`.
-- That migration is missing from `deployment/Quality/backend/migrations`, so uploading only `dist` cannot make the self-hosted database match local.
+- Create NFA first inserts the complete record, approvers, attachments, and audit entries into the portal database, then calls SAP. It also saves a second editable copy in `sap_record_draft` and generates a locally stored working document.
+- The pictured NFA detail screen first loads the local `nfa` row and only overlays selected SAP values; several fields, status, initiator, description, and attachments can therefore come from local data.
+- The legacy change-request screen reads and updates local NFA tables and uses hardcoded NFA Type and Function lists.
+- My NFAs, Approvals, and the main Report already load their rows from SAP, but Edit/Print still use local draft fallbacks. Report filters and some display-name fallbacks still use hardcoded master lists.
+- SAP attachment display currently persists a ten-minute duplicate response cache in the portal database.
 
-## Fix
+## Changes
 
-1. Add a non-destructive, rerunnable Quality migration containing the existing resolver definition and permissions exactly as used locally:
-   - keep/add `profiles.username`;
-   - keep the case-insensitive unique User ID index;
-   - create `public.resolve_login_email(text)` as a security-definer function;
-   - grant function execution to login callers.
-2. Update the Quality deployment guide with the exact safe sequence:
-   - copy the new migration to `Quality/backend/migrations`;
-   - run `./scripts/run-migrations.sh`;
-   - verify the resolver returns the same email that already logs in;
-   - restart the application service only if its server environment was changed (a database-only repair does not require replacing `dist`).
-3. Include verification queries that detect missing, blank, or duplicate User ID mappings without deleting or rewriting users.
-4. Improve the login resolver’s server-side error handling so a missing/broken database function is distinguishable from genuinely invalid credentials, while keeping the user-facing sign-in behavior secure.
-5. Validate both paths with one existing account: Email + password, then User ID + the same password.
+1. **Create directly in SAP**
+   - Build the request entirely from the form and staged files, including the Detailed Description in SAP `TEXT`.
+   - Call the configured Create ENFA endpoint without first inserting an `nfa`, approver, attachment, audit, draft, or working-document row locally.
+   - Treat SAP’s response as authoritative: show its exact status/message and returned ENFA number; navigate only after SAP confirms success.
+   - If SAP rejects or times out, remain on the completed form with no local NFA created and no misleading “saved locally” message.
 
-## Safety
+2. **Make the NFA detail and change flows SAP-only**
+   - Use the ENFA number as the route identifier and fetch the complete record from the configured SAP detail/select endpoint on every open.
+   - Render Company, Plant, NFA Type, Function, Subject, impacts, description, initiator, date, status, and approval levels only from SAP response fields—no local merge or fallback.
+   - Send edits/resubmissions through the existing configured SAP update/action endpoints, then refetch SAP and display the returned values.
+   - If SAP is unavailable, show the SAP error and do not display stale local values.
 
-- No users, passwords, roles, permissions, workflow records, or existing fields are deleted.
-- Existing User IDs are preserved; any conflicting mapping is reported for review rather than automatically overwritten.
-- No changes are made to unrelated application screens or workflows.
+3. **Remove local/static sources from all NFA screens**
+   - Keep My NFAs, Approvals, and Report driven by their existing SAP APIs, while removing `sap_record_draft` and local NFA-table fallbacks from Edit, Print Form, action PDFs, descriptions, comments, initiator names, and previews.
+   - Load Company, Plant, NFA Type, and Function options from their configured SAP F4 endpoints wherever selectors or filters need them; remove hardcoded master-data fallbacks and the sample NFA filler.
+   - Build downloadable/printable documents on demand from the current SAP response without saving a duplicate working copy locally.
+
+4. **Keep attachments in SAP only**
+   - Create and later uploads continue sending Base64 files to the configured SAP endpoints.
+   - Lists, previews, and downloads always fetch the current SAP attachment response.
+   - Remove writes to local attachment tables/storage and remove both the process-memory and database attachment-response caches, so refresh always reflects SAP.
+
+5. **Preserve unrelated portal functionality**
+   - Keep login, users, Custom Roles, screen permissions, SAP API Settings, approval-chain configuration, navigation, and presentation unchanged.
+   - Do not delete historical local rows or user data; the application will simply stop using and creating local NFA business copies.
+   - Keep local storage only for portal configuration and identity/authorization data, not NFA records or SAP response data.
+
+## Verification
+
+- Create an NFA and confirm one SAP request is made, no local NFA/draft/attachment/document row is added, and SAP’s exact message and ENFA number appear.
+- Reopen the returned ENFA, My NFAs, Approvals, Report, Edit, Print Form, and Attached Docs; confirm every business value matches a fresh SAP response.
+- Change a value in SAP and refresh the portal; confirm the new value appears with no stale local fallback.
+- Simulate an SAP error and confirm the form remains intact, no local record is created, and the SAP error is shown clearly.
+- Run existing approval payload, print/PDF, permissions, and navigation tests, then verify desktop and mobile screens.
+
+## Scope assumption
+
+“Local/static storage” means NFA business records and SAP response copies. Portal users, roles, permissions, and SAP connection/endpoint settings remain stored in the portal because they are required to authenticate and securely reach SAP.
