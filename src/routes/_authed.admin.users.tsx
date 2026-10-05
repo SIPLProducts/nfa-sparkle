@@ -59,6 +59,7 @@ import {
 import { SCREENS, type Role, type ScreenKey } from "@/lib/screens";
 import {
   createRoleDef,
+  deleteManagedUser,
   deleteRoleDef,
   listManagedUsers,
   listRoleDefs,
@@ -195,6 +196,7 @@ function UsersTab() {
   const updateFn = useServerFn(updateManagedUser);
   const resetFn = useServerFn(resetManagedUserPassword);
   const activeFn = useServerFn(setManagedUserActive);
+  const deleteUserFn = useServerFn(deleteManagedUser);
 
   const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: "always" });
   const [q, setQ] = useState("");
@@ -223,6 +225,15 @@ function UsersTab() {
     mutationFn: (v: { id: string; active: boolean }) => activeFn({ data: v }),
     onSuccess: (_r, v) => {
       toast.success(v.active ? "User reactivated" : "User deactivated");
+      invalidate();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => deleteUserFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("User deleted successfully");
       invalidate();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -339,6 +350,23 @@ function UsersTab() {
                               <UserCheck className="h-3.5 w-3.5" /> Activate
                             </>
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="gap-1.5"
+                          disabled={deleteUser.isPending}
+                          onClick={async () => {
+                            const confirmed = await swalConfirm({
+                              title: "Are you sure you want to delete this user?",
+                              text: "This action permanently deletes the selected user.",
+                              confirmText: "Delete",
+                              destructive: true,
+                            });
+                            if (confirmed) deleteUser.mutate(u.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
                         </Button>
                       </div>
                     </td>
