@@ -172,6 +172,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     for (const r of roles ?? []) push(r.user_id, r.role);
     for (const r of custom ?? []) push(r.user_id, r.role_key);
     return list.users
+      .filter((u: any) => pmap.get(u.id)?.status !== "DELETED")
       .map((u: any) => {
         const p = pmap.get(u.id);
         return {
@@ -333,12 +334,29 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       }),
     );
     if (checks.some((count) => count > 0)) {
-      throw new Error("This user cannot be deleted because they are linked to existing NFA or approval records");
+      const { error: banError } = await db.auth.admin.updateUserById(data.id, {
+        ban_duration: "876000h",
+      });
+      if (banError) throw new Error(banError.message);
+
+      const { error: profileError } = await db
+        .from("profiles")
+        .update({ is_active: false, status: "DELETED" })
+        .eq("id", data.id);
+      if (profileError) throw new Error(profileError.message);
+
+      const [{ error: systemRoleError }, { error: customRoleError }] = await Promise.all([
+        db.from("user_roles").delete().eq("user_id", data.id),
+        db.from("user_role_assignment").delete().eq("user_id", data.id),
+      ]);
+      if (systemRoleError) throw new Error(systemRoleError.message);
+      if (customRoleError) throw new Error(customRoleError.message);
+      return { ok: true, mode: "access_removed" as const };
     }
 
     const { error } = await db.auth.admin.deleteUser(data.id);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, mode: "permanent" as const };
   });
 
 /* ------------------------------ permissions ----------------------------- */

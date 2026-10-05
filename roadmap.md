@@ -62,3 +62,4 @@
 - [x] Prevent false “Admins only” redirects while administrator roles are still loading after sign-in.
 - [x] Keep global portal styles attached after Lovable preview route and hot reloads.
 - [x] Align every User Management detail under a dedicated table heading without changing user actions.
+- [x] Make Delete remove the selected user from User Management while preserving linked business history.

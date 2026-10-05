@@ -14,6 +14,6 @@
 - Quality SAP API synchronization must use a standalone, rerunnable upsert migration that preserves endpoint identities, credentials, SAP systems, and application records.
 - Transient notifications and destructive confirmations use the shared SweetAlert layer so messaging stays consistent without changing workflow logic.
 - Route-specific viewport scrolling is controlled by AppShell using the active pathname so fixed data controls do not alter other screens.
-- Permanent user deletion is server-authorized and blocked whenever the account is linked to business records, preventing workflow-history loss.
+- User deletion is server-authorized; unlinked accounts are removed permanently, while linked accounts lose access and disappear from User Management so workflow history remains intact.
 - Authentication access checks remain pending until the current user's shared role-and-permission load completes, preventing transient false denials.
 - Global styles use both the root module import and the root head link so route reloads cannot leave the portal unstyled.
