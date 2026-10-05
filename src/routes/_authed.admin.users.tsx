@@ -12,8 +12,6 @@ import {
   Search,
   ShieldCheck,
   UserCog,
-  UserX,
-  UserCheck,
   Save,
   Trash2,
   Shield,
@@ -66,7 +64,6 @@ import {
   listRolePermissions,
   resetManagedUserPassword,
   saveRolePermissions,
-  setManagedUserActive,
   updateManagedUser,
   updateRoleDef,
   type CreateUserPayload,
@@ -195,7 +192,6 @@ function UsersTab() {
   const roleName = (k: string) => roleDefs?.find((r) => r.key === k)?.name ?? k;
   const updateFn = useServerFn(updateManagedUser);
   const resetFn = useServerFn(resetManagedUserPassword);
-  const activeFn = useServerFn(setManagedUserActive);
   const deleteUserFn = useServerFn(deleteManagedUser);
 
   const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: "always" });
@@ -221,15 +217,6 @@ function UsersTab() {
         (u.full_name ?? "").toLowerCase().includes(term),
     );
   }, [data, q]);
-
-  const toggleActive = useMutation({
-    mutationFn: (v: { id: string; active: boolean }) => activeFn({ data: v }),
-    onSuccess: (_r, v) => {
-      toast.success(v.active ? "User reactivated" : "User deactivated");
-      invalidate();
-    },
-    onError: (e) => toast.error(errMsg(e)),
-  });
 
   const deleteUser = useMutation({
     mutationFn: (id: string) => deleteUserFn({ data: { id } }),
@@ -352,35 +339,6 @@ function UsersTab() {
                           onClick={() => setPwUser(u)}
                         >
                           <KeyRound className="h-3.5 w-3.5" /> Password
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          disabled={toggleActive.isPending}
-                           onClick={async () => {
-                             if (!u.is_active) {
-                               toggleActive.mutate({ id: u.id, active: true });
-                               return;
-                             }
-                             const confirmed = await swalConfirm({
-                               title: "Deactivate this user?",
-                               text: "The user will no longer be able to sign in until reactivated.",
-                               confirmText: "Deactivate",
-                               destructive: true,
-                             });
-                             if (confirmed) toggleActive.mutate({ id: u.id, active: false });
-                           }}
-                        >
-                          {u.is_active ? (
-                            <>
-                              <UserX className="h-3.5 w-3.5" /> Deactivate
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="h-3.5 w-3.5" /> Activate
-                            </>
-                          )}
                         </Button>
                         <Button
                           size="sm"
