@@ -35,6 +35,18 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
           },
         });
 
+        let input: { approver?: string; payload?: Record<string, unknown> } = {};
+        try {
+          input = (await request.json()) as typeof input;
+        } catch {
+          /* empty body */
+        }
+        const isManagementRequest = Boolean(
+          input.payload && typeof input.payload === "object" && !Array.isArray(input.payload),
+        );
+        const requiredScreen = isManagementRequest ? "user_management" : "approvals";
+        const requiredScreenLabel = isManagementRequest ? "User Management" : "Approvals";
+
         try {
           const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
           if (claimsErr || !claimsData?.claims?.sub) {
@@ -43,22 +55,15 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
           const { assertScreenAccess } = await import("@/lib/user-admin.server");
           await assertScreenAccess(
             { supabase, userId: String(claimsData.claims.sub) },
-            "user_management",
+            requiredScreen,
           );
         } catch {
-          return Response.json({ error: "Forbidden: User Management permission required" }, { status: 403 });
-        }
-
-        let input: { approver?: string; payload?: Record<string, unknown> } = {};
-        try {
-          input = (await request.json()) as typeof input;
-        } catch {
-          /* empty body */
+          return Response.json({ error: `Forbidden: ${requiredScreenLabel} permission required` }, { status: 403 });
         }
 
         let result;
         try {
-          if (input.payload && typeof input.payload === "object" && !Array.isArray(input.payload)) {
+          if (isManagementRequest && input.payload) {
             const { callManageApprovalChain } = await import("@/lib/sap-report.server");
             result = await callManageApprovalChain(input.payload);
           } else {
