@@ -299,6 +299,47 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteManagedUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => {
+    if (!d.id?.trim()) throw new Error("User is required");
+    return { id: d.id.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context as any);
+    if (data.id === context.userId) throw new Error("You cannot delete your own account");
+
+    const db = await admin();
+    const references = [
+      ["nfa", "initiator_id"],
+      ["nfa_approver", "approver_id"],
+      ["nfa_attachment", "uploaded_by"],
+      ["nfa_attachment_view", "viewer_id"],
+      ["enfa_working_document", "created_by"],
+      ["approval_chain", "owner_user_id"],
+      ["approval_chain", "created_by"],
+      ["approval_chain_level", "approver_id"],
+      ["sap_attachment", "uploaded_by"],
+      ["sap_record_draft", "updated_by"],
+      ["sap_test_log", "actor_id"],
+    ] as const;
+
+    const checks = await Promise.all(
+      references.map(async ([table, column]) => {
+        const { count, error } = await db.from(table).select("*", { count: "exact", head: true }).eq(column, data.id);
+        if (error) throw new Error(error.message);
+        return count ?? 0;
+      }),
+    );
+    if (checks.some((count) => count > 0)) {
+      throw new Error("This user cannot be deleted because they are linked to existing NFA or approval records");
+    }
+
+    const { error } = await db.auth.admin.deleteUser(data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 /* ------------------------------ permissions ----------------------------- */
 
 export const listRolePermissions = createServerFn({ method: "GET" })

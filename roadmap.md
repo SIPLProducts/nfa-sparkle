@@ -58,3 +58,4 @@
 - [x] Keep My NFAs search, actions, and column headings fixed while only records scroll.
 - [x] Keep Approvals search, actions, and column headings fixed while only records scroll.
 - [x] Remove Detailed Description from the shared Preview while preserving Print Form and SAP document actions.
+- [x] Add safe administrator-only user deletion with confirmation and linked-record protection.

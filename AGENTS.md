@@ -14,3 +14,4 @@
 - Quality SAP API synchronization must use a standalone, rerunnable upsert migration that preserves endpoint identities, credentials, SAP systems, and application records.
 - Transient notifications and destructive confirmations use the shared SweetAlert layer so messaging stays consistent without changing workflow logic.
 - Route-specific viewport scrolling is controlled by AppShell using the active pathname so fixed data controls do not alter other screens.
+- Permanent user deletion is server-authorized and blocked whenever the account is linked to business records, preventing workflow-history loss.
