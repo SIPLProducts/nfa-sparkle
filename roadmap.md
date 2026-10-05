@@ -60,3 +60,4 @@
 - [x] Remove Detailed Description from the shared Preview while preserving Print Form and SAP document actions.
 - [x] Add safe administrator-only user deletion with confirmation and linked-record protection.
 - [x] Prevent false “Admins only” redirects while administrator roles are still loading after sign-in.
+- [x] Keep global portal styles attached after Lovable preview route and hot reloads.
