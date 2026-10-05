@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface ApprovalPrintContext {
-  savedDetail: Record<string, unknown> | null;
+  savedDetail: Record<string, string | number | null> | null;
   initiatorName: string;
 }
 
@@ -88,7 +88,7 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
     const nameById = new Map((basicProfiles ?? []).map((profile) => [profile.id, profile.full_name ?? ""]));
     const usernameById = new Map((usernames ?? []).map((profile) => [profile.id, profile.username ?? ""]));
     const initiatorName = nameById.get(record.initiator_id)?.trim() ?? "";
-    const savedDetail: Record<string, unknown> = {
+    const savedDetail: Record<string, string | number | null> = {
       REFFLD: data.enfaNumber,
       CC_CODE: record.company,
       PSPNR: record.plant,
