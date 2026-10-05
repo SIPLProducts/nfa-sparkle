@@ -17,3 +17,4 @@
 - User deletion is server-authorized; unlinked accounts are removed permanently, while linked accounts lose access and disappear from User Management so workflow history remains intact.
 - Authentication access checks remain pending until the current user's shared role-and-permission load completes, preventing transient false denials.
 - Global styles use both the root module import and the root head link so route reloads cannot leave the portal unstyled.
+- Authorization uses dynamic Custom Role assignments; legacy System Role storage remains inactive for schema compatibility.

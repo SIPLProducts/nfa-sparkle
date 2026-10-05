@@ -5,10 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -178,35 +175,17 @@ function UserManagement() {
 function RolePicker({ value, onChange }: { value: Role | ""; onChange: (r: Role) => void }) {
   const { data: roleDefs, isLoading } = useRoleDefs();
   if (isLoading) return <Skeleton className="h-10 w-full" />;
-  const systemRoles = (roleDefs ?? []).filter((role) => role.is_system);
-  const customRoles = (roleDefs ?? []).filter((role) => !role.is_system);
   return (
     <Select value={value || undefined} onValueChange={(v) => onChange(v as Role)}>
       <SelectTrigger>
         <SelectValue placeholder="Select a role" />
       </SelectTrigger>
       <SelectContent>
-        <SelectGroup>
-          <SelectLabel>System Roles</SelectLabel>
-          {systemRoles.map((role) => (
-            <SelectItem key={role.key} value={role.key}>
-              System — {role.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-        {customRoles.length > 0 ? (
-          <>
-            <SelectSeparator />
-            <SelectGroup>
-              <SelectLabel>Custom Roles</SelectLabel>
-              {customRoles.map((role) => (
-                <SelectItem key={role.key} value={role.key}>
-                  Custom — {role.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </>
-        ) : null}
+        {(roleDefs ?? []).map((role) => (
+          <SelectItem key={role.key} value={role.key}>
+            {role.name}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );
@@ -1013,8 +992,7 @@ function PasswordDialog({
 function RolesTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useRoleDefs();
-  const systemRoles = (data ?? []).filter((role) => role.is_system);
-  const customRoles = (data ?? []).filter((role) => !role.is_system);
+  const customRoles = data ?? [];
   const createFn = useServerFn(createRoleDef);
   const updateFn = useServerFn(updateRoleDef);
   const deleteFn = useServerFn(deleteRoleDef);
@@ -1041,38 +1019,25 @@ function RolesTab() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Roles decide which screens a user can open.</p>
 
-      <Tabs defaultValue="system" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="system">System Roles</TabsTrigger>
-          <TabsTrigger value="custom">Custom Roles</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="system" className="mt-0">
-          <RoleTable roles={systemRoles} readOnly />
-        </TabsContent>
-
-        <TabsContent value="custom" className="mt-0 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" /> Create role
-            </Button>
-          </div>
-          <RoleTable
-            roles={customRoles}
-            removePending={remove.isPending}
-            onEdit={setEditing}
-            onDelete={async (role) => {
-              const confirmed = await swalConfirm({
-                title: "Delete this role?",
-                text: "The role and its screen permissions will be removed. This cannot be undone.",
-                confirmText: "Delete",
-                destructive: true,
-              });
-              if (confirmed) remove.mutate(role.key);
-            }}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="flex justify-end">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Create role
+        </Button>
+      </div>
+      <RoleTable
+        roles={customRoles}
+        removePending={remove.isPending}
+        onEdit={setEditing}
+        onDelete={async (role) => {
+          const confirmed = await swalConfirm({
+            title: "Delete this role?",
+            text: "The role and its screen permissions will be removed. This cannot be undone.",
+            confirmText: "Delete",
+            destructive: true,
+          });
+          if (confirmed) remove.mutate(role.key);
+        }}
+      />
 
       <RoleDialog
         open={createOpen}
@@ -1101,13 +1066,11 @@ function RolesTab() {
 
 function RoleTable({
   roles,
-  readOnly = false,
   removePending = false,
   onEdit,
   onDelete,
 }: {
   roles: RoleDef[];
-  readOnly?: boolean;
   removePending?: boolean;
   onEdit?: (role: RoleDef) => void;
   onDelete?: (role: RoleDef) => Promise<void>;
@@ -1143,7 +1106,7 @@ function RoleTable({
                     {role.screen_count} / {SCREENS.length}
                   </td>
                   <td className="px-4 py-3">
-                    {!readOnly && onEdit && onDelete ? (
+                    {onEdit && onDelete ? (
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <Button
                           size="sm"
@@ -1165,9 +1128,7 @@ function RoleTable({
                           <Trash2 className="h-3.5 w-3.5" /> Delete
                         </Button>
                       </div>
-                    ) : (
-                      <div className="text-right text-xs text-muted-foreground">Protected</div>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))
@@ -1293,7 +1254,7 @@ function PermissionsTab() {
 
   if (isLoading || rolesLoading) return <Skeleton className="h-72 w-full" />;
 
-  const locked = (r: string, s: ScreenKey) => r === "admin" && s === "user_management";
+  const locked = (r: string, s: ScreenKey) => r === "custom_admin" && s === "user_management";
 
   return (
     <div className="space-y-4">
@@ -1313,12 +1274,7 @@ function PermissionsTab() {
             <tbody>
               {roles.map((r) => (
                 <tr key={r.key} className="border-t border-border/70 odd:bg-muted/20">
-                  <td className="px-4 py-3 font-medium">
-                    <div>{r.name}</div>
-                    <div className="text-xs font-normal text-muted-foreground">
-                      {r.is_system ? "System Role" : "Custom Role"}
-                    </div>
-                  </td>
+                  <td className="px-4 py-3 font-medium">{r.name}</td>
                   {SCREENS.map((s) => (
                     <td key={s.key} className="px-3 py-3 text-center">
                       <Checkbox

@@ -1,16 +1,5 @@
-export type SystemRole = "initiator" | "approver" | "admin" | "viewer";
-/** Roles are dynamic: the four built-ins plus any custom role created by an admin. */
+/** Roles are dynamic and managed by administrators. */
 export type Role = string;
-
-export const SYSTEM_ROLES: { value: SystemRole; label: string }[] = [
-  { value: "initiator", label: "Initiator" },
-  { value: "approver", label: "Approver" },
-  { value: "admin", label: "Admin" },
-  { value: "viewer", label: "Viewer" },
-];
-
-/** Legacy alias. */
-export const ROLES = SYSTEM_ROLES;
 
 export type ScreenKey =
   | "dashboard"

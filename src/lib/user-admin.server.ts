@@ -1,6 +1,4 @@
 export type AdminContext = { supabase: any; userId: string };
-export type SystemRole = "initiator" | "approver" | "admin" | "viewer";
-
 export interface CreateManagedUserInput {
   USER_ID: string;
   FIRST_NAME: string;
@@ -14,12 +12,6 @@ export interface CreateManagedUserInput {
   EMP_ID: string;
   COMPANY_CODE?: string;
   DEPT: string;
-}
-
-const SYSTEM_ROLE_KEYS: SystemRole[] = ["initiator", "approver", "admin", "viewer"];
-
-export function isSystemRole(k: string): k is SystemRole {
-  return (SYSTEM_ROLE_KEYS as string[]).includes(k);
 }
 
 export async function assertAdmin(ctx: AdminContext) {
@@ -74,15 +66,10 @@ export async function assertUsernameFree(db: any, username: string, exceptId?: s
 }
 
 export async function applyRoles(db: any, userId: string, roles: string[]) {
-  const system = roles.filter(isSystemRole);
-  const custom = roles.filter((r) => !isSystemRole(r));
   await db.from("user_roles").delete().eq("user_id", userId);
-  if (system.length) {
-    await db.from("user_roles").insert(system.map((role) => ({ user_id: userId, role })));
-  }
   await db.from("user_role_assignment").delete().eq("user_id", userId);
-  if (custom.length) {
-    await db.from("user_role_assignment").insert(custom.map((role_key) => ({ user_id: userId, role_key })));
+  if (roles.length) {
+    await db.from("user_role_assignment").insert(roles.map((role_key) => ({ user_id: userId, role_key })));
   }
 }
 

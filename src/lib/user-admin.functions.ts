@@ -6,7 +6,6 @@ import {
   assertUsernameFree,
   createManagedUserForAdmin,
   getAdminClient as admin,
-  isSystemRole,
   normalizeContact,
   normalizeStatus,
   normalizeUsername,
@@ -14,7 +13,6 @@ import {
   slugify,
 } from "./user-admin.server";
 
-export type SystemRole = "initiator" | "approver" | "admin" | "viewer";
 export type RoleKey = string;
 /** Kept for backwards compatibility with existing imports. */
 export type Role = RoleKey;
@@ -58,17 +56,15 @@ export const listRoleDefs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RoleDef[]> => {
     const db = await admin();
-    const [{ data: defs }, { data: sysAssign }, { data: customAssign }, { data: perms }] = await Promise.all([
-      db.from("app_role_def").select("key, name, description, is_system").order("is_system", { ascending: false }).order("name"),
-      db.from("user_roles").select("user_id, role"),
+    const [{ data: defs }, { data: customAssign }, { data: perms }] = await Promise.all([
+      db.from("app_role_def").select("key, name, description, is_system").eq("is_system", false).order("name"),
       db.from("user_role_assignment").select("user_id, role_key"),
       db.from("role_permission").select("role_key, allowed"),
     ]);
     void context;
     const counts = new Map<string, number>();
-    for (const r of sysAssign ?? []) counts.set(r.role, (counts.get(r.role) ?? 0) + 1);
     for (const r of customAssign ?? []) {
-      if (!isSystemRole(r.role_key)) counts.set(r.role_key, (counts.get(r.role_key) ?? 0) + 1);
+      counts.set(r.role_key, (counts.get(r.role_key) ?? 0) + 1);
     }
     const screens = new Map<string, number>();
     for (const p of perms ?? []) {
@@ -158,9 +154,8 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     const { data: list, error } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
-    const [{ data: profiles }, { data: roles }, { data: custom }] = await Promise.all([
+    const [{ data: profiles }, { data: custom }] = await Promise.all([
       db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, department, contact, status").in("id", ids),
-      db.from("user_roles").select("user_id, role").in("user_id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
     const pmap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
@@ -170,7 +165,6 @@ export const listManagedUsers = createServerFn({ method: "GET" })
       if (!arr.includes(role)) arr.push(role);
       rmap.set(uid, arr);
     };
-    for (const r of roles ?? []) push(r.user_id, r.role);
     for (const r of custom ?? []) push(r.user_id, r.role_key);
     return list.users
       .filter((u: any) => pmap.get(u.id)?.status !== "DELETED")
@@ -238,7 +232,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     await assertAdmin(context as any);
     const db = await admin();
     const roles = parseRoleKeys(data.ROLE);
-    if (data.ID === context.userId && !roles.includes("admin")) {
+    if (data.ID === context.userId && !roles.includes("custom_admin")) {
       throw new Error("You cannot remove your own admin role");
     }
     await assertUsernameFree(db, data.USER_ID, data.ID);
@@ -380,11 +374,10 @@ export const saveRolePermissions = createServerFn({ method: "POST" })
     const db = await admin();
     const rows = data.rows.map((r) => ({
       role_key: r.role_key,
-      // system roles keep the legacy enum column populated
-      role: isSystemRole(r.role_key) ? r.role_key : null,
+      role: null,
       screen: r.screen,
       // never let an admin lock every admin out of user management
-      allowed: r.role_key === "admin" && r.screen === "user_management" ? true : r.allowed,
+      allowed: r.role_key === "custom_admin" && r.screen === "user_management" ? true : r.allowed,
       updated_at: new Date().toISOString(),
     }));
     const { error } = await db.from("role_permission").upsert(rows, { onConflict: "role_key,screen" });

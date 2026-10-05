@@ -53,10 +53,10 @@ export function AppShell({
   const sections = Array.from(new Set(visibleNav.map((n) => n.section)));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const roleLabel = roles.includes("admin")
+  const roleLabel = roles.includes("custom_admin")
     ? "Admin"
     : roles[0]
-      ? roles[0].replaceAll("_", " ")
+      ? roles[0].replace(/^custom_/, "").replaceAll("_", " ")
       : "No role";
 
   const navList = (collapsed: boolean) => (

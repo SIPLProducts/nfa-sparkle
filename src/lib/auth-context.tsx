@@ -45,21 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function loadRoles(userId: string) {
-    const [sys, custom] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("user_role_assignment").select("role_key").eq("user_id", userId),
-    ]);
-    const errors = [sys.error, custom.error].filter(Boolean);
-    if (errors.length > 0) {
-      console.error("Unable to load user roles", errors);
-      setRoleError(`Unable to load user roles: ${errors.map((error) => error?.message).join("; ")}`);
+    const { data, error } = await supabase.from("user_role_assignment").select("role_key").eq("user_id", userId);
+    if (error) {
+      console.error("Unable to load user roles", error);
+      setRoleError(`Unable to load user roles: ${error.message}`);
       setRoles([]);
       return;
     }
-    const list = [
-      ...((sys.data ?? []) as { role: string }[]).map((r) => r.role),
-      ...((custom.data ?? []) as { role_key: string }[]).map((r) => r.role_key),
-    ];
+    const list = ((data ?? []) as { role_key: string }[]).map((r) => r.role_key);
     setRoles(Array.from(new Set(list)));
     setRoleError(null);
   }
@@ -129,10 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     roles,
     accessError: roleError ?? permissionError,
-    hasRole: (r) => roles.includes(r),
+    hasRole: (r) => roles.includes(r) || roles.includes(`custom_${r}`),
     canAccess: (s) => {
       if (roles.length === 0) return false;
-      if (Object.keys(perms).length === 0) return roles.includes("admin");
+      if (Object.keys(perms).length === 0) return roles.includes("custom_admin");
       return roles.some((r) => perms[`${r}:${s}`]);
     },
     signOut: async () => {
