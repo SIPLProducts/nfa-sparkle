@@ -315,6 +315,7 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       ["nfa_approver", "approver_id"],
       ["nfa_attachment", "uploaded_by"],
       ["nfa_attachment_view", "viewer_id"],
+      ["nfa_audit", "actor_id"],
       ["enfa_working_document", "created_by"],
       ["approval_chain", "owner_user_id"],
       ["approval_chain", "created_by"],
