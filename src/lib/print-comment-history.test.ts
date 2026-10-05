@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   mergePrintCommentSources,
+  mergeCompletePrintComments,
   orderedCommentVersions,
   pairPrintCommentsWithApprovers,
   parsePrintCommentHistory,
@@ -65,6 +66,22 @@ describe("Print Form comment history", () => {
       { name: "First approver", text: "Current one", version: undefined, level: 1 },
       { name: "Third approver", text: "Current three", version: undefined, level: 3 },
       { name: "Old approver", text: "Old remark", version: 2 },
+    ]);
+  });
+
+  it("fills missing current levels from complete saved comments without replacing SAP remarks", () => {
+    const approvers = [
+      { level: 1, role: "L1", userId: "1", name: "First approver" },
+      { level: 3, role: "L3", userId: "3", name: "Third approver" },
+    ];
+    expect(mergeCompletePrintComments(
+      [{ name: "", text: "SAP first", level: 1 }, { name: "Old", text: "History", version: 2 }],
+      [{ name: "Saved first", text: "Saved first", level: 1 }, { name: "", text: "Saved third", level: 3 }],
+      approvers,
+    )).toEqual([
+      { name: "First approver", text: "SAP first", level: 1 },
+      { name: "Old", text: "History", version: 2 },
+      { name: "Third approver", text: "Saved third", level: 3 },
     ]);
   });
 });

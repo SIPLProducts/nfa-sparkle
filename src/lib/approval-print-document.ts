@@ -140,6 +140,7 @@ export function resolveApprovalPrintDocument(input: {
     ?? COMPANIES.find((company) => company.code === savedPlant?.company);
 
   const approvers = LEVELS.map((level): EnfaDocumentApprover => ({
+    level,
     role: merged(
       `ROLE${level}`, `ROLE_${level}`, `DESIG${level}`, `DESIG_${level}`,
       `DESIGNATION${level}`, `DESIGNATION_${level}`, `APPR_ROLE${level}`, `APPROVER_ROLE${level}`,

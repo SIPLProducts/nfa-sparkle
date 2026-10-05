@@ -30,12 +30,12 @@ export async function loadPrintInitiator(enfaNumber: string): Promise<string> {
 /** Loads the original saved NFA and all of its approval levels for Print Form fallback data. */
 export async function loadApprovalPrintContext(enfaNumber: string): Promise<ApprovalPrintContext> {
   const normalizedEnfaNumber = enfaNumber.trim();
-  if (!normalizedEnfaNumber) return { savedDetail: null, initiatorName: "" };
+  if (!normalizedEnfaNumber) return { savedDetail: null, initiatorName: "", savedComments: [] };
   try {
     return await getApprovalPrintContext({ data: { enfaNumber: normalizedEnfaNumber } });
   } catch (error) {
     console.warn("Saved Print Form details could not be loaded", error);
-    return { savedDetail: null, initiatorName: "" };
+    return { savedDetail: null, initiatorName: "", savedComments: [] };
   }
 }
 

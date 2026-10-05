@@ -72,7 +72,7 @@ describe("Approvals Print Form data", () => {
 
     expect(resolved.document.approvers).toEqual([
       expect.objectContaining({ role: "DIRE-PROJ", userId: "1001", name: "Approver One" }),
-      expect.objectContaining({ role: "GRP. CFO", userId: "1004", name: "Approver Four" }),
+      expect.objectContaining({ level: 4, role: "GRP. CFO", userId: "1004", name: "Approver Four" }),
     ]);
     expect(resolved.comments).toEqual([
       { name: "Approver One", text: "" },

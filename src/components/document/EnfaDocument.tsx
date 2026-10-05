@@ -5,6 +5,8 @@ import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { orderedCommentVersions } from "@/lib/print-comment-history";
 
 export interface EnfaDocumentApprover {
+  /** Original approval level, retained when SAP returns sparse levels. */
+  level?: number;
   role: string;
   userId: string;
   name: string;

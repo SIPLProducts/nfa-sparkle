@@ -25,6 +25,7 @@ import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
 import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { mergeCompletePrintComments } from "@/lib/print-comment-history";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -344,7 +345,7 @@ function ApprovalsInbox() {
          && !(field === "Approval Chain" && printDocument.approvers.length),
        );
        setPrintDoc(printDocument);
-       setPrintComments(resolved.comments);
+        setPrintComments(mergeCompletePrintComments(comments, savedContext.savedComments, printDocument.approvers));
       setPrintOpen(true);
        if (missingFields.length) {
          toast.warning(`Some source data is unavailable: ${missingFields.join(", ")}. Showing all saved details.`);
@@ -436,10 +437,11 @@ function ApprovalsInbox() {
             comments,
             initiatorName: savedContext.initiatorName,
           });
-          const generated = await createApprovalPrintFormPdf({
+           const finalComments = mergeCompletePrintComments(comments, savedContext.savedComments, resolved.document.approvers);
+           const generated = await createApprovalPrintFormPdf({
             nfaNo: selectedEnfaNo,
             document: resolved.document,
-            comments: resolved.comments,
+             comments: finalComments,
             approvalFlow: {
               plant: val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "",
               nfaType: resolved.document.nfaType,
