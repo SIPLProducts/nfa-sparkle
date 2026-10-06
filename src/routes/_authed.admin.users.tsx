@@ -830,7 +830,7 @@ function EditUserDialog({
         USER_ID: username,
         FIRST_NAME: firstName,
         LAST_NAME: lastName,
-        EMAIL: user.email,
+        EMAIL: email,
         STATUS: status,
         CONTACT: contact,
         ROLE: role,
@@ -866,6 +866,10 @@ function EditUserDialog({
           <div className="space-y-1.5">
             <Label>User ID *</Label>
             <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email ID *</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <CompanyNameField
