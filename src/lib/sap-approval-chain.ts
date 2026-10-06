@@ -46,12 +46,39 @@ export function validateApprovalChain(chain: EditableApprovalChain, operation: A
   }
 }
 
+/** Converts a stored date (ISO or SAP compact) to SAP's delete format YYYY-MM-DD. */
+function toIsoDate(value: string) {
+  const digits = clean(value).replace(/[^0-9]/g, "");
+  if (digits.length !== 8) return clean(value);
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+}
+
+export type ApprovalChainPayload = Record<string, Record<string, string>>;
+
 /** Builds SAP's exact seven-slot Approval Chain management payload. */
 export function buildApprovalChainPayload(
   chain: EditableApprovalChain,
   operation: ApprovalChainOperation = "save",
-) {
+): ApprovalChainPayload {
   validateApprovalChain(chain, operation);
+
+  if (operation === "delete") {
+    const deleteUser: Record<string, string> = {
+      MANDT: "",
+      PSPNR: clean(chain.pspnr),
+      FUNCT: clean(chain.funct),
+      EXTR_TXT: clean(chain.extraTxt),
+      BEGDA: toIsoDate(chain.begda),
+      ENDDA: toIsoDate(chain.endda),
+    };
+    for (let index = 0; index < MAX_APPROVAL_LEVELS; index += 1) {
+      const level = chain.levels[index];
+      deleteUser[`DESIG${index + 1}`] = clean(level?.designation);
+      deleteUser[`USERID${index + 1}`] = clean(level?.userId);
+    }
+    return { delete_user: deleteUser };
+  }
+
   const createUser: Record<string, string> = {
     pspnr: clean(chain.pspnr),
     Funct: clean(chain.funct),
@@ -61,12 +88,12 @@ export function buildApprovalChainPayload(
   };
 
   for (let index = 0; index < MAX_APPROVAL_LEVELS; index += 1) {
-    const level = operation === "delete" ? undefined : chain.levels[index];
+    const level = chain.levels[index];
     createUser[`DESIG${index + 1}`] = clean(level?.designation);
     createUser[`USERID${index + 1}`] = clean(level?.userId);
   }
   createUser["LINE_INDEX"] = clean(chain.lineIndex);
-  return { [operation === "update" ? "Update_user" : "create_user"]: createUser } as { create_user: Record<string, string> } & Record<string, Record<string, string>>;
+  return { [operation === "update" ? "Update_user" : "create_user"]: createUser };
 }
 
 export function approvalChainResponseMessage(raw: unknown): { ok: boolean; message: string } {
