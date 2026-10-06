@@ -223,6 +223,8 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     if (!d.FIRST_NAME?.trim()) throw new Error("First name is required");
     if (!d.LAST_NAME?.trim()) throw new Error("Last name is required");
     d.USER_ID = normalizeUsername(d.USER_ID);
+    d.EMAIL = (d.EMAIL ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.EMAIL)) throw new Error("A valid Email ID is required");
     d.CONTACT = normalizeContact(d.CONTACT);
     d.STATUS = normalizeStatus(d.STATUS);
     if (!parseRoleKeys(d.ROLE).length) throw new Error("Select at least one role");
