@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isPdfBytes } from "@/lib/enfa-preview-source";
 
 export type EnfaPreviewVariant = "edit" | "report";
 
@@ -13,6 +14,14 @@ interface EnfaPrintResponse {
   mime?: string;
   filename?: string;
   error?: string;
+  documentAbsent?: boolean;
+}
+
+export class EnfaPreviewUnavailableError extends Error {
+  constructor(message: string, public readonly documentAbsent: boolean) {
+    super(message);
+    this.name = "EnfaPreviewUnavailableError";
+  }
 }
 
 /** Loads the authoritative PDF returned by the configured Preview service. */
@@ -39,11 +48,15 @@ export async function fetchEnfaPreviewPdf(
   });
   const result = (await response.json().catch(() => ({}))) as EnfaPrintResponse;
   if (!response.ok || !result.base64) {
-    throw new Error(result.error || `Preview PDF download failed (HTTP ${response.status})`);
+    throw new EnfaPreviewUnavailableError(
+      result.error || `Preview PDF download failed (HTTP ${response.status})`,
+      response.ok && result.documentAbsent === true,
+    );
   }
 
   const binary = atob(result.base64);
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if (!isPdfBytes(bytes)) throw new Error("SAP returned an invalid Preview PDF. Please try again.");
   const blob = new Blob([bytes.slice()], { type: result.mime || "application/pdf" });
   return {
     bytes,
