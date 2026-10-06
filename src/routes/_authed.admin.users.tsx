@@ -792,6 +792,7 @@ function EditUserDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
@@ -806,6 +807,7 @@ function EditUserDialog({
       setFirstName(user.first_name ?? "");
       setLastName(user.last_name ?? "");
       setUsername(user.username ?? "");
+      setEmail(user.email ?? "");
       setEmployeeId(user.employee_id ?? "");
       setCompanyCode(user.company_code ?? "");
       setDepartment(user.department ?? "");
