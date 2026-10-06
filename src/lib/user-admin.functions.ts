@@ -223,6 +223,8 @@ export const updateManagedUser = createServerFn({ method: "POST" })
     if (!d.FIRST_NAME?.trim()) throw new Error("First name is required");
     if (!d.LAST_NAME?.trim()) throw new Error("Last name is required");
     d.USER_ID = normalizeUsername(d.USER_ID);
+    d.EMAIL = (d.EMAIL ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.EMAIL)) throw new Error("A valid Email ID is required");
     d.CONTACT = normalizeContact(d.CONTACT);
     d.STATUS = normalizeStatus(d.STATUS);
     if (!parseRoleKeys(d.ROLE).length) throw new Error("Select at least one role");
@@ -236,6 +238,13 @@ export const updateManagedUser = createServerFn({ method: "POST" })
       throw new Error("You cannot remove your own admin role");
     }
     await assertUsernameFree(db, data.USER_ID, data.ID);
+    const { data: emailTaken } = await db
+      .from("profiles")
+      .select("id")
+      .ilike("email", data.EMAIL)
+      .neq("id", data.ID)
+      .maybeSingle();
+    if (emailTaken) throw new Error("This Email ID is already used by another account");
     const firstName = data.FIRST_NAME.trim();
     const lastName = data.LAST_NAME.trim();
     const fullName = `${firstName} ${lastName}`;
@@ -245,6 +254,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         full_name: fullName,
         first_name: firstName,
         last_name: lastName,
+        email: data.EMAIL,
         username: data.USER_ID,
         employee_id: data.EMP_ID?.trim() || null,
         company_code: data.COMPANY_CODE?.trim() || null,
@@ -254,10 +264,12 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         is_active: data.STATUS === "ACTIVE",
       })
       .eq("id", data.ID);
-    await db.auth.admin.updateUserById(data.ID, {
+    const { error: authError } = await db.auth.admin.updateUserById(data.ID, {
+      email: data.EMAIL,
       user_metadata: { full_name: fullName },
       ban_duration: data.STATUS === "ACTIVE" ? "none" : "876000h",
     });
+    if (authError) throw new Error(authError.message);
     await applyRoles(db, data.ID, roles);
     return { ok: true };
   });
