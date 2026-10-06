@@ -53,8 +53,8 @@ export function RecordPreviewDialog({
 
         // Chrome's PDF plugin is blocked inside embedded/sandboxed frames, so
         // the pages are rendered to canvas with pdf.js instead of an <iframe>.
-        const pdfjs = await import("pdfjs-dist");
-        const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const workerSrc = (await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url")).default;
         pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
         const loadingTask = pdfjs.getDocument({ data: bytes });
         pdfDocument = loadingTask;
