@@ -1609,7 +1609,7 @@ export async function callManageApprovalChain(payload: Record<string, unknown>):
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
-    method: (ep.http_method ?? "POST").toUpperCase(),
+    method: (ep.http_method ?? "PUT").toUpperCase(),
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
