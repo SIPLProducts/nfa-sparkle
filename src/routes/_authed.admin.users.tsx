@@ -854,7 +854,7 @@ function EditUserDialog({
           <DialogTitle>Edit user</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>First name *</Label>
             <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
