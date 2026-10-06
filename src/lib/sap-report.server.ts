@@ -1295,6 +1295,7 @@ export async function callEnfaApprovalAction(opts: {
   reffld: string;
   comment: string;
   user_name?: string;
+  mail_id?: string;
   file_path?: string;
   file?: string;
 }): Promise<SapCallResult> {
@@ -1350,6 +1351,7 @@ export async function callEnfaApprovalAction(opts: {
   const payload = buildApprovalActionPayload({
     action: opts.action, wrapper: config.wrapper, template: ep.request_body,
     reffld: opts.reffld, comment: opts.comment ?? "", userName: opts.user_name,
+    mailId: opts.mail_id,
     filePath: opts.file_path, file: opts.file,
   });
 
