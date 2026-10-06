@@ -101,7 +101,7 @@ export function ApprovalChainTab() {
     if (!draft) return;
     setSaving(true);
     try {
-      const parsed = await approvalChainRequest({ payload: buildApprovalChainPayload(draft) });
+      const parsed = await approvalChainRequest({ payload: buildApprovalChainPayload(draft, editingIndex === null ? "save" : "update") });
       const result = approvalChainResponseMessage(parsed);
       if (!result.ok) throw new Error(result.message);
       toast.success(result.message);

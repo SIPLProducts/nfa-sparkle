@@ -10,3 +10,11 @@ describe("Create Approvals payload", () => {
     expect(approvalChainResponseMessage('[{"TYPE":"S","MESSAGE":"Data Inserted Successfully"}]')).toEqual({ ok: true, message: "Data Inserted Successfully" });
   });
 });
+
+describe("Update Approvals payload", () => {
+  it("wraps in Update_user", () => {
+    const p = buildApprovalChainPayload({ pspnr: "9000", funct: "BUDGET DEVIATION", extraTxt: "PROJECTS", begda: "20261001", endda: "99991231", lineIndex: "", levels: [{ designation: "Abaper", userId: "SIPL_QM" }, { designation: "abaper2", userId: "sipl_qm1" }] }, "update");
+    expect(p["Update_user"]).toMatchObject({ BEGDA: "20261001", DESIG2: "abaper2", USERID2: "sipl_qm1", DESIG3: "", LINE_INDEX: "" });
+    expect(approvalChainResponseMessage([{ TYPE: "S", MESSAGE: "Data Updated Successfully" }])).toEqual({ ok: true, message: "Data Updated Successfully" });
+  });
+});
