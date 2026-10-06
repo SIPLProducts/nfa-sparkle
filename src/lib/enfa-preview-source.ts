@@ -1,7 +1,7 @@
 /** Only explicit SAP no-document responses permit a lower-priority Preview. */
 export function isSapDocumentAbsent(message: string | null | undefined): boolean {
   const value = (message ?? "").trim().replace(/[.!]+$/, "");
-  return /^(?:data is not available|no data(?: available| found)?|no document(?: available| found)?|document (?:not found|is not available)|SAP did not return a document for this eNFA number)$/i.test(value);
+  return /^(?:data is not available|no data(?: available| found| is available for the current user)?|no document(?: available| found)?|document (?:not found|is not available)|SAP did not return a document for this eNFA number)$/i.test(value);
 }
 
 /** Formatting-only HTML is not DD; images and tables remain meaningful content. */

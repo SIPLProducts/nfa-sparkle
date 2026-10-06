@@ -21,6 +21,7 @@ function extractBase64(raw: string): { base64: string | null; message: string | 
   const walk = (node: unknown): string | null => {
     if (typeof node === "string") {
       const s = node.trim();
+      if (isSapDocumentAbsent(s) && !message) message = s;
       return s.length > 100 && B64.test(s) ? s : null;
     }
     if (!node || typeof node !== "object" || seen.has(node)) return null;

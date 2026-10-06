@@ -22,6 +22,8 @@ describe("SAP Preview priority", () => {
   it("distinguishes absence from gateway, authentication and unknown errors", () => {
     expect(isSapDocumentAbsent("Data is not available")).toBe(true);
     expect(isSapDocumentAbsent("No document found.")).toBe(true);
+    expect(isSapDocumentAbsent("No data is available for the current user")).toBe(true);
+    expect(isSapDocumentAbsent("Note For Approval Can Only Be Edited By Initiator")).toBe(false);
     expect(isSapDocumentAbsent("ERR_NGROK_3004")).toBe(false);
     expect(isSapDocumentAbsent("Unauthorized")).toBe(false);
     expect(isSapDocumentAbsent("Unexpected SAP response")).toBe(false);
