@@ -53,11 +53,13 @@ function toIsoDate(value: string) {
   return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
 }
 
+export type ApprovalChainPayload = Record<string, Record<string, string>>;
+
 /** Builds SAP's exact seven-slot Approval Chain management payload. */
 export function buildApprovalChainPayload(
   chain: EditableApprovalChain,
   operation: ApprovalChainOperation = "save",
-) {
+): ApprovalChainPayload {
   validateApprovalChain(chain, operation);
 
   if (operation === "delete") {
