@@ -43,15 +43,17 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         // Resolve the logged-in user's User ID (profiles.username) so the SAP
         // payload carries it dynamically — never hardcoded.
         let userName = "";
+        let mailId = String((claimsData.claims as { email?: string }).email ?? "").trim();
         try {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("username")
+            .select("username, email")
             .eq("id", claimsData.claims.sub)
             .maybeSingle();
           userName = String((profile as { username?: string } | null)?.username ?? "").trim();
+          if (!mailId) mailId = String((profile as { email?: string } | null)?.email ?? "").trim();
         } catch {
-          /* fall through with empty user_name */
+          /* fall through with empty user_name / mail_id */
         }
 
         let input: { reffld?: string; comment?: string; action?: string; file_path?: string; file?: string } = {};
@@ -95,6 +97,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           reffld,
           comment: String(input.comment ?? ""),
           user_name: userName,
+          mail_id: mailId,
           file_path: acceptsPdf && file ? filePath.replace(/^.*[\\/]/, "") : undefined,
           file: acceptsPdf && file ? file : undefined,
         });
