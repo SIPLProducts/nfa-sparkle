@@ -32,7 +32,7 @@ export async function loadSapPreviewDetail(
   }
   const { document, comments } = resolveApprovalPrintDocument({ editDetail: parsed.detail, worklistRow: row });
   // The worklist can fill header fields, but must not establish SAP DD availability.
-  const description = String(parsed.detail.TEXT ?? parsed.detail.DETAILED_DESCRIPTION ?? "").trim();
+  const description = String(parsed.detail.TEXT || parsed.detail.DETAILED_DESCRIPTION || "").trim();
   return {
     nfaNo: enfaNumber,
     companyCode: document.companyCode,

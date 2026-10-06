@@ -15,11 +15,13 @@ export function RecordPreviewDialog({
   open,
   onOpenChange,
   endpoint = "report",
+  detailEndpoint = endpoint,
 }: {
   row: SapReportRow | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   endpoint?: "report" | "select";
+  detailEndpoint?: "report" | "select";
 }) {
   const enfa = row?.REFFLD ?? "";
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -54,8 +56,10 @@ export function RecordPreviewDialog({
         const pdfjs = await import("pdfjs-dist");
         const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
         pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-        const doc = await pdfjs.getDocument({ data: bytes }).promise;
-        pdfDocument = doc;
+        const loadingTask = pdfjs.getDocument({ data: bytes });
+        pdfDocument = loadingTask;
+        if (cancelled) { await loadingTask.destroy(); return; }
+        const doc = await loadingTask.promise;
         if (cancelled) return;
 
         const host = pagesRef.current;
@@ -87,7 +91,7 @@ export function RecordPreviewDialog({
         if (cancelled) return;
         if (e instanceof EnfaPreviewUnavailableError && e.documentAbsent) {
           try {
-            const detail = await loadSapPreviewDetail(enfa, endpoint, row ?? {}, controller.signal);
+            const detail = await loadSapPreviewDetail(enfa, detailEndpoint, { ...row }, controller.signal);
             if (cancelled) return;
             if (choosePreviewSource({ documentAvailable: false, documentAbsent: true, description: detail?.descriptionHtml }) === "description") {
               setDescriptionForm(detail);
@@ -111,7 +115,7 @@ export function RecordPreviewDialog({
       if (url) URL.revokeObjectURL(url);
       void pdfDocument?.destroy();
     };
-  }, [open, enfa, endpoint, row]);
+  }, [open, enfa, endpoint, detailEndpoint, row]);
 
   async function downloadDescription() {
     if (!descriptionRef.current || downloadBusy) return;
