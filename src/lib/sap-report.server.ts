@@ -1606,6 +1606,13 @@ export async function callManageApprovalChain(payload: Record<string, unknown>):
 
   const sys = await loadSystem(ep.system_id ?? null);
   const { username, password } = await credentialsFor(ep, sys);
+  const deleteUser = payload["delete_user"];
+  if (deleteUser && typeof deleteUser === "object" && !Array.isArray(deleteUser)) {
+    const record = deleteUser as Record<string, unknown>;
+    if (!String(record["MANDT"] ?? "").trim()) {
+      record["MANDT"] = String(sys?.sap_client ?? "").trim() || "300";
+    }
+  }
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",

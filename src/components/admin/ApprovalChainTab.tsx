@@ -126,7 +126,7 @@ export function ApprovalChainTab() {
     if (!confirmed) return;
     setSaving(true);
     try {
-      const parsed = await approvalChainRequest({ payload: buildApprovalChainPayload({ ...draft, levels: [] }, "delete") });
+      const parsed = await approvalChainRequest({ payload: buildApprovalChainPayload(draft, "delete") });
       const result = approvalChainResponseMessage(parsed);
       if (!result.ok) throw new Error(result.message);
       toast.success(result.message || "Approval chain deleted");
