@@ -15,7 +15,7 @@ export interface EditableApprovalChain {
   levels: EditableApprovalLevel[];
 }
 
-export type ApprovalChainOperation = "save" | "delete";
+export type ApprovalChainOperation = "save" | "update" | "delete";
 
 function clean(value: unknown) {
   return String(value ?? "").trim();
@@ -66,7 +66,7 @@ export function buildApprovalChainPayload(
     createUser[`USERID${index + 1}`] = clean(level?.userId);
   }
   createUser["LINE_INDEX"] = clean(chain.lineIndex);
-  return { create_user: createUser };
+  return operation === "update" ? { Update_user: createUser } : { create_user: createUser };
 }
 
 export function approvalChainResponseMessage(raw: unknown): { ok: boolean; message: string } {
