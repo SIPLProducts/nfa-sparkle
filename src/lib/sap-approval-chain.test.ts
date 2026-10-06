@@ -38,11 +38,24 @@ describe("SAP approval chain management", () => {
     });
   });
 
-  it("builds deletion as the same identity with empty approval slots", () => {
-    const payload = buildApprovalChainPayload(chain, "delete").create_user;
-    expect(payload.LINE_INDEX).toBe("12");
-    expect(payload.DESIG1).toBe("");
-    expect(payload.USERID7).toBe("");
+  it("builds deletion as SAP's delete_user body with uppercase keys and ISO dates", () => {
+    const payload = buildApprovalChainPayload(chain, "delete") as unknown as { delete_user: Record<string, string> };
+    expect(payload.delete_user).toEqual({
+      MANDT: "",
+      PSPNR: "9000",
+      FUNCT: "BUDGET DEVIATION",
+      EXTR_TXT: "PROJECTS",
+      BEGDA: "2026-10-01",
+      ENDDA: "9999-12-31",
+      DESIG1: "Abaper", USERID1: "SIPL_QM",
+      DESIG2: "CFO", USERID2: "ABAPCON2",
+      DESIG3: "", USERID3: "",
+      DESIG4: "", USERID4: "",
+      DESIG5: "", USERID5: "",
+      DESIG6: "", USERID6: "",
+      DESIG7: "", USERID7: "",
+    });
+    expect(payload.delete_user).not.toHaveProperty("LINE_INDEX");
   });
 
   it("rejects incomplete and duplicate levels before sending", () => {
