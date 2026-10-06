@@ -7,6 +7,7 @@ export function buildApprovalActionPayload(input: {
   reffld: string;
   comment: string;
   userName?: string;
+  mailId?: string;
   filePath?: string;
   file?: string;
 }): Record<string, unknown> {
@@ -38,11 +39,14 @@ export function buildApprovalActionPayload(input: {
   }
 
   const callerUser = input.userName?.trim() ?? "";
-  if (!callerUser) return { ...payload, [wrapperKey]: inner };
+  const callerMail = input.mailId?.trim() ?? "";
+  if (!callerUser && !callerMail) return { ...payload, [wrapperKey]: inner };
   const userKey = Object.keys(inner).find((key) => key.toLowerCase() === "user_name") ?? "user_name";
-  const orderedInner: Record<string, unknown> = { [userKey]: callerUser };
+  const mailKey = Object.keys(inner).find((key) => key.toLowerCase() === "mail_id") ?? "mail_id";
+  const orderedInner: Record<string, unknown> = { [userKey]: callerUser, [mailKey]: callerMail };
   for (const [key, value] of Object.entries(inner)) {
-    if (key.toLowerCase() !== "user_name") orderedInner[key] = value;
+    const lower = key.toLowerCase();
+    if (lower !== "user_name" && lower !== "mail_id") orderedInner[key] = value;
   }
   return { ...payload, [wrapperKey]: orderedInner };
 }
