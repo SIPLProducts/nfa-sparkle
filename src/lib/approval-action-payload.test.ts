@@ -35,6 +35,34 @@ describe("buildApprovalActionPayload", () => {
     } });
   });
 
+  it("adds mail_id with the approver email when the template has no mail_id key", () => {
+    expect(buildApprovalActionPayload({
+      action: "approve", wrapper: "approve", reffld: "100136", comment: "please check 22007746",
+      userName: "SIPL_QM", mailId: "thirunavukkarasu@sharviinfotech.com",
+    })).toEqual({ approve: {
+      user_name: "SIPL_QM", mail_id: "thirunavukkarasu@sharviinfotech.com",
+      REFFLD: "100136", Comment: "please check 22007746",
+    } });
+  });
+
+  it("fills an existing template mail_id key instead of duplicating it", () => {
+    expect(buildApprovalActionPayload({
+      action: "approve", wrapper: "approve",
+      template: JSON.stringify({ approve: { user_name: "", MAIL_ID: "old@example.com", REFFLD: "", Comment: "" } }),
+      reffld: "100136", comment: "ok", userName: "SIPL_QM", mailId: "new@example.com",
+    })).toEqual({ approve: {
+      user_name: "SIPL_QM", MAIL_ID: "new@example.com", REFFLD: "100136", Comment: "ok",
+    } });
+  });
+
+  it("leaves other keys unchanged when no email is available", () => {
+    expect(buildApprovalActionPayload({
+      action: "approve", wrapper: "approve", reffld: "100136", comment: "ok", userName: "SIPL_QM",
+    })).toEqual({ approve: {
+      user_name: "SIPL_QM", REFFLD: "100136", Comment: "ok",
+    } });
+  });
+
   it.each(["back_to_initiator", "clarification"] as const)("does not add file fields to %s", (action) => {
     expect(buildApprovalActionPayload({
       action, wrapper: action, reffld: "400102", comment: "Please review",

@@ -42,8 +42,11 @@ export function buildApprovalActionPayload(input: {
   const callerMail = input.mailId?.trim() ?? "";
   if (!callerUser && !callerMail) return { ...payload, [wrapperKey]: inner };
   const userKey = Object.keys(inner).find((key) => key.toLowerCase() === "user_name") ?? "user_name";
-  const mailKey = Object.keys(inner).find((key) => key.toLowerCase() === "mail_id") ?? "mail_id";
-  const orderedInner: Record<string, unknown> = { [userKey]: callerUser, [mailKey]: callerMail };
+  const existingMailKey = Object.keys(inner).find((key) => key.toLowerCase() === "mail_id");
+  const mailKey = existingMailKey ?? "mail_id";
+  const includeMail = Boolean(existingMailKey) || Boolean(callerMail);
+  const orderedInner: Record<string, unknown> = { [userKey]: callerUser };
+  if (includeMail) orderedInner[mailKey] = callerMail;
   for (const [key, value] of Object.entries(inner)) {
     const lower = key.toLowerCase();
     if (lower !== "user_name" && lower !== "mail_id") orderedInner[key] = value;
