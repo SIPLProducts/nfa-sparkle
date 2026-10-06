@@ -76,7 +76,7 @@ export function buildApprovalChainPayload(
       deleteUser[`DESIG${index + 1}`] = clean(level?.designation);
       deleteUser[`USERID${index + 1}`] = clean(level?.userId);
     }
-    return { delete_user: deleteUser } as { create_user: Record<string, string> } & Record<string, Record<string, string>>;
+    return { delete_user: deleteUser };
   }
 
   const createUser: Record<string, string> = {
@@ -93,7 +93,7 @@ export function buildApprovalChainPayload(
     createUser[`USERID${index + 1}`] = clean(level?.userId);
   }
   createUser["LINE_INDEX"] = clean(chain.lineIndex);
-  return { [operation === "update" ? "Update_user" : "create_user"]: createUser } as { create_user: Record<string, string> } & Record<string, Record<string, string>>;
+  return { [operation === "update" ? "Update_user" : "create_user"]: createUser };
 }
 
 export function approvalChainResponseMessage(raw: unknown): { ok: boolean; message: string } {
