@@ -1562,14 +1562,24 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
 /** Saves or removes an approval chain through the same settings-driven SAP endpoint. */
 export async function callManageApprovalChain(payload: Record<string, unknown>): Promise<SapCallResult> {
   const db = await admin();
-  const { data: exact } = await db
+  const { data: create } = await db
     .from("sap_endpoint")
     .select("*")
-    .ilike("name", "Approval Chain")
+    .ilike("name", "Create Approvals")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  const { data: exact } = create
+    ? { data: create }
+    : await db
+        .from("sap_endpoint")
+        .select("*")
+        .ilike("name", "Approval Chain")
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
   const { data: fallback } = exact
     ? { data: null }
     : await db
@@ -1599,7 +1609,7 @@ export async function callManageApprovalChain(payload: Record<string, unknown>):
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
-    method: (ep.http_method ?? "POST").toUpperCase(),
+    method: (ep.http_method ?? "PUT").toUpperCase(),
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
