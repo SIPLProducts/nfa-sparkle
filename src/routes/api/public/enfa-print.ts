@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isSapDocumentAbsent } from "@/lib/enfa-preview-source";
 
 const B64 = /^[A-Za-z0-9+/\r\n=]+$/;
 
@@ -12,7 +13,7 @@ function extractBase64(raw: string): { base64: string | null; message: string | 
     parsed = JSON.parse(text);
   } catch {
     // Bare base64 string body
-    return { base64: text.length > 100 && B64.test(text) ? text : null, message: null };
+    return { base64: text.length > 100 && B64.test(text) ? text : null, message: text || null };
   }
 
   let message: string | null = null;
@@ -20,6 +21,7 @@ function extractBase64(raw: string): { base64: string | null; message: string | 
   const walk = (node: unknown): string | null => {
     if (typeof node === "string") {
       const s = node.trim();
+      if (isSapDocumentAbsent(s) && !message) message = s;
       return s.length > 100 && B64.test(s) ? s : null;
     }
     if (!node || typeof node !== "object" || seen.has(node)) return null;
@@ -141,7 +143,12 @@ export const Route = createFileRoute("/api/public/enfa-print")({
         const { base64, message } = extractBase64(body);
         if (!base64) {
           return new Response(
-            JSON.stringify({ error: message ?? "SAP did not return a document for this eNFA number." }),
+             JSON.stringify({
+               error: message ?? "SAP did not return a document for this eNFA number.",
+               documentAvailable: false,
+               // A successful empty response is absence; an unrecognized body is not.
+               documentAbsent: !body.trim() || /^(?:null|\[\]|\{\}|""|"\s*")$/.test(body.trim()) || isSapDocumentAbsent(message),
+             }),
             { status: 200, headers },
           );
         }
@@ -153,6 +160,7 @@ export const Route = createFileRoute("/api/public/enfa-print")({
             base64: base64.replace(/\s+/g, ""),
             mime: "application/pdf",
             filename: `ENFA-${enfaNo}.pdf`,
+             documentAvailable: true,
           }),
           { status: 200, headers },
         );

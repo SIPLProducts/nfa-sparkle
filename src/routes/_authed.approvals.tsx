@@ -707,7 +707,7 @@ function ApprovalsInbox() {
         onOpenChange={setDocsOpen}
         endpoint="my"
       />
-      <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" />
+      <RecordPreviewDialog row={selectedRow} open={previewOpen} onOpenChange={setPreviewOpen} endpoint="select" detailEndpoint="report" />
       <PrintFormDialog
         open={printOpen}
         onOpenChange={setPrintOpen}

@@ -33,6 +33,10 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "NFA Portal — Dashboard" },
       { name: "description", content: "Create, approve and report Notes For Approval connected to SAP." },
+      { property: "og:title", content: "NFA Portal — Dashboard" },
+      { property: "og:description", content: "Create, approve and report Notes For Approval connected to SAP." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Index,

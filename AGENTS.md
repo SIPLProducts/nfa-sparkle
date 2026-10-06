@@ -24,3 +24,4 @@
 - Approver Print Forms authorize through the Approvals screen permission, then merge current SAP responses with the complete server-read saved NFA and ordered approval levels, using saved values only when SAP omits them.
 - Optional Print Form SAP refreshes must never block saved-detail rendering or expose raw gateway error pages.
 - Approval Print Form comments are merged by approval level from SAP and the complete permission-checked saved chain, then shared by preview and workflow PDFs.
+- Preview uses a shared SAP-only source resolver: configured Preview PDF first, SAP record Detailed Description second, existing behavior last; explicit absence is distinct from upstream failure so outages cannot silently change the displayed source.
