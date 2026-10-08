@@ -25,3 +25,4 @@
 - Optional Print Form SAP refreshes must never block saved-detail rendering or expose raw gateway error pages.
 - Approval Print Form comments are merged by approval level from SAP and the complete permission-checked saved chain, then shared by preview and workflow PDFs.
 - Preview uses a shared SAP-only source resolver: configured Preview PDF first, SAP record Detailed Description second, existing behavior last; explicit absence is distinct from upstream failure so outages cannot silently change the displayed source.
+- User editing renders inline in the Users tab using its existing selected-user state and update action, so presentation changes preserve account workflows and the list search.
