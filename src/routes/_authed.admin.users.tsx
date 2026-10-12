@@ -225,21 +225,6 @@ function UsersTab() {
     onError: (e) => toast.error(errMsg(e)),
   });
 
-  if (editing) {
-    return (
-      <EditUserForm
-        key={editing.id}
-        user={editing}
-        onClose={() => setEditing(null)}
-        onSubmit={async (v) => {
-          await updateFn({ data: v });
-          toast.success("User updated");
-          invalidate();
-        }}
-      />
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -401,6 +386,15 @@ function UsersTab() {
             throw new Error(result.error ?? "Create user failed");
           }
           toast.success(result.message ?? "User created successfully");
+          invalidate();
+        }}
+      />
+      <EditUserDialog
+        user={editing}
+        onClose={() => setEditing(null)}
+        onSubmit={async (v) => {
+          await updateFn({ data: v });
+          toast.success("User updated");
           invalidate();
         }}
       />
@@ -785,7 +779,7 @@ function CreateUserDialog({
   );
 }
 
-function EditUserForm({
+function EditUserDialog({
   user,
   onClose,
   onSubmit,
@@ -854,12 +848,13 @@ function EditUserForm({
   };
 
   return (
-    <section className="max-w-2xl space-y-6" aria-labelledby="edit-user-title">
-        <header className="space-y-1">
-          <h2 id="edit-user-title" className="text-xl font-semibold">Edit user</h2>
-          <p className="break-words text-sm text-muted-foreground">{user?.full_name} · {user?.username || user?.email}</p>
-        </header>
-        <div className="space-y-4">
+    <Dialog open={!!user} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit user</DialogTitle>
+          <DialogDescription>{user?.email}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <Label>First name *</Label>
             <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -918,15 +913,16 @@ function EditUserForm({
             <RolePicker value={role} onChange={setRole} />
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={onClose} disabled={busy}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={busy} className="gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save changes
           </Button>
-        </div>
-    </section>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
