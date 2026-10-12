@@ -63,7 +63,12 @@ export async function fetchEnfaPreviewPdf(
     );
   }
 
-  const binary = atob(result.base64);
+  let binary: string;
+  try {
+    binary = atob(result.base64);
+  } catch {
+    throw new Error("SAP returned an invalid Preview PDF. Please try again.");
+  }
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   if (!isPdfBytes(bytes)) throw new Error("SAP returned an invalid Preview PDF. Please try again.");
   const blob = new Blob([bytes.slice()], { type: result.mime || "application/pdf" });

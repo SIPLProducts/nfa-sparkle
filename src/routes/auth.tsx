@@ -13,7 +13,14 @@ import { toast } from "@/lib/swal";
 import { ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in - NFA Portal" }] }),
+  head: () => ({ meta: [
+    { title: "Sign in - NFA Portal" },
+    { name: "description", content: "Sign in to manage eNFA requests, approvals, and SAP reports." },
+    { property: "og:title", content: "Sign in - NFA Portal" },
+    { property: "og:description", content: "Sign in to manage eNFA requests, approvals, and SAP reports." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: AuthPage,
 });
 

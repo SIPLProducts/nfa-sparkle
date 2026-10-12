@@ -1,6 +1,5 @@
 import type { EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { getApprovalPrintContext } from "./print-initiator.functions";
-import { loadPrintDescription } from "./print-form-data";
 import { resolveApprovalPrintDocument } from "./approval-print-document";
 
 /** Uses saved Print Form data without making another SAP Preview request. */
@@ -10,16 +9,12 @@ export async function loadWebPreviewForm(
   row: Record<string, unknown>,
   signal: AbortSignal,
 ): Promise<EnfaDocumentProps> {
-  const [saved, description] = await Promise.all([
-    getApprovalPrintContext({ data: { enfaNumber, screen } }),
-    loadPrintDescription(enfaNumber),
-  ]);
+  const saved = await getApprovalPrintContext({ data: { enfaNumber, screen } });
   if (signal.aborted) throw new DOMException("Preview closed", "AbortError");
   if (!saved.savedDetail) throw new Error("The saved web Print Form is not available for this eNFA number.");
   const { document, comments } = resolveApprovalPrintDocument({
     editDetail: saved.savedDetail,
     worklistRow: row,
-    draft: { detailed_description: description },
     comments: saved.savedComments,
     initiatorName: saved.initiatorName,
   });
