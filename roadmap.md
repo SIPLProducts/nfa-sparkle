@@ -1,5 +1,7 @@
 # Quality deployment recovery
 
+- [ ] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; verify the supplied response shape and existing formats.
+
 - [x] Route Quality browser assets through the working Node application.
 - [x] Package complete root and `public` assets with the Node server bundle.
 - [x] Use a local Ramky logo in self-hosted releases.

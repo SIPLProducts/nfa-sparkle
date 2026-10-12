@@ -26,3 +26,4 @@
 - Approval Print Form comments are merged by approval level from SAP and the complete permission-checked saved chain, then shared by preview and workflow PDFs.
 - Preview uses an explicit response classifier and a Preview-only request mode; the web branch reuses permission-checked saved Print Form preparation so unrelated print calls and workflow PDFs remain unchanged.
 - Application-generated Print Forms share an overall-status watermark helper across display, printing, and PDF export; PDF staging suppresses the display overlay to preserve one existing watermark per page.
+- SAP attachment response parsing lives in a pure shared helper so SAP field compatibility can be regression-tested without loading authenticated server routes.
