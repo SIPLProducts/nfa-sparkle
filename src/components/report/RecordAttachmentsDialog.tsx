@@ -18,7 +18,7 @@ async function authToken() {
 }
 
 /** Live documents attached to the eNFA in SAP (endpoint configured in Admin → SAP API Settings). */
-function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
+function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my", notificationTarget: React.RefObject<HTMLDivElement | null>) {
   const [docs, setDocs] = useState<SapFileMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +64,8 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
         setError(null);
         const message = json.message?.trim();
         if (message) {
-          if (json.files?.length) void toast.success(message);
-          else void toast.info(message);
+          if (json.files?.length) void toast.success(message, notificationTarget.current ?? undefined);
+          else void toast.info(message, notificationTarget.current ?? undefined);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "SAP attachments failed");
@@ -76,7 +76,7 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
     return () => {
       cancelled = true;
     };
-  }, [enfaNumber, endpoint, nonce]);
+  }, [enfaNumber, endpoint, nonce, notificationTarget]);
 
 
 
@@ -414,12 +414,13 @@ export function RecordAttachmentsDialog({
   onOpenChange: (o: boolean) => void;
   endpoint?: "report" | "my";
 }) {
+  const notificationTarget = useRef<HTMLDivElement>(null);
   const {
     docs: sapDocs,
     loading: sapLoading,
     error: sapError,
     refresh: refreshSap,
-  } = useSapDocuments(open ? enfaNumber : null, endpoint);
+  } = useSapDocuments(open ? enfaNumber : null, endpoint, notificationTarget);
   const [sapPreview, setSapPreview] = useState<{ name: string; url: string; mime: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -483,7 +484,7 @@ export function RecordAttachmentsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent ref={notificationTarget} className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-display text-base">
               <Paperclip className="h-4 w-4" /> Attached Docs · {enfaNumber ?? "—"}

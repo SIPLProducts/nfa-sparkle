@@ -137,6 +137,14 @@
 }
 
 /* SweetAlert uses the same semantic design roles as the portal. */
+[role="dialog"]:has(> .nfa-swal-in-dialog) {
+  overflow: visible;
+}
+.nfa-swal-in-dialog.swal2-container {
+  position: absolute;
+  overflow: visible !important;
+  align-items: center;
+}
 .nfa-swal-popup {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
