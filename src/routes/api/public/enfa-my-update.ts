@@ -47,7 +47,13 @@ export const Route = createFileRoute("/api/public/enfa-my-update")({
           input = {};
         }
 
-        const result = await callEnfaMyNfaUpdate(input);
+        const { data: profile, error: profileError } = await supabase.from("profiles")
+          .select("username").eq("id", claimsData.claims.sub).maybeSingle();
+        const userName = profile?.username?.trim().toUpperCase() ?? "";
+        if (profileError || !userName) {
+          return Response.json({ error: "Your User ID could not be resolved. Please sign in again or contact your administrator." }, { status: 400 });
+        }
+        const result = await callEnfaMyNfaUpdate(input, { user_name: userName });
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
