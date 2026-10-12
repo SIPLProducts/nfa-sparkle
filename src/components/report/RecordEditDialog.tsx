@@ -15,6 +15,7 @@ import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/doc
 import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/print-form-data";
 
 import { toast } from "@/lib/swal";
+import { readSapEditPayload as readSapPayload, sapEditField as str } from "@/lib/sap-edit";
 
 
 /** Session cache of the logged-in user's User ID (profiles.username), keyed by auth user id. */
@@ -38,52 +39,6 @@ const EMPTY_DRAFT: DraftState = {
 
 /** SAP detail response — keys come straight from SAP, so read defensively. */
 type SapDetail = Record<string, unknown>;
-
-/**
- * SAP answers either with a record object or with a plain sentence
- * ("Note For Approval Can Only Be Edited By Initiator"). Never assume JSON.
- */
-function readSapPayload(text: string): { record: SapDetail | null; message: string | null } {
-  const trimmed = (text ?? "").trim();
-  if (!trimmed) return { record: null, message: null };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return { record: null, message: trimmed.slice(0, 500) };
-  }
-  if (typeof parsed === "string") return { record: null, message: parsed };
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const o = parsed as Record<string, unknown>;
-    const m = o["message"] ?? o["MESSAGE"] ?? o["error"];
-    const hasRecordKeys = ["SUBJECT", "TEXT", "CC_TEXT", "PSPNR", "FUNCT", "SCOPE_IMPACT"].some(
-      (k) => o[k] !== undefined,
-    );
-    if (!hasRecordKeys && typeof m === "string" && m.trim()) return { record: null, message: m.trim() };
-  }
-  return { record: pickDetail(parsed), message: null };
-}
-
-function pickDetail(raw: unknown): SapDetail | null {
-  let v: unknown = raw;
-  if (v && typeof v === "object" && !Array.isArray(v)) {
-    const o = v as Record<string, unknown>;
-    for (const k of ["data", "body", "result", "response"]) {
-      if (o[k] !== undefined) { v = o[k]; break; }
-    }
-  }
-  if (typeof v === "string") {
-    try { v = JSON.parse(v); } catch { return null; }
-  }
-  if (Array.isArray(v)) v = v[0];
-  return v && typeof v === "object" ? (v as SapDetail) : null;
-}
-
-
-function str(d: SapDetail | null, key: string): string {
-  const v = d?.[key];
-  return v === undefined || v === null ? "" : String(v);
-}
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
@@ -193,6 +148,7 @@ export function RecordEditDialog({
         } catch {
           sapUser = "";
         }
+        if (endpoint === "select" && !sapUser.trim()) throw new Error("Your User ID could not be resolved. Please sign in again or contact your administrator.");
         const res = await fetch(endpoint === "select" ? "/api/public/enfa-select" : "/api/public/enfa-detail", {
           method: "POST",
           headers: {
@@ -385,8 +341,8 @@ export function RecordEditDialog({
                   }
                 />
                 <ReadOnlyField label="NFA Type" value={str(detail, "FUNCT") || (row?.FUNCT_TXT ?? "")} />
-                <ReadOnlyField label="Function" value={row?.EXTR_TXT ?? ""} />
-                 <ReadOnlyField label="Initiator" value={initiatorName} />
+                <ReadOnlyField label="Function" value={endpoint === "select" ? str(detail, "EXTR_TXT") || row?.EXTR_TXT || "" : row?.EXTR_TXT ?? ""} />
+                 <ReadOnlyField label="Initiator" value={endpoint === "select" ? str(detail, "INIT_USERID") || initiatorName : initiatorName} />
                 <ReadOnlyField label="Creation Date" value={row?.BEGDA ?? ""} />
               </div>
 

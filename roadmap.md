@@ -1,5 +1,8 @@
 # Quality deployment recovery
 
+- [x] Update My NFAs Edit with server-resolved User ID, dynamic record number, SAP Function/Initiator fields, sample-free MY NFA Select template, and focused rerunnable Quality settings update. Verified 38 regression tests and signed-in controlled popup fields; Save and other screens unchanged.
+- [ ] Verify My NFAs Edit with a live company SAP record after deploying the updated app and applying `9300_my_nfa_select_edit.sql` — the signed-in SAP worklist currently returns no records.
+
 - [x] Preserve SAP attachment messages and display them through shared Swal without changing document viewing; 11 parser tests and signed-in controlled success, empty-file, and missing-message checks passed. Live company SAP verification requires deployment and retry on the company server.
 
 - [x] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; nine response-shape regression tests passed and build OK. Uploaded text is incomplete JSON, so live company SAP attachment verification remains user-side after deployment.
