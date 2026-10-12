@@ -37,3 +37,12 @@ export function readSapEditPayload(text: string): { record: Record<string, unkno
   if (Array.isArray(parsed)) parsed = parsed[0];
   return { record: parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null, message: null };
 }
+/** Put the signed-in User ID first in SAP's `submit` object, overriding any caller value. */
+export function withSubmitUserName(payload: Record<string, unknown>, userName: string) {
+  const id = userName.trim().toUpperCase();
+  if (!id) throw new Error("Your User ID could not be resolved. Please sign in again or contact your administrator.");
+  const raw = payload.submit && typeof payload.submit === "object" && !Array.isArray(payload.submit)
+    ? payload.submit as Record<string, unknown> : {};
+  const rest = Object.fromEntries(Object.entries(raw).filter(([k]) => k.toLowerCase() !== "user_name"));
+  return { ...payload, submit: { user_name: id, ...rest } };
+}

@@ -574,7 +574,9 @@ export async function callEnfaUpdate(payload: Record<string, unknown>): Promise<
  * endpoint (the approval API). Host, path, method, headers, query and credentials
  * all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callEnfaMyNfaUpdate(payload: Record<string, unknown>): Promise<SapCallResult> {
+export async function callEnfaMyNfaUpdate(payload: Record<string, unknown>, identity: { user_name: string }): Promise<SapCallResult> {
+  const { withSubmitUserName } = await import("./sap-edit");
+  payload = withSubmitUserName(payload, identity.user_name);
   const db = await admin();
   const { data: exact } = await db
     .from("sap_endpoint")

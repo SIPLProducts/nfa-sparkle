@@ -24,3 +24,14 @@ describe("SAP My NFAs Edit", () => {
     expect(readSapEditPayload(value)).toEqual({ record: null, message: "Only the initiator may edit" });
   });
 });
+import { withSubmitUserName } from "./sap-edit";
+describe("My NFAs Update user_name", () => {
+  it("injects signed-in User ID first and overrides caller values", () => {
+    const out = withSubmitUserName({ submit: { reffld: "1", USER_NAME: "PARDEEP", SUBJECT: "s" } }, "kvvk");
+    expect(Object.keys(out.submit)[0]).toBe("user_name");
+    expect(out.submit).toEqual({ user_name: "KVVK", reffld: "1", SUBJECT: "s" });
+  });
+  it("rejects a missing User ID", () => {
+    expect(() => withSubmitUserName({ submit: {} }, " ")).toThrow("User ID");
+  });
+});
