@@ -1,3 +1,6 @@
+import { printFormStatusLabel } from "./print-form-status";
+export { printFormStatusLabel } from "./print-form-status";
+
 const PDF_PAGE = {
   widthMm: 210,
   heightMm: 297,
@@ -104,15 +107,6 @@ function stagePdfPages(element: HTMLElement): { staging: HTMLElement; pages: HTM
     }
   }
   return { staging, pages };
-}
-
-function isFinalDocumentStatus(status: string | undefined): boolean {
-  const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
-  return ["completed", "closed", "final", "approved", "finally_approved", "final_approved"].includes(normalized);
-}
-
-export function printFormStatusLabel(status: string | undefined): "DRAFT" | "APPROVED" {
-  return isFinalDocumentStatus(status) ? "APPROVED" : "DRAFT";
 }
 
 async function waitForPrintImages(element: HTMLElement): Promise<void> {

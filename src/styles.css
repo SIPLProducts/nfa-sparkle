@@ -63,6 +63,7 @@
 
 :root {
   --radius: 0.5rem;
+  --print-watermark: oklch(0.55 0 0 / 0.19);
 
   /* Corporate blue theme (reference #0166A8) */
   --brand-navy: oklch(0.42 0.115 245);
@@ -267,6 +268,7 @@
 
 /* Printable eNFA "Note for Approval" sheet (matches the SAP reference form) */
 .enfa-doc {
+  position: relative;
   width: 100%;
   background: #fff;
   color: #000;
@@ -274,6 +276,22 @@
   font-size: 11px;
   line-height: 1.35;
 }
+.enfa-doc[data-watermark]::after {
+  content: attr(data-watermark);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  color: var(--print-watermark);
+  font: 700 64px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+/* PDF pages receive their existing single watermark from the PDF generator. */
+.enfa-pdf-export .enfa-doc::after { content: none; }
 .enfa-doc .enfa-table {
   width: 100%;
   border-collapse: collapse;

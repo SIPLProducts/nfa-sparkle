@@ -79,3 +79,4 @@
 - [x] Apply SAP-driven Preview priority: DMS document, then SAP Detailed Description form, then existing Preview behavior.
 - [x] Replace Preview selection with the current SAP response: Base64 PDF shows SAP Print Form; X shows saved web Print Form. Controlled signed-in checks verified both branches, downloads, errors, and record switching.
 - [ ] Verify response-driven Preview against a live company SAP record — SAP report returned no records for the tested filters; requires an available SAP record.
+- [ ] Share the dynamic DRAFT/APPROVED watermark across displayed Print Forms and web Preview PDF downloads without changing SAP PDFs or workflow actions.

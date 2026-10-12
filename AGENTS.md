@@ -25,3 +25,4 @@
 - Optional Print Form SAP refreshes must never block saved-detail rendering or expose raw gateway error pages.
 - Approval Print Form comments are merged by approval level from SAP and the complete permission-checked saved chain, then shared by preview and workflow PDFs.
 - Preview uses an explicit response classifier and a Preview-only request mode; the web branch reuses permission-checked saved Print Form preparation so unrelated print calls and workflow PDFs remain unchanged.
+- Application-generated Print Forms share an overall-status watermark helper across display, printing, and PDF export; PDF staging suppresses the display overlay to preserve one existing watermark per page.

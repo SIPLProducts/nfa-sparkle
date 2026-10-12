@@ -116,7 +116,7 @@ export function RecordPreviewDialog({
     if (!descriptionRef.current || downloadBusy) return;
     setDownloadBusy(true);
     try {
-      const pdf = await createPrintFormPdf(descriptionRef.current, { nfaNo: enfa });
+      const pdf = await createPrintFormPdf(descriptionRef.current, { nfaNo: enfa, documentStatus: descriptionForm?.documentStatus });
       downloadPrintFormPdf(pdf);
     } catch {
       setPdfError("The document could not be downloaded. Please try again.");
