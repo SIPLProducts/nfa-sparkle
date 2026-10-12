@@ -61,7 +61,12 @@ function useSapDocuments(enfaNumber: string | null, endpoint: "report" | "my") {
           return;
         }
         setDocs(Array.isArray(json.files) ? json.files : []);
-        setError(json.files?.length ? null : (json.message ?? null));
+        setError(null);
+        const message = json.message?.trim();
+        if (message) {
+          if (json.files?.length) void toast.success(message);
+          else void toast.info(message);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "SAP attachments failed");
       } finally {
