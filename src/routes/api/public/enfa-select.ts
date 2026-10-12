@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
+import { z } from "zod";
 
 export const Route = createFileRoute("/api/public/enfa-select")({
   server: {
@@ -41,20 +42,28 @@ export const Route = createFileRoute("/api/public/enfa-select")({
           return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
         }
 
-        let input: Record<string, unknown> = {};
+        let reffld: string;
         try {
-          input = (await request.json()) as Record<string, unknown>;
+          const input = z.object({
+            edit: z.object({ reffld: z.string().trim().min(1).max(100).optional(), user_name: z.string().max(100).optional() }).optional(),
+            reffld: z.string().trim().min(1).max(100).optional(),
+          }).parse(await request.json());
+          reffld = input.edit?.reffld ?? input.reffld ?? "";
         } catch {
-          input = {};
+          return Response.json({ error: "A valid record number (reffld) is required" }, { status: 400 });
         }
-
-        const edit = (input["edit"] ?? {}) as Record<string, unknown>;
-        const reffld = String(edit["reffld"] ?? input["reffld"] ?? "").trim();
         if (!reffld) {
           return Response.json({ error: "A record number (reffld) is required" }, { status: 400 });
         }
-
-        const result = await callEnfaSelect(reffld, edit);
+        // Edit identity is the authenticated portal user, never a caller-supplied
+        // sample value or the SAP service account used for Basic authentication.
+        const { data: profile, error: profileError } = await supabase.from("profiles")
+          .select("username").eq("id", claimsData.claims.sub).maybeSingle();
+        const userName = profile?.username?.trim().toUpperCase() ?? "";
+        if (profileError || !userName) {
+          return Response.json({ error: "Your User ID could not be resolved. Please sign in again or contact your administrator." }, { status: 400 });
+        }
+        const result = await callEnfaSelect(reffld, { user_name: userName });
 
         const headers: Record<string, string> = {
           "content-type": "application/json",

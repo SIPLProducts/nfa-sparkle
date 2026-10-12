@@ -1,6 +1,7 @@
 import { admin, callSap, getSecret, loadSystem, type SapCallResult } from "./sap-call.server";
 import { wrapReportPayload } from "./sap-api-constants";
 import { buildApprovalActionPayload } from "./approval-action-payload";
+import { buildSapEditPayload } from "./sap-edit";
 
 /** Resolves credentials for an endpoint row (endpoint override -> system -> legacy global). */
 async function credentialsFor(ep: Record<string, any>, sys: Record<string, any> | null) {
@@ -695,21 +696,7 @@ export async function callEnfaSelect(
       /* fall back to the default shape */
     }
   }
-  const editTemplate =
-    template["edit"] && typeof template["edit"] === "object" && !Array.isArray(template["edit"])
-      ? (template["edit"] as Record<string, unknown>)
-      : {};
-  const body = JSON.stringify({
-    ...template,
-    edit: {
-      ...editTemplate,
-      ...callerEdit,
-      user_name: String(
-        (callerEdit["user_name"] as string | undefined) || username || "",
-      ).toUpperCase(),
-      reffld,
-    },
-  });
+  const body = JSON.stringify(buildSapEditPayload(template, callerEdit, reffld));
 
   return callSap({
     system: sys,
