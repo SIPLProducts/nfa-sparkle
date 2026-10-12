@@ -28,3 +28,4 @@
 - Application-generated Print Forms share an overall-status watermark helper across display, printing, and PDF export; PDF staging suppresses the display overlay to preserve one existing watermark per page.
 - SAP attachment response parsing lives in a pure shared helper so SAP field compatibility can be regression-tested without loading authenticated server routes.
 - Attachment-read Swal notifications target the active dialog through the shared notification helper so modal focus and pointer handling remain intact; other notification callers retain their default behavior.
+- My NFAs Edit uses a shared tested SAP Edit parser and payload builder, with server-resolved signed-in User ID and selected record number, so connection credentials and saved sample values never establish the Edit identity.
