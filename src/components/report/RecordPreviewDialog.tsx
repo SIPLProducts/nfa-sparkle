@@ -3,10 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
-import { EnfaPreviewUnavailableError, fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
+import { EnfaWebPreviewSelected, fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
-import { choosePreviewSource } from "@/lib/enfa-preview-source";
-import { loadSapPreviewDetail } from "@/lib/enfa-preview-detail";
+import { loadWebPreviewForm } from "@/lib/web-preview-form";
 import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
 import { createPrintFormPdf, downloadPrintFormPdf } from "@/lib/print-form-pdf";
 
@@ -89,16 +88,12 @@ export function RecordPreviewDialog({
         setPdfUrl(url);
       } catch (e) {
         if (cancelled) return;
-        if (e instanceof EnfaPreviewUnavailableError && e.documentAbsent) {
+        if (e instanceof EnfaWebPreviewSelected) {
           try {
-            const detail = await loadSapPreviewDetail(enfa, detailEndpoint, { ...row }, controller.signal);
+            const screen = endpoint === "report" ? "report" : detailEndpoint === "report" ? "approvals" : "nfa_my";
+            const detail = await loadWebPreviewForm(enfa, screen, { ...row }, controller.signal);
             if (cancelled) return;
-            if (choosePreviewSource({ documentAvailable: false, documentAbsent: true, description: detail?.descriptionHtml }) === "description") {
-              setDescriptionForm(detail);
-            } else {
-              // Neither SAP source exists: retain the existing Preview response.
-              setPdfError(e.message);
-            }
+            setDescriptionForm(detail);
           } catch (detailError) {
             if (!cancelled) setPdfError(safeApprovalDetailMessage(detailError instanceof Error ? detailError.message : "SAP record details are temporarily unavailable"));
           }
