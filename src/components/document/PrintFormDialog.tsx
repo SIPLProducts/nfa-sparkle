@@ -34,7 +34,7 @@ export interface PrintFormDialogProps extends EnfaDocumentProps {
   onDescriptionChange?: (html: string) => void;
   onSaved?: (html: string) => void;
   approvalFlow?: ApprovalFlowRequest;
-  /** Existing workflow status, used only to decide whether the exported PDF is a draft. */
+  /** Overall workflow status shared by the displayed form and PDF. */
   documentStatus?: string;
 }
 
@@ -313,6 +313,7 @@ export function PrintFormDialog({
                approvers: effectiveApprovers,
              })}
               logoSrc={logoSrc}
+            documentStatus={documentStatus}
             editableDescription={editing ? description : undefined}
             onDescriptionChange={editing ? setDescription : undefined}
           />

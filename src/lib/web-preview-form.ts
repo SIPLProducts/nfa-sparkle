@@ -1,6 +1,7 @@
 import type { EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { getApprovalPrintContext } from "./print-initiator.functions";
 import { resolveApprovalPrintDocument } from "./approval-print-document";
+import { readPrintFormStatus } from "./print-form-status";
 
 /** Uses saved Print Form data without making another SAP Preview request. */
 export async function loadWebPreviewForm(
@@ -20,6 +21,7 @@ export async function loadWebPreviewForm(
   });
   return {
     nfaNo: enfaNumber,
+    documentStatus: readPrintFormStatus(row),
     companyCode: document.companyCode,
     companyName: document.companyName,
     plantLabel: document.plantLabel,

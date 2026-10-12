@@ -3,6 +3,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { orderedCommentVersions } from "@/lib/print-comment-history";
+import { printFormStatusLabel } from "@/lib/print-form-status";
 
 export interface EnfaDocumentApprover {
   /** Original approval level, retained when SAP returns sparse levels. */
@@ -43,6 +44,8 @@ export interface EnfaDocumentProps {
   approvers?: EnfaDocumentApprover[];
   comments?: EnfaDocumentComment[];
   logoSrc?: string;
+  /** Overall record status, not an individual approver's status. */
+  documentStatus?: string;
   className?: string;
 }
 
@@ -80,6 +83,7 @@ export function EnfaDocument({
   approvers = [],
   comments = [],
   logoSrc,
+  documentStatus,
   className,
 }: EnfaDocumentProps) {
   const normalized = normalizeEnfaDocument({
@@ -109,7 +113,7 @@ export function EnfaDocument({
   const versions = orderedCommentVersions(shown);
 
   return (
-    <article className={cn("enfa-doc", className)}>
+    <article className={cn("enfa-doc", className)} data-watermark={printFormStatusLabel(documentStatus)}>
       <table className="enfa-table">
         <tbody>
           <tr>
