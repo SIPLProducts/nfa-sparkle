@@ -142,7 +142,8 @@
 }
 .nfa-swal-in-dialog.swal2-container {
   position: absolute;
-  overflow: visible;
+  overflow: visible !important;
+  align-items: center;
 }
 .nfa-swal-popup {
   border: 1px solid var(--color-border);
