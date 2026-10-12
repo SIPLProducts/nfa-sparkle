@@ -10,6 +10,21 @@ describe("SAP attachment response compatibility", () => {
       FILENAME: "", MIME_TYPE: "application/pdf", FILE_BASE64: pdf,
     }]));
     expect(result.files).toEqual([{ filename: "document-1", base64: pdf, mime: "application/pdf" }]);
+    expect(result.message).toBe("DMS document retrieved successfully");
+  });
+
+  it("preserves a dynamic parent message with nested documents", () => {
+    const result = extractFiles(JSON.stringify({ MESSAGE: "Current SAP message", documents: [
+      { FILENAME: "first.pdf", FILE_BASE64: pdf },
+      { FILENAME: "second.pdf", FILE_CONTENT: pdf },
+    ] }));
+    expect(result.message).toBe("Current SAP message");
+    expect(result.files).toHaveLength(2);
+  });
+
+  it("keeps missing and blank messages empty without inventing notification text", () => {
+    expect(extractFiles(JSON.stringify({ FILE_BASE64: pdf })).message).toBeNull();
+    expect(extractFiles(JSON.stringify({ MESSAGE: "  ", FILE_BASE64: pdf })).message).toBeNull();
   });
 
   it.each(["FILE_CONTENT", "filecontent", "content", "file", "data", "file_base64"])(

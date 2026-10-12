@@ -49,6 +49,9 @@ export function extractFiles(raw: string): { files: SapFile[]; message: string |
       return;
     }
     const obj = node as Record<string, unknown>;
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === "string" && /message|msg|error/i.test(k) && v.trim() && !message) message = v.trim();
+    }
     const nameKey = Object.keys(obj).find((k) => /^(file_name|filename|name)$/i.test(k));
     const contentKey = Object.keys(obj).find((k) => /^(file_base64|file_content|filecontent|content|file|data)$/i.test(k));
     const content = contentKey ? obj[contentKey] : undefined;
@@ -57,9 +60,6 @@ export function extractFiles(raw: string): { files: SapFile[]; message: string |
       const filename = String((nameKey ? obj[nameKey] : "") || `document-${files.length + 1}`).trim();
       files.push({ filename, base64, mime: sniffMime(filename, base64) });
       return;
-    }
-    for (const [k, v] of Object.entries(obj)) {
-      if (typeof v === "string" && /message|msg|error/i.test(k) && v.trim() && !message) message = v.trim();
     }
     for (const v of Object.values(obj)) walk(v);
   };

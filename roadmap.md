@@ -1,5 +1,7 @@
 # Quality deployment recovery
 
+- [ ] Preserve SAP attachment messages and display them through shared Swal without changing document viewing.
+
 - [x] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; nine response-shape regression tests passed and build OK. Uploaded text is incomplete JSON, so live company SAP attachment verification remains user-side after deployment.
 
 - [x] Route Quality browser assets through the working Node application.
