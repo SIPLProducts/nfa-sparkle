@@ -16,6 +16,7 @@ function fire(icon: "success" | "error" | "warning" | "info", message: Message, 
     confirmButtonText: "OK",
     buttonsStyling: false,
     customClass: {
+      ...(target ? { container: "nfa-swal-in-dialog" } : {}),
       popup: "nfa-swal-popup",
       title: "nfa-swal-title",
       htmlContainer: "nfa-swal-content",
