@@ -1,6 +1,6 @@
 # Quality deployment recovery
 
-- [ ] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; verify the supplied response shape and existing formats.
+- [x] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; nine response-shape regression tests passed and build OK. Uploaded text is incomplete JSON, so live company SAP attachment verification remains user-side after deployment.
 
 - [x] Route Quality browser assets through the working Node application.
 - [x] Package complete root and `public` assets with the Node server bundle.
