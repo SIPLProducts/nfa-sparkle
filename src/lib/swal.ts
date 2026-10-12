@@ -7,10 +7,11 @@ function text(message: Message) {
   return message == null ? "" : String(message);
 }
 
-function fire(icon: "success" | "error" | "warning" | "info", message: Message) {
+function fire(icon: "success" | "error" | "warning" | "info", message: Message, target?: HTMLElement) {
   if (typeof document === "undefined") return Promise.resolve();
   return Swal.fire({
     icon,
+    ...(target ? { target } : {}),
     text: text(message),
     confirmButtonText: "OK",
     buttonsStyling: false,
@@ -25,10 +26,10 @@ function fire(icon: "success" | "error" | "warning" | "info", message: Message) 
 
 /** Drop-in notification API used across the portal. Dynamic response text is passed through unchanged. */
 export const toast = {
-  success: (message: Message) => fire("success", message),
+  success: (message: Message, target?: HTMLElement) => fire("success", message, target),
   error: (message: Message) => fire("error", message),
   warning: (message: Message) => fire("warning", message),
-  info: (message: Message) => fire("info", message),
+  info: (message: Message, target?: HTMLElement) => fire("info", message, target),
 };
 
 export async function swalConfirm({
