@@ -1,5 +1,7 @@
 # Quality deployment recovery
 
+- [ ] Update My NFAs Edit request and SAP Function/Initiator mapping; provide a focused rerunnable settings update and verify without changing Save or other screens.
+
 - [x] Preserve SAP attachment messages and display them through shared Swal without changing document viewing; 11 parser tests and signed-in controlled success, empty-file, and missing-message checks passed. Live company SAP verification requires deployment and retry on the company server.
 
 - [x] Recognize SAP FILE_BASE64 attached documents while preserving existing content aliases; nine response-shape regression tests passed and build OK. Uploaded text is incomplete JSON, so live company SAP attachment verification remains user-side after deployment.
