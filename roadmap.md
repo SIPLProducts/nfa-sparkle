@@ -77,3 +77,4 @@
 - [x] Keep Approvals Print Forms usable with complete saved details when optional SAP requests hit an ngrok gateway failure.
 - [x] Restore every saved Approval Chain remark for all approval levels and keep preview/PDF comment resolution consistent.
 - [x] Apply SAP-driven Preview priority: DMS document, then SAP Detailed Description form, then existing Preview behavior.
+- [ ] Replace Preview selection with the current SAP response: Base64 PDF shows SAP Print Form; X shows saved web Print Form.

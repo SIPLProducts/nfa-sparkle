@@ -732,6 +732,7 @@ export async function callEnfaSelect(
 export async function callEnfaPrint(
   enfaNo: string,
   variant?: "edit" | "report",
+  previewSelection = false,
 ): Promise<SapCallResult> {
   const db = await admin();
 
@@ -818,10 +819,12 @@ export async function callEnfaPrint(
     }
   }
 
+  if (previewSelection) body = JSON.stringify({ preview: { enfa_no: enfaNo } });
+
   return callSap({
     system: sys,
     path: ep.path_or_url ?? "",
-    method: (ep.http_method ?? "POST").toUpperCase(),
+    method: previewSelection ? "POST" : (ep.http_method ?? "POST").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
     body,
