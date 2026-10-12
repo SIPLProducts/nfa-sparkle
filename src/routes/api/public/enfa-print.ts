@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { isSapDocumentAbsent } from "@/lib/enfa-preview-source";
+import { classifyPreviewResponse } from "@/lib/preview-response";
 
 const B64 = /^[A-Za-z0-9+/\r\n=]+$/;
 
@@ -94,15 +95,16 @@ export const Route = createFileRoute("/api/public/enfa-print")({
         } catch {
           input = {};
         }
-        const print = (input["PRINT"] ?? input["print"] ?? {}) as Record<string, unknown>;
-        const enfaNo = String(print["EFNA_NO"] ?? print["efna_no"] ?? input["enfa_no"] ?? "").trim();
+        const previewSelection = input["preview"] !== undefined;
+        const print = (input["preview"] ?? input["PRINT"] ?? input["print"] ?? {}) as Record<string, unknown>;
+        const enfaNo = String(print["enfa_no"] ?? print["EFNA_NO"] ?? print["efna_no"] ?? input["enfa_no"] ?? "").trim();
         if (!enfaNo) {
           return Response.json({ error: "An eNFA number is required" }, { status: 400 });
         }
 
         const variantRaw = String(input["variant"] ?? "").toLowerCase();
         const variant = variantRaw === "edit" ? "edit" : undefined;
-        const result = await callEnfaPrint(enfaNo, variant);
+        const result = await callEnfaPrint(enfaNo, variant, previewSelection);
 
         const headers: Record<string, string> = {
           "content-type": "application/json",
@@ -138,6 +140,16 @@ export const Route = createFileRoute("/api/public/enfa-print")({
           }
         } catch {
           /* raw body */
+        }
+
+        if (previewSelection) {
+          const selected = classifyPreviewResponse(body);
+          if (selected.source === "error") {
+            return new Response(JSON.stringify({ error: selected.message }), { status: 200, headers });
+          }
+          return new Response(JSON.stringify(selected.source === "web"
+            ? { source: "web" }
+            : { source: "sap", base64: selected.base64, mime: "application/pdf", filename: `ENFA-${enfaNo}.pdf` }), { status: 200, headers });
         }
 
         const { base64, message } = extractBase64(body);

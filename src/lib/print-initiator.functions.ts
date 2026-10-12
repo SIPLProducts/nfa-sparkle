@@ -74,14 +74,15 @@ export const getPrintInitiator = createServerFn({ method: "GET" })
 /** Returns the original saved NFA and every ordered approval level as Print Form fallbacks. */
 export const getApprovalPrintContext = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { enfaNumber: string }) => ({
+  .inputValidator((input: { enfaNumber: string; screen?: "approvals" | "report" | "nfa_my" }) => ({
     enfaNumber: input.enfaNumber.trim(),
+    screen: input.screen === "report" || input.screen === "nfa_my" ? input.screen : "approvals",
   }))
   .handler(async ({ data, context }): Promise<ApprovalPrintContext> => {
     if (!data.enfaNumber) return { savedDetail: null, initiatorName: "", savedComments: [] };
 
     const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
-    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], "approvals");
+    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], data.screen);
     const db = await getAdminClient();
 
     const { data: record, error: recordError } = await db
@@ -93,6 +94,9 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       .maybeSingle();
     if (recordError) throw new Error("Unable to load the saved Print Form record");
     if (!record) return { savedDetail: null, initiatorName: "", savedComments: [] };
+    if (data.screen === "nfa_my" && record.initiator_id !== context.userId) {
+      throw new Error("Forbidden: this Print Form does not belong to you");
+    }
 
     const { data: levels, error: levelsError } = await db
       .from("nfa_approver")

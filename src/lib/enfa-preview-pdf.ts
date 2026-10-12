@@ -10,6 +10,7 @@ export interface EnfaPreviewPdf {
 }
 
 interface EnfaPrintResponse {
+  source?: "sap" | "web";
   base64?: string;
   mime?: string;
   filename?: string;
@@ -21,6 +22,13 @@ export class EnfaPreviewUnavailableError extends Error {
   constructor(message: string, public readonly documentAbsent: boolean) {
     super(message);
     this.name = "EnfaPreviewUnavailableError";
+  }
+}
+
+export class EnfaWebPreviewSelected extends Error {
+  constructor() {
+    super("SAP selected the web Print Form");
+    this.name = "EnfaWebPreviewSelected";
   }
 }
 
@@ -41,12 +49,13 @@ export async function fetchEnfaPreviewPdf(
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({
-      PRINT: { EFNA_NO: normalizedNumber },
+      preview: { enfa_no: normalizedNumber },
       ...(variant === "edit" ? { variant: "edit" } : {}),
     }),
     signal,
   });
   const result = (await response.json().catch(() => ({}))) as EnfaPrintResponse;
+  if (response.ok && !result.error && result.source === "web") throw new EnfaWebPreviewSelected();
   if (!response.ok || !result.base64) {
     throw new EnfaPreviewUnavailableError(
       result.error || `Preview PDF download failed (HTTP ${response.status})`,
@@ -54,7 +63,12 @@ export async function fetchEnfaPreviewPdf(
     );
   }
 
-  const binary = atob(result.base64);
+  let binary: string;
+  try {
+    binary = atob(result.base64);
+  } catch {
+    throw new Error("SAP returned an invalid Preview PDF. Please try again.");
+  }
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   if (!isPdfBytes(bytes)) throw new Error("SAP returned an invalid Preview PDF. Please try again.");
   const blob = new Blob([bytes.slice()], { type: result.mime || "application/pdf" });
