@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { resolveLoginId } from "@/lib/auth-login.functions";
 
 import { useAuth } from "@/lib/auth-context";
+import { SCREENS } from "@/lib/screens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,17 +26,17 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, canAccess } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
   const resolveLogin = useServerFn(resolveLoginId);
-
+  const firstAllowedPath = SCREENS.find(({ key }) => canAccess(key))?.path ?? "/";
 
   useEffect(() => {
-    if (!loading && user) nav({ to: "/", replace: true });
-  }, [loading, user, nav]);
+    if (!loading && user) nav({ to: firstAllowedPath, replace: true });
+  }, [loading, user, nav, firstAllowedPath]);
 
   async function signIn() {
     setBusy(true);

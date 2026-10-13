@@ -43,7 +43,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading, canAccess } = useAuth();
   const nav = useNavigate();
   const [mine, setMine] = useState<NfaRow[]>([]);
   const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
@@ -57,13 +57,22 @@ function Index() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const refreshIdRef = useRef(0);
+  const dashboardAllowed = Boolean(user) && canAccess("dashboard");
+  const firstAllowedPath = SCREENS.find(({ key }) => canAccess(key))?.path;
 
   useEffect(() => {
-    if (!loading && !user) nav({ to: "/auth", replace: true });
-  }, [loading, user, nav]);
+    if (loading) return;
+    if (!user) {
+      nav({ to: "/auth", replace: true });
+      return;
+    }
+    if (!canAccess("dashboard") && firstAllowedPath && firstAllowedPath !== "/") {
+      nav({ to: firstAllowedPath, replace: true });
+    }
+  }, [loading, user, nav, canAccess, firstAllowedPath]);
 
   useScreenEntryEffect("/", () => {
-    if (!user) return;
+    if (!user || !dashboardAllowed) return;
     setTab("ongoing");
     setSearch("");
     setDeptFilter("all");
