@@ -19,6 +19,7 @@ import {
 } from "@/lib/enfa-working-document";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { usePrintFormLogo } from "@/hooks/use-print-form-logo";
 import { createPrintFormPdf, downloadPrintFormPdf } from "@/lib/print-form-pdf";
 
 export interface ApprovalFlowRequest {
@@ -61,8 +62,7 @@ export function PrintFormDialog({
   const [downloading, setDownloading] = useState(false);
   const [docxBusy, setDocxBusy] = useState(false);
   const [workingDocument, setWorkingDocument] = useState<WorkingDocumentInfo | null>(null);
-  const [logoSrc, setLogoSrc] = useState<string | undefined>();
-  const [logoLoading, setLogoLoading] = useState(false);
+  const { logoSrc, logoLoading } = usePrintFormLogo(doc.companyCode, open);
   const [flowApprovers, setFlowApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [flowFunctionName, setFlowFunctionName] = useState("");
   const [approvalLoading, setApprovalLoading] = useState(false);
@@ -80,58 +80,6 @@ export function PrintFormDialog({
     void loadWorkingDocument(doc.nfaNo).then((value) => { if (!cancelled) setWorkingDocument(value); });
     return () => { cancelled = true; };
   }, [canEdit, doc.nfaNo, open]);
-
-  useEffect(() => {
-    if (!open || !doc.companyCode?.trim()) {
-      setLogoSrc(undefined);
-      setLogoLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setLogoSrc(undefined);
-    setLogoLoading(true);
-    void (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token ?? "";
-        const response = await fetch("/api/public/sap-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ companyCode: doc.companyCode }),
-          signal: controller.signal,
-        });
-        const result = (await response.json()) as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
-        if (!response.ok || !result.ok || !result.dataUrl) throw new Error(result.message || result.error || "Company logo is unavailable");
-        const image = new Image();
-        image.decoding = "async";
-        image.src = result.dataUrl;
-        await image.decode();
-
-        // Normalise SAP's bitmap response once at its native resolution. This
-        // preserves every source pixel and gives browser, PDF and Word exports
-        // the same lossless image without stretching its aspect ratio.
-        if (result.dataUrl.startsWith("data:image/png")) {
-          setLogoSrc(result.dataUrl);
-        } else {
-          const canvas = document.createElement("canvas");
-          canvas.width = image.naturalWidth;
-          canvas.height = image.naturalHeight;
-          const context = canvas.getContext("2d");
-          if (!context) throw new Error("The company logo cannot be prepared");
-          context.imageSmoothingEnabled = true;
-          context.imageSmoothingQuality = "high";
-          context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
-          setLogoSrc(canvas.toDataURL("image/png"));
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        console.warn("Optional Print Form logo could not be loaded", error);
-      } finally {
-        if (!controller.signal.aborted) setLogoLoading(false);
-      }
-    })();
-    return () => controller.abort();
-  }, [doc.companyCode, open]);
 
   useEffect(() => {
     const plant = approvalFlow?.plant.trim() ?? "";

@@ -25,6 +25,7 @@ import { RecordPreviewDialog } from "@/components/report/RecordPreviewDialog";
 import { ApprovalAction, ApprovalCommentDialog } from "@/components/ApprovalCommentDialog";
 import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { prepareWebPrintForm } from "@/lib/prepare-web-print-form";
 import { mergeCompletePrintComments } from "@/lib/print-comment-history";
 
 export const Route = createFileRoute("/_authed/approvals")({
@@ -253,103 +254,13 @@ function ApprovalsInbox() {
     setPrintLoading(true);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token ?? "";
-      const userId = sessionData.session?.user?.id ?? "";
-      const userName = await resolveMySapUser(userId);
-      const requestDetails = (endpoint: string) =>
-        fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ edit: { user_name: userName, reffld: selectedEnfaNo } }),
-        })
-          .then(async (response) => ({ response, text: await response.text() }))
-          .catch((error: unknown) => ({
-            response: null,
-            text: error instanceof Error ? error.message : "Could not load complete SAP details",
-          }));
-      const reportPayload = {
-        plant_from: "", plant_to: "", funct_from: "", funct_to: "",
-        nfano_from: selectedEnfaNo, nfano_to: selectedEnfaNo,
-        extra_from: "", extra_to: "", dat_from: "", dat_to: "",
-        usrid_from: "", usrid_to: "", r_proc: "", r_comp: "",
-        r_reje: "", r_init: "", r_clar: "",
-      };
-      const reportDetails = fetch("/api/public/enfa-report", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(wrapReportPayload(reportPayload, userName)),
-      })
-        .then(async (response) => {
-          if (!response.ok) return null;
-          const parsed = await response.json() as unknown;
-          return normaliseRows(parsed).find((row) => val(row, "REFFLD") === selectedEnfaNo) ?? null;
-        })
-        .catch(() => null);
-
-      const [editDetailResult, selectDetailResult, reportRow, draftResult, comments, savedContext] = await Promise.all([
-        requestDetails("/api/public/enfa-detail"),
-        requestDetails("/api/public/enfa-select"),
-        reportDetails,
-        supabase
-          .from("sap_record_draft")
-          .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
-          .eq("enfa_number", selectedEnfaNo)
-          .maybeSingle(),
-        loadPrintComments(selectedEnfaNo),
-        loadApprovalPrintContext(selectedEnfaNo),
-      ]);
-
-       const parseResult = (result: typeof editDetailResult) => {
-         const parsed = parseApprovalPrintDetail(result.text);
-        return result.response?.ok
-          ? parsed
-          : { detail: null, message: parsed.message || "Could not load complete SAP details" };
-      };
-      const editParsed = parseResult(editDetailResult);
-      const selectParsed = parseResult(selectDetailResult);
-       const resolved = resolveApprovalPrintDocument({
-         editDetail: editParsed.detail,
-         selectDetail: {
-           ...(selectParsed.detail ?? {}),
-           ...(reportRow as unknown as Record<string, unknown> | null ?? {}),
-         },
-         worklistRow: selectedRow as unknown as Record<string, unknown>,
-          savedDetail: savedContext.savedDetail,
-         draft: draftResult.data,
-         comments,
-          initiatorName: savedContext.initiatorName,
-       });
-       const plant = val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
-       let apiFlow = { approvers: [] as typeof resolved.document.approvers, functionName: "" };
-       if (token && plant && resolved.document.nfaType) {
-         apiFlow = await fetchResolvedSapApprovalFlow({
-           plant,
-           nfaType: resolved.document.nfaType,
-           functionName: resolved.document.functionName,
-         }, token).catch(() => apiFlow);
-       }
-       const printDocument = {
-         ...resolved.document,
-         functionName: resolved.document.functionName || apiFlow.functionName,
-         approvers: mergeApprovalFlow(resolved.document.approvers, apiFlow.approvers, false),
-       };
-       const missingFields = resolved.missingFields.filter((field) =>
-         !(field === "Function" && printDocument.functionName)
-         && !(field === "Approval Chain" && printDocument.approvers.length),
-       );
-       setPrintDoc(printDocument);
-        setPrintComments(mergeCompletePrintComments(comments, savedContext.savedComments, printDocument.approvers));
+      const prepared = await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>);
+      setPrintDoc(prepared.document);
+      setPrintComments(prepared.comments);
       setPrintOpen(true);
-       if (missingFields.length) {
-         toast.warning(`Some source data is unavailable: ${missingFields.join(", ")}. Showing all saved details.`);
-        }
+      if (prepared.missingFields.length) {
+        toast.warning(`Some source data is unavailable: ${prepared.missingFields.join(", ")}. Showing all saved details.`);
+      }
     } catch (error) {
        const fallback = resolveApprovalPrintDocument({
          worklistRow: selectedRow as unknown as Record<string, unknown>,

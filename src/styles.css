@@ -18,6 +18,7 @@
   --font-serif: "Libre Baskerville", ui-serif, Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --color-brand: var(--brand-navy);
+  --color-print-paper: var(--print-paper);
   --color-brand-2: var(--brand-navy-2);
   --color-brand-blue: var(--brand-blue);
   --color-brand-orange: var(--brand-orange);
@@ -64,6 +65,7 @@
 :root {
   --radius: 0.5rem;
   --print-watermark: oklch(0.55 0 0 / 0.19);
+  --print-paper: oklch(1 0 0);
 
   /* Corporate blue theme (reference #0166A8) */
   --brand-navy: oklch(0.42 0.115 245);
