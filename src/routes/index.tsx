@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
+import { SCREENS } from "@/lib/screens";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { STATUS_LABEL, STATUS_TONE, type NfaRow, type NfaStatus, type ApproverRow } from "@/lib/nfa-types";
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading, canAccess } = useAuth();
   const nav = useNavigate();
   const [mine, setMine] = useState<NfaRow[]>([]);
   const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
@@ -57,13 +58,22 @@ function Index() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const refreshIdRef = useRef(0);
+  const dashboardAllowed = Boolean(user) && canAccess("dashboard");
+  const firstAllowedPath = SCREENS.find(({ key }) => canAccess(key))?.path;
 
   useEffect(() => {
-    if (!loading && !user) nav({ to: "/auth", replace: true });
-  }, [loading, user, nav]);
+    if (loading) return;
+    if (!user) {
+      nav({ to: "/auth", replace: true });
+      return;
+    }
+    if (!canAccess("dashboard") && firstAllowedPath && firstAllowedPath !== "/") {
+      nav({ to: firstAllowedPath, replace: true });
+    }
+  }, [loading, user, nav, canAccess, firstAllowedPath]);
 
   useScreenEntryEffect("/", () => {
-    if (!user) return;
+    if (!user || !dashboardAllowed) return;
     setTab("ongoing");
     setSearch("");
     setDeptFilter("all");
@@ -107,7 +117,7 @@ function Index() {
     return () => {
       refreshIdRef.current += 1;
     };
-  }, Boolean(user));
+  }, dashboardAllowed);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;
@@ -117,6 +127,14 @@ function Index() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Redirecting to sign in…
+      </div>
+    );
+  }
+
+  if (!dashboardAllowed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        {firstAllowedPath && firstAllowedPath !== "/" ? "Loading…" : "You do not have access to any screens. Please contact your administrator."}
       </div>
     );
   }
