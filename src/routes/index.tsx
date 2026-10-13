@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
+import { SCREENS } from "@/lib/screens";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { STATUS_LABEL, STATUS_TONE, type NfaRow, type NfaStatus, type ApproverRow } from "@/lib/nfa-types";
@@ -116,7 +117,7 @@ function Index() {
     return () => {
       refreshIdRef.current += 1;
     };
-  }, Boolean(user));
+  }, dashboardAllowed);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading…</div>;
@@ -126,6 +127,14 @@ function Index() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Redirecting to sign in…
+      </div>
+    );
+  }
+
+  if (!dashboardAllowed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        {firstAllowedPath && firstAllowedPath !== "/" ? "Loading…" : "You do not have access to any screens. Please contact your administrator."}
       </div>
     );
   }
