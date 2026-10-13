@@ -11,7 +11,11 @@ export function classifyPreviewResponse(raw: string): PreviewResponse {
   for (let depth = 0; depth < 6; depth += 1) {
     if (typeof value === "string") {
       const text = value.trim();
-      if (text === "X") return { source: "web" };
+      // SAP may pad the marker with spaces, sometimes HTML-encoded (X&#x20;).
+      const marker = text
+        .replace(/&#x0*20;|&#0*32;|&nbsp;|&#x0*a0;|&#0*160;/gi, " ")
+        .replace(/[\s\u00a0]+/g, "");
+      if (marker === "X") return { source: "web" };
       try {
         value = JSON.parse(text);
         continue;
