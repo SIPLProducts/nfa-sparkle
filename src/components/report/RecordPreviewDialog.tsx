@@ -30,6 +30,10 @@ export function RecordPreviewDialog({
   const descriptionRef = useRef<HTMLDivElement | null>(null);
   const [descriptionForm, setDescriptionForm] = useState<EnfaDocumentProps | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  // Parent screens re-create the row object on re-render; keep it out of the
+  // effect dependencies so an in-flight web Print Form load is not aborted.
+  const rowRef = useRef(row);
+  rowRef.current = row;
 
   // Fetch the printable document from SAP for the selected record.
   useEffect(() => {
@@ -91,7 +95,7 @@ export function RecordPreviewDialog({
         if (e instanceof EnfaWebPreviewSelected) {
           try {
             const screen = endpoint === "report" ? "report" : detailEndpoint === "report" ? "approvals" : "nfa_my";
-            const detail = await loadWebPreviewForm(enfa, screen, { ...row }, controller.signal);
+            const detail = await loadWebPreviewForm(enfa, screen, { ...(rowRef.current ?? {}) }, controller.signal);
             if (cancelled) return;
             setDescriptionForm(detail);
           } catch (detailError) {
@@ -110,7 +114,7 @@ export function RecordPreviewDialog({
       if (url) URL.revokeObjectURL(url);
       void pdfDocument?.destroy();
     };
-  }, [open, enfa, endpoint, detailEndpoint, row]);
+  }, [open, enfa, endpoint, detailEndpoint]);
 
   async function downloadDescription() {
     if (!descriptionRef.current || downloadBusy) return;
