@@ -153,7 +153,7 @@ export function RecordPreviewDialog({
         <div id="enfa-preview" className="space-y-5">
           {pdfLoading ? (
             <div className="flex items-center gap-2 rounded-lg border border-border p-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Fetching the document from SAP…
+              <Loader2 className="h-4 w-4 animate-spin" /> Fetching the document…
             </div>
           ) : null}
 
