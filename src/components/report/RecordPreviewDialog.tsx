@@ -161,7 +161,7 @@ export function RecordPreviewDialog({
           />
 
           {!pdfLoading && descriptionForm ? (
-            <div ref={descriptionRef} className="enfa-print-area max-h-[70vh] overflow-y-auto">
+            <div ref={descriptionRef} className="enfa-print-area">
               <EnfaDocument {...descriptionForm} />
             </div>
           ) : null}
