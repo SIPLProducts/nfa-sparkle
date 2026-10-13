@@ -7,6 +7,7 @@ import { EnfaWebPreviewSelected, fetchEnfaPreviewPdf } from "@/lib/enfa-preview-
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { loadWebPreviewForm } from "@/lib/web-preview-form";
 import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
+import { usePrintFormLogo } from "@/hooks/use-print-form-logo";
 import { createPrintFormPdf, downloadPrintFormPdf } from "@/lib/print-form-pdf";
 
 export function RecordPreviewDialog({
@@ -30,6 +31,7 @@ export function RecordPreviewDialog({
   const descriptionRef = useRef<HTMLDivElement | null>(null);
   const [descriptionForm, setDescriptionForm] = useState<EnfaDocumentProps | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const { logoSrc, logoLoading } = usePrintFormLogo(descriptionForm?.companyCode, open && !!descriptionForm);
   // Parent screens re-create the row object on re-render; keep it out of the
   // effect dependencies so an in-flight web Print Form load is not aborted.
   const rowRef = useRef(row);
@@ -142,7 +144,7 @@ export function RecordPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+      <DialogContent className={`max-h-[92vh] overflow-y-auto ${descriptionForm ? "max-w-4xl" : "max-w-3xl"}`}>
         <DialogHeader>
           <DialogTitle className="font-display text-base">Preview · {enfa || "—"}</DialogTitle>
           <DialogDescription className="sr-only">Preview the selected eNFA SAP document.</DialogDescription>
@@ -161,8 +163,8 @@ export function RecordPreviewDialog({
           />
 
           {!pdfLoading && descriptionForm ? (
-            <div ref={descriptionRef} className="enfa-print-area">
-              <EnfaDocument {...descriptionForm} />
+            <div ref={descriptionRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-print-paper p-2">
+              <EnfaDocument {...descriptionForm} logoSrc={logoSrc} />
             </div>
           ) : null}
 
@@ -180,7 +182,7 @@ export function RecordPreviewDialog({
 
         <DialogFooter>
           {descriptionForm && !pdfLoading ? (
-            <Button variant="outline" className="gap-1.5" disabled={downloadBusy} onClick={() => void downloadDescription()}>
+            <Button variant="outline" className="gap-1.5" disabled={downloadBusy || logoLoading} onClick={() => void downloadDescription()}>
               {downloadBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download
             </Button>
           ) : null}
@@ -207,7 +209,7 @@ export function RecordPreviewDialog({
             </Button>
             </>
           ) : null}
-          <Button variant="outline" className="gap-1.5" onClick={printPdf}>
+          <Button variant="outline" className="gap-1.5" onClick={printPdf} disabled={!!descriptionForm && logoLoading}>
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
           <Button onClick={() => onOpenChange(false)}>Close</Button>

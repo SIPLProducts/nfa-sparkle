@@ -24,7 +24,7 @@
 - Approver Print Forms authorize through the Approvals screen permission, then merge current SAP responses with the complete server-read saved NFA and ordered approval levels, using saved values only when SAP omits them.
 - Optional Print Form SAP refreshes must never block saved-detail rendering or expose raw gateway error pages.
 - Approval Print Form comments are merged by approval level from SAP and the complete permission-checked saved chain, then shared by preview and workflow PDFs.
-- Preview uses an explicit response classifier and a Preview-only request mode; the web branch reuses permission-checked saved Print Form preparation so unrelated print calls and workflow PDFs remain unchanged.
+- Preview uses an explicit response classifier and Preview-only request mode; X Preview and Approvals display share complete read-only Print Form preparation and optional logo loading, preventing sparse SAP details from dropping sections while leaving workflow PDFs unchanged.
 - Application-generated Print Forms share an overall-status watermark helper across display, printing, and PDF export; PDF staging suppresses the display overlay to preserve one existing watermark per page.
 - SAP attachment response parsing lives in a pure shared helper so SAP field compatibility can be regression-tested without loading authenticated server routes.
 - Attachment-read Swal notifications target the active dialog through the shared notification helper so modal focus and pointer handling remain intact; other notification callers retain their default behavior.
