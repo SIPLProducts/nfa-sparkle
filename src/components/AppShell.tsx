@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: string; screen: ScreenKey }[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, section: "Workspace", screen: "dashboard" },
   { to: "/nfa/new", label: "Create NFA", icon: PlusCircle, section: "Workspace", screen: "nfa_new" },
-  { to: "/nfa/my", label: "My NFAs", icon: FileText, section: "Workspace", screen: "nfa_my" },
+  { to: "/nfa/my", label: "Edit NFA", icon: FileText, section: "Workspace", screen: "nfa_my" },
   { to: "/approvals", label: "Approvals", icon: Inbox, section: "Workspace", screen: "approvals" },
   { to: "/report", label: "E-NFA Report", icon: BarChart3, section: "Insights", screen: "report" },
 ];
