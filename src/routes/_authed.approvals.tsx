@@ -464,17 +464,17 @@ function ApprovalsInbox() {
                 <Paperclip className="h-3.5 w-3.5" /> Attached Docs
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="h-9 gap-1.5 border border-transparent bg-action-approve text-action-approve-foreground shadow-sm hover:bg-action-approve/90 disabled:border-action-approve/30 disabled:bg-action-approve/12 disabled:text-action-approve disabled:opacity-100" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
+            <div className="flex flex-wrap gap-2 [&_button:disabled]:border-border [&_button:disabled]:bg-muted [&_button:disabled]:text-muted-foreground [&_button:disabled]:opacity-100">
+              <Button size="sm" className="h-9 gap-1.5 bg-success text-success-foreground shadow-sm hover:bg-success/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Approve
               </Button>
-              <Button size="sm" className="h-9 gap-1.5 border border-transparent bg-action-reject text-action-reject-foreground shadow-sm hover:bg-action-reject/90 disabled:border-action-reject/30 disabled:bg-action-reject/12 disabled:text-action-reject disabled:opacity-100" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
+              <Button size="sm" variant="destructive" className="h-9 gap-1.5 shadow-sm" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
                 <X className="h-3.5 w-3.5" /> {rejectLabel}
               </Button>
-              <Button size="sm" className="h-9 gap-1.5 border border-transparent bg-action-return text-action-return-foreground shadow-sm hover:bg-action-return/90 disabled:border-action-return/30 disabled:bg-action-return/12 disabled:text-action-return disabled:opacity-100" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-accent bg-accent text-accent-foreground shadow-sm hover:bg-accent/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
                 <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
               </Button>
-              <Button size="sm" className="h-9 gap-1.5 border border-transparent bg-action-clarify text-action-clarify-foreground shadow-sm hover:bg-action-clarify/90 disabled:border-action-clarify/30 disabled:bg-action-clarify/12 disabled:text-action-clarify disabled:opacity-100" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
                 <HelpCircle className="h-3.5 w-3.5" /> Clarification
               </Button>
             </div>
