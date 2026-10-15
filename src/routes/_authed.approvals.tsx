@@ -435,39 +435,52 @@ function ApprovalsInbox() {
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">
-            {filtered.length} item{filtered.length === 1 ? "" : "s"}
-            {selectedEnfaNo ? <span className="ml-2 font-mono text-xs text-accent">{selectedEnfaNo}</span> : null}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-muted/30 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              {filtered.length} pending
+            </span>
+            {selectedEnfaNo ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+                Selected: <span className="font-mono font-semibold">{selectedEnfaNo}</span>
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Select a record to take action</span>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={loading} onClick={() => void load()}>
-              <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
-              <Eye className="h-3.5 w-3.5" /> Preview
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
-              {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
-              <Paperclip className="h-3.5 w-3.5" /> Attached Docs
-            </Button>
-            <Button size="sm" className="gap-1.5 bg-success text-success-foreground hover:bg-success/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-            </Button>
-            <Button size="sm" variant="destructive" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
-              <X className="h-3.5 w-3.5" /> {rejectLabel}
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90 border-accent" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
-              <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border-primary" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
-              <HelpCircle className="h-3.5 w-3.5" /> Clarification
-            </Button>
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={loading} onClick={() => void load()}>
+                <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
+                <Eye className="h-3.5 w-3.5" /> Preview
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
+                {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
+                <Paperclip className="h-3.5 w-3.5" /> Attached Docs
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 [&_button:disabled]:border-border [&_button:disabled]:bg-muted [&_button:disabled]:text-muted-foreground [&_button:disabled]:opacity-100">
+              <Button size="sm" className="h-9 gap-1.5 bg-success text-success-foreground shadow-sm hover:bg-success/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
+                <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="destructive" className="h-9 gap-1.5 shadow-sm" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
+                <X className="h-3.5 w-3.5" /> {rejectLabel}
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-accent bg-accent text-accent-foreground shadow-sm hover:bg-accent/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
+                <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
+                <HelpCircle className="h-3.5 w-3.5" /> Clarification
+              </Button>
+            </div>
           </div>
         </div>
+        <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
 
         {/* Mobile card list */}
         <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto md:hidden">
@@ -493,7 +506,7 @@ function ApprovalsInbox() {
                 key={`${val(r, "REFFLD")}-${i}`}
                 type="button"
                 onClick={() => setSelected(r)}
-                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
+                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "border-accent bg-accent/10 ring-1 ring-accent/30" : "")}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
@@ -540,7 +553,7 @@ function ApprovalsInbox() {
         <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
           <div className="h-full overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground shadow-sm">
+              <thead className="sticky top-0 z-20 border-b border-border bg-muted/80 text-left text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur">
                 <tr>
                   <Th> </Th>
                   <Th>ENFA No</Th>
@@ -575,7 +588,7 @@ function ApprovalsInbox() {
                     <tr
                       key={`${val(r, "REFFLD")}-${i}`}
                       onClick={() => setSelected(r)}
-                      className={"cursor-pointer hover:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
+                      className={"cursor-pointer transition-colors hover:bg-muted/50 " + (selected === r ? "bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]" : "")}
                     >
                       <Td>
                         <input
@@ -587,12 +600,12 @@ function ApprovalsInbox() {
                           aria-label={`Select ${val(r, "REFFLD")}`}
                         />
                       </Td>
-                      <Td><span className="font-mono text-xs font-medium text-accent">{val(r, "REFFLD") || "—"}</span></Td>
+                      <Td><span className="inline-flex rounded-md bg-accent/10 px-2 py-0.5 font-mono text-xs font-semibold text-accent">{val(r, "REFFLD") || "—"}</span></Td>
                       <Td>{val(r, "PSPNR") || "—"}</Td>
                       <Td className="text-muted-foreground">{val(r, "NAME1") || "—"}</Td>
                       <Td>{nfaType(r)}</Td>
                       <Td className="text-muted-foreground">{val(r, "BEGDA") || "—"}</Td>
-                      <Td className="max-w-[280px] truncate">{val(r, "SUBJECT") || "—"}</Td>
+                      <Td className="max-w-[280px] truncate"><span title={val(r, "SUBJECT") || ""}>{val(r, "SUBJECT") || "—"}</span></Td>
                       {hasStatus && (
                         <Td><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(status)}>{status || "—"}</span></Td>
                       )}
@@ -611,6 +624,7 @@ function ApprovalsInbox() {
           </div>
         </div>
       </div>
+    </div>
 
       <RecordAttachmentsDialog
         enfaNumber={selectedEnfaNo || null}
@@ -653,8 +667,8 @@ function ApprovalsInbox() {
 }
 
 function Th({ children }: { children?: React.ReactNode }) {
-  return <th className="px-3 py-2.5 whitespace-nowrap font-medium">{children}</th>;
+  return <th className="px-4 py-3 whitespace-nowrap font-semibold">{children}</th>;
 }
 function Td({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
-  return <td className={"px-3 py-2.5 whitespace-nowrap " + className}>{children}</td>;
+  return <td className={"px-4 py-3.5 whitespace-nowrap " + className}>{children}</td>;
 }
