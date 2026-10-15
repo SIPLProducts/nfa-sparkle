@@ -7,7 +7,12 @@ export const resolveApprovalUserEmails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { userIds: string[] }) => input)
   .handler(async ({ data, context }): Promise<Record<string, string>> => {
-    await assertScreenAccess(context as any, "user_management");
+    try {
+      await assertScreenAccess(context as any, "user_management");
+    } catch {
+      // Initiators see approver emails while selecting approvers on Create NFA.
+      await assertScreenAccess(context as any, "nfa_new");
+    }
     const db = await admin();
     const { data: profiles } = await db.from("profiles").select("username, email, status");
     const wanted = new Map((data.userIds ?? []).filter(Boolean).map((id) => [id.trim().toLowerCase(), id.trim()]));

@@ -53,10 +53,14 @@ export const Route = createFileRoute("/api/public/sap-approval-chain")({
             return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
           }
           const { assertScreenAccess } = await import("@/lib/user-admin.server");
-          await assertScreenAccess(
-            { supabase, userId: String(claimsData.claims.sub) },
-            requiredScreen,
-          );
+          const permissionCtx = { supabase, userId: String(claimsData.claims.sub) };
+          try {
+            await assertScreenAccess(permissionCtx, requiredScreen);
+          } catch (error) {
+            // Chain reads are also needed by initiators selecting approvers on Create NFA.
+            if (isManagementRequest) throw error;
+            await assertScreenAccess(permissionCtx, "nfa_new");
+          }
         } catch {
           return Response.json({ error: `Forbidden: ${requiredScreenLabel} permission required` }, { status: 403 });
         }

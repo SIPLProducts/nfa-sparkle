@@ -19,6 +19,7 @@ import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { ApproverSelector } from "@/components/nfa/ApproverSelector";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   head: () => ({
@@ -745,6 +746,15 @@ function NewNfaPage() {
               </Field>
             </div>
           </Section>
+
+          <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc="Choose which configured approvers should review this NFA. Order follows the Approval Chain.">
+            <ApproverSelector
+              plant={plant}
+              nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
+              functionName={functions.find((f) => f.code === func)?.name ?? func}
+            />
+          </Section>
+
 
           <Section icon={<FileText className="h-4 w-4" />} title="Note Details" desc="Subject, scope and impact assessment.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
