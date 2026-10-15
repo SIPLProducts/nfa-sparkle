@@ -621,8 +621,9 @@ function ApprovalsInbox() {
                 })}
               </tbody>
             </table>
-          </div>
         </div>
+        </div>
+      </div>
       </div>
 
       <RecordAttachmentsDialog
