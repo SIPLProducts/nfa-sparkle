@@ -577,8 +577,8 @@ function NewNfaPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Section icon={<Building2 className="h-4 w-4" />} title="Organisation & Type" desc="Master data is sourced from SAP.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
@@ -756,8 +756,8 @@ function NewNfaPage() {
           </Section>
         </div>
 
-        <div className="lg:col-span-1">
-         <div className="space-y-4">
+        <div className="lg:col-span-1 lg:self-start lg:sticky lg:top-4">
+          <div className="space-y-6">
 
           <Section icon={<Paperclip className="h-4 w-4" />} title="Document Attachments" desc="Upload supporting documents — quotes, drawings, BOMs, photos.">
             <div className="space-y-3">
