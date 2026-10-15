@@ -66,6 +66,17 @@ export function ApprovalChainTab() {
   const [notice, setNotice] = useState("");
   const [emailMap, setEmailMap] = useState<Record<string, string>>({});
 
+  const resolveEmails = useCallback(async (userIds: string[]) => {
+    const ids = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)));
+    if (!ids.length) return;
+    try {
+      const resolved = await resolveApprovalUserEmails({ data: { userIds: ids } });
+      setEmailMap((current) => ({ ...current, ...resolved }));
+    } catch {
+      // Email lookup is informational only; leave the column blank on failure.
+    }
+  }, []);
+
   const load = useCallback(async (approverValue: string) => {
     setLoading(true);
     setError("");
@@ -74,6 +85,7 @@ export function ApprovalChainTab() {
       const parsed = await approvalChainRequest({ approver: approverValue });
       const list = parseApprovalChains(parsed);
       setChains(list);
+      void resolveEmails(list.flatMap((chain) => chain.levels.map((level) => level.userId)));
       if (!list.length) {
         const record = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
         setNotice(String(record?.["message"] ?? record?.["MESSAGE"] ?? "No approval chains returned by SAP."));
@@ -84,20 +96,40 @@ export function ApprovalChainTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [resolveEmails]);
 
   useEffect(() => {
     void load("");
   }, [load]);
 
+  // Resolve emails for User IDs typed in the editor that are not known yet.
+  useEffect(() => {
+    if (!draft) return;
+    const missing = draft.levels
+      .map((level) => level.userId.trim())
+      .filter((id) => id && !(id in emailMap));
+    if (!missing.length) return;
+    const timer = setTimeout(() => void resolveEmails(missing), 400);
+    return () => clearTimeout(timer);
+  }, [draft, emailMap, resolveEmails]);
+
+  const emailFor = useCallback(
+    (userId: string) => emailMap[userId.trim()] ?? emailMap[userId.trim().toUpperCase()] ?? "",
+    [emailMap],
+  );
+
   const filtered = useMemo(() => {
     const term = approver.trim().toLowerCase();
     if (!term) return chains;
     return chains.filter((chain) =>
-      [chain.pspnr, chain.funct, chain.extraTxt, ...chain.levels.flatMap((level) => [level.designation, level.userId])]
-        .some((value) => value.toLowerCase().includes(term)),
+      [
+        chain.pspnr,
+        chain.funct,
+        chain.extraTxt,
+        ...chain.levels.flatMap((level) => [level.designation, level.userId, emailFor(level.userId)]),
+      ].some((value) => value.toLowerCase().includes(term)),
     );
-  }, [approver, chains]);
+  }, [approver, chains, emailFor]);
 
   const save = async () => {
     if (!draft) return;
