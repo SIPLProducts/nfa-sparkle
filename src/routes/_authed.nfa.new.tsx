@@ -563,24 +563,24 @@ function NewNfaPage() {
   }
 
   return (
-    <div className="min-w-0">
+    <div>
       <PageHeader
         eyebrow="Workspace"
         title="Create Note For Approval"
         subtitle="Provide context, scope and impact — then route to the appropriate approver chain."
         actions={
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:gap-2">
-            <Button size="sm" className="h-10 gap-2 px-5 font-semibold shadow-sm" onClick={() => submit(false)} disabled={busy}>
+            <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit
             </Button>
           </div>
         }
       />
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-8">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
           <Section icon={<Building2 className="h-4 w-4" />} title="Organisation & Type" desc="Master data is sourced from SAP.">
-            <div className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
                 <Select value={company} onValueChange={setCompany} disabled={companiesLoading || companies.length === 0}>
                   <SelectTrigger>
@@ -714,7 +714,7 @@ function NewNfaPage() {
 
 
           <Section icon={<FileText className="h-4 w-4" />} title="Note Details" desc="Subject, scope and impact assessment.">
-            <div className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Subject" required className="md:col-span-2">
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Concise one-line subject" />
               </Field>
@@ -732,22 +732,21 @@ function NewNfaPage() {
                 <RichTextEditor
                   value={desc}
                   onChange={setDesc}
-                  className="bg-card [&>div:first-child]:bg-muted/40 [&>div:first-child]:p-2 [&_.rich-content]:px-4 [&_.rich-content]:py-3"
-                  minHeight="280px"
+                  minHeight="240px"
                 />
-                <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
+                <div className="mt-1.5 flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm" className="h-9 gap-2 px-3 text-xs text-primary">
+                      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs">
                         <Maximize2 className="h-3.5 w-3.5" /> Expand editor
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="flex max-h-[90dvh] max-w-3xl flex-col gap-4 overflow-hidden">
+                    <DialogContent className="max-w-3xl">
                       <DialogHeader>
                         <DialogTitle className="font-display">Detailed Description</DialogTitle>
                         <DialogDescription className="sr-only">Edit the rich-text Detailed Description in an expanded view.</DialogDescription>
                       </DialogHeader>
-                      <div className="min-h-0 flex-1 overflow-y-auto"><RichTextEditor value={desc} onChange={setDesc} minHeight="420px" className="bg-card [&>div:first-child]:p-2" /></div>
+                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" />
                       <DialogFooter><Button>Done</Button></DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -757,13 +756,13 @@ function NewNfaPage() {
           </Section>
         </div>
 
-        <div className="min-w-0">
-         <div className="min-w-0 space-y-8">
+        <div className="lg:col-span-1">
+         <div className="space-y-4">
 
           <Section icon={<Paperclip className="h-4 w-4" />} title="Document Attachments" desc="Upload supporting documents — quotes, drawings, BOMs, photos.">
             <div className="space-y-3">
-              <label className={"flex min-h-40 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-primary/30 bg-primary/5 px-4 py-7 text-center text-sm text-muted-foreground transition-colors " + (busy ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/50 hover:border-primary/40")}>
-                <span className="grid h-10 w-10 place-items-center rounded-md bg-card text-primary"><Upload className="h-5 w-5" /></span>
+              <label className={"flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 text-center text-xs text-muted-foreground transition " + (busy ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/50 hover:border-primary/40")}>
+                <Upload className="h-5 w-5 text-muted-foreground" />
                 <div className="font-medium text-foreground">Click to upload or drop files</div>
                 <div className="text-[11px]">PDF, images, Office docs · up to 20 MB each</div>
                 <input
@@ -775,18 +774,18 @@ function NewNfaPage() {
                 />
               </label>
               {pending.length === 0 ? (
-                <p className="text-xs leading-relaxed text-muted-foreground">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
                   No files staged. Attachments upload when you Submit, and appear in the audit trail.
                 </p>
               ) : (
-                <ul className="divide-y divide-border">
+                <ul className="divide-y divide-border rounded-md border border-border">
                   {pending.map((f, i) => (
-                    <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 text-sm">
+                    <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-foreground">{f.name}</div>
                         <div className="text-[11px] text-muted-foreground">{f.type || "file"} · {(f.size / 1024).toFixed(1)} KB</div>
                       </div>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${f.name}`} onClick={() => removeFile(i)} disabled={busy}>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => removeFile(i)} disabled={busy}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </li>
@@ -813,9 +812,9 @@ function NewNfaPage() {
 
 function Field({ label, required, children, className }: { label: string; required?: boolean; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`min-w-0 [&_input]:h-11 [&_input]:bg-card [&_input]:shadow-none [&_[data-slot=select-trigger]]:h-11 [&_[data-slot=select-trigger]]:w-full [&_[data-slot=select-trigger]]:min-w-0 [&_[data-slot=select-trigger]]:bg-card [&_[data-slot=select-trigger]]:shadow-none [&_[data-slot=select-value]]:truncate ${className ?? ""}`}>
-      <Label className="mb-2 block text-sm font-medium text-foreground">
-        {label}{required && <span className="ml-1 text-destructive">*</span>}
+    <div className={className}>
+      <Label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}{required && <span className="ml-1 text-rose-500">*</span>}
       </Label>
       {children}
     </div>
@@ -824,15 +823,15 @@ function Field({ label, required, children, className }: { label: string; requir
 
 function Section({ icon, title, desc, children }: { icon: React.ReactNode; title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <section className="min-w-0">
-      <header className="mb-5 flex min-w-0 items-start gap-3 border-b border-border pb-4">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">{icon}</div>
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <header className="flex items-start gap-3 border-b border-border bg-muted/40 px-5 py-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-primary">{icon}</div>
         <div className="min-w-0">
-          <h2 className="font-display text-base font-bold leading-tight tracking-normal">{title}</h2>
-          {desc && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{desc}</p>}
+          <h2 className="font-display text-sm font-bold leading-tight">{title}</h2>
+          {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
         </div>
       </header>
-      <div className="min-w-0">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
