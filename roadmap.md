@@ -90,4 +90,4 @@
 
 - [x] Match X Preview to the complete existing Print Form using shared read-only data preparation, logo, and layout. Verified 62 focused tests and signed-in controlled identical content/width, seven levels, rich description, comments/history, logo, scrolling, Print, two-page PDF with one watermark per page, SAP PDF rendering, and invalid-response isolation. Current signed-in live SAP worklist returns no records; live company-record verification remains blocked as noted above.
 
-- [ ] Refresh Create NFA presentation only; verify field layout, editor, attachments, approver selection, and smaller-screen overflow.
+- [x] Refresh Create NFA presentation only; verified signed-in editor expansion and shared content, attachment addition/removal, controlled SAP dropdowns and approver deselection, and 1440/989/390 layouts without page overflow or runtime errors. Preview build OK; no NFA submitted and workflow logic unchanged.
