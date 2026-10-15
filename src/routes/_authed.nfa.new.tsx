@@ -747,14 +747,6 @@ function NewNfaPage() {
             </div>
           </Section>
 
-          <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc="Choose which configured approvers should review this NFA. Order follows the Approval Chain.">
-            <ApproverSelector
-              plant={plant}
-              nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
-              functionName={functions.find((f) => f.code === func)?.name ?? func}
-            />
-          </Section>
-
 
           <Section icon={<FileText className="h-4 w-4" />} title="Note Details" desc="Subject, scope and impact assessment.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -836,6 +828,14 @@ function NewNfaPage() {
                 </ul>
               )}
             </div>
+          </Section>
+
+          <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc="Choose which configured approvers should review this NFA. Order follows the Approval Chain.">
+            <ApproverSelector
+              plant={plant}
+              nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
+              functionName={functions.find((f) => f.code === func)?.name ?? func}
+            />
           </Section>
          </div>
         </div>
