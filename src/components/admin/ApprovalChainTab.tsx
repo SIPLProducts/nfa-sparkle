@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { parseApprovalChains, type SapApprovalChain } from "@/lib/sap/master";
+import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import {
   approvalChainResponseMessage,
   buildApprovalChainPayload,
@@ -63,6 +64,18 @@ export function ApprovalChainTab() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [emailMap, setEmailMap] = useState<Record<string, string>>({});
+
+  const resolveEmails = useCallback(async (userIds: string[]) => {
+    const ids = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)));
+    if (!ids.length) return;
+    try {
+      const resolved = await resolveApprovalUserEmails({ data: { userIds: ids } });
+      setEmailMap((current) => ({ ...current, ...resolved }));
+    } catch {
+      // Email lookup is informational only; leave the column blank on failure.
+    }
+  }, []);
 
   const load = useCallback(async (approverValue: string) => {
     setLoading(true);
@@ -72,6 +85,7 @@ export function ApprovalChainTab() {
       const parsed = await approvalChainRequest({ approver: approverValue });
       const list = parseApprovalChains(parsed);
       setChains(list);
+      void resolveEmails(list.flatMap((chain) => chain.levels.map((level) => level.userId)));
       if (!list.length) {
         const record = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
         setNotice(String(record?.["message"] ?? record?.["MESSAGE"] ?? "No approval chains returned by SAP."));
@@ -82,20 +96,40 @@ export function ApprovalChainTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [resolveEmails]);
 
   useEffect(() => {
     void load("");
   }, [load]);
 
+  // Resolve emails for User IDs typed in the editor that are not known yet.
+  useEffect(() => {
+    if (!draft) return;
+    const missing = draft.levels
+      .map((level) => level.userId.trim())
+      .filter((id) => id && !(id in emailMap));
+    if (!missing.length) return;
+    const timer = setTimeout(() => void resolveEmails(missing), 400);
+    return () => clearTimeout(timer);
+  }, [draft, emailMap, resolveEmails]);
+
+  const emailFor = useCallback(
+    (userId: string) => emailMap[userId.trim()] ?? emailMap[userId.trim().toUpperCase()] ?? "",
+    [emailMap],
+  );
+
   const filtered = useMemo(() => {
     const term = approver.trim().toLowerCase();
     if (!term) return chains;
     return chains.filter((chain) =>
-      [chain.pspnr, chain.funct, chain.extraTxt, ...chain.levels.flatMap((level) => [level.designation, level.userId])]
-        .some((value) => value.toLowerCase().includes(term)),
+      [
+        chain.pspnr,
+        chain.funct,
+        chain.extraTxt,
+        ...chain.levels.flatMap((level) => [level.designation, level.userId, emailFor(level.userId)]),
+      ].some((value) => value.toLowerCase().includes(term)),
     );
-  }, [approver, chains]);
+  }, [approver, chains, emailFor]);
 
   const save = async () => {
     if (!draft) return;
@@ -204,7 +238,10 @@ export function ApprovalChainTab() {
                 <div key={index} className="grid gap-3 p-4 sm:grid-cols-[64px_1fr_1fr_auto] sm:items-end">
                   <div className="pb-2 text-sm font-semibold">L{index + 1}</div>
                   <Field label="Designation *" value={level.designation} onChange={(value) => updateLevel(index, "designation", value)} />
-                  <Field label="User ID *" value={level.userId} onChange={(value) => updateLevel(index, "userId", value)} />
+                  <div className="space-y-1.5">
+                    <Field label="User ID *" value={level.userId} onChange={(value) => updateLevel(index, "userId", value)} />
+                    <p className="text-xs text-muted-foreground">Email ID: {emailFor(level.userId) || "—"}</p>
+                  </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" aria-label={`Move level ${index + 1} up`} title="Move up" disabled={index === 0 || saving} onClick={() => moveLevel(index, -1)}>
                       <ArrowUp className="h-4 w-4" />
@@ -297,11 +334,11 @@ export function ApprovalChainTab() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                      <tr><th className="px-4 py-2.5 font-medium">Level</th><th className="px-4 py-2.5 font-medium">Designation</th><th className="px-4 py-2.5 font-medium">User ID</th></tr>
+                      <tr><th className="px-4 py-2.5 font-medium">Level</th><th className="px-4 py-2.5 font-medium">Designation</th><th className="px-4 py-2.5 font-medium">User ID</th><th className="px-4 py-2.5 font-medium">Email ID</th></tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {chain.levels.map((level) => (
-                        <tr key={level.level}><td className="px-4 py-2.5 font-medium">L{level.level}</td><td className="px-4 py-2.5">{level.designation || "—"}</td><td className="px-4 py-2.5 font-mono text-xs">{level.userId || "—"}</td></tr>
+                        <tr key={level.level}><td className="px-4 py-2.5 font-medium">L{level.level}</td><td className="px-4 py-2.5">{level.designation || "—"}</td><td className="px-4 py-2.5 font-mono text-xs">{level.userId || "—"}</td><td className="px-4 py-2.5 text-xs">{emailFor(level.userId) || "—"}</td></tr>
                       ))}
                     </tbody>
                   </table>
