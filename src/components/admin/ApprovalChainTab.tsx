@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { parseApprovalChains, type SapApprovalChain } from "@/lib/sap/master";
+import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import {
   approvalChainResponseMessage,
   buildApprovalChainPayload,
@@ -63,6 +64,7 @@ export function ApprovalChainTab() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [emailMap, setEmailMap] = useState<Record<string, string>>({});
 
   const load = useCallback(async (approverValue: string) => {
     setLoading(true);
