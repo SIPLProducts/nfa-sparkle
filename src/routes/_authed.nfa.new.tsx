@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
-import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
+import { Send, FileText, Building2, Paperclip, Upload, X, Maximize2 } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
@@ -290,33 +290,6 @@ function NewNfaPage() {
     })();
     return () => { cancelled = true; };
   }, [nfaType, functionReload]);
-
-  function loadSample() {
-    // Company must always come from the live SAP F4 list — never a hardcoded code.
-    if (companies.length) setCompany(companies[0]!.code);
-    if (nfaTypes.length) setNfaType(nfaTypes[0]!.code);
-    if (functions.length) setFunc(functions[0]!.code);
-    setSubject("Procurement of 250 KVA DG Set for Varthur Phase 2");
-    setScope("Civil, Electrical and Project Operations at Varthur site");
-    setBudget("42.5");
-    setTimeline("60");
-    setDesc(
-      "<p><strong>Background:</strong> Existing 160 KVA DG set is undersized for Phase 2 load (estimated 210 KVA continuous).</p>" +
-        "<p><strong>Proposal:</strong> Procure a new 250 KVA Cummins DG set with AMF panel, acoustic enclosure and 990L fuel tank.</p>" +
-        "<p><strong>Alternatives considered:</strong></p>" +
-        "<ol><li>Hire on monthly rental — higher 3-year TCO (~1.6x).</li><li>Upgrade existing set — OEM has declared end-of-life.</li></ol>" +
-        "<p><strong>Recommendation:</strong> Approve CAPEX of INR 42.5 Lakhs; vendor finalisation via 3-bid process; delivery &amp; commissioning within 60 days.</p>",
-    );
-    // Use the signed-in user for every level so the sample is end-to-end actionable
-    // without provisioning additional approver accounts. Replace with real approvers later.
-    const selfEmail = user?.email ?? "demo@nfa.local";
-    setApprovers([
-      { level: 1, email: selfEmail, designation: "Projects Lead" },
-      { level: 2, email: selfEmail, designation: "Head — Finance" },
-      { level: 3, email: selfEmail, designation: "Chief Financial Officer" },
-    ]);
-    toast.success("Sample NFA loaded — review and submit");
-  }
 
 
   function addFiles(list: FileList | null) {
@@ -596,10 +569,7 @@ function NewNfaPage() {
         title="Create Note For Approval"
         subtitle="Provide context, scope and impact — then route to the appropriate approver chain."
         actions={
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-2">
-            <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
-              <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
-            </Button>
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:gap-2">
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit
             </Button>
