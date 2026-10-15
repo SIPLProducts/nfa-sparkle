@@ -238,7 +238,10 @@ export function ApprovalChainTab() {
                 <div key={index} className="grid gap-3 p-4 sm:grid-cols-[64px_1fr_1fr_auto] sm:items-end">
                   <div className="pb-2 text-sm font-semibold">L{index + 1}</div>
                   <Field label="Designation *" value={level.designation} onChange={(value) => updateLevel(index, "designation", value)} />
-                  <Field label="User ID *" value={level.userId} onChange={(value) => updateLevel(index, "userId", value)} />
+                  <div className="space-y-1.5">
+                    <Field label="User ID *" value={level.userId} onChange={(value) => updateLevel(index, "userId", value)} />
+                    <p className="text-xs text-muted-foreground">Email ID: {emailFor(level.userId) || "—"}</p>
+                  </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" aria-label={`Move level ${index + 1} up`} title="Move up" disabled={index === 0 || saving} onClick={() => moveLevel(index, -1)}>
                       <ArrowUp className="h-4 w-4" />
@@ -331,11 +334,11 @@ export function ApprovalChainTab() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b border-border bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                      <tr><th className="px-4 py-2.5 font-medium">Level</th><th className="px-4 py-2.5 font-medium">Designation</th><th className="px-4 py-2.5 font-medium">User ID</th></tr>
+                      <tr><th className="px-4 py-2.5 font-medium">Level</th><th className="px-4 py-2.5 font-medium">Designation</th><th className="px-4 py-2.5 font-medium">User ID</th><th className="px-4 py-2.5 font-medium">Email ID</th></tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {chain.levels.map((level) => (
-                        <tr key={level.level}><td className="px-4 py-2.5 font-medium">L{level.level}</td><td className="px-4 py-2.5">{level.designation || "—"}</td><td className="px-4 py-2.5 font-mono text-xs">{level.userId || "—"}</td></tr>
+                        <tr key={level.level}><td className="px-4 py-2.5 font-medium">L{level.level}</td><td className="px-4 py-2.5">{level.designation || "—"}</td><td className="px-4 py-2.5 font-mono text-xs">{level.userId || "—"}</td><td className="px-4 py-2.5 text-xs">{emailFor(level.userId) || "—"}</td></tr>
                       ))}
                     </tbody>
                   </table>
