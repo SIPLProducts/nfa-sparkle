@@ -435,39 +435,52 @@ function ApprovalsInbox() {
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">
-            {filtered.length} item{filtered.length === 1 ? "" : "s"}
-            {selectedEnfaNo ? <span className="ml-2 font-mono text-xs text-accent">{selectedEnfaNo}</span> : null}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-muted/30 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              {filtered.length} pending
+            </span>
+            {selectedEnfaNo ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+                Selected: <span className="font-mono font-semibold">{selectedEnfaNo}</span>
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Select a record to take action</span>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={loading} onClick={() => void load()}>
-              <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
-              <Eye className="h-3.5 w-3.5" /> Preview
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
-              {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
-              <Paperclip className="h-3.5 w-3.5" /> Attached Docs
-            </Button>
-            <Button size="sm" className="gap-1.5 bg-success text-success-foreground hover:bg-success/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-            </Button>
-            <Button size="sm" variant="destructive" className="gap-1.5" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
-              <X className="h-3.5 w-3.5" /> {rejectLabel}
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90 border-accent" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
-              <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border-primary" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
-              <HelpCircle className="h-3.5 w-3.5" /> Clarification
-            </Button>
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={loading} onClick={() => void load()}>
+                <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
+                <Eye className="h-3.5 w-3.5" /> Preview
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
+                {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
+                <Paperclip className="h-3.5 w-3.5" /> Attached Docs
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 [&_button:disabled]:border-border [&_button:disabled]:bg-muted [&_button:disabled]:text-muted-foreground [&_button:disabled]:opacity-100">
+              <Button size="sm" className="h-9 gap-1.5 bg-success text-success-foreground shadow-sm hover:bg-success/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("approve")}>
+                <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="destructive" className="h-9 gap-1.5 shadow-sm" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("reject")}>
+                <X className="h-3.5 w-3.5" /> {rejectLabel}
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-accent bg-accent text-accent-foreground shadow-sm hover:bg-accent/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("back_to_initiator")}>
+                <RotateCcw className="h-3.5 w-3.5" /> Back To Initiator
+              </Button>
+              <Button size="sm" variant="outline" className="h-9 gap-1.5 border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setCommentAction("clarification")}>
+                <HelpCircle className="h-3.5 w-3.5" /> Clarification
+              </Button>
+            </div>
           </div>
         </div>
+        <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
 
         {/* Mobile card list */}
         <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto md:hidden">
