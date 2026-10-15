@@ -25,6 +25,14 @@
   --color-brand-green: var(--brand-green);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-action-approve: var(--action-approve);
+  --color-action-approve-foreground: var(--action-approve-foreground);
+  --color-action-reject: var(--action-reject);
+  --color-action-reject-foreground: var(--action-reject-foreground);
+  --color-action-return: var(--action-return);
+  --color-action-return-foreground: var(--action-return-foreground);
+  --color-action-clarify: var(--action-clarify);
+  --color-action-clarify-foreground: var(--action-clarify-foreground);
   --color-brand-surface: var(--brand-surface);
   --color-brand-gold: var(--brand-gold);
   --color-background: var(--background);
@@ -98,6 +106,16 @@
   --ring: var(--brand-blue);
   --success: var(--brand-green);
   --success-foreground: oklch(0.99 0 0);
+
+  /* Decision actions: one hue each, readable with a light label (all ≥ 5:1). */
+  --action-approve: oklch(0.52 0.14 152);
+  --action-approve-foreground: oklch(0.99 0 0);
+  --action-reject: oklch(0.52 0.19 27);
+  --action-reject-foreground: oklch(0.99 0 0);
+  --action-return: oklch(0.55 0.13 55);
+  --action-return-foreground: oklch(0.99 0 0);
+  --action-clarify: oklch(0.5 0.16 285);
+  --action-clarify-foreground: oklch(0.99 0 0);
   --chart-1: var(--brand-blue);
   --chart-2: var(--brand-blue-light);
   --chart-3: oklch(0.38 0.10 245);
