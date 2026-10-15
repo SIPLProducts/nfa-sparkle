@@ -1,18 +1,34 @@
-# Redesign the Create NFA screen (look only)
+# Create NFA — Card Placement Cleanup
 
-## What you will see
-- **Header:** a progress strip under the title showing the three steps (Organisation, Note Details, Attachments & Approvers) with a tick as required fields fill in; Submit stays top-right, larger and full-width on phones.
-- **Cards:** softer rounded corners, a numbered badge (1, 2, 3, 4) beside each card title, a thin blue top accent, cleaner white headers and more breathing room inside.
-- **Form fields:** labels in sentence case (not all caps), taller fields with a clear blue focus outline, red asterisk for required fields, helper/retry text aligned under each field.
-- **Upload box:** larger drop area with a round icon, blue highlight when pointing at it; staged files shown as tidy rows with a file icon and size.
-- **Approvers:** table headers lighter, rows highlight on point, selected sequence shown as numbered blue chips.
-- **Right column** stays visible while scrolling on wide screens; on tablets/phones everything stacks into one clean column.
+Improve only the arrangement, spacing and alignment of the cards on the Create NFA screen. No functionality, API calls, payloads or business logic change.
 
-## Not changed
-All fields, dropdown loading, Submit, uploads, approver selection, validation and every SAP call stay exactly as now.
+## Current layout
+
+- Page is a 3-column grid on large screens:
+  - Left (2/3 width): **Organisation & Type**, then **Note Details**
+  - Right (1/3 width): **Document Attachments**, then **Approvers**
+- Cards use the shared `Section` wrapper (icon + title + description header, padded body).
+
+## Planned changes (file: `src/routes/_authed.nfa.new.tsx` only)
+
+1. **Consistent spacing** — use a uniform `gap-6` between the two columns and `space-y-6` between stacked cards, so every card has the same breathing room.
+2. **Aligned card tops** — both columns start at the same vertical position; the right column uses `self-start` so its cards align cleanly with the left column's first card.
+3. **Sticky right column on wide screens** — Document Attachments and Approvers stay visible (`lg:sticky lg:top-4`) while scrolling the long left column; on phones everything stacks in one column as today.
+4. **Balanced grouping order** (workflow order, unchanged content):
+   - Left: Organisation & Type → Note Details
+   - Right: Document Attachments → Approvers (kept below the upload box, as previously requested)
+5. **Card polish (placement-level only)** — keep the existing `Section` card style; only tidy the right column's nested wrapper (remove the extra nested div) so indentation and spacing are clean and consistent.
+6. **Responsive behavior** — single-column stacking on small screens in the same order: Organisation & Type → Note Details → Document Attachments → Approvers → Submit.
+
+## What stays exactly the same
+
+- All fields, dropdowns, the Detailed Description editor, file upload behavior, ApproverSelector logic and its SAP calls.
+- The Submit button and header actions.
+- All SAP integrations, payloads and validation.
+- Every other screen.
 
 ## Technical details
-- Edit only presentation classes in `src/routes/_authed.nfa.new.tsx` (`PageHeader` actions, `Section`, `Field`, upload markup, grid gaps, `lg:sticky` right column) and `src/components/nfa/ApproverSelector.tsx` table/chip styling.
-- Progress strip derives completion from existing state values (read-only); no new state or logic.
-- Use existing theme tokens only; replace hardcoded `rose-*` with `destructive` token.
-- Verify with build and a browser screenshot at desktop and phone widths.
+
+- Single file edited: `src/routes/_authed.nfa.new.tsx` (className/JSX structure only).
+- No new components, no removed components, no state or handler changes.
+- Verify with a build plus a browser check of `/nfa/new` at desktop and mobile widths.
