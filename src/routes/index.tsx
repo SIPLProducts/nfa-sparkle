@@ -250,7 +250,7 @@ function Index() {
           </div>
           <div className="space-y-2">
             <QuickAction to="/nfa/new" icon={<PlusCircle className="h-4 w-4" />} title="Create NFA" desc="Raise a new Note For Approval" />
-            <QuickAction to="/nfa/my" icon={<FileText className="h-4 w-4" />} title="My NFAs" desc="Edit, upload, track status" />
+            <QuickAction to="/nfa/my" icon={<FileText className="h-4 w-4" />} title="Edit NFA" desc="Edit, upload, track status" />
             <QuickAction to="/approvals" icon={<Inbox className="h-4 w-4" />} title="Approvals inbox" desc="Approve · Reject · Send Back" />
             <QuickAction to="/report" icon={<BarChart3 className="h-4 w-4" />} title="E-NFA Report" desc="Filter & export NFAs" />
           </div>

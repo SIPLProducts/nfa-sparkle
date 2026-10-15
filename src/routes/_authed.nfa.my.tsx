@@ -17,9 +17,9 @@ export const Route = createFileRoute("/_authed/nfa/my")({
   component: MyNfas,
   head: () => ({
     meta: [
-      { title: "My NFAs | NFA Portal" },
+      { title: "Edit NFA | NFA Portal" },
       { name: "description", content: "Review, search, and manage NFAs you have initiated." },
-      { property: "og:title", content: "My NFAs | NFA Portal" },
+      { property: "og:title", content: "Edit NFA | NFA Portal" },
       { property: "og:description", content: "Review, search, and manage NFAs you have initiated." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -229,7 +229,7 @@ function MyNfas() {
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         eyebrow="Workspace"
-        title="My NFAs"
+        title="Edit NFA"
         subtitle="NFAs you have initiated — track status across the approver chain."
         actions={
           <>
