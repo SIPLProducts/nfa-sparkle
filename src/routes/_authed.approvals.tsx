@@ -623,7 +623,6 @@ function ApprovalsInbox() {
             </table>
           </div>
         </div>
-        </div>
       </div>
     </div>
 
