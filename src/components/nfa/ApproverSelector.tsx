@@ -71,28 +71,28 @@ export function ApproverSelector({ plant, nfaType, functionName, onChange }: Pro
   if (!levels.length) return <p className="text-sm text-muted-foreground">No approval chain configured.</p>;
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="min-w-0 space-y-5">
+      <div className="max-w-full overflow-x-auto border-y border-border">
+        <table className="w-full min-w-[460px] text-sm">
+          <thead className="bg-muted/60 text-left text-xs font-medium text-muted-foreground">
             <tr>
-              <th className="w-10 px-3 py-2" />
-              <th className="px-3 py-2">Level</th>
-              <th className="px-3 py-2">Designation</th>
-              <th className="px-3 py-2">User ID</th>
-              <th className="px-3 py-2">Email ID</th>
+              <th className="w-10 px-3 py-3" />
+              <th className="px-3 py-3">Level</th>
+              <th className="px-3 py-3">Designation</th>
+              <th className="px-3 py-3">User ID</th>
+              <th className="px-3 py-3">Email ID</th>
             </tr>
           </thead>
           <tbody>
             {levels.map((a, i) => (
-              <tr key={`${a.userId}-${i}`} className="border-t">
-                <td className="px-3 py-2">
+              <tr key={`${a.userId}-${i}`} className={"border-t border-border transition-colors hover:bg-muted/40 " + (checked.has(i) ? "bg-primary/5" : "bg-card")}>
+                <td className="px-3 py-3">
                   <Checkbox checked={checked.has(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
                 </td>
-                <td className="px-3 py-2">{a.level}</td>
-                <td className="px-3 py-2">{a.role || "—"}</td>
-                <td className="px-3 py-2 font-medium">{a.userId}</td>
-                <td className="px-3 py-2 text-muted-foreground">{emails[a.userId] ?? "—"}</td>
+                <td className="px-3 py-3">{a.level}</td>
+                <td className="px-3 py-3">{a.role || "—"}</td>
+                <td className="px-3 py-3 font-medium">{a.userId}</td>
+                <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">{emails[a.userId] ?? "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -100,10 +100,10 @@ export function ApproverSelector({ plant, nfaType, functionName, onChange }: Pro
       </div>
       {selected.length ? (
         <div className="text-sm">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected sequence</p>
-          <ol className="flex flex-wrap gap-2">
+          <p className="mb-3 text-xs font-semibold text-muted-foreground">Selected sequence</p>
+          <ol className="space-y-2 border-l-2 border-primary/20 pl-3">
             {selected.map((a) => (
-              <li key={`${a.userId}-${a.level}`} className="rounded-md border bg-muted/40 px-2 py-1">
+              <li key={`${a.userId}-${a.level}`} className="break-words py-1 text-xs leading-relaxed text-foreground">
                 Level {a.level}: {a.userId}{a.role ? ` (${a.role})` : ""}
               </li>
             ))}

@@ -89,3 +89,5 @@
 - [x] Share the dynamic DRAFT/APPROVED watermark across displayed Print Forms and web Preview PDF downloads without changing SAP PDFs or workflow actions. Verified with 32 focused tests and signed-in controlled pending/completed previews, record switching, browser-print styling, and one correct watermark per downloaded PDF page; live SAP verification remains blocked by unavailable report records above.
 
 - [x] Match X Preview to the complete existing Print Form using shared read-only data preparation, logo, and layout. Verified 62 focused tests and signed-in controlled identical content/width, seven levels, rich description, comments/history, logo, scrolling, Print, two-page PDF with one watermark per page, SAP PDF rendering, and invalid-response isolation. Current signed-in live SAP worklist returns no records; live company-record verification remains blocked as noted above.
+
+- [ ] Refresh Create NFA presentation only; verify field layout, editor, attachments, approver selection, and smaller-screen overflow.
