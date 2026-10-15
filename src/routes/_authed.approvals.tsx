@@ -506,7 +506,7 @@ function ApprovalsInbox() {
                 key={`${val(r, "REFFLD")}-${i}`}
                 type="button"
                 onClick={() => setSelected(r)}
-                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
+                className={"block w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/40 " + (selected === r ? "border-accent bg-accent/10 ring-1 ring-accent/30" : "")}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
@@ -553,7 +553,7 @@ function ApprovalsInbox() {
         <div className="hidden min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm md:block">
           <div className="h-full overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="sticky top-0 z-20 border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground shadow-sm">
+              <thead className="sticky top-0 z-20 border-b border-border bg-muted/80 text-left text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur">
                 <tr>
                   <Th> </Th>
                   <Th>ENFA No</Th>
@@ -588,7 +588,7 @@ function ApprovalsInbox() {
                     <tr
                       key={`${val(r, "REFFLD")}-${i}`}
                       onClick={() => setSelected(r)}
-                      className={"cursor-pointer hover:bg-muted/40 " + (selected === r ? "bg-accent/5" : "")}
+                      className={"cursor-pointer transition-colors hover:bg-muted/50 " + (selected === r ? "bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]" : "")}
                     >
                       <Td>
                         <input
@@ -600,12 +600,12 @@ function ApprovalsInbox() {
                           aria-label={`Select ${val(r, "REFFLD")}`}
                         />
                       </Td>
-                      <Td><span className="font-mono text-xs font-medium text-accent">{val(r, "REFFLD") || "—"}</span></Td>
+                      <Td><span className="inline-flex rounded-md bg-accent/10 px-2 py-0.5 font-mono text-xs font-semibold text-accent">{val(r, "REFFLD") || "—"}</span></Td>
                       <Td>{val(r, "PSPNR") || "—"}</Td>
                       <Td className="text-muted-foreground">{val(r, "NAME1") || "—"}</Td>
                       <Td>{nfaType(r)}</Td>
                       <Td className="text-muted-foreground">{val(r, "BEGDA") || "—"}</Td>
-                      <Td className="max-w-[280px] truncate">{val(r, "SUBJECT") || "—"}</Td>
+                      <Td className="max-w-[280px] truncate"><span title={val(r, "SUBJECT") || ""}>{val(r, "SUBJECT") || "—"}</span></Td>
                       {hasStatus && (
                         <Td><span className={"inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium " + statusTone(status)}>{status || "—"}</span></Td>
                       )}
@@ -667,8 +667,8 @@ function ApprovalsInbox() {
 }
 
 function Th({ children }: { children?: React.ReactNode }) {
-  return <th className="px-3 py-2.5 whitespace-nowrap font-medium">{children}</th>;
+  return <th className="px-4 py-3 whitespace-nowrap font-semibold">{children}</th>;
 }
 function Td({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
-  return <td className={"px-3 py-2.5 whitespace-nowrap " + className}>{children}</td>;
+  return <td className={"px-4 py-3.5 whitespace-nowrap " + className}>{children}</td>;
 }
