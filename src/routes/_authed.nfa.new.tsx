@@ -13,8 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
-import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2, Printer } from "lucide-react";
-import { PrintFormDialog } from "@/components/document/PrintFormDialog";
+import { Send, FileText, Building2, Sparkles, Paperclip, Upload, X, Maximize2 } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
@@ -102,7 +101,6 @@ function NewNfaPage() {
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
-  const [printOpen, setPrintOpen] = useState(false);
   const [initiatorName, setInitiatorName] = useState("");
   const [companies, setCompanies] = useState<Option[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
@@ -598,12 +596,9 @@ function NewNfaPage() {
         title="Create Note For Approval"
         subtitle="Provide context, scope and impact — then route to the appropriate approver chain."
         actions={
-          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-2">
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={loadSample} disabled={busy}>
               <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Load </span>Sample
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPrintOpen(true)}>
-              <Printer className="h-4 w-4" /> <span className="hidden sm:inline">Print </span>Form
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => submit(false)} disabled={busy}>
               <Send className="h-4 w-4" /> Submit
@@ -841,37 +836,6 @@ function NewNfaPage() {
         </div>
       </div>
 
-      <PrintFormDialog
-        open={printOpen}
-        onOpenChange={setPrintOpen}
-        companyCode={company}
-        companyName={companies.find((c) => c.code === company)?.name ?? company}
-        nfaNo=""
-        plantLabel={(() => {
-          const p = plants.find((x) => x.code === plant);
-          return p ? `${p.code} – ${p.name}` : plant;
-        })()}
-        date={new Date().toLocaleDateString()}
-         initiator={initiatorName}
-        nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
-        functionName={functions.find((f) => f.code === func)?.name ?? func}
-        subject={subject}
-        scopeImpact={scope}
-        timelineDays={timeline}
-        budgetImpact={budget}
-        descriptionHtml={desc}
-        approvalFlow={{
-          plant,
-          nfaType: nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType,
-          functionName: functions.find((f) => f.code === func)?.name ?? func,
-        }}
-        canEdit
-        onDescriptionChange={setDesc}
-        documentStatus="draft"
-        approvers={approvers
-          .filter((a) => a.email.trim())
-          .map((a) => ({ role: `Level ${a.level}`, userId: a.email, name: a.designation }))}
-      />
     </div>
   );
 }
