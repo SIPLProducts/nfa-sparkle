@@ -2,6 +2,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertScreenAccess } from "./user-admin.server";
 
+/** Maps SAP approval User IDs (profiles.username) to account emails, case-insensitively. */
+export const resolveApprovalUserEmails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userIds: string[] }) => input)
+  .handler(async ({ data, context }): Promise<Record<string, string>> => {
+    await assertScreenAccess(context as any, "user_management");
+    const db = await admin();
+    const { data: profiles } = await db.from("profiles").select("username, email, status");
+    const wanted = new Map((data.userIds ?? []).filter(Boolean).map((id) => [id.trim().toLowerCase(), id.trim()]));
+    const map: Record<string, string> = {};
+    for (const profile of profiles ?? []) {
+      const username = String(profile.username ?? "").trim();
+      const key = username.toLowerCase();
+      if (!username || String(profile.status ?? "").toUpperCase() === "DELETED") continue;
+      if (wanted.has(key) && profile.email) map[wanted.get(key) as string] = profile.email;
+    }
+    return map;
+  });
+
 export interface ChainLevel {
   level: number;
   approver_id: string;
