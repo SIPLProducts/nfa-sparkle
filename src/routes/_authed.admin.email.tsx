@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "@/lib/swal";
+import { getEmailConfig, saveEmailConfig, sendTestEmail } from "@/lib/email-config.functions";
 import { Eye, EyeOff, Mail, Send, Save, LockKeyhole, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
@@ -52,6 +55,40 @@ function EmailConfigurationForm() {
   const recipientInvalid = Boolean(touched.recipient && emailInvalid(recipient));
   const portInvalid = Boolean(touched.port && port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535));
   const fieldClass = "h-10 bg-muted/40 shadow-none";
+  const loadFn = useServerFn(getEmailConfig);
+  const saveFn = useServerFn(saveEmailConfig);
+  const testFn = useServerFn(sendTestEmail);
+  const [loaded, setLoaded] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    loadFn().then(({ config, hasPassword }) => {
+      setEnabled(config.enabled); setHost(config.host); setPort(config.port ? String(config.port) : "");
+      setEncryption(config.encryption); setUsername(config.username); setFromEmail(config.fromEmail);
+      setFromName(config.fromName); setCcList(config.cc ?? []); setHasPassword(hasPassword);
+    }).catch((e) => toast.error(e?.message ?? "Could not load email configuration")).finally(() => setLoaded(true));
+  }, []);
+
+  const save = async () => {
+    if (portInvalid || emailInvalid(fromEmail)) return;
+    setSaving(true);
+    try {
+      await saveFn({ data: { enabled, host, port: port ? Number(port) : null, encryption: encryption as any, username, fromEmail, fromName, cc: ccList, password: password || undefined } });
+      if (password) setHasPassword(true);
+      setPassword("");
+      toast.success("Email configuration saved");
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setSaving(false); }
+  };
+  const test = async () => {
+    setTesting(true);
+    try {
+      const r = await testFn({ data: { to: recipient } });
+      r.ok ? toast.success(r.message) : toast.error(r.message);
+    } catch (e: any) { toast.error(e?.message ?? "Test email failed"); } finally { setTesting(false); }
+  };
+  const connected = hasPassword && Boolean(host && port && fromEmail);
 
   const addCc = (raw: string) => {
     const value = raw.trim().replace(/,$/, "");
@@ -72,7 +109,7 @@ function EmailConfigurationForm() {
         title="Email Configuration"
         actions={
           <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" /> Not connected
+            <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-success" : "bg-muted-foreground/50"}`} /> {connected ? (enabled ? "Sending on" : "Configured") : "Not connected"}
           </span>
         }
       />
@@ -186,11 +223,11 @@ function EmailConfigurationForm() {
               {recipientInvalid && <p id="recipient-error" className="text-xs text-destructive">Enter a valid email address.</p>}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:shrink-0">
-              <Button type="button" variant="outline" className="h-10 gap-2" disabled><Send className="h-4 w-4" /> Send test email</Button>
-              <Button type="button" variant="outline" className="h-10 gap-2 border-primary/40 text-primary" disabled><Save className="h-4 w-4" /> Save configuration</Button>
+              <Button type="button" variant="outline" className="h-10 gap-2" disabled={!loaded || testing || !recipient || emailInvalid(recipient)} onClick={test}><Send className="h-4 w-4" /> {testing ? "Sending…" : "Send test email"}</Button>
+              <Button type="button" variant="outline" className="h-10 gap-2 border-primary/40 text-primary" disabled={!loaded || saving} onClick={save}><Save className="h-4 w-4" /> {saving ? "Saving…" : "Save configuration"}</Button>
             </div>
           </div>
-          <span className="mt-4 inline-flex items-center gap-2 text-[11px] text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5 shrink-0" /> Configuration not connected</span>
+          <span className="mt-4 inline-flex items-center gap-2 text-[11px] text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5 shrink-0" /> {hasPassword ? "App password saved securely on the server" : "App password not saved yet"}</span>
         </div>
       </form>
     </div>

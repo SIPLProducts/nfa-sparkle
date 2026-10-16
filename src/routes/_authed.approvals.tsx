@@ -378,6 +378,14 @@ function ApprovalsInbox() {
             reffld: selectedEnfaNo,
             comment,
             ...(actionPdf ? { file_path: actionPdf.filename, file: actionPdf.base64 } : {}),
+            ...(selectedRow ? {
+              notify: {
+                subject: val(selectedRow, "SUBJECT"),
+                initiator: val(selectedRow, "INIT_NAME"),
+                approvers: LEVELS.map((l) => val(selectedRow, `APPR${l}`)),
+                level: currentLevel(selectedRow),
+              },
+            } : {}),
           }),
         });
         const text = await res.text();
