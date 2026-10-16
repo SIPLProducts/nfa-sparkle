@@ -13,6 +13,7 @@ import {
   Plug,
   PanelLeft,
   PanelLeftClose,
+  Mail,
 } from "lucide-react";
 import { Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -29,6 +30,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; section: s
 
 const ADMIN_NAV: { to: string; label: string; icon: typeof LayoutDashboard; screen: ScreenKey }[] = [
   { to: "/admin/sap-api", label: "SAP API Settings", icon: Plug, screen: "sap_api" },
+  { to: "/admin/email", label: "Email Configuration", icon: Mail, screen: "sap_api" },
   { to: "/admin/users", label: "User Management", icon: Users, screen: "user_management" },
 ];
 
