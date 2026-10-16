@@ -306,105 +306,20 @@ function NewNfaPage() {
     setPending((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  async function submit(asDraft: boolean) {
+  async function submit(_asDraft: boolean) {
     if (!user) return;
     if (!company || !nfaType || !subject) return toast.error("Company, NFA Type and Subject are required");
-    const validApprovers = approvers.filter((a) => a.email.trim());
     setBusy(true);
     try {
       const plantObj = plants.find((p) => p.code === plant);
-      // Always create the record in an upload-allowed state; it is promoted to
-      // `in_process` only after every staged attachment has been stored.
-      const { data: created, error } = await supabase.from("nfa").insert({
-        initiator_id: user.id,
-        company, plant: plant || null, plant_name: plantObj?.name ?? null,
-        project: null, nfa_type: nfaType, function: func || null,
-        subject, scope_impact: scope || null,
-        budget_impact: budget ? Number(budget) : null,
-        timeline_days: timeline ? Number(timeline) : null,
-        detailed_description: plainDesc ? desc : null,
-        status: "with_initiator",
-        current_level: 0,
-      }).select().single();
-      if (error || !created) throw error;
-
-      if (validApprovers.length) {
-        // Resolve approver emails to user ids via profiles
-        const emails = validApprovers.map((a) => a.email.trim().toLowerCase());
-        const { data: profs } = await supabase.rpc("resolve_users_by_email", { _emails: emails });
-        const map = new Map(
-          ((profs ?? []) as Array<{ id: string; email: string | null }>).map((p) => [p.email?.toLowerCase(), p.id]),
-        );
-        const missing = emails.filter((e) => !map.get(e));
-        if (missing.length) {
-          toast.error(`Approver(s) not found / never signed in: ${missing.join(", ")}`);
-          await supabase.from("nfa").delete().eq("id", created.id);
-          setBusy(false);
-          return;
-        }
-        const rows = validApprovers.map((a) => ({
-          nfa_id: created.id,
-          level: a.level,
-          approver_id: map.get(a.email.trim().toLowerCase())!,
-          designation: a.designation || null,
-        }));
-        const { error: aerr } = await supabase.from("nfa_approver").insert(rows);
-        if (aerr) throw aerr;
+      // The NFA is stored only in SAP — nothing is written to the app database or storage.
+      const sap = await submitToSap(plantObj?.name ?? "");
+      if (!sap.ok) {
+        toast.error(sap.message);
+        return;
       }
-
-      await supabase.from("nfa_audit").insert({
-        nfa_id: created.id, actor_id: user.id,
-        action: asDraft ? "Created (draft)" : "Submitted for approval",
-      });
-
-      // Upload staged attachments while the record still allows storage inserts.
-      if (pending.length) {
-        const uploaded: string[] = [];
-        const failed: string[] = [];
-        for (const file of pending) {
-          const path = `${created.id}/${Date.now()}-${file.name}`;
-          const { error: se } = await supabase.storage.from("nfa-attachments").upload(path, file, { upsert: false });
-          if (se) { toast.error(`Upload failed for ${file.name}: ${se.message}`); failed.push(file.name); continue; }
-          const { error: ie } = await supabase.from("nfa_attachment").insert({
-            nfa_id: created.id, storage_path: path, filename: file.name,
-            mime: file.type || null, size: file.size, uploaded_by: user.id,
-          });
-          if (ie) { toast.error(`Record failed for ${file.name}: ${ie.message}`); failed.push(file.name); continue; }
-          uploaded.push(file.name);
-        }
-        if (uploaded.length) {
-          await supabase.from("nfa_audit").insert({
-            nfa_id: created.id, actor_id: user.id,
-            action: `Attached ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}`,
-            comment: uploaded.join(", "),
-          });
-        }
-        if (failed.length) {
-          toast.error(`Stopped before sending to SAP — ${failed.length} attachment(s) could not be stored.`);
-          nav({ to: "/nfa/$id", params: { id: created.id } });
-          return;
-        }
-      }
-
-      if (asDraft) toast.success("Draft saved");
-
-      // Push the record to SAP through the endpoint registered in Admin → SAP API Settings.
-      // This runs on Submit so the SAP response is always shown.
-      const sap = await submitToSap(created.id, plantObj?.name ?? "");
-      if (sap.ok) toast.success(sap.message);
-      else toast.error(sap.message);
-
-      if (!asDraft) {
-        // Keep the record editable until SAP's returned eNFA number has been
-        // stored, then route it into the existing approval workflow.
-        const { error: perr } = await supabase
-          .from("nfa")
-          .update({ status: "in_process", current_level: 1 })
-          .eq("id", created.id);
-        if (perr) throw perr;
-      }
-
-      nav({ to: "/nfa/$id", params: { id: created.id } });
+      toast.success(sap.message);
+      nav({ to: "/nfa/my" });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -425,24 +340,30 @@ function NewNfaPage() {
     });
   }
 
-  /** Sends the newly created record to SAP and stores the returned ENFA number. */
-  async function submitToSap(nfaId: string, plantName: string): Promise<{ ok: boolean; message: string }> {
+  /** Finds SAP's MESSAGE anywhere in its reply. */
+  function findSapMessage(value: unknown, depth = 0): string {
+    if (!value || typeof value !== "object" || depth > 6) return "";
+    const obj = value as Record<string, unknown>;
+    for (const key of Object.keys(obj)) {
+      if (/^message$/i.test(key) && typeof obj[key] === "string" && String(obj[key]).trim()) return String(obj[key]).trim();
+    }
+    for (const v of Object.values(obj)) {
+      const found = findSapMessage(v, depth + 1);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  /** Sends the record to SAP; success only when SAP confirms with an eNFA number. */
+  async function submitToSap(plantName: string): Promise<{ ok: boolean; message: string }> {
     try {
       const files: Array<{ file_name: string; file: string }> = [];
       for (const f of pending) {
         try {
           files.push({ file_name: f.name, file: await toBase64(f) });
         } catch (err) {
-          return { ok: false, message: `Could not read ${f.name} for SAP upload: ${(err as Error).message}` };
+          return { ok: false, message: (err as Error).message };
         }
-      }
-      // Base64 inflates by ~4/3; keep the whole batch under a size SAP accepts.
-      const encodedBytes = files.reduce((n, f) => n + f.file.length, 0);
-      if (encodedBytes > 40 * 1024 * 1024) {
-        return {
-          ok: false,
-          message: "Saved locally, but the attachments are too large to send to SAP in one request. Remove some files and try again.",
-        };
       }
       // user_name is the logged-in user's User ID (profiles.username) — never hardcoded.
       const sapUser = await resolveMySapUser(user?.id ?? "");
@@ -458,9 +379,7 @@ function NewNfaPage() {
           SCOPE_IMPACT: scope,
           BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
           TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
-          // The Detailed Description is intentionally not sent to SAP; it is kept
-          // in the application and rendered in the Print Form.
-          TEXT: "",
+          TEXT: plainDesc ? desc : "",
           file: files,
         },
       };
@@ -474,91 +393,18 @@ function NewNfaPage() {
       const text = await res.text();
       let parsed: any = null;
       try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
-      if (!res.ok) {
-        return {
-          ok: false,
-          message: `Saved locally, but SAP submission failed: ${
-            parsed?.error || parsed?.MESSAGE || `status ${res.headers.get("x-sap-status") || res.status}`
-          }`,
-        };
-      }
+      const sapMessage =
+        findSapMessage(parsed) ||
+        (typeof parsed?.error === "string" ? parsed.error : "") ||
+        text.trim() ||
+        `${res.status} ${res.statusText}`.trim();
       const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
-      if (parsed?.STATUS === "S" && enfaNo) {
-        const { error: numberSaveError } = await supabase
-          .from("nfa")
-          .update({ enfa_number: enfaNo })
-          .eq("id", nfaId);
-        if (numberSaveError) {
-          return {
-            ok: false,
-            message: `SAP created eNFA ${enfaNo}, but its number could not be saved: ${numberSaveError.message}`,
-          };
-        }
-        // Keep the rich Detailed Description (and the header values) against the
-        // SAP number so the Print Form can render it later.
-        await supabase.from("sap_record_draft").upsert({
-          enfa_number: enfaNo,
-          subject,
-          scope_impact: scope || null,
-          budget_impact: budget ? Number(budget) : null,
-          timeline_days: timeline ? parseInt(timeline, 10) : null,
-          detailed_description: plainDesc ? desc : null,
-          updated_by: user?.id ?? null,
-        });
-        // The Initiator receives a real, private DOCX working copy immediately
-        // after SAP assigns the final eNFA number. DOCX failure never rolls back
-        // the already-successful SAP submission.
-        if (user?.id) {
-          try {
-            const logoBase64 = await fetchCompanyLogoForDocx(company, token ?? "");
-            const savedApprovers = approvers.filter((item) => item.email.trim()).map((item) => ({
-              role: `Level ${item.level}`,
-              userId: item.email,
-              name: item.designation,
-            }));
-            let flowApprovers: EnfaDocumentApprover[] = [];
-            try {
-              flowApprovers = await fetchSapApprovalFlow({
-                plant,
-                nfaType: nfaTypes.find((item) => item.code === nfaType)?.name ?? nfaType,
-                functionName: functions.find((item) => item.code === func)?.name ?? func,
-              }, token ?? "");
-            } catch {
-              /* Keep the existing saved approvers when SAP approval flow is unavailable. */
-            }
-            const embeddedDescription = await embedDescriptionImages(desc);
-            const generated = await generateDocx({
-              data: {
-                companyName: companies.find((item) => item.code === company)?.name ?? company,
-                nfaNo: enfaNo,
-                plantLabel: plantName ? `${plant} – ${plantName}` : plant,
-                date: new Date().toLocaleDateString(),
-                 initiator: initiatorName,
-                nfaType: nfaTypes.find((item) => item.code === nfaType)?.name ?? nfaType,
-                functionName: functions.find((item) => item.code === func)?.name ?? func,
-                subject,
-                scopeImpact: scope,
-                timelineDays: timeline,
-                budgetImpact: budget,
-                descriptionHtml: embeddedDescription.html,
-                descriptionImages: embeddedDescription.images,
-                approvers: mergeApprovalFlow(savedApprovers, flowApprovers, false),
-                logoBase64,
-              },
-            });
-            await saveGeneratedDocx({ enfaNumber: enfaNo, userId: user.id, ...generated });
-          } catch (docxError) {
-            toast.warning(`eNFA was submitted, but its DOCX could not be stored: ${(docxError as Error).message}`);
-          }
-        }
-        return { ok: true, message: parsed?.MESSAGE || `Submitted successfully with ENFA No ${enfaNo}` };
+      if (res.ok && String(parsed?.STATUS ?? "").toUpperCase() === "S" && enfaNo) {
+        return { ok: true, message: sapMessage };
       }
-      return {
-        ok: false,
-        message: `Saved locally, but SAP did not confirm: ${parsed?.MESSAGE || text.slice(0, 200) || "empty response"}`,
-      };
+      return { ok: false, message: sapMessage };
     } catch (e) {
-      return { ok: false, message: `Saved locally, but SAP submission failed: ${(e as Error).message}` };
+      return { ok: false, message: (e as Error).message };
     }
   }
 
