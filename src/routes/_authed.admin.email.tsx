@@ -84,7 +84,10 @@ function EmailConfigurationForm() {
   const test = async () => {
     setTesting(true);
     try {
-      const r = await testFn({ data: { to: recipient } });
+      const r = await testFn({ data: { to: recipient, draft: {
+        enabled, host, port: port ? Number(port) : null, encryption: encryption as any,
+        username, fromEmail, fromName, cc: ccList,
+      }, password: password || undefined } });
       r.ok ? toast.success(r.message) : toast.error(r.message);
     } catch (e: any) { toast.error(e?.message ?? "Test email failed"); } finally { setTesting(false); }
   };
@@ -156,6 +159,7 @@ function EmailConfigurationForm() {
           <div className="space-y-2">
             <Label htmlFor="email-username">Username</Label>
             <Input id="email-username" className={fieldClass} value={username} onChange={(event) => setUsername(event.target.value)} autoCapitalize="none" spellCheck={false} />
+            <p className="text-[11px] text-muted-foreground">Use the full mailbox address (e.g. same as From Email).</p>
           </div>
           <div className="space-y-2">
             <div className="flex flex-wrap items-baseline gap-x-1.5">

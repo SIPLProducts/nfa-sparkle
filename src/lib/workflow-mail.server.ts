@@ -49,14 +49,26 @@ export async function storeEmailConfig(config: EmailConfig, password?: string) {
   if (password) await writeSecret(PASSWORD_KEY, password);
 }
 
-async function transport() {
-  const { config } = await loadEmailConfig();
-  const password = (await readSecret(PASSWORD_KEY)) ?? "";
-  if (!config.host || !config.port || !config.fromEmail) throw new Error("Email configuration is incomplete");
+async function transport(override?: Partial<EmailConfig>, overridePassword?: string) {
+  const saved = (await loadEmailConfig()).config;
+  const config: EmailConfig = { ...saved };
+  if (override) {
+    for (const [k, v] of Object.entries(override)) {
+      if (v !== undefined && v !== null && v !== "") (config as any)[k] = typeof v === "string" ? v.trim() : v;
+    }
+  }
+  const password = overridePassword || (await readSecret(PASSWORD_KEY)) || "";
+  const missing = [
+    !config.host && "SMTP Host",
+    !config.port && "Port",
+    !config.fromEmail && "From Email",
+  ].filter(Boolean);
+  if (missing.length) throw new Error(`Enter ${missing.join(", ")}`);
+  if (config.username && !password) throw new Error("Enter the App Password");
   const nodemailer = (await import("nodemailer")).default;
   const transporter = nodemailer.createTransport({
     host: config.host,
-    port: config.port,
+    port: config.port!,
     secure: config.encryption === "ssl",
     requireTLS: config.encryption === "tls",
     ignoreTLS: config.encryption === "none",
@@ -66,8 +78,8 @@ async function transport() {
   return { transporter, from, config };
 }
 
-export async function sendTestMail(to: string) {
-  const { transporter, from } = await transport();
+export async function sendTestMail(to: string, override?: Partial<EmailConfig>, password?: string) {
+  const { transporter, from } = await transport(override, password);
   await transporter.sendMail({
     from, to,
     subject: "NFA Portal test email",
