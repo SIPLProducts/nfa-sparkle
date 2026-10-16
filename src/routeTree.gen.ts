@@ -14,6 +14,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
+import { Route as AuthedAdminEmailRouteImport } from './routes/_authed.admin.email'
 import { Route as AuthedAdminUsersRouteImport } from './routes/_authed.admin.users'
 import { Route as AuthedNfaIdRouteImport } from './routes/_authed.nfa.$id'
 import { Route as AuthedNfaMyRouteImport } from './routes/_authed.nfa.my'
@@ -65,6 +66,11 @@ const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
 const AuthedReportRoute = AuthedReportRouteImport.update({
   id: '/report',
   path: '/report',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAdminEmailRoute = AuthedAdminEmailRouteImport.update({
+  id: '/admin/email',
+  path: '/admin/email',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedAdminUsersRoute = AuthedAdminUsersRouteImport.update({
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/admin/email': typeof AuthedAdminEmailRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
@@ -252,6 +259,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
+  '/admin/email': typeof AuthedAdminEmailRoute
   '/admin/users': typeof AuthedAdminUsersRoute
   '/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/nfa/my': typeof AuthedNfaMyRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
+  '/_authed/admin/email': typeof AuthedAdminEmailRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRoute
   '/_authed/nfa/$id': typeof AuthedNfaIdRouteWithChildren
   '/_authed/nfa/my': typeof AuthedNfaMyRoute
@@ -324,6 +333,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/admin/email'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
@@ -358,6 +368,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/approvals'
     | '/report'
+    | '/admin/email'
     | '/admin/users'
     | '/nfa/$id'
     | '/nfa/my'
@@ -393,6 +404,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authed/approvals'
     | '/_authed/report'
+    | '/_authed/admin/email'
     | '/_authed/admin/users'
     | '/_authed/nfa/$id'
     | '/_authed/nfa/my'
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       path: '/report'
       fullPath: '/report'
       preLoaderRoute: typeof AuthedReportRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/admin/email': {
+      id: '/_authed/admin/email'
+      path: '/admin/email'
+      fullPath: '/admin/email'
+      preLoaderRoute: typeof AuthedAdminEmailRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/admin/users': {
@@ -701,6 +720,7 @@ const AuthedNfaIdRouteWithChildren = AuthedNfaIdRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedApprovalsRoute: typeof AuthedApprovalsRoute
   AuthedReportRoute: typeof AuthedReportRoute
+  AuthedAdminEmailRoute: typeof AuthedAdminEmailRoute
   AuthedAdminUsersRoute: typeof AuthedAdminUsersRoute
   AuthedNfaIdRoute: typeof AuthedNfaIdRouteWithChildren
   AuthedNfaMyRoute: typeof AuthedNfaMyRoute
@@ -712,6 +732,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedApprovalsRoute: AuthedApprovalsRoute,
   AuthedReportRoute: AuthedReportRoute,
+  AuthedAdminEmailRoute: AuthedAdminEmailRoute,
   AuthedAdminUsersRoute: AuthedAdminUsersRoute,
   AuthedNfaIdRoute: AuthedNfaIdRouteWithChildren,
   AuthedNfaMyRoute: AuthedNfaMyRoute,
