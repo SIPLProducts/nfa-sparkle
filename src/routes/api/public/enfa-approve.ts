@@ -152,6 +152,26 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           if (status === "E") ok = false;
         }
 
+        if (ok) {
+          // Notification runs in the background; failures never affect the SAP action.
+          const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
+          void import("@/lib/workflow-mail.server")
+            .then(({ notifyWorkflowAction }) => notifyWorkflowAction({
+              action: rawAction as (typeof allowed)[number],
+              enfaNo: reffld,
+              comment: String(input.comment ?? ""),
+              actor: userName || mailId,
+              actorEmail: mailId,
+              context: {
+                subject: String(n.subject ?? "").slice(0, 300),
+                initiator: String(n.initiator ?? "").slice(0, 120),
+                approvers: Array.isArray(n.approvers) ? n.approvers.slice(0, 7).map((a) => String(a ?? "").slice(0, 120)) : [],
+                level: Number(n.level) || 1,
+              },
+            }))
+            .catch((e) => console.warn("[enfa-approve] notification failed:", e?.message ?? e));
+        }
+
         return new Response(JSON.stringify({ ok, message, raw }), { status: 200, headers });
       },
     },
