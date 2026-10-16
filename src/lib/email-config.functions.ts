@@ -38,13 +38,13 @@ export const saveEmailConfig = createServerFn({ method: "POST" })
 
 export const sendTestEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { to: string }) => d)
+  .inputValidator((d: { to: string; draft?: Partial<EmailConfig>; password?: string }) => d)
   .handler(async ({ data, context }) => {
     await assertScreenAccess(context as any, "sap_api");
     if (!EMAIL_RE.test(data.to ?? "")) throw new Error("Enter a valid email address.");
     const { sendTestMail } = await import("./workflow-mail.server");
     try {
-      await sendTestMail(data.to.trim());
+      await sendTestMail(data.to.trim(), data.draft, data.password || undefined);
       return { ok: true, message: "Test email sent" };
     } catch (e: any) {
       return { ok: false, message: e?.message ?? "Test email failed" };
