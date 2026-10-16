@@ -66,25 +66,46 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
   if (missing.length) throw new Error(`Enter ${missing.join(", ")}`);
   if (config.username && !password) throw new Error("Enter the App Password");
   const nodemailer = (await import("nodemailer")).default;
+  const port = config.port!;
+  const ssl = config.encryption === "ssl" || (config.encryption !== "none" && port === 465);
   const transporter = nodemailer.createTransport({
     host: config.host,
-    port: config.port!,
-    secure: config.encryption === "ssl",
-    requireTLS: config.encryption === "tls",
+    port,
+    secure: ssl,
     ignoreTLS: config.encryption === "none",
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
     auth: config.username ? { user: config.username, pass: password } : undefined,
   });
   const from = config.fromName ? `"${config.fromName.replace(/"/g, "")}" <${config.fromEmail}>` : config.fromEmail;
   return { transporter, from, config };
 }
 
+/** Converts SMTP/socket errors into plain messages. */
+export function friendlyMailError(e: any): string {
+  const code = String(e?.code ?? "");
+  const msg = String(e?.message ?? e ?? "");
+  if (code === "EAUTH" || /535|username and password not accepted|invalid login/i.test(msg))
+    return "The mail server rejected the username or App Password. Use the full mailbox address and a 16-character App Password.";
+  if (/proxy request failed|TLS Handshake Failed/i.test(msg))
+    return "This server cannot open mail connections (hosted preview). Test on the local or Quality server.";
+  if (code === "ETIMEDOUT" || /timeout/i.test(msg)) return "The mail server did not respond in time. Check host, port and firewall.";
+  if (code === "ECONNECTION" || code === "ESOCKET" || /ECONNREFUSED|ENOTFOUND/i.test(msg))
+    return `Cannot reach the mail server (${msg}). Check host, port and encryption.`;
+  return msg || "Email could not be sent";
+}
+
 export async function sendTestMail(to: string, override?: Partial<EmailConfig>, password?: string) {
   const { transporter, from } = await transport(override, password);
-  await transporter.sendMail({
-    from, to,
-    subject: "NFA Portal test email",
-    text: "This is a test email from the NFA Portal email configuration.",
-  });
+  try {
+    await transporter.sendMail({
+      from, to,
+      subject: "NFA Portal test email",
+      text: "This is a test email from the NFA Portal email configuration.",
+    });
+  } catch (e) {
+    throw new Error(friendlyMailError(e));
+  }
 }
 
 /* ----------------------------- recipients ----------------------------- */
@@ -144,14 +165,30 @@ export async function notifyWorkflowAction(input: {
   context: WorkflowNotifyContext;
 }) {
   const { config } = await loadEmailConfig();
-  if (!config.enabled) return;
-  const { people, final } = pickRecipients(input.action, input.context);
-  const to = (await resolveEmails(people)).filter((e) => e.toLowerCase() !== input.actorEmail.toLowerCase() || input.action !== "approve");
-  if (!to.length) {
-    console.warn("[workflow-mail] no recipient email found for", input.enfaNo, input.action);
+  if (!config.enabled) {
+    console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sending disabled`);
+    return;
+  }
+  const mail = await buildWorkflowMail(input);
+  if (!mail.to.length) {
+    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: no recipient email found for`, mail.people.join(", ") || "(none)");
     return;
   }
   const { transporter, from } = await transport();
+  try {
+    await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text });
+    console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sent to ${mail.to.join(", ")}`);
+  } catch (e) {
+    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: failed — ${friendlyMailError(e)}`);
+  }
+}
+
+/** Works out recipients and text without sending (used for dry-run checks). */
+export async function buildWorkflowMail(input: {
+  action: WorkflowAction; enfaNo: string; comment: string; actor: string; actorEmail: string; context: WorkflowNotifyContext;
+}) {
+  const { people, final } = pickRecipients(input.action, input.context);
+  const to = (await resolveEmails(people)).filter((e) => input.action !== "approve" || e.toLowerCase() !== input.actorEmail.toLowerCase());
   const label = final ? "Fully approved" : LABELS[input.action];
   const heading = input.action === "approve" && !final ? "Awaiting your approval" : label;
   const lines = [
@@ -161,11 +198,5 @@ export async function notifyWorkflowAction(input: {
     `By: ${input.actor}`,
     input.comment ? `Comment: ${input.comment}` : "",
   ].filter(Boolean);
-  await transporter.sendMail({
-    from,
-    to,
-    cc: config.cc.length ? config.cc : undefined,
-    subject: `ENFA ${input.enfaNo} — ${heading}`,
-    text: `${heading}\n\n${lines.join("\n")}\n`,
-  });
+  return { people, final, to, subject: `ENFA ${input.enfaNo} — ${heading}`, text: `${heading}\n\n${lines.join("\n")}\n` };
 }
