@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Send, Save, LockKeyhole } from "lucide-react";
+import { Eye, EyeOff, Mail, Send, Save, LockKeyhole, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authed/admin/email")({
@@ -31,80 +32,152 @@ function EmailConfiguration() {
 }
 
 function EmailConfigurationForm() {
-  const [sender, setSender] = useState("");
-  const [provider, setProvider] = useState("");
-  const [customProvider, setCustomProvider] = useState("");
+  const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
+  const [encryption, setEncryption] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [ccList, setCcList] = useState<string[]>([]);
+  const [ccInput, setCcInput] = useState("");
+  const [ccError, setCcError] = useState("");
   const [recipient, setRecipient] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (field: string) => setTouched((previous) => ({ ...previous, [field]: true }));
   const emailInvalid = (value: string) => value !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  const senderInvalid = Boolean(touched.sender && emailInvalid(sender));
+  const fromEmailInvalid = Boolean(touched.fromEmail && emailInvalid(fromEmail));
   const recipientInvalid = Boolean(touched.recipient && emailInvalid(recipient));
   const portInvalid = Boolean(touched.port && port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535));
   const fieldClass = "h-10 bg-muted/40 shadow-none";
 
+  const addCc = (raw: string) => {
+    const value = raw.trim().replace(/,$/, "");
+    if (!value) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setCcError("Enter a valid email address.");
+      return;
+    }
+    setCcError("");
+    setCcList((previous) => (previous.includes(value) ? previous : [...previous, value]));
+    setCcInput("");
+  };
+  const removeCc = (value: string) => setCcList((previous) => previous.filter((item) => item !== value));
+
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <PageHeader title="Email Configuration" actions={<Mail className="h-5 w-5 text-primary" aria-hidden="true" />} />
-      <form className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
-        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Mail className="h-4 w-4 shrink-0 text-primary" />
-            <h2 className="font-display text-base font-semibold sm:text-lg">SMTP Configuration</h2>
-          </div>
+      <PageHeader
+        title="Email Configuration"
+        actions={
           <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" /> Not connected
           </span>
+        }
+      />
+      <form className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+        <div className="mb-5 flex items-start gap-2">
+          <Mail className="mt-1 h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-semibold sm:text-xl">No Reply Email Configuration</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              System sender used for workflow notifications (approvals, submissions, alerts). Outbound notifications go through this account.
+            </p>
+          </div>
         </div>
-          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="email-sender">Sender email</Label>
-              <Input id="email-sender" type="email" className={fieldClass} value={sender} onChange={(event) => setSender(event.target.value)} onBlur={() => touch("sender")} aria-invalid={senderInvalid} aria-describedby={senderInvalid ? "sender-error" : undefined} />
-              {senderInvalid && <p id="sender-error" className="text-xs text-destructive">Enter a valid email address.</p>}
+
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="min-w-0">
+            <p className="font-display text-sm font-semibold sm:text-base">Enable No-Reply Sending</p>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">When off, system notifications are not sent.</p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Enable No-Reply Sending" />
+        </div>
+
+        <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="email-host">SMTP Host</Label>
+            <Input id="email-host" className={fieldClass} value={host} onChange={(event) => setHost(event.target.value)} autoCapitalize="none" spellCheck={false} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-port">Port</Label>
+            <Input id="email-port" inputMode="numeric" className={fieldClass} value={port} onChange={(event) => setPort(event.target.value.replace(/\D/g, ""))} onBlur={() => touch("port")} aria-invalid={portInvalid} aria-describedby={portInvalid ? "port-error" : undefined} />
+            {portInvalid && <p id="port-error" className="text-xs text-destructive">Enter a port between 1 and 65535.</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-encryption">Encryption</Label>
+            <Select value={encryption} onValueChange={setEncryption}>
+              <SelectTrigger id="email-encryption" className="h-10 w-full bg-muted/40 shadow-none"><SelectValue placeholder="Select encryption" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tls">TLS (587)</SelectItem>
+                <SelectItem value="ssl">SSL (465)</SelectItem>
+                <SelectItem value="none">None</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-username">Username</Label>
+            <Input id="email-username" className={fieldClass} value={username} onChange={(event) => setUsername(event.target.value)} autoCapitalize="none" spellCheck={false} />
+          </div>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-baseline gap-x-1.5">
+              <Label htmlFor="email-password">App Password</Label>
+              <span className="text-xs text-muted-foreground">(leave empty to keep existing)</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email-provider">Email provider</Label>
-              <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger id="email-provider" className="h-10 w-full bg-muted/40 shadow-none"><SelectValue placeholder="Select provider" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="microsoft">Microsoft 365</SelectItem>
-                  <SelectItem value="google">Google Workspace</SelectItem>
-                  <SelectItem value="custom">Custom provider</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {provider === "custom" && <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="custom-provider">Provider name</Label>
-              <Input id="custom-provider" className={fieldClass} value={customProvider} onChange={(event) => setCustomProvider(event.target.value)} />
-            </div>}
-            <div className="space-y-2">
-              <Label htmlFor="email-host">SMTP Host</Label>
-              <Input id="email-host" className={fieldClass} value={host} onChange={(event) => setHost(event.target.value)} autoCapitalize="none" spellCheck={false} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email-port">Port</Label>
-              <Input id="email-port" inputMode="numeric" className={fieldClass} value={port} onChange={(event) => setPort(event.target.value.replace(/\D/g, ""))} onBlur={() => touch("port")} aria-invalid={portInvalid} aria-describedby={portInvalid ? "port-error" : undefined} />
-              {portInvalid && <p id="port-error" className="text-xs text-destructive">Enter a port between 1 and 65535.</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email-username">Username</Label>
-              <Input id="email-username" className={fieldClass} value={username} onChange={(event) => setUsername(event.target.value)} autoCapitalize="none" spellCheck={false} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email-password">Password / app password</Label>
-              <div className="relative">
-                <Input id="email-password" type={visible ? "text" : "password"} autoComplete="new-password" className={`${fieldClass} pr-12`} value={password} onChange={(event) => setPassword(event.target.value)} />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8 text-muted-foreground" aria-label={visible ? "Hide password" : "Show password"} title={visible ? "Hide password" : "Show password"} aria-pressed={visible} onClick={() => setVisible((previous) => !previous)}>
-                  {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
+            <div className="relative">
+              <Input id="email-password" type={visible ? "text" : "password"} autoComplete="new-password" className={`${fieldClass} pr-12`} value={password} onChange={(event) => setPassword(event.target.value)} />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8 text-muted-foreground" aria-label={visible ? "Hide app password" : "Show app password"} title={visible ? "Hide app password" : "Show app password"} aria-pressed={visible} onClick={() => setVisible((previous) => !previous)}>
+                {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-from">From Email</Label>
+            <Input id="email-from" type="email" className={fieldClass} value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} onBlur={() => touch("fromEmail")} aria-invalid={fromEmailInvalid} aria-describedby={fromEmailInvalid ? "from-email-error" : undefined} />
+            {fromEmailInvalid && <p id="from-email-error" className="text-xs text-destructive">Enter a valid email address.</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-from-name">From Name</Label>
+            <Input id="email-from-name" className={fieldClass} value={fromName} onChange={(event) => setFromName(event.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-cc">CC Recipients <span className="text-xs font-normal text-muted-foreground">(optional)</span></Label>
+            <div className="min-h-10 rounded-md border border-input bg-muted/40 px-2 py-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {ccList.map((value) => (
+                  <span key={value} className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    <span className="truncate">{value}</span>
+                    <button type="button" className="shrink-0 rounded-full p-0.5 hover:bg-primary/15" aria-label={`Remove ${value}`} onClick={() => removeCc(value)}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <Input
+                  id="email-cc"
+                  className="h-7 min-w-32 flex-1 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+                  placeholder={ccList.length === 0 ? "Add recipient and press Enter" : "Add another..."}
+                  value={ccInput}
+                  onChange={(event) => setCcInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addCc(ccInput);
+                    } else if (event.key === ",") {
+                      event.preventDefault();
+                      addCc(ccInput);
+                    }
+                  }}
+                  onBlur={() => ccInput.trim() && addCc(ccInput)}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+            {ccError && <p className="text-xs text-destructive">{ccError}</p>}
+          </div>
+        </div>
+
         <div className="mt-6 border-t border-border pt-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="space-y-2">
