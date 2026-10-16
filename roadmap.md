@@ -1,5 +1,7 @@
 # Quality deployment recovery
 
+- [ ] Add and verify the UI-only Email Configuration screen with temporary editable fields, disabled saving/test sending, and existing SAP Settings access.
+
 - [x] Update My NFAs Edit with server-resolved User ID, dynamic record number, SAP Function/Initiator fields, sample-free MY NFA Select template, and focused rerunnable Quality settings update. Verified 38 regression tests and signed-in controlled popup fields; Save and other screens unchanged.
 - [ ] Verify My NFAs Edit with a live company SAP record after deploying the updated app and applying `9300_my_nfa_select_edit.sql` — the signed-in SAP worklist currently returns no records.
 
