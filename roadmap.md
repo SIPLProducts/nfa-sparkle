@@ -1,5 +1,7 @@
 # Quality deployment recovery
 
+- [x] Restyle Email Configuration to the screenshot-inspired compact two-column form without Reply Email or behavior changes; controlled desktop, current-size, and phone checks passed, including disabled actions, validation, password toggle, and cleared state. Build OK; production permissions were not changed.
+
 - [x] Add the UI-only Email Configuration screen with temporary editable fields, disabled saving/test sending, and existing SAP Settings access. Preview compilation passed; controlled signed-in desktop/mobile checks verified field behavior and cleared state. The current account correctly receives access denial; authorized-account verification remains unavailable with its present permissions.
 
 - [x] Update My NFAs Edit with server-resolved User ID, dynamic record number, SAP Function/Initiator fields, sample-free MY NFA Select template, and focused rerunnable Quality settings update. Verified 38 regression tests and signed-in controlled popup fields; Save and other screens unchanged.
