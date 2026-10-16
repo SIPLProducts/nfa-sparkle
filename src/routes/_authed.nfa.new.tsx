@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
@@ -91,6 +92,7 @@ function NewNfaPage() {
   const generateDocx = useServerFn(generateEnfaDocx);
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
+  const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
