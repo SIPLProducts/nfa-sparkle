@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
-import { Eye, EyeOff, Mail, Send, Server, Save, LockKeyhole } from "lucide-react";
+import { useState } from "react";
+import { Eye, EyeOff, Mail, Send, Save, LockKeyhole } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -30,18 +30,6 @@ function EmailConfiguration() {
   return <EmailConfigurationForm />;
 }
 
-function SettingsSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
-  return (
-    <section className="grid gap-5 border-b border-border py-7 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-10">
-      <div className="flex items-center gap-3 lg:items-start">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary text-primary">{icon}</span>
-        <h2 className="pt-1.5 font-sans text-base font-semibold tracking-normal">{title}</h2>
-      </div>
-      <div className="min-w-0">{children}</div>
-    </section>
-  );
-}
-
 function EmailConfigurationForm() {
   const [sender, setSender] = useState("");
   const [provider, setProvider] = useState("");
@@ -58,18 +46,22 @@ function EmailConfigurationForm() {
   const senderInvalid = Boolean(touched.sender && emailInvalid(sender));
   const recipientInvalid = Boolean(touched.recipient && emailInvalid(recipient));
   const portInvalid = Boolean(touched.port && port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535));
-  const fieldClass = "h-11 bg-card";
+  const fieldClass = "h-10 bg-muted/40 shadow-none";
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <PageHeader eyebrow="Admin" title="Email Configuration" actions={
-        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground">
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50" /> Not connected
-        </span>
-      } />
-      <form autoComplete="off" onSubmit={(event) => event.preventDefault()}>
-        <SettingsSection icon={<Mail className="h-4 w-4" />} title="Sender">
-          <div className="grid gap-5 sm:grid-cols-2">
+      <PageHeader title="Email Configuration" actions={<Mail className="h-5 w-5 text-primary" aria-hidden="true" />} />
+      <form className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Mail className="h-4 w-4 shrink-0 text-primary" />
+            <h2 className="font-display text-base font-semibold sm:text-lg">SMTP Configuration</h2>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" /> Not connected
+          </span>
+        </div>
+          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="email-sender">Sender email</Label>
               <Input id="email-sender" type="email" className={fieldClass} value={sender} onChange={(event) => setSender(event.target.value)} onBlur={() => touch("sender")} aria-invalid={senderInvalid} aria-describedby={senderInvalid ? "sender-error" : undefined} />
@@ -78,7 +70,7 @@ function EmailConfigurationForm() {
             <div className="space-y-2">
               <Label htmlFor="email-provider">Email provider</Label>
               <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger id="email-provider" className="h-11 w-full bg-card"><SelectValue placeholder="Select provider" /></SelectTrigger>
+                <SelectTrigger id="email-provider" className="h-10 w-full bg-muted/40 shadow-none"><SelectValue placeholder="Select provider" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="microsoft">Microsoft 365</SelectItem>
                   <SelectItem value="google">Google Workspace</SelectItem>
@@ -90,12 +82,8 @@ function EmailConfigurationForm() {
               <Label htmlFor="custom-provider">Provider name</Label>
               <Input id="custom-provider" className={fieldClass} value={customProvider} onChange={(event) => setCustomProvider(event.target.value)} />
             </div>}
-          </div>
-        </SettingsSection>
-        <SettingsSection icon={<Server className="h-4 w-4" />} title="Email server">
-          <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="email-host">Host</Label>
+              <Label htmlFor="email-host">SMTP Host</Label>
               <Input id="email-host" className={fieldClass} value={host} onChange={(event) => setHost(event.target.value)} autoCapitalize="none" spellCheck={false} />
             </div>
             <div className="space-y-2">
@@ -111,26 +99,25 @@ function EmailConfigurationForm() {
               <Label htmlFor="email-password">Password / app password</Label>
               <div className="relative">
                 <Input id="email-password" type={visible ? "text" : "password"} autoComplete="new-password" className={`${fieldClass} pr-12`} value={password} onChange={(event) => setPassword(event.target.value)} />
-                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-9 w-9 text-muted-foreground" aria-label={visible ? "Hide password" : "Show password"} title={visible ? "Hide password" : "Show password"} aria-pressed={visible} onClick={() => setVisible((previous) => !previous)}>
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8 text-muted-foreground" aria-label={visible ? "Hide password" : "Show password"} title={visible ? "Hide password" : "Show password"} aria-pressed={visible} onClick={() => setVisible((previous) => !previous)}>
                   {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
           </div>
-        </SettingsSection>
-        <SettingsSection icon={<Send className="h-4 w-4" />} title="Test email">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div className="mt-6 border-t border-border pt-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="space-y-2">
-              <Label htmlFor="test-recipient">Recipient email</Label>
-              <Input id="test-recipient" type="email" className={fieldClass} value={recipient} onChange={(event) => setRecipient(event.target.value)} onBlur={() => touch("recipient")} aria-invalid={recipientInvalid} aria-describedby={recipientInvalid ? "recipient-error" : undefined} />
+              <Label htmlFor="test-recipient">Send test to</Label>
+              <Input id="test-recipient" type="email" className={`${fieldClass} lg:max-w-sm`} value={recipient} onChange={(event) => setRecipient(event.target.value)} onBlur={() => touch("recipient")} aria-invalid={recipientInvalid} aria-describedby={recipientInvalid ? "recipient-error" : undefined} />
               {recipientInvalid && <p id="recipient-error" className="text-xs text-destructive">Enter a valid email address.</p>}
             </div>
-            <Button type="button" variant="outline" className="h-11 gap-2 sm:mt-7" disabled><Send className="h-4 w-4" /> Send test email</Button>
+            <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:shrink-0">
+              <Button type="button" variant="outline" className="h-10 gap-2" disabled><Send className="h-4 w-4" /> Send test email</Button>
+              <Button type="button" variant="outline" className="h-10 gap-2 border-primary/40 text-primary" disabled><Save className="h-4 w-4" /> Save configuration</Button>
+            </div>
           </div>
-        </SettingsSection>
-        <div className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground"><LockKeyhole className="h-4 w-4 shrink-0" /> Configuration not connected</span>
-          <Button type="button" className="h-11 gap-2" disabled><Save className="h-4 w-4" /> Save configuration</Button>
+          <span className="mt-4 inline-flex items-center gap-2 text-[11px] text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5 shrink-0" /> Configuration not connected</span>
         </div>
       </form>
     </div>
