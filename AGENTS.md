@@ -29,4 +29,4 @@
 - SAP attachment response parsing lives in a pure shared helper so SAP field compatibility can be regression-tested without loading authenticated server routes.
 - Attachment-read Swal notifications target the active dialog through the shared notification helper so modal focus and pointer handling remain intact; other notification callers retain their default behavior.
 - My NFAs Edit uses a shared tested SAP Edit parser and payload builder, with server-resolved signed-in User ID and selected record number, so connection credentials and saved sample values never establish the Edit identity.
-- Email Configuration is a page-state-only design guarded by SAP API Settings access, with save/send disabled and no credential persistence, so it cannot alter existing notification workflows.
+- Email Configuration persists SMTP settings via sap_api-guarded server functions in the locked sap_secret table; workflow emails are sent server-side after SAP accepts an action and never block it.
