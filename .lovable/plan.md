@@ -9,8 +9,9 @@ Send test email uses the settings already **saved** on the server, not what is t
 - If something is still missing, the message names it, for example "Enter SMTP Host, Port, From Email" or "Enter the App Password".
 - Real mail server errors (wrong password, blocked login) still show in the popup as they are.
 
-## Note for Gmail
-Gmail needs a 16-character Google **App Password** (2-Step Verification on), Port 587 with TLS, and Username equal to the Gmail address.
+## Note for Gmail (from your second screenshot)
+Your settings are now saved, but **Username is "prasad"** — Gmail rejects that. Username must be the full Gmail address (`kvvkkunchala@gmail.com`, same as From Email), with a 16-character Google **App Password** (2-Step Verification on), Port 587, TLS.
+- Add a hint under Username: "Use the full mailbox address (e.g. same as From Email)". No change to saving.
 
 ## Technical details
 - `sendTestEmail` input accepts optional draft config + password; validates it and passes it to `sendTestMail`.
