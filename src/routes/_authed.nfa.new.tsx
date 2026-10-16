@@ -495,6 +495,34 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
+              <Field label="Approver Selection" className="md:col-span-2">
+                <RadioGroup
+                  value={approverMode}
+                  onValueChange={(value) => setApproverMode(value as "predefined" | "dynamic")}
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3"
+                >
+                  <label
+                    htmlFor="approver-mode-predefined"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
+                  >
+                    <RadioGroupItem value="predefined" id="approver-mode-predefined" />
+                    <span>Predefined Approvers</span>
+                    <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
+                      From the configured Approval Chain
+                    </span>
+                  </label>
+                  <label
+                    htmlFor="approver-mode-dynamic"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
+                  >
+                    <RadioGroupItem value="dynamic" id="approver-mode-dynamic" />
+                    <span>Dynamic Approvers</span>
+                    <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
+                      Select approvers while creating
+                    </span>
+                  </label>
+                </RadioGroup>
+              </Field>
               <Field label="NFA Type" required>
                 <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
                   <SelectTrigger>
