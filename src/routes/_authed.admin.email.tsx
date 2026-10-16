@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
+import { toast } from "@/lib/swal";
 import { getEmailConfig, saveEmailConfig, sendTestEmail } from "@/lib/email-config.functions";
 import { Eye, EyeOff, Mail, Send, Save, LockKeyhole, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
