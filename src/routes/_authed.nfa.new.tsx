@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
@@ -91,6 +92,7 @@ function NewNfaPage() {
   const generateDocx = useServerFn(generateEnfaDocx);
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
+  const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
@@ -492,6 +494,34 @@ function NewNfaPage() {
                     </button>
                   </p>
                 ) : null}
+              </Field>
+              <Field label="Approver Selection" className="md:col-span-2">
+                <RadioGroup
+                  value={approverMode}
+                  onValueChange={(value) => setApproverMode(value as "predefined" | "dynamic")}
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3"
+                >
+                  <label
+                    htmlFor="approver-mode-predefined"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
+                  >
+                    <RadioGroupItem value="predefined" id="approver-mode-predefined" />
+                    <span>Predefined Approvers</span>
+                    <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
+                      From the configured Approval Chain
+                    </span>
+                  </label>
+                  <label
+                    htmlFor="approver-mode-dynamic"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
+                  >
+                    <RadioGroupItem value="dynamic" id="approver-mode-dynamic" />
+                    <span>Dynamic Approvers</span>
+                    <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
+                      Select approvers while creating
+                    </span>
+                  </label>
+                </RadioGroup>
               </Field>
               <Field label="NFA Type" required>
                 <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
