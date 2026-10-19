@@ -65,19 +65,45 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
   ].filter(Boolean);
   if (missing.length) throw new Error(`Enter ${missing.join(", ")}`);
   if (config.username && !password) throw new Error("Enter the App Password");
-  const nodemailer = (await import("nodemailer")).default;
   const port = config.port!;
   const ssl = config.encryption === "ssl" || (config.encryption !== "none" && port === 465);
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port,
-    secure: ssl,
-    ignoreTLS: config.encryption === "none",
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    auth: config.username ? { user: config.username, pass: password } : undefined,
-  });
   const from = config.fromName ? `"${config.fromName.replace(/"/g, "")}" <${config.fromEmail}>` : config.fromEmail;
+  const smtp = { host: config.host, port, secure: ssl, ignoreTLS: config.encryption === "none", user: config.username, pass: password };
+
+  // The hosted site cannot open mail ports, so relay through the on-prem middleware when it is configured.
+  const db = await admin();
+  const [{ data: mw }, secret] = await Promise.all([
+    db.from("sap_middleware_config").select("url, connection_mode").limit(1).maybeSingle(),
+    readSecret("middleware_secret"),
+  ]);
+  const relayUrl = mw?.connection_mode === "proxy" && mw?.url ? `${String(mw.url).replace(/\/+$/, "")}/mail/send` : "";
+
+  const transporter = {
+    async sendMail(msg: { from: string; to: string | string[]; cc?: string[]; subject: string; text?: string; html?: string }) {
+      if (relayUrl) {
+        const res = await fetch(relayUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-proxy-secret": (secret ?? "").trim(), "ngrok-skip-browser-warning": "1" },
+          body: JSON.stringify({ smtp, ...msg, to: Array.isArray(msg.to) ? msg.to : [msg.to] }),
+        });
+        const body = await res.json().catch(() => ({} as any));
+        if (res.status === 404) throw new Error("The middleware does not support email yet. Update and restart the middleware.");
+        if (!res.ok || !body?.ok) {
+          const err: any = new Error(body?.error || `Email relay failed (${res.status})`);
+          err.code = body?.code;
+          throw err;
+        }
+        return body;
+      }
+      const nodemailer = (await import("nodemailer")).default;
+      const t = nodemailer.createTransport({
+        host: smtp.host, port, secure: ssl, ignoreTLS: smtp.ignoreTLS,
+        connectionTimeout: 15_000, greetingTimeout: 15_000,
+        auth: smtp.user ? { user: smtp.user, pass: password } : undefined,
+      });
+      return t.sendMail(msg);
+    },
+  };
   return { transporter, from, config };
 }
 
