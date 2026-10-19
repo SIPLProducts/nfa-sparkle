@@ -116,8 +116,10 @@ export type Database = {
           enfa_no: string
           error: string | null
           id: string
+          level: number | null
           people: string[]
           recipients: string[]
+          source: string | null
           status: string
         }
         Insert: {
@@ -126,8 +128,10 @@ export type Database = {
           enfa_no?: string
           error?: string | null
           id?: string
+          level?: number | null
           people?: string[]
           recipients?: string[]
+          source?: string | null
           status?: string
         }
         Update: {
@@ -136,8 +140,10 @@ export type Database = {
           enfa_no?: string
           error?: string | null
           id?: string
+          level?: number | null
           people?: string[]
           recipients?: string[]
+          source?: string | null
           status?: string
         }
         Relationships: []

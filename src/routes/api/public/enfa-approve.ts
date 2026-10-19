@@ -164,6 +164,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
               comment: String(input.comment ?? ""),
               actor: userName || mailId,
               actorEmail: mailId,
+              actorUserId: userName,
               context: {
                 subject: String(n.subject ?? "").slice(0, 300),
                 initiator: (Array.isArray(n.initiator) ? n.initiator : [n.initiator]).slice(0, 6).map((a) => String(a ?? "").slice(0, 120)),

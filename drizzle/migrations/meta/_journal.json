@@ -8,6 +8,13 @@
       "when": 1792409626018,
       "tag": "0000_email_log",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792413118128,
+      "tag": "0001_email_log_context",
+      "breakpoints": true
     }
   ]
 }

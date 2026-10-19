@@ -158,6 +158,8 @@ export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContex
   const level = Math.max(1, ctx.level ?? 1);
   const initiator = ids(ctx.initiator);
   if (action === "approve") {
+    // Without a known chain we cannot tell "next approver" from "final"; never guess.
+    if (!total) return { people: [], final: false };
     if (level >= total) return { people: initiator, final: true };
     // Next configured approver after the acting level (skips empty slots).
     const next = approvers.slice(level).find((a) => a.length) ?? [];
@@ -165,6 +167,77 @@ export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContex
   }
   if (action === "clarification") return { people: [...initiator, ...approvers.slice(0, level).flat()], final: false };
   return { people: initiator, final: false };
+}
+
+/** Level of the acting approver: the chain level holding their User ID, else the fallback. Pure. */
+export function actingLevel(chainIds: string[], actor: string, fallback: number): number {
+  const a = actor.trim().toUpperCase();
+  const i = a ? chainIds.findIndex((id) => (id ?? "").trim().toUpperCase() === a) : -1;
+  return i >= 0 ? i + 1 : Math.max(1, fallback || 1);
+}
+
+/**
+ * Builds the recipient context on the server from SAP, after SAP accepted the action.
+ * SAP's record Select only answers for the initiator, so it is tried as each portal user
+ * (hint first) until SAP returns the record's INIT_USERID; that detail also gives the
+ * plant / NFA type / function used to read the record's approval flow.
+ */
+export async function resolveWorkflowContext(input: {
+  enfaNo: string; actorUserId: string; hint: WorkflowNotifyContext;
+}): Promise<{ context: WorkflowNotifyContext; source: string }> {
+  const hint = input.hint;
+  const src: string[] = [];
+  let initiator: string[] = ids(hint.initiator);
+  let chainIds: string[] = [];
+  try {
+    const { callEnfaSelect, callSapApprovalFlow } = await import("@/lib/sap-report.server");
+    const { parseSapApprovalFlow } = await import("@/lib/sap-approval-flow");
+    const db = await admin();
+    const { data: profs } = await db.from("profiles").select("username, status");
+    const all = ((profs ?? []) as Array<{ username: string | null; status: string | null }>)
+      .filter((p) => p.username && String(p.status ?? "").toUpperCase() !== "DELETED")
+      .map((p) => p.username!.trim().toUpperCase());
+    const candidates = Array.from(new Set([...initiator.map((x) => x.toUpperCase()), ...all]))
+      .filter((u) => u && u !== input.actorUserId.trim().toUpperCase());
+    // The actor may also be the initiator; try them last.
+    if (input.actorUserId.trim()) candidates.push(input.actorUserId.trim().toUpperCase());
+    let detail: Record<string, unknown> | null = null;
+    for (let i = 0; i < candidates.length && !detail; i += 6) {
+      const batch = await Promise.all(candidates.slice(i, i + 6).map(async (u) => {
+        try {
+          const r = await callEnfaSelect(input.enfaNo, { user_name: u });
+          const parsed = r.ok ? JSON.parse(r.body || "null") : null;
+          const d = Array.isArray(parsed) ? parsed[0] : parsed;
+          return d && typeof d === "object" && String((d as any).INIT_USERID ?? "").trim() ? d as Record<string, unknown> : null;
+        } catch { return null; }
+      }));
+      detail = batch.find(Boolean) ?? null;
+    }
+    if (detail) {
+      initiator = ids([String(detail.INIT_USERID ?? ""), ...initiator]);
+      src.push("initiator:sap");
+      const plant = String(detail.PSPNR ?? "").trim();
+      const nfaType = String(detail.FUNCT ?? detail.FUNCT_TXT ?? "").trim();
+      const functionName = String(detail.EXTR_TXT ?? detail.EXTRA_TXT ?? detail.EXTRA ?? "").trim();
+      if (plant && nfaType && functionName) {
+        const f = await callSapApprovalFlow({ plant, nfaType, functionName });
+        if (f.ok) {
+          for (const a of parseSapApprovalFlow(f.body)) {
+            const lv = Number(a.level);
+            if (lv >= 1 && lv <= 7) chainIds[lv - 1] = (a.userId ?? "").trim();
+          }
+          if (chainIds.some(Boolean)) src.push("chain:sap");
+        }
+      }
+    } else if (initiator.length) src.push("initiator:screen");
+  } catch (e) {
+    console.warn("[workflow-mail] SAP context lookup failed:", (e as Error)?.message ?? e);
+  }
+  const hintApprovers = (hint.approvers ?? []).map(ids);
+  const approvers = Array.from({ length: 7 }, (_, i) => ids([chainIds[i] ?? "", ...(hintApprovers[i] ?? [])]));
+  if (!src.some((s) => s.startsWith("chain")) && hintApprovers.some((a) => a.length)) src.push("chain:screen");
+  const level = actingLevel(Array.from({ length: 7 }, (_, i) => chainIds[i] ?? ""), input.actorUserId, hint.level ?? 1);
+  return { context: { subject: hint.subject, initiator, approvers, level }, source: src.join(",") || "none" };
 }
 
 type MailProfile = { username: string | null; full_name: string | null; email: string | null; status: string | null };
@@ -202,15 +275,19 @@ const LABELS: Record<WorkflowAction, string> = {
   clarification: "Clarification requested",
 };
 
-export async function notifyWorkflowAction(input: {
+export async function notifyWorkflowAction(raw: {
   action: WorkflowAction;
   enfaNo: string;
   comment: string;
   actor: string;
   actorEmail: string;
+  /** Signed-in approver's User ID (profiles.username). */
+  actorUserId?: string;
   context: WorkflowNotifyContext;
 }) {
   const { config } = await loadEmailConfig();
+  const resolved = await resolveWorkflowContext({ enfaNo: raw.enfaNo, actorUserId: raw.actorUserId ?? "", hint: raw.context });
+  const input = { ...raw, context: resolved.context };
   const mail = await buildWorkflowMail(input);
   const record = async (status: string, error?: string) => {
     try {
@@ -218,6 +295,7 @@ export async function notifyWorkflowAction(input: {
       await db.from("email_log").insert({
         enfa_no: input.enfaNo, action: mail.final ? "final_approve" : input.action, status,
         people: mail.people, recipients: mail.to, error: error ?? null,
+        level: input.context.level ?? null, source: resolved.source,
       });
     } catch { /* logging never blocks */ }
   };
@@ -227,8 +305,14 @@ export async function notifyWorkflowAction(input: {
     return;
   }
   if (!mail.to.length) {
-    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: no recipient email found for`, mail.people.join(", ") || "(none)");
-    await record("skipped", `No Email ID found in User Management for: ${mail.people.join(", ") || "(no recipient in SAP data)"}`);
+    const noChain = input.action === "approve" && !(input.context.approvers ?? []).some((a) => ids(a).length);
+    const reason = noChain
+      ? "Approval chain not available from SAP for this record"
+      : !mail.people.length
+        ? "Initiator could not be read from SAP for this record"
+        : `No Email ID found in User Management for: ${mail.people.join(", ")}`;
+    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: ${reason}`);
+    await record("skipped", reason);
     return;
   }
   try {
