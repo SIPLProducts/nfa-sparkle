@@ -153,10 +153,12 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         }
 
         if (ok) {
-          // Notification runs in the background; failures never affect the SAP action.
+          // Awaited so the server cannot end the request before the email is sent and logged;
+          // failures are caught and never change the SAP result.
           const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
-          void import("@/lib/workflow-mail.server")
-            .then(({ notifyWorkflowAction }) => notifyWorkflowAction({
+          try {
+            const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
+            await notifyWorkflowAction({
               action: rawAction as (typeof allowed)[number],
               enfaNo: reffld,
               comment: String(input.comment ?? ""),
@@ -164,14 +166,16 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
               actorEmail: mailId,
               context: {
                 subject: String(n.subject ?? "").slice(0, 300),
-                initiator: (Array.isArray(n.initiator) ? n.initiator : [n.initiator]).slice(0, 5).map((a) => String(a ?? "").slice(0, 120)),
+                initiator: (Array.isArray(n.initiator) ? n.initiator : [n.initiator]).slice(0, 6).map((a) => String(a ?? "").slice(0, 120)),
                 approvers: Array.isArray(n.approvers)
                   ? n.approvers.slice(0, 7).map((a) => (Array.isArray(a) ? a : [a]).slice(0, 5).map((x) => String(x ?? "").slice(0, 120)))
                   : [],
                 level: Number(n.level) || 1,
               },
-            }))
-            .catch((e) => console.warn("[enfa-approve] notification failed:", e?.message ?? e));
+            });
+          } catch (e) {
+            console.warn("[enfa-approve] notification failed:", (e as Error)?.message ?? e);
+          }
         }
 
         return new Response(JSON.stringify({ ok, message, raw }), { status: 200, headers });
