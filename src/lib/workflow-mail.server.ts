@@ -199,22 +199,42 @@ export async function notifyWorkflowAction(input: {
   context: WorkflowNotifyContext;
 }) {
   const { config } = await loadEmailConfig();
+  const mail = await buildWorkflowMail(input);
+  const record = async (status: string, error?: string) => {
+    try {
+      const db = await admin();
+      await db.from("email_log").insert({
+        enfa_no: input.enfaNo, action: mail.final ? "final_approve" : input.action, status,
+        people: mail.people, recipients: mail.to, error: error ?? null,
+      });
+    } catch { /* logging never blocks */ }
+  };
   if (!config.enabled) {
     console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sending disabled`);
+    await record("skipped", "Sending is switched off in Email Configuration");
     return;
   }
-  const mail = await buildWorkflowMail(input);
   if (!mail.to.length) {
     console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: no recipient email found for`, mail.people.join(", ") || "(none)");
+    await record("skipped", `No Email ID found in User Management for: ${mail.people.join(", ") || "(no recipient in SAP data)"}`);
     return;
   }
-  const { transporter, from } = await transport();
   try {
+    const { transporter, from } = await transport();
     await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text });
     console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sent to ${mail.to.join(", ")}`);
+    await record("sent");
   } catch (e) {
-    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: failed — ${friendlyMailError(e)}`);
+    const msg = friendlyMailError(e);
+    console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: failed — ${msg}`);
+    await record("failed", msg);
   }
+}
+
+export async function listEmailLog(limit = 20) {
+  const db = await admin();
+  const { data } = await db.from("email_log").select("*").order("created_at", { ascending: false }).limit(limit);
+  return (data ?? []) as Array<{ id: string; created_at: string; enfa_no: string; action: string; status: string; people: string[]; recipients: string[]; error: string | null }>;
 }
 
 /** Works out recipients and text without sending (used for dry-run checks). */
