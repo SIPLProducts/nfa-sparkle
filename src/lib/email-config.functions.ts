@@ -50,3 +50,11 @@ export const sendTestEmail = createServerFn({ method: "POST" })
       return { ok: false, message: e?.message ?? "Test email failed" };
     }
   });
+
+export const getEmailLog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertScreenAccess(context as any, "sap_api");
+    const { listEmailLog } = await import("./workflow-mail.server");
+    return listEmailLog(20);
+  });

@@ -30,3 +30,4 @@
 - Attachment-read Swal notifications target the active dialog through the shared notification helper so modal focus and pointer handling remain intact; other notification callers retain their default behavior.
 - My NFAs Edit uses a shared tested SAP Edit parser and payload builder, with server-resolved signed-in User ID and selected record number, so connection credentials and saved sample values never establish the Edit identity.
 - Email Configuration persists SMTP settings via sap_api-guarded server functions in the locked sap_secret table; workflow emails are sent server-side after SAP accepts an action and never block it.
+- Workflow email recipients use approver User IDs from SAP's record approval flow (worklist rows may hold names only), and every attempt is written to the locked email_log table so delivery outcomes are visible without server logs.

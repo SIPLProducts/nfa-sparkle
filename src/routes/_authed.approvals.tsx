@@ -367,6 +367,20 @@ function ApprovalsInbox() {
           });
           actionPdf = { base64: generated.base64, filename: generated.filename };
         }
+        // Approver User IDs come from SAP's record approval flow (the worklist row often has names only).
+        let flowIds: string[] = [];
+        if (selectedRow) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 8000);
+          try {
+            const flow = await fetchResolvedSapApprovalFlow({
+              plant: val(selectedRow, "PSPNR"),
+              nfaType: val(selectedRow, "FUNCT") || val(selectedRow, "FUNCT_TXT"),
+              functionName: val(selectedRow, "EXTRA_TXT") || val(selectedRow, "EXTRA"),
+            }, token, ctrl.signal);
+            for (const a of flow.approvers) { const lv = Number(a.level); if (lv >= 1 && lv <= 7) flowIds[lv - 1] = (a.userId ?? "").trim(); }
+          } catch { flowIds = []; } finally { clearTimeout(timer); }
+        }
         const res = await fetch("/api/public/enfa-approve", {
           method: "POST",
           headers: {
@@ -383,7 +397,8 @@ function ApprovalsInbox() {
                 subject: val(selectedRow, "SUBJECT"),
                 initiator: ["INIT_USERID", "USNAM", "USRID", "ERNAM", "INIT_NAME"].map((k) => val(selectedRow, k)).filter(Boolean),
                 approvers: LEVELS.map((l) =>
-                  [`USERID${l}`, `USER_ID${l}`, `USRID${l}`, `APPR${l}`].map((k) => val(selectedRow, k)).filter(Boolean)),
+                  [flowIds[l - 1] ?? "", `USERID${l}`, `USER_ID${l}`, `USRID${l}`, `APPR${l}`]
+                    .map((k, i) => (i === 0 ? k : val(selectedRow, k))).filter(Boolean)),
                 level: currentLevel(selectedRow),
               },
             } : {}),
