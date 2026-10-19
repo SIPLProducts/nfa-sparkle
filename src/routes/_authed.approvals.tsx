@@ -378,7 +378,7 @@ function ApprovalsInbox() {
               nfaType: val(selectedRow, "FUNCT") || val(selectedRow, "FUNCT_TXT"),
               functionName: val(selectedRow, "EXTRA_TXT") || val(selectedRow, "EXTRA"),
             }, token, ctrl.signal);
-            for (const a of flow.approvers) if (a.level >= 1 && a.level <= 7) flowIds[a.level - 1] = (a.userId ?? "").trim();
+            for (const a of flow.approvers) { const lv = Number(a.level); if (lv >= 1 && lv <= 7) flowIds[lv - 1] = (a.userId ?? "").trim(); }
           } catch { flowIds = []; } finally { clearTimeout(timer); }
         }
         const res = await fetch("/api/public/enfa-approve", {
