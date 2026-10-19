@@ -27,3 +27,16 @@ describe("friendlyMailError", () => {
     expect(friendlyMailError({ message: "proxy request failed, cannot connect" })).toMatch(/hosted preview/);
   });
 });
+
+describe("pickRecipients with User IDs and names", () => {
+  const ctx = { initiator: ["22011077", "Sunil"], approvers: [["9001", "MGR"], ["9002"], [], [], [], [], ["9007"]] };
+  it("approve goes to the next configured approver, including level 7", () => {
+    expect(pickRecipients("approve", { ...ctx, level: 2 })).toEqual({ people: ["9007"], final: false });
+  });
+  it("final approval goes to the initiator", () => {
+    expect(pickRecipients("approve", { ...ctx, level: 7 })).toEqual({ people: ["22011077", "Sunil"], final: true });
+  });
+  it("clarification includes initiator and approvers up to the level", () => {
+    expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["22011077", "Sunil", "9001", "MGR", "9002"]);
+  });
+});
