@@ -275,6 +275,39 @@ app.get("/systems", requireSecret, (_req, res) => {
 });
 
 /**
+ * POST /mail/send — relays an email over SMTP from this network.
+ * { smtp: { host, port, secure, ignoreTLS, user, pass }, from, to[], cc[], subject, text, html }
+ */
+app.post("/mail/send", requireSecret, async (req, res) => {
+  const p = req.body || {};
+  const s = p.smtp || {};
+  const to = Array.isArray(p.to) ? p.to.filter(Boolean) : p.to ? [p.to] : [];
+  if (!s.host || !s.port || !p.from || !to.length) {
+    return res.status(400).json({ ok: false, error: "smtp.host, smtp.port, from and to are required" });
+  }
+  let nodemailer;
+  try { nodemailer = require("nodemailer"); } catch (_e) {
+    return res.status(500).json({ ok: false, error: "nodemailer is not installed in the middleware. Run: npm install nodemailer" });
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: s.host, port: Number(s.port), secure: !!s.secure, ignoreTLS: !!s.ignoreTLS,
+      connectionTimeout: 15000, greetingTimeout: 15000,
+      auth: s.user ? { user: s.user, pass: s.pass || "" } : undefined,
+    });
+    const info = await transporter.sendMail({
+      from: p.from, to, cc: Array.isArray(p.cc) && p.cc.length ? p.cc : undefined,
+      subject: p.subject || "", text: p.text || undefined, html: p.html || undefined,
+    });
+    console.log(`[middleware] MAIL sent to ${to.join(", ")} id=${info.messageId}`);
+    res.json({ ok: true, messageId: info.messageId });
+  } catch (e) {
+    console.error(`[middleware] MAIL failed: ${(e && e.message) || e}`);
+    res.status(502).json({ ok: false, code: e && e.code, error: (e && e.message) || String(e) });
+  }
+});
+
+/**
  * POST /sap/call
  * {
  *   system?: "DEV300",               // key from systems.json (falls back to default)
