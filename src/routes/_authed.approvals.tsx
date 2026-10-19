@@ -89,7 +89,7 @@ function statusTone(text: string): string {
   return "bg-muted text-muted-foreground";
 }
 
-const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+const LEVELS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 function val(row: SapReportRow, key: string): string {
   return ((row as unknown as Record<string, string>)[key] ?? "").trim();
@@ -381,8 +381,9 @@ function ApprovalsInbox() {
             ...(selectedRow ? {
               notify: {
                 subject: val(selectedRow, "SUBJECT"),
-                initiator: val(selectedRow, "INIT_NAME"),
-                approvers: LEVELS.map((l) => val(selectedRow, `APPR${l}`)),
+                initiator: ["INIT_USERID", "USNAM", "USRID", "ERNAM", "INIT_NAME"].map((k) => val(selectedRow, k)).filter(Boolean),
+                approvers: LEVELS.map((l) =>
+                  [`USERID${l}`, `USER_ID${l}`, `USRID${l}`, `APPR${l}`].map((k) => val(selectedRow, k)).filter(Boolean)),
                 level: currentLevel(selectedRow),
               },
             } : {}),
