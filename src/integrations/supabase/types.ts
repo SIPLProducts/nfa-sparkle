@@ -109,6 +109,39 @@ export type Database = {
           },
         ]
       }
+      email_log: {
+        Row: {
+          action: string
+          created_at: string
+          enfa_no: string
+          error: string | null
+          id: string
+          people: string[]
+          recipients: string[]
+          status: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          enfa_no?: string
+          error?: string | null
+          id?: string
+          people?: string[]
+          recipients?: string[]
+          status?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          enfa_no?: string
+          error?: string | null
+          id?: string
+          people?: string[]
+          recipients?: string[]
+          status?: string
+        }
+        Relationships: []
+      }
       enfa_working_document: {
         Row: {
           created_at: string
