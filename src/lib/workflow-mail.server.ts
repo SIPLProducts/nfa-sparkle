@@ -167,20 +167,32 @@ export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContex
   return { people: initiator, final: false };
 }
 
+type MailProfile = { username: string | null; full_name: string | null; email: string | null; status: string | null };
+
+/** Matches identifiers to Email IDs: exact User ID / name / email first, then a name that matches exactly one user. Pure, so it can be tested. */
+export function matchEmails(identifiers: string[], profiles: MailProfile[]): string[] {
+  const norm = (v: unknown) => String(v ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const wanted = Array.from(new Set(identifiers.map(norm).filter(Boolean)));
+  const live = profiles.filter((p) => p.email && String(p.status ?? "").toUpperCase() !== "DELETED");
+  const out = new Set<string>();
+  for (const w of wanted) {
+    const exact = live.filter((p) => [p.username, p.full_name, p.email].map(norm).includes(w));
+    if (exact.length) { exact.forEach((p) => out.add(p.email!.trim())); continue; }
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(w)) { out.add(w); continue; }
+    // SAP names may be partial (e.g. first name only); use only when unambiguous.
+    const tokens = w.split(" ").filter((t) => t.length >= 3);
+    if (!tokens.length || /\d/.test(w)) continue;
+    const loose = live.filter((p) => { const n = norm(p.full_name).split(" "); return tokens.every((t) => n.includes(t)); });
+    if (new Set(loose.map((p) => p.email!.toLowerCase())).size === 1) out.add(loose[0].email!.trim());
+  }
+  return Array.from(new Set(out));
+}
+
 async function resolveEmails(identifiers: string[]): Promise<string[]> {
-  const wanted = Array.from(new Set(identifiers.map((v) => v.trim().toLowerCase()).filter(Boolean)));
-  if (!wanted.length) return [];
+  if (!identifiers.some((v) => v.trim())) return [];
   const db = await admin();
   const { data } = await db.from("profiles").select("username, full_name, email, status");
-  const out = new Set<string>();
-  for (const p of (data ?? []) as Array<{ username: string | null; full_name: string | null; email: string | null; status: string | null }>) {
-    if (!p.email || String(p.status ?? "").toUpperCase() === "DELETED") continue;
-    const keys = [p.username, p.full_name, p.email].map((v) => String(v ?? "").trim().toLowerCase());
-    if (keys.some((k) => k && wanted.includes(k))) out.add(p.email.trim());
-  }
-  // Identifiers that are already email addresses are used as-is.
-  for (const w of wanted) if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(w) && ![...out].some((e) => e.toLowerCase() === w)) out.add(w);
-  return Array.from(out);
+  return matchEmails(identifiers, (data ?? []) as MailProfile[]);
 }
 
 const LABELS: Record<WorkflowAction, string> = {

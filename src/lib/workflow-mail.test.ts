@@ -40,3 +40,18 @@ describe("pickRecipients with User IDs and names", () => {
     expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["22011077", "Sunil", "9001", "MGR", "9002"]);
   });
 });
+
+import { matchEmails } from "./workflow-mail.server";
+describe("matchEmails", () => {
+  const profiles = [
+    { username: "9001", full_name: "thiru sharvi", email: "t@x.com", status: "ACTIVE" },
+    { username: "22011077", full_name: "Sunil A", email: "s@x.com", status: "ACTIVE" },
+    { username: "abaper", full_name: "sampath yadav", email: "a@x.com", status: "ACTIVE" },
+    { username: "9004", full_name: "sampath yadav", email: "b@x.com", status: "ACTIVE" },
+    { username: "old", full_name: "old user", email: "o@x.com", status: "DELETED" },
+  ];
+  it("matches User IDs case-insensitively", () => expect(matchEmails(["22011077"], profiles)).toEqual(["s@x.com"]));
+  it("matches a partial SAP name when unique", () => expect(matchEmails(["SUNIL"], profiles)).toEqual(["s@x.com"]));
+  it("skips ambiguous names", () => expect(matchEmails(["SAMPATH"], profiles)).toEqual([]));
+  it("skips deleted users", () => expect(matchEmails(["old"], profiles)).toEqual([]));
+});
