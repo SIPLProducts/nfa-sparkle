@@ -55,3 +55,16 @@ describe("matchEmails", () => {
   it("skips ambiguous names", () => expect(matchEmails(["SAMPATH"], profiles)).toEqual([]));
   it("skips deleted users", () => expect(matchEmails(["old"], profiles)).toEqual([]));
 });
+
+import { actingLevel } from "./workflow-mail.server";
+describe("server-resolved chain rules", () => {
+  it("approve with no known chain emails nobody instead of the initiator", () => {
+    expect(pickRecipients("approve", { initiator: "KVVK", approvers: [], level: 1 })).toEqual({ people: [], final: false });
+  });
+  it("finds the acting level from the approver's User ID", () => {
+    expect(actingLevel(["9001", "9002", "9003"], "9002", 1)).toBe(2);
+  });
+  it("falls back to the screen level when the approver is not in the chain", () => {
+    expect(actingLevel(["9001", "9002"], "OTHER", 1)).toBe(1);
+  });
+});
