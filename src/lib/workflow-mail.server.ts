@@ -140,25 +140,31 @@ export type WorkflowAction = "approve" | "reject" | "back_to_initiator" | "clari
 
 export interface WorkflowNotifyContext {
   subject?: string;
-  initiator?: string;
-  /** Approver identifiers (User ID or name) by level, from the SAP worklist row. */
-  approvers?: string[];
+  /** Initiator identifiers (User ID, name or email); any may match. */
+  initiator?: string | string[];
+  /** Approver identifiers by level (User ID, name or email); any may match. */
+  approvers?: Array<string | string[]>;
   /** Level the acting approver is at (1-based). */
   level?: number;
 }
 
 /** Picks recipients by action: pure, so it can be tested. */
+const ids = (v: string | string[] | undefined): string[] =>
+  Array.from(new Set((Array.isArray(v) ? v : [v ?? ""]).map((x) => String(x ?? "").trim()).filter(Boolean)));
+
 export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContext): { people: string[]; final: boolean } {
-  const approvers = (ctx.approvers ?? []).map((a) => a.trim());
-  const total = approvers.reduce((last, a, i) => (a ? i + 1 : last), 0);
+  const approvers = (ctx.approvers ?? []).map(ids);
+  const total = approvers.reduce((last, a, i) => (a.length ? i + 1 : last), 0);
   const level = Math.max(1, ctx.level ?? 1);
-  const initiator = ctx.initiator?.trim() ?? "";
+  const initiator = ids(ctx.initiator);
   if (action === "approve") {
-    if (level >= total) return { people: [initiator], final: true };
-    return { people: [approvers[level] ?? ""], final: false };
+    if (level >= total) return { people: initiator, final: true };
+    // Next configured approver after the acting level (skips empty slots).
+    const next = approvers.slice(level).find((a) => a.length) ?? [];
+    return { people: next, final: false };
   }
-  if (action === "clarification") return { people: [initiator, ...approvers.slice(0, level)], final: false };
-  return { people: [initiator], final: false };
+  if (action === "clarification") return { people: [...initiator, ...approvers.slice(0, level).flat()], final: false };
+  return { people: initiator, final: false };
 }
 
 async function resolveEmails(identifiers: string[]): Promise<string[]> {
@@ -172,6 +178,8 @@ async function resolveEmails(identifiers: string[]): Promise<string[]> {
     const keys = [p.username, p.full_name, p.email].map((v) => String(v ?? "").trim().toLowerCase());
     if (keys.some((k) => k && wanted.includes(k))) out.add(p.email.trim());
   }
+  // Identifiers that are already email addresses are used as-is.
+  for (const w of wanted) if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(w) && ![...out].some((e) => e.toLowerCase() === w)) out.add(w);
   return Array.from(out);
 }
 
@@ -214,7 +222,7 @@ export async function buildWorkflowMail(input: {
   action: WorkflowAction; enfaNo: string; comment: string; actor: string; actorEmail: string; context: WorkflowNotifyContext;
 }) {
   const { people, final } = pickRecipients(input.action, input.context);
-  const to = (await resolveEmails(people)).filter((e) => input.action !== "approve" || e.toLowerCase() !== input.actorEmail.toLowerCase());
+  const to = (await resolveEmails(people)).filter((e) => input.action !== "approve" || final || e.toLowerCase() !== input.actorEmail.toLowerCase());
   const label = final ? "Fully approved" : LABELS[input.action];
   const heading = input.action === "approve" && !final ? "Awaiting your approval" : label;
   const lines = [
