@@ -166,7 +166,7 @@ export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContex
     const next = approvers.slice(level).find((a) => a.length) ?? [];
     return { people: next, final: false };
   }
-  if (action === "clarification") return { people: [...initiator, ...approvers.slice(0, level).flat()], final: false };
+  if (action === "clarification") return { people: [...initiator, ...approvers.slice(0, Math.max(0, level - 1)).flat()], final: false };
   return { people: initiator, final: false };
 }
 
@@ -342,7 +342,7 @@ export async function buildWorkflowMail(input: {
   action: WorkflowAction; enfaNo: string; comment: string; actor: string; actorEmail: string; context: WorkflowNotifyContext;
 }) {
   const { people, final } = pickRecipients(input.action, input.context);
-  const to = (await resolveEmails(people)).filter((e) => input.action !== "approve" || final || e.toLowerCase() !== input.actorEmail.toLowerCase());
+  const to = (await resolveEmails(people)).filter((e) => !((input.action === "approve" && !final) || input.action === "clarification") || e.toLowerCase() !== input.actorEmail.toLowerCase());
   const label = final ? "Fully approved" : LABELS[input.action];
   const heading = input.action === "approve" && !final ? "Awaiting your approval" : label;
   const lines = [
