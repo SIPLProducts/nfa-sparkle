@@ -33,6 +33,14 @@ describe("SAP approval chain management", () => {
         DESIG5: "", USERID5: "",
         DESIG6: "", USERID6: "",
         DESIG7: "", USERID7: "",
+        DESIG8: "", USERID8: "",
+        DESIG9: "", USERID9: "",
+        DESIG10: "", USERID10: "",
+        DESIG11: "", USERID11: "",
+        DESIG12: "", USERID12: "",
+        DESIG13: "", USERID13: "",
+        DESIG14: "", USERID14: "",
+        DESIG15: "", USERID15: "",
         LINE_INDEX: "12",
       },
     });
@@ -54,6 +62,14 @@ describe("SAP approval chain management", () => {
       DESIG5: "", USERID5: "",
       DESIG6: "", USERID6: "",
       DESIG7: "", USERID7: "",
+      DESIG8: "", USERID8: "",
+      DESIG9: "", USERID9: "",
+      DESIG10: "", USERID10: "",
+      DESIG11: "", USERID11: "",
+      DESIG12: "", USERID12: "",
+      DESIG13: "", USERID13: "",
+      DESIG14: "", USERID14: "",
+      DESIG15: "", USERID15: "",
     });
     expect(payload.delete_user).not.toHaveProperty("LINE_INDEX");
   });
