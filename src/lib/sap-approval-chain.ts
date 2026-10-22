@@ -1,4 +1,4 @@
-export const MAX_APPROVAL_LEVELS = 7;
+export const MAX_APPROVAL_LEVELS = 15;
 
 export interface EditableApprovalLevel {
   designation: string;
