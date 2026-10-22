@@ -440,6 +440,6 @@ export function renderWorkflowMailHtml(m: {
 <p style="margin:2px 0 0;color:#94a3b8;font-size:12px">eNFA Workflow Notification</p>
 </td></tr></table>
 </td></tr>
-<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6">This is an automated notification. Please do not reply.<br>&copy; ${m.date.getFullYear()} ${esc(sender)}. This is an automated notification.</td></tr>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6">This is an automated notification. Please do not reply.<br>&copy; ${m.date.getFullYear()} ${esc(sender)}. All rights reserved.</td></tr>
 </table></td></tr></table></body></html>`;
 }
