@@ -68,3 +68,13 @@ describe("server-resolved chain rules", () => {
     expect(actingLevel(["9001", "9002"], "OTHER", 1)).toBe(1);
   });
 });
+
+import { renderWorkflowMailHtml } from "./workflow-mail.server";
+describe("workflow mail HTML", () => {
+  it("shows ENFA no and escaped comment", () => {
+    const h = renderWorkflowMailHtml({ action: "clarification", final: false, heading: "x", label: "Clarification requested", enfaNo: "100183", subject: "test3", actor: "9002", comment: "<b>check</b>", date: new Date() });
+    expect(h).toContain("100183");
+    expect(h).toContain("&lt;b&gt;check&lt;/b&gt;");
+    expect(h).not.toContain("<b>check</b>");
+  });
+});

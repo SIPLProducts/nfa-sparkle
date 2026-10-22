@@ -317,7 +317,7 @@ export async function notifyWorkflowAction(raw: {
   }
   try {
     const { transporter, from } = await transport();
-    await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text });
+    await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text, html: mail.html });
     console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sent to ${mail.to.join(", ")}`);
     await record("sent");
   } catch (e) {
@@ -348,5 +348,71 @@ export async function buildWorkflowMail(input: {
     `By: ${input.actor}`,
     input.comment ? `Comment: ${input.comment}` : "",
   ].filter(Boolean);
-  return { people, final, to, subject: `ENFA ${input.enfaNo} — ${heading}`, text: `${heading}\n\n${lines.join("\n")}\n` };
+  let greetName = "";
+  if (to.length === 1) {
+    try {
+      const db = await admin();
+      const { data } = await db.from("profiles").select("full_name").ilike("email", to[0]).limit(1);
+      greetName = String((data as Array<{ full_name: string | null }> | null)?.[0]?.full_name ?? "").trim();
+    } catch { /* greeting falls back */ }
+  }
+  const html = renderWorkflowMailHtml({
+    action: input.action, final, heading, label, enfaNo: input.enfaNo, subject: input.context.subject,
+    actor: input.actor, level: input.context.level, comment: input.comment, greetName, date: new Date(),
+  });
+  return { people, final, to, subject: `ENFA ${input.enfaNo} — ${heading}`, text: `${heading}\n\n${lines.join("\n")}\n`, html };
+}
+
+const esc = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+const TITLES: Record<WorkflowAction, string> = {
+  approve: "Awaiting Your Approval",
+  reject: "NFA Rejected",
+  back_to_initiator: "Sent Back to Initiator",
+  clarification: "Clarification Requested",
+};
+
+/** Branded HTML body for workflow emails. Pure, so it can be tested. */
+export function renderWorkflowMailHtml(m: {
+  action: WorkflowAction; final: boolean; heading: string; label: string; enfaNo: string; subject?: string;
+  actor: string; level?: number; comment: string; greetName?: string; date: Date;
+}): string {
+  const title = m.final ? "NFA Fully Approved" : TITLES[m.action];
+  const no = `<strong>ENFA ${esc(m.enfaNo)}</strong>`;
+  const intro = m.final
+    ? `We're pleased to inform you that ${no} has been fully approved.`
+    : m.action === "approve"
+      ? `${no} has been approved at the previous level and is now awaiting your approval.`
+      : m.action === "reject"
+        ? `${no} has been rejected.`
+        : m.action === "back_to_initiator"
+          ? `${no} has been sent back to the initiator for revision.`
+          : `Clarification has been requested on ${no}.`;
+  const when = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(m.date);
+  const dash = "&mdash;";
+  const rows: Array<[string, string]> = [
+    ["ENFA No", `<strong style="font-family:Consolas,Menlo,monospace">${esc(m.enfaNo)}</strong>`],
+    ["Subject", m.subject ? esc(m.subject) : dash],
+    ["Action", esc(m.label)],
+    ["Action By", m.actor ? esc(m.actor) : dash],
+    ...(m.level ? [["Level", esc(m.level)] as [string, string]] : []),
+    ["Comment", m.comment ? esc(m.comment) : dash],
+    ["Action Date", `${esc(when)} (IST)`],
+  ];
+  const rowHtml = rows.map(([k, v]) =>
+    `<tr><td style="padding:7px 0;color:#64748b;width:160px;vertical-align:top">${k}</td><td style="padding:7px 0;color:#1e293b">${v}</td></tr>`).join("");
+  return `<!doctype html><html><body style="margin:0;padding:24px 0;background:#f4f6fb;font-family:Segoe UI,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden">
+<tr><td style="background:#1e3a5f;padding:32px 40px">
+<div style="color:#d6a76c;font-size:12px;font-weight:700;letter-spacing:2px">NOTIFICATION</div>
+<div style="color:#ffffff;font-size:24px;font-weight:700;margin-top:8px">${esc(title)}</div></td></tr>
+<tr><td style="padding:32px 40px;color:#334155;font-size:15px;line-height:1.6">
+<p style="margin:0 0 16px">Dear ${m.greetName ? esc(m.greetName) : "Sir/Madam"},</p>
+<p style="margin:0 0 24px;color:#475569">${intro} The details are summarised below for your review.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
+<tr><td style="padding:20px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">${rowHtml}</table></td></tr></table>
+<p style="margin:24px 0 0;color:#475569">You can review this NFA in the eNFA Portal.</p>
+</td></tr></table></td></tr></table></body></html>`;
 }
