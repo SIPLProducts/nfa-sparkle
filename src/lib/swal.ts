@@ -7,8 +7,15 @@ function text(message: Message) {
   return message == null ? "" : String(message);
 }
 
-function fire(icon: "success" | "error" | "warning" | "info", message: Message, target?: HTMLElement) {
+/** Topmost open modal window, so popups render inside its focus/click trap. */
+function activeDialog(): HTMLElement | undefined {
+  const all = document.querySelectorAll<HTMLElement>('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+  return all.length ? all[all.length - 1] : undefined;
+}
+
+function fire(icon: "success" | "error" | "warning" | "info", message: Message, explicit?: HTMLElement) {
   if (typeof document === "undefined") return Promise.resolve();
+  const target = explicit ?? activeDialog();
   return Swal.fire({
     icon,
     ...(target ? { target } : {}),
@@ -45,8 +52,10 @@ export async function swalConfirm({
   destructive?: boolean;
 }) {
   if (typeof document === "undefined") return false;
+  const target = activeDialog();
   const result = await Swal.fire({
     icon: "warning",
+    ...(target ? { target } : {}),
     title,
     text: message,
     showCancelButton: true,
@@ -56,6 +65,7 @@ export async function swalConfirm({
     focusCancel: true,
     buttonsStyling: false,
     customClass: {
+      ...(target ? { container: "nfa-swal-in-dialog" } : {}),
       popup: "nfa-swal-popup",
       title: "nfa-swal-title",
       htmlContainer: "nfa-swal-content",

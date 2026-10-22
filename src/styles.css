@@ -142,8 +142,9 @@
 [role="dialog"]:has(> .nfa-swal-in-dialog) {
   overflow: visible;
 }
+.swal2-container { pointer-events: auto; }
 .nfa-swal-in-dialog.swal2-container {
-  position: absolute;
+  position: fixed;
   overflow: visible !important;
   align-items: center;
 }
