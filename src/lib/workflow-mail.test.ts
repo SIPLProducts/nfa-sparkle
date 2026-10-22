@@ -78,3 +78,19 @@ describe("workflow mail HTML", () => {
     expect(h).not.toContain("<b>check</b>");
   });
 });
+
+describe("approval sequence", () => {
+  const chain = Array.from({ length: 15 }, (_, i) => `A${i + 1}`);
+  const ctx = (level: number) => ({ initiator: "INIT", approvers: chain, level });
+  it("initiator Approve goes to approver 1", () => {
+    const lv = actingLevel(chain, "INIT", 1, ["INIT"]);
+    expect(lv).toBe(0);
+    expect(pickRecipients("approve", ctx(lv)).people).toEqual(["A1"]);
+  });
+  it("level 1 goes to level 2", () => {
+    expect(pickRecipients("approve", ctx(actingLevel(chain, "A1", 1, ["INIT"]))).people).toEqual(["A2"]);
+  });
+  it("level 15 is final and goes to initiator", () => {
+    expect(pickRecipients("approve", ctx(actingLevel(chain, "A15", 1, ["INIT"])))).toEqual({ people: ["INIT"], final: true });
+  });
+});

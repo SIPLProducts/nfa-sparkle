@@ -1,3 +1,4 @@
+import { MAX_APPROVAL_LEVELS } from "@/lib/sap-approval-chain";
 /** Server-only SMTP configuration storage and workflow notification sending. */
 
 export interface EmailConfig {
@@ -155,7 +156,7 @@ const ids = (v: string | string[] | undefined): string[] =>
 export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContext): { people: string[]; final: boolean } {
   const approvers = (ctx.approvers ?? []).map(ids);
   const total = approvers.reduce((last, a, i) => (a.length ? i + 1 : last), 0);
-  const level = Math.max(1, ctx.level ?? 1);
+  const level = Math.max(0, ctx.level ?? 1);
   const initiator = ids(ctx.initiator);
   if (action === "approve") {
     // Without a known chain we cannot tell "next approver" from "final"; never guess.
@@ -170,10 +171,13 @@ export function pickRecipients(action: WorkflowAction, ctx: WorkflowNotifyContex
 }
 
 /** Level of the acting approver: the chain level holding their User ID, else the fallback. Pure. */
-export function actingLevel(chainIds: string[], actor: string, fallback: number): number {
+export function actingLevel(chainIds: string[], actor: string, fallback: number, initiator: string[] = []): number {
   const a = actor.trim().toUpperCase();
   const i = a ? chainIds.findIndex((id) => (id ?? "").trim().toUpperCase() === a) : -1;
-  return i >= 0 ? i + 1 : Math.max(1, fallback || 1);
+  if (i >= 0) return i + 1;
+  // The initiator is not in the chain: their Approve submits to level 1.
+  if (a && initiator.some((x) => x.trim().toUpperCase() === a)) return 0;
+  return Math.max(1, fallback || 1);
 }
 
 /**
@@ -224,7 +228,7 @@ export async function resolveWorkflowContext(input: {
         if (f.ok) {
           for (const a of parseSapApprovalFlow(f.body)) {
             const lv = Number(a.level);
-            if (lv >= 1 && lv <= 7) chainIds[lv - 1] = (a.userId ?? "").trim();
+            if (lv >= 1 && lv <= MAX_APPROVAL_LEVELS) chainIds[lv - 1] = (a.userId ?? "").trim();
           }
           if (chainIds.some(Boolean)) src.push("chain:sap");
         }
@@ -234,9 +238,9 @@ export async function resolveWorkflowContext(input: {
     console.warn("[workflow-mail] SAP context lookup failed:", (e as Error)?.message ?? e);
   }
   const hintApprovers = (hint.approvers ?? []).map(ids);
-  const approvers = Array.from({ length: 7 }, (_, i) => ids([chainIds[i] ?? "", ...(hintApprovers[i] ?? [])]));
+  const approvers = Array.from({ length: MAX_APPROVAL_LEVELS }, (_, i) => ids([chainIds[i] ?? "", ...(hintApprovers[i] ?? [])]));
   if (!src.some((s) => s.startsWith("chain")) && hintApprovers.some((a) => a.length)) src.push("chain:screen");
-  const level = actingLevel(Array.from({ length: 7 }, (_, i) => chainIds[i] ?? ""), input.actorUserId, hint.level ?? 1);
+  const level = actingLevel(Array.from({ length: MAX_APPROVAL_LEVELS }, (_, i) => chainIds[i] ?? ""), input.actorUserId, hint.level ?? 1, initiator);
   return { context: { subject: hint.subject, initiator, approvers, level }, source: src.join(",") || "none" };
 }
 
