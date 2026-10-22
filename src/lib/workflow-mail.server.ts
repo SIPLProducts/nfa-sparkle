@@ -360,12 +360,17 @@ export async function buildWorkflowMail(input: {
       greetName = String((data as Array<{ full_name: string | null }> | null)?.[0]?.full_name ?? "").trim();
     } catch { /* greeting falls back */ }
   }
+  let senderName = "";
+  try { senderName = (await loadEmailConfig()).config.fromName ?? ""; } catch { /* fallback */ }
   const html = renderWorkflowMailHtml({
     action: input.action, final, heading, label, enfaNo: input.enfaNo, subject: input.context.subject,
-    actor: input.actor, level: input.context.level, comment: input.comment, greetName, date: new Date(),
+    actor: input.actor, level: input.context.level, comment: input.comment, greetName, date: new Date(), senderName,
   });
-  return { people, final, to, subject: `ENFA ${input.enfaNo} — ${heading}`, text: `${heading}\n\n${lines.join("\n")}\n`, html };
+  return { people, final, to, subject: `ENFA ${input.enfaNo} — ${heading}`, text: `${heading}\n\n${lines.join("\n")}\n\nRegards,\n${senderLabel(senderName)}\n`, html };
 }
+
+/** Signature name: Email Configuration "From Name", else the portal name. */
+export const senderLabel = (name?: string) => (name ?? "").trim() || "eNFA Portal";
 
 const esc = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -380,8 +385,9 @@ const TITLES: Record<WorkflowAction, string> = {
 /** Branded HTML body for workflow emails. Pure, so it can be tested. */
 export function renderWorkflowMailHtml(m: {
   action: WorkflowAction; final: boolean; heading: string; label: string; enfaNo: string; subject?: string;
-  actor: string; level?: number; comment: string; greetName?: string; date: Date;
+  actor: string; level?: number; comment: string; greetName?: string; date: Date; senderName?: string;
 }): string {
+  const sender = senderLabel(m.senderName);
   const title = m.final ? "NFA Fully Approved" : TITLES[m.action];
   const no = `<strong>ENFA ${esc(m.enfaNo)}</strong>`;
   const intro = m.final
@@ -418,5 +424,10 @@ export function renderWorkflowMailHtml(m: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
 <tr><td style="padding:20px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">${rowHtml}</table></td></tr></table>
 <p style="margin:24px 0 0;color:#475569">You can review this NFA in the eNFA Portal.</p>
-</td></tr></table></td></tr></table></body></html>`;
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 24px">
+<p style="margin:0;color:#334155">Regards,</p>
+<p style="margin:4px 0 0;color:#1e3a5f;font-weight:700">${esc(sender)}</p>
+</td></tr>
+<tr><td style="padding:8px 40px 28px;text-align:center;color:#94a3b8;font-size:12px">&copy; ${m.date.getFullYear()} ${esc(sender)}. This is an automated notification.</td></tr>
+</table></td></tr></table></body></html>`;
 }
