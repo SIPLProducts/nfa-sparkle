@@ -92,7 +92,6 @@ export function buildApprovalChainPayload(
     createUser[`DESIG${index + 1}`] = clean(level?.designation);
     createUser[`USERID${index + 1}`] = clean(level?.userId);
   }
-  createUser["LINE_INDEX"] = clean(chain.lineIndex);
   return { [operation === "update" ? "Update_user" : "create_user"]: createUser };
 }
 

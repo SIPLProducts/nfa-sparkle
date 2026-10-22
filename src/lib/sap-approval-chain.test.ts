@@ -41,7 +41,6 @@ describe("SAP approval chain management", () => {
         DESIG13: "", USERID13: "",
         DESIG14: "", USERID14: "",
         DESIG15: "", USERID15: "",
-        LINE_INDEX: "12",
       },
     });
   });
