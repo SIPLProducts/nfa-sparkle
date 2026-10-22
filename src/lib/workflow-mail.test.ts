@@ -14,8 +14,8 @@ describe("pickRecipients", () => {
     expect(pickRecipients("reject", { ...ctx, level: 2 }).people).toEqual(["INIT"]);
     expect(pickRecipients("back_to_initiator", { ...ctx, level: 2 }).people).toEqual(["INIT"]);
   });
-  it("clarification goes to initiator and approvers so far", () => {
-    expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["INIT", "A1", "A2"]);
+  it("clarification goes to initiator and approvers before the raiser", () => {
+    expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["INIT", "A1"]);
   });
 });
 
@@ -36,8 +36,8 @@ describe("pickRecipients with User IDs and names", () => {
   it("final approval goes to the initiator", () => {
     expect(pickRecipients("approve", { ...ctx, level: 7 })).toEqual({ people: ["22011077", "Sunil"], final: true });
   });
-  it("clarification includes initiator and approvers up to the level", () => {
-    expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["22011077", "Sunil", "9001", "MGR", "9002"]);
+  it("clarification includes initiator and approvers before the raiser", () => {
+    expect(pickRecipients("clarification", { ...ctx, level: 2 }).people).toEqual(["22011077", "Sunil", "9001", "MGR"]);
   });
 });
 
