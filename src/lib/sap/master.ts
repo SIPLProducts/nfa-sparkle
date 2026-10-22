@@ -261,7 +261,7 @@ export function parseApprovalChains(raw: unknown): SapApprovalChain[] {
     }
     const str = (k: string) => String(lower[k] ?? "").trim();
     const levels: ApprovalChainLevel[] = [];
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 15; i++) {
       const designation = str(`desig${i}`);
       const userId = str(`userid${i}`);
       if (!designation && !userId) continue;
