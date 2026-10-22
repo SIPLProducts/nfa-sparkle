@@ -401,33 +401,45 @@ export function renderWorkflowMailHtml(m: {
           : `Clarification has been requested on ${no}.`;
   const when = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(m.date);
   const dash = "&mdash;";
+  const accent = m.final ? "#16a34a"
+    : m.action === "approve" ? "#0166a8"
+      : m.action === "reject" ? "#dc2626"
+        : m.action === "back_to_initiator" ? "#d97706" : "#2563eb";
+  const font = "'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+  const commentHtml = m.comment
+    ? `<div style="background:#f1f5f9;border-left:3px solid ${accent};padding:8px 12px;border-radius:4px;color:#1e293b">${esc(m.comment)}</div>`
+    : dash;
   const rows: Array<[string, string]> = [
-    ["ENFA No", `<strong style="font-family:Consolas,Menlo,monospace">${esc(m.enfaNo)}</strong>`],
+    ["ENFA No", `<strong style="font-family:Consolas,Menlo,monospace;color:#0f172a">${esc(m.enfaNo)}</strong>`],
     ["Subject", m.subject ? esc(m.subject) : dash],
     ["Action", esc(m.label)],
     ["Action By", m.actor ? esc(m.actor) : dash],
     ...(m.level ? [["Level", esc(m.level)] as [string, string]] : []),
-    ["Comment", m.comment ? esc(m.comment) : dash],
+    ["Comment", commentHtml],
     ["Action Date", `${esc(when)} (IST)`],
   ];
-  const rowHtml = rows.map(([k, v]) =>
-    `<tr><td style="padding:7px 0;color:#64748b;width:160px;vertical-align:top">${k}</td><td style="padding:7px 0;color:#1e293b">${v}</td></tr>`).join("");
-  return `<!doctype html><html><body style="margin:0;padding:24px 0;background:#f4f6fb;font-family:Segoe UI,Arial,sans-serif">
+  const rowHtml = rows.map(([k, v], i) =>
+    `<tr><td style="padding:12px 0;${i ? "border-top:1px solid #e2e8f0;" : ""}color:#64748b;width:150px;vertical-align:top;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase">${k}</td><td style="padding:12px 0;${i ? "border-top:1px solid #e2e8f0;" : ""}color:#1e293b;font-size:14px">${v}</td></tr>`).join("");
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:32px 12px;background:#eef2f7;font-family:${font}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden">
-<tr><td style="background:#1e3a5f;padding:32px 40px">
-<div style="color:#d6a76c;font-size:12px;font-weight:700;letter-spacing:2px">NOTIFICATION</div>
-<div style="color:#ffffff;font-size:24px;font-weight:700;margin-top:8px">${esc(title)}</div></td></tr>
-<tr><td style="padding:32px 40px;color:#334155;font-size:15px;line-height:1.6">
-<p style="margin:0 0 16px">Dear ${m.greetName ? esc(m.greetName) : "Sir/Madam"},</p>
-<p style="margin:0 0 24px;color:#475569">${intro} The details are summarised below for your review.</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
-<tr><td style="padding:20px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">${rowHtml}</table></td></tr></table>
-<p style="margin:24px 0 0;color:#475569">You can review this NFA in the eNFA Portal.</p>
-<hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 24px">
-<p style="margin:0;color:#334155">Regards,</p>
-<p style="margin:4px 0 0;color:#1e3a5f;font-weight:700">${esc(sender)}</p>
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0">
+<tr><td style="background:#0b3a63;background-image:linear-gradient(135deg,#0b3a63,#0166a8);padding:34px 40px 30px">
+<div style="color:#bfdbfe;font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase">eNFA Portal &middot; Notification</div>
+<div style="color:#ffffff;font-size:26px;line-height:1.3;font-weight:700;margin-top:10px">${esc(title)}</div></td></tr>
+<tr><td style="height:4px;line-height:4px;font-size:0;background:${accent}">&nbsp;</td></tr>
+<tr><td style="padding:34px 40px 8px;color:#334155;font-size:15px;line-height:1.7">
+<p style="margin:0 0 14px;color:#0f172a">Dear ${m.greetName ? esc(m.greetName) : "Sir/Madam"},</p>
+<p style="margin:0 0 18px"><span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${accent}1a;color:${accent};font-size:12px;font-weight:700;letter-spacing:.5px">${esc(m.label)}</span></p>
+<p style="margin:0 0 26px;color:#475569">${intro} The details are summarised below for your review.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+<tr><td style="padding:10px 26px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowHtml}</table></td></tr></table>
+<p style="margin:26px 0 0;color:#475569">You can review this NFA in the eNFA Portal.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px 0 30px"><tr><td style="border-left:3px solid ${accent};padding:2px 0 2px 14px">
+<p style="margin:0;color:#475569">Regards,</p>
+<p style="margin:4px 0 0;color:#0b3a63;font-weight:700;font-size:16px">${esc(sender)}</p>
+<p style="margin:2px 0 0;color:#94a3b8;font-size:12px">eNFA Workflow Notification</p>
+</td></tr></table>
 </td></tr>
-<tr><td style="padding:8px 40px 28px;text-align:center;color:#94a3b8;font-size:12px">&copy; ${m.date.getFullYear()} ${esc(sender)}. This is an automated notification.</td></tr>
+<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6">This is an automated notification. Please do not reply.<br>&copy; ${m.date.getFullYear()} ${esc(sender)}. This is an automated notification.</td></tr>
 </table></td></tr></table></body></html>`;
 }
