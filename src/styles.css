@@ -142,7 +142,7 @@
 [role="dialog"]:has(> .nfa-swal-in-dialog) {
   overflow: visible;
 }
-.swal2-container { pointer-events: auto; }
+.swal2-container { pointer-events: auto; z-index: 10000; }
 .nfa-swal-in-dialog.swal2-container {
   position: fixed;
   overflow: visible !important;
