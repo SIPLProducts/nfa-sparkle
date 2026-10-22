@@ -20,3 +20,19 @@ describe("Update Approvals payload", () => {
     expect(approvalChainResponseMessage([{ TYPE: "S", MESSAGE: "Data Updated Successfully" }])).toEqual({ ok: true, message: "Data Updated Successfully" });
   });
 });
+
+describe("Delete Approvals payload", () => {
+  const base = { pspnr: "9000", funct: "BUDGET DEVIATION", extraTxt: "PROJECTS", begda: "20261001", endda: "99991231", lineIndex: "" };
+  it("matches SAP delete_user sample", () => {
+    const p = buildApprovalChainPayload({ ...base, levels: [{ designation: "Abaper", userId: "SIPL_QM" }, { designation: "abaper2", userId: "sipl_qm1" }] }, "delete") as unknown as { delete_user: Record<string, string> };
+    expect(p.delete_user).toMatchObject({ PSPNR: "9000", FUNCT: "BUDGET DEVIATION", EXTR_TXT: "PROJECTS", BEGDA: "2026-10-01", ENDDA: "9999-12-31", DESIG1: "Abaper", USERID1: "SIPL_QM", DESIG2: "abaper2", USERID2: "sipl_qm1", DESIG3: "", USERID15: "" });
+    expect(p.delete_user).toHaveProperty("MANDT");
+    expect(p.delete_user).not.toHaveProperty("LINE_INDEX");
+  });
+  it("sends all 15 approvers", () => {
+    const levels = Array.from({ length: 15 }, (_, i) => ({ designation: `D${i + 1}`, userId: `U${i + 1}` }));
+    const p = buildApprovalChainPayload({ ...base, levels }, "delete") as unknown as { delete_user: Record<string, string> };
+    expect(p.delete_user.USERID15).toBe("U15");
+    expect(p.delete_user.DESIG15).toBe("D15");
+  });
+});
