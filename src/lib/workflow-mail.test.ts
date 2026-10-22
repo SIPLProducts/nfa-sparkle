@@ -94,3 +94,13 @@ describe("approval sequence", () => {
     expect(pickRecipients("approve", ctx(actingLevel(chain, "A15", 1, ["INIT"])))).toEqual({ people: ["INIT"], final: true });
   });
 });
+
+describe("clarification recipients", () => {
+  const ctx = (level: number) => ({ initiator: "INIT", approvers: ["A1", "A2", "A3"], level });
+  it("level 3 raiser → initiator + approvers 1,2", () => {
+    expect(pickRecipients("clarification", ctx(3)).people).toEqual(["INIT", "A1", "A2"]);
+  });
+  it("level 1 raiser → initiator only", () => {
+    expect(pickRecipients("clarification", ctx(1)).people).toEqual(["INIT"]);
+  });
+});
