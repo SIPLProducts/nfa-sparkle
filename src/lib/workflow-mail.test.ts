@@ -104,3 +104,16 @@ describe("clarification recipients", () => {
     expect(pickRecipients("clarification", ctx(1)).people).toEqual(["INIT"]);
   });
 });
+
+import { renderWorkflowMailHtml as renderSig } from "./workflow-mail.server";
+describe("workflow mail signature", () => {
+  const base = { action: "reject" as const, final: false, heading: "Rejected", label: "Rejected", enfaNo: "1", actor: "A", comment: "", date: new Date("2026-10-22T10:00:00Z") };
+  it("signs with the configured sender name, escaped", () => {
+    const h = renderSig({ ...base, senderName: "Ramky <ENFA>" });
+    expect(h).toContain("Regards,");
+    expect(h).toContain("Ramky &lt;ENFA&gt;");
+  });
+  it("falls back to eNFA Portal when blank", () => {
+    expect(renderSig({ ...base, senderName: " " })).toContain("eNFA Portal</p>");
+  });
+});
