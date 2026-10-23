@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Send, FileText, Building2, Paperclip, Upload, X, Users } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
@@ -688,8 +689,10 @@ function NewNfaPage() {
                 <Users className="h-3.5 w-3.5" /> Open
               </Button>
             </div>
-            <Dialog open={approversOpen} onOpenChange={setApproversOpen}>
-              <DialogContent forceMount className="max-h-[92vh] max-w-3xl overflow-y-auto data-[state=closed]:hidden">
+            <DialogPrimitive.Root open={approversOpen} onOpenChange={setApproversOpen}>
+              <DialogPrimitive.Portal forceMount>
+              <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80" />
+              <DialogPrimitive.Content forceMount className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-3xl max-h-[92vh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg data-[state=closed]:hidden">
                 <DialogHeader>
                   <DialogTitle className="font-display text-base">Approvers</DialogTitle>
                   <DialogDescription>Choose which configured approvers should review this NFA. Order follows the Approval Chain.</DialogDescription>
@@ -703,8 +706,9 @@ function NewNfaPage() {
                 <DialogFooter>
                   <Button type="button" onClick={() => setApproversOpen(false)}>Done</Button>
                 </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </DialogPrimitive.Content>
+              </DialogPrimitive.Portal>
+            </DialogPrimitive.Root>
           </Section>
          </div>
         </div>
