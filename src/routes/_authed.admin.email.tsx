@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "@/lib/swal";
-import { getEmailConfig, getEmailLog, saveEmailConfig, sendTestEmail } from "@/lib/email-config.functions";
+import { getEmailConfig, saveEmailConfig, sendTestEmail } from "@/lib/email-config.functions";
 import { Eye, EyeOff, Mail, Send, Save, LockKeyhole, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
@@ -234,51 +234,6 @@ function EmailConfigurationForm() {
           <span className="mt-4 inline-flex items-center gap-2 text-[11px] text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5 shrink-0" /> {hasPassword ? "App password saved securely on the server" : "App password not saved yet"}</span>
         </div>
       </form>
-      <EmailActivity />
     </div>
-  );
-}
-
-const ACTION_LABEL: Record<string, string> = {
-  approve: "Approved", final_approve: "Final approval", reject: "Rejected",
-  back_to_initiator: "Back to initiator", clarification: "Clarification",
-};
-
-function EmailActivity() {
-  const logFn = useServerFn(getEmailLog);
-  const [rows, setRows] = useState<Awaited<ReturnType<typeof getEmailLog>>>([]);
-  const [loading, setLoading] = useState(true);
-  const load = () => { setLoading(true); logFn().then(setRows).catch(() => setRows([])).finally(() => setLoading(false)); };
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <section className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-6">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">Recent email activity</h2>
-        <Button type="button" variant="outline" size="sm" onClick={load} disabled={loading}>{loading ? "Loading…" : "Refresh"}</Button>
-      </div>
-      {rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{loading ? "Loading…" : "No workflow emails yet."}</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-muted-foreground">
-              <tr><th className="py-2 pr-3">Time</th><th className="py-2 pr-3">ENFA</th><th className="py-2 pr-3">Action</th><th className="py-2 pr-3">Result</th><th className="py-2 pr-3">Sent to</th><th className="py-2">Details</th></tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border align-top">
-                  <td className="py-2 pr-3 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{r.enfa_no}</td>
-                  <td className="py-2 pr-3">{ACTION_LABEL[r.action] ?? r.action}</td>
-                  <td className={`py-2 pr-3 font-medium ${r.status === "sent" ? "text-primary" : r.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>{r.status === "sent" ? "Sent" : r.status === "failed" ? "Failed" : "Skipped"}</td>
-                  <td className="py-2 pr-3 break-all">{r.recipients.join(", ") || "—"}</td>
-                  <td className="py-2 text-muted-foreground">{r.error || (r.people.length ? `For: ${r.people.join(", ")}` : "")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
   );
 }
