@@ -66,7 +66,29 @@ export const Route = createFileRoute("/api/public/enfa-create")({
           userName = (profile?.username ?? "").toUpperCase();
         }
 
-        const payload = wrapCreatePayload(src, files, userName);
+        // Approver slots (design1..15 / approve1..15) and the approver-mode `check` flag.
+        const rawApprovers: any[] = Array.isArray(input?.approvers) ? input.approvers : [];
+        const fromSlots: any[] = [];
+        for (let i = 1; i <= 15; i++) {
+          const d = src[`design${i}`], a = src[`approve${i}`];
+          if (String(a ?? "").trim() || String(d ?? "").trim()) fromSlots.push({ designation: d, userId: a });
+        }
+        const approvers = (rawApprovers.length ? rawApprovers : fromSlots).map((a) => ({
+          designation: String(a?.designation ?? ""),
+          userId: String(a?.userId ?? ""),
+        }));
+        const hasCheck = "check" in src || "check" in (input ?? {});
+        let payload;
+        try {
+          payload = wrapCreatePayload(
+            src,
+            files,
+            userName,
+            hasCheck || approvers.length ? { approvers, check: String(src.check ?? input?.check ?? "") } : undefined,
+          );
+        } catch (e) {
+          return Response.json({ error: (e as Error).message }, { status: 400 });
+        }
 
         const result = await callEnfaCreate(payload);
 
