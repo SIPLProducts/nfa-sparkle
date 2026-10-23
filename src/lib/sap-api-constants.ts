@@ -90,9 +90,21 @@ export function approverModeCheck(mode: string | undefined): string {
 /** API Settings names tried, in order, for the Create NFA approver lookup. */
 export const APPROVER_DETAIL_ENDPOINT_NAMES = ["Dynamic Approvals", "Approver Get Detail", "%dynamic approval%", "%get detail%"] as const;
 
-/** SAP "get_detail" body used to load approvers for a plant on Create NFA. */
-export function buildApproverGetDetailPayload(check: string, plant: string) {
-  return { get_detail: { check: String(check ?? ""), plant: String(plant ?? "").trim() } };
+/** Approver mode -> `check` for the get_detail lookup: Predefined = "X", Dynamic = " ". */
+export function approverDetailCheck(mode: string | undefined): string {
+  return mode === "predefined" ? "X" : " ";
+}
+
+/** SAP "get_detail" body used to load approvers on Create NFA. */
+export function buildApproverGetDetailPayload(check: string, plant: string, nfaType = "", funct = "") {
+  return {
+    get_detail: {
+      check: check === "X" ? "X" : " ",
+      plant: String(plant ?? "").trim(),
+      nfa_type: String(nfaType ?? "").trim(),
+      funct: String(funct ?? "").trim(),
+    },
+  };
 }
 
 /** Fills design1..15 / approve1..15 in order; unused slots are blank. */

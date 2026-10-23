@@ -29,17 +29,17 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   const [sapMessage, setSapMessage] = useState("");
   const predefined = check === "X";
 
-  // Load from SAP as soon as Plant is chosen (and again when approver mode changes).
+  // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (!plant || predefined) return;
+    if (!plant) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const res = await fetchSapApproverChains({ plant, check }, token, ctrl.signal);
+        const res = await fetchSapApproverChains({ plant, check: predefined ? "X" : " ", nfaType, functionName }, token, ctrl.signal);
         if (ctrl.signal.aborted) return;
         setChains(res.chains ?? []); setSapMessage(res.message);
       } catch (e) {
@@ -49,40 +49,18 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
       }
     })();
     return () => ctrl.abort();
-  }, [plant, check, predefined]);
-
-  // Predefined Approvers: original Approval Chain lookup once Plant, NFA Type and Function are chosen.
-  useEffect(() => {
-    if (!predefined) return;
-    setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (!plant || !nfaType || !functionName) return;
-    const ctrl = new AbortController();
-    setLoading(true);
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const res = await fetchSapApprovalChain({ plant, nfaType, functionName }, data.session?.access_token ?? "", ctrl.signal);
-        if (!ctrl.signal.aborted) setFallback(res.approvers);
-      } catch (e) {
-        if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Approval chain is unavailable");
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
-    })();
-    return () => ctrl.abort();
-  }, [predefined, plant, nfaType, functionName]);
+  }, [plant, nfaType, functionName, predefined]);
 
   const visible = useMemo(
     () => (chains ? filterApproverChains(chains, { plant, nfaType, functionName }) : []),
     [chains, plant, nfaType, functionName],
   );
   const levels = useMemo<EnfaDocumentApprover[]>(() => {
-    if (predefined) return (fallback ?? []).filter((a) => a.userId);
     return visible.flatMap((c) => c.levels.map((l) => ({
       level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
       group: visible.length > 1 ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
     }))).filter((a) => a.userId);
-  }, [visible, fallback, predefined]);
+  }, [visible]);
 
   const levelKey = levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
   useEffect(() => {

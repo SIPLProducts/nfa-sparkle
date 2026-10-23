@@ -226,7 +226,7 @@ export async function fetchSapApproverDetail(
 
 /** Raw chains for a plant from "get_detail"; chains=null means the API is unavailable (use fallback). */
 export async function fetchSapApproverChains(
-  input: { plant: string; check: string },
+  input: { plant: string; check: string; nfaType?: string; functionName?: string },
   token: string,
   signal?: AbortSignal,
 ): Promise<{ chains: ReturnType<typeof parseApprovalChains> | null; message: string }> {
@@ -234,7 +234,7 @@ export async function fetchSapApproverChains(
   const response = await fetch("/api/public/sap-approver-detail", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ check: input.check, plant: input.plant }),
+    body: JSON.stringify({ check: input.check, plant: input.plant, nfaType: input.nfaType ?? "", funct: input.functionName ?? "" }),
     signal,
   });
   if (!response.ok) {

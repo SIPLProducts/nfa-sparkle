@@ -4,6 +4,8 @@ import { z } from "zod";
 const Input = z.object({
   check: z.string().max(2).default(""),
   plant: z.string().trim().min(1).max(40),
+  nfaType: z.string().max(80).default(""),
+  funct: z.string().max(80).default(""),
 });
 
 export const Route = createFileRoute("/api/public/sap-approver-detail")({
