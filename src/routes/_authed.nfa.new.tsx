@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
-import { Send, FileText, Building2, Paperclip, Upload, X, Maximize2 } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Send, FileText, Building2, Paperclip, Upload, X, Users } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
@@ -95,6 +96,7 @@ function NewNfaPage() {
   const [plant, setPlant] = useState("");
   const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
   const [selectedApprovers, setSelectedApprovers] = useState<EnfaDocumentApprover[]>([]);
+  const [approversOpen, setApproversOpen] = useState(false);
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
@@ -674,12 +676,39 @@ function NewNfaPage() {
           </Section>
 
           <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc="Choose which configured approvers should review this NFA. Order follows the Approval Chain.">
-            <ApproverSelector
-              plant={plant}
-              nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
-              functionName={functions.find((f) => f.code === func)?.name ?? func}
-              onChange={setSelectedApprovers}
-            />
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Approvers</div>
+                <div className="text-xs text-muted-foreground">
+                  {plant && nfaType && func
+                    ? `${selectedApprovers.length} selected`
+                    : "Select Project, NFA Type and Function to see the approvers."}
+                </div>
+              </div>
+              <Button type="button" size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setApproversOpen(true)}>
+                <Users className="h-3.5 w-3.5" /> Open
+              </Button>
+            </div>
+            <DialogPrimitive.Root open={approversOpen} onOpenChange={setApproversOpen}>
+              <DialogPrimitive.Portal forceMount>
+              <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80" />
+              <DialogPrimitive.Content forceMount className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-3xl max-h-[92vh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg data-[state=closed]:hidden">
+                <DialogHeader>
+                  <DialogTitle className="font-display text-base">Approvers</DialogTitle>
+                  <DialogDescription>Choose which configured approvers should review this NFA. Order follows the Approval Chain.</DialogDescription>
+                </DialogHeader>
+                <ApproverSelector
+                  plant={plant}
+                  nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
+                  functionName={functions.find((f) => f.code === func)?.name ?? func}
+                  onChange={setSelectedApprovers}
+                />
+                <DialogFooter>
+                  <Button type="button" onClick={() => setApproversOpen(false)}>Done</Button>
+                </DialogFooter>
+              </DialogPrimitive.Content>
+              </DialogPrimitive.Portal>
+            </DialogPrimitive.Root>
           </Section>
          </div>
         </div>
