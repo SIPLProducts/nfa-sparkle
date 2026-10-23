@@ -51,20 +51,22 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     return () => ctrl.abort();
   }, [plant, nfaType, functionName, predefined]);
 
+  // Predefined narrows to the chosen chain; Dynamic shows SAP's reply as-is.
   const visible = useMemo(
-    () => (chains ? filterApproverChains(chains, { plant, nfaType, functionName }) : []),
-    [chains, plant, nfaType, functionName],
+    () => (chains ? (predefined ? filterApproverChains(chains, { plant, nfaType, functionName }) : chains) : []),
+    [chains, plant, nfaType, functionName, predefined],
   );
+  const showGroup = !predefined || visible.length > 1;
   const levels = useMemo<EnfaDocumentApprover[]>(() => {
     return visible.flatMap((c) => c.levels.map((l) => ({
       level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
-      group: visible.length > 1 ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
+      group: showGroup ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
     }))).filter((a) => a.userId);
-  }, [visible]);
+  }, [visible, showGroup]);
 
-  const levelKey = levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
+  const levelKey = `${check}::` + levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
   useEffect(() => {
-    setChecked(new Set(visible.length > 1 ? [] : levels.map((_, i) => i)));
+    setChecked(new Set(predefined && visible.length <= 1 ? levels.map((_, i) => i) : []));
     const ids = [...new Set(levels.map((a) => a.userId))];
     if (ids.length) resolveEmails({ data: { userIds: ids } }).then(setEmails).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
