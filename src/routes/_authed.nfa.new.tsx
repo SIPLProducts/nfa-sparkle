@@ -691,7 +691,7 @@ function NewNfaPage() {
             </div>
             <DialogPrimitive.Root open={approversOpen} onOpenChange={setApproversOpen}>
               <DialogPrimitive.Portal forceMount>
-              <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80" />
+              {approversOpen && <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=closed]:hidden" />}
               <DialogPrimitive.Content forceMount className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-3xl max-h-[92vh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg data-[state=closed]:hidden">
                 <DialogHeader>
                   <DialogTitle className="font-display text-base">Approvers</DialogTitle>
