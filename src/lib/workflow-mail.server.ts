@@ -205,18 +205,8 @@ export async function resolveWorkflowContext(input: {
       .filter((u) => u && u !== input.actorUserId.trim().toUpperCase());
     // The actor may also be the initiator; try them last.
     if (input.actorUserId.trim()) candidates.push(input.actorUserId.trim().toUpperCase());
-    let detail: Record<string, unknown> | null = null;
-    for (let i = 0; i < candidates.length && !detail; i += 6) {
-      const batch = await Promise.all(candidates.slice(i, i + 6).map(async (u) => {
-        try {
-          const r = await callEnfaSelect(input.enfaNo, { user_name: u });
-          const parsed = r.ok ? JSON.parse(r.body || "null") : null;
-          const d = Array.isArray(parsed) ? parsed[0] : parsed;
-          return d && typeof d === "object" && String((d as any).INIT_USERID ?? "").trim() ? d as Record<string, unknown> : null;
-        } catch { return null; }
-      }));
-      detail = batch.find(Boolean) ?? null;
-    }
+    const { selectRecordAsInitiator } = await import("@/lib/sap-initiator-select");
+    const detail = await selectRecordAsInitiator(candidates, (u) => callEnfaSelect(input.enfaNo, { user_name: u }));
     if (detail) {
       initiator = ids([String(detail.INIT_USERID ?? ""), ...initiator]);
       src.push("initiator:sap");

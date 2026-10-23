@@ -146,3 +146,31 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
 
     return { savedDetail, initiatorName, savedComments };
   });
+/**
+ * Read-only: SAP's record Select answers only for the initiator, so an approver's own
+ * request comes back empty. Retries as the signed-in user first, then other active
+ * portal users, and returns only this record's SAP detail.
+ */
+export const getInitiatorRecordDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { enfaNumber: string; screen?: "approvals" | "report" | "nfa_my" }) => ({
+    enfaNumber: String(input.enfaNumber ?? "").trim(),
+    screen: input.screen === "report" || input.screen === "nfa_my" ? input.screen : "approvals",
+  }))
+  .handler(async ({ data, context }): Promise<Record<string, string> | null> => {
+    if (!data.enfaNumber) return null;
+    const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
+    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], data.screen);
+    const db = await getAdminClient();
+    const { data: me } = await db.from("profiles").select("username").eq("id", context.userId).maybeSingle();
+    const { data: profs } = await db.from("profiles").select("username, status");
+    const all = ((profs ?? []) as Array<{ username: string | null; status: string | null }>)
+      .filter((p) => p.username && String(p.status ?? "").toUpperCase() !== "DELETED")
+      .map((p) => p.username!);
+    const { callEnfaSelect } = await import("@/lib/sap-report.server");
+    const { selectRecordAsInitiator } = await import("@/lib/sap-initiator-select");
+    const detail = await selectRecordAsInitiator([me?.username ?? "", ...all], (u) => callEnfaSelect(data.enfaNumber, { user_name: u }));
+    if (!detail) return null;
+    if (data.screen === "nfa_my" && String(detail.INIT_USERID ?? "").trim().toUpperCase() !== String(me?.username ?? "").trim().toUpperCase()) return null;
+    return Object.fromEntries(Object.entries(detail).map(([k, v]) => [k, v == null ? "" : String(v)]));
+  });
