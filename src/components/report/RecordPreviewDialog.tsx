@@ -5,6 +5,7 @@ import type { SapReportRow } from "@/lib/sap-api.functions";
 import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
 import { EnfaWebPreviewSelected, fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
+import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
 import { loadWebPreviewForm } from "@/lib/web-preview-form";
 import { safeApprovalDetailMessage } from "@/lib/approval-print-document";
 import { usePrintFormLogo } from "@/hooks/use-print-form-logo";
@@ -163,8 +164,8 @@ export function RecordPreviewDialog({
           />
 
           {!pdfLoading && descriptionForm ? (
-            <div ref={descriptionRef} data-enfa-print-area className="enfa-print-area max-h-[70vh] overflow-y-auto bg-print-paper p-2">
-              <EnfaDocument {...descriptionForm} logoSrc={logoSrc} />
+            <div ref={descriptionRef} data-enfa-print-area className="enfa-print-area bg-white p-2">
+              <EnfaDocument {...normalizeEnfaDocument(descriptionForm)} logoSrc={logoSrc} documentStatus={descriptionForm.documentStatus} />
             </div>
           ) : null}
 
