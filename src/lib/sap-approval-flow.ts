@@ -219,7 +219,18 @@ export async function fetchSapApproverDetail(
   token: string,
   signal?: AbortSignal,
 ): Promise<{ approvers: EnfaDocumentApprover[]; functionName: string }> {
-  if (!token || !input.plant.trim()) return { approvers: [], functionName: "" };
+  const { chains } = await fetchSapApproverChains(input, token, signal);
+  if (!chains) return fetchSapApprovalChain(input, token, signal);
+  return pickApprovalChain(chains, input);
+}
+
+/** Raw chains for a plant from "get_detail"; chains=null means the API is unavailable (use fallback). */
+export async function fetchSapApproverChains(
+  input: { plant: string; check: string },
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ chains: ReturnType<typeof parseApprovalChains> | null; message: string }> {
+  if (!token || !input.plant.trim()) return { chains: [], message: "" };
   const response = await fetch("/api/public/sap-approver-detail", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -227,10 +238,25 @@ export async function fetchSapApproverDetail(
     signal,
   });
   if (!response.ok) {
-    if (response.status === 424) return fetchSapApprovalChain(input, token, signal);
+    if (response.status === 424) return { chains: null, message: "" };
     const r = await response.json().catch(() => ({})) as SapObject;
     throw new Error(String(r["error"] ?? "Approval chain is unavailable"));
   }
   const result = await response.json() as unknown;
-  return pickApprovalChain(parseApprovalChains(result), input);
+  const message = result && typeof result === "object" && !Array.isArray(result)
+    ? String((result as SapObject)["message"] ?? (result as SapObject)["MESSAGE"] ?? "")
+    : "";
+  return { chains: parseApprovalChains(result), message };
+}
+
+/** Chains narrowed by NFA type / function when chosen; all plant chains otherwise. */
+export function filterApproverChains(
+  chains: ReturnType<typeof parseApprovalChains>,
+  input: { plant: string; nfaType: string; functionName: string },
+) {
+  const byPlant = chains.filter((c) => !input.plant.trim() || !c.pspnr || sameSapValue(c.pspnr, input.plant));
+  if (!input.nfaType.trim()) return byPlant;
+  const byType = byPlant.filter((c) => sameSapValue(c.funct, input.nfaType));
+  if (!input.functionName.trim()) return byType;
+  return byType.filter((c) => sameSapValue(c.extraTxt, input.functionName));
 }
