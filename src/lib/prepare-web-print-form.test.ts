@@ -9,7 +9,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     from: (table: string) => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "profiles" ? { username: "dynamic-user" } : mocks.draft() }) }) }) }),
   },
 }));
-vi.mock("@/lib/print-initiator.functions", () => ({ getApprovalPrintContext: mocks.saved }));
+vi.mock("@/lib/print-initiator.functions", () => ({ getApprovalPrintContext: mocks.saved, getInitiatorRecordDetail: async () => null }));
 vi.mock("@/lib/print-form-data", () => ({ loadPrintComments: mocks.comments }));
 vi.mock("@/lib/sap-approval-flow", async (importOriginal) => ({
   ...await importOriginal<typeof import("./sap-approval-flow")>(), fetchResolvedSapApprovalFlow: mocks.flow,
