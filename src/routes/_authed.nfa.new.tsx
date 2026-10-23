@@ -151,6 +151,12 @@ function NewNfaPage() {
   const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
   const [selectedApprovers, setSelectedApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [approversOpen, setApproversOpen] = useState(false);
+  useEffect(() => {
+    if (!approversOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setApproversOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [approversOpen]);
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
@@ -759,9 +765,13 @@ function NewNfaPage() {
                   check={approverModeCheck(approverMode)}
                   onChange={setSelectedApprovers}
                 />
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setApproversOpen(false)}>Close</Button>
                   <Button type="button" onClick={() => setApproversOpen(false)}>Done</Button>
                 </div>
+                <button type="button" aria-label="Close" onClick={() => setApproversOpen(false)} className="absolute right-4 top-4 rounded-sm p-1 text-muted-foreground opacity-80 transition hover:bg-muted hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </Section>
