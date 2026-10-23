@@ -15,6 +15,13 @@
       "when": 1792413118128,
       "tag": "0001_email_log_context",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792750811494,
+      "tag": "0002_approver_get_detail",
+      "breakpoints": true
     }
   ]
 }
