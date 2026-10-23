@@ -23,3 +23,16 @@ describe("Approver get_detail", () => {
     expect(r.approvers[3].role).toBe("REG. HEAD");
   });
 });
+
+import { filterApproverChains } from "./sap-approval-flow";
+describe("Plant-only approver listing", () => {
+  const chains = parseApprovalChains([...sample, { ...sample[0], FUNCT: "CAPEX", EXTR_TXT: "FIN" }]);
+  it("lists all plant chains before NFA Type is chosen", () => {
+    expect(filterApproverChains(chains, { plant: "9000", nfaType: "", functionName: "" })).toHaveLength(2);
+  });
+  it("narrows to the chosen type and function", () => {
+    const r = filterApproverChains(chains, { plant: "9000", nfaType: "SCM ITEMS", functionName: "SCM" });
+    expect(r).toHaveLength(1);
+    expect(r[0].levels).toHaveLength(5);
+  });
+});
