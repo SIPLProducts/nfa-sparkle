@@ -84,6 +84,9 @@ export function approverModeCheck(mode: string | undefined): string {
   return mode === "dynamic" ? "" : mode === "predefined" ? "X" : "";
 }
 
+/** API Settings names tried, in order, for the Create NFA approver lookup. */
+export const APPROVER_DETAIL_ENDPOINT_NAMES = ["Dynamic Approvals", "Approver Get Detail", "%dynamic approval%", "%get detail%"] as const;
+
 /** SAP "get_detail" body used to load approvers for a plant on Create NFA. */
 export function buildApproverGetDetailPayload(check: string, plant: string) {
   return { get_detail: { check: String(check ?? ""), plant: String(plant ?? "").trim() } };

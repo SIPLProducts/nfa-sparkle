@@ -1556,15 +1556,15 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
 /** Loads approver chains for a plant via the settings-driven "Approver Get Detail" endpoint. */
 export async function callApproverGetDetail(input: { check: string; plant: string }): Promise<SapCallResult> {
   const db = await admin();
-  const { data: exact } = await db
-    .from("sap_endpoint").select("*").ilike("name", "Approver Get Detail").eq("active", true)
-    .order("created_at", { ascending: true }).limit(1).maybeSingle();
-  const { data: fallback } = exact
-    ? { data: null }
-    : await db
-        .from("sap_endpoint").select("*").ilike("name", "%get detail%").eq("active", true)
-        .order("created_at", { ascending: true }).limit(1).maybeSingle();
-  const ep = exact ?? fallback;
+  const find = async (pattern: string) => (await db
+    .from("sap_endpoint").select("*").ilike("name", pattern).eq("active", true)
+    .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+  let ep: any = null;
+  const { APPROVER_DETAIL_ENDPOINT_NAMES } = await import("@/lib/sap-api-constants");
+  for (const pattern of APPROVER_DETAIL_ENDPOINT_NAMES) {
+    ep = await find(pattern);
+    if (ep) break;
+  }
   if (!ep) {
     return {
       ok: false, status: null, latencyMs: 0, body: "",

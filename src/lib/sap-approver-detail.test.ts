@@ -36,3 +36,8 @@ describe("Plant-only approver listing", () => {
     expect(r[0].levels).toHaveLength(5);
   });
 });
+
+import { APPROVER_DETAIL_ENDPOINT_NAMES } from "./sap-api-constants";
+it("prefers the 'Dynamic Approvals' API Settings entry", () => {
+  expect(APPROVER_DETAIL_ENDPOINT_NAMES[0]).toBe("Dynamic Approvals");
+});
