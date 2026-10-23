@@ -10,6 +10,8 @@ You saved the new SAP API in SAP API Settings as **Dynamic Approvals**. It has t
   3. Otherwise, any entry whose name contains "dynamic approval" or "get detail".
 - The method, path, SAP system and login all come from that entry, so nothing is hardcoded.
 - The request body stays `{ "get_detail": { "check": "X" or "", "plant": "<plant>" } }`.
+- **Trigger:** the call fires as soon as a Plant is chosen and again the moment you switch to **Dynamic Approvers** (sent with `check: ""`) or back to Predefined (`check: "X"`). You don't need to open the Approvers window first: the Approvers card loads in the background and shows the count or SAP's message straight away.
+- **Response handling:** SAP's rows (PSPNR, FUNCT, EXTR_TXT, DESIG1..15 / USERID1..15) appear as approvers. An empty reply or plain-text message shows SAP's message, and an error shows the reason instead of a blank window.
 
 ## Not changed
 How approvers are shown and ticked, the Create NFA submit payload, and every other screen and API.
