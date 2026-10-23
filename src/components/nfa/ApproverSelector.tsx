@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSapApprovalChain, fetchSapApproverChains, filterApproverChains } from "@/lib/sap-approval-flow";
+import { fetchSapApproverChains, filterApproverChains } from "@/lib/sap-approval-flow";
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
@@ -84,16 +84,12 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     });
   }
 
-  if (predefined && (!plant || !nfaType || !functionName)) {
-    return <p className="text-sm text-muted-foreground">Select Project, NFA Type and Function to see the approvers.</p>;
-  }
   if (!plant) {
     return <p className="text-sm text-muted-foreground">Select a Plant to see the approvers.</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return <p className="text-sm text-muted-foreground">{error}</p>;
   if (!levels.length) {
-    if (predefined) return <p className="text-sm text-muted-foreground">No approval chain configured.</p>;
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
 

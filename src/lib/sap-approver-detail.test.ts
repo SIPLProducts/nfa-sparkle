@@ -12,10 +12,10 @@ const sample = [{
 
 describe("Approver get_detail", () => {
   it("builds predefined payload", () => {
-    expect(buildApproverGetDetailPayload("X", "9000")).toEqual({ get_detail: { check: "X", plant: "9000" } });
+    expect(buildApproverGetDetailPayload("X", "9000", "BUDGET DEVIATION", "PROJECTS")).toEqual({ get_detail: { check: "X", plant: "9000", nfa_type: "BUDGET DEVIATION", funct: "PROJECTS" } });
   });
   it("builds dynamic payload", () => {
-    expect(buildApproverGetDetailPayload("", "9000")).toEqual({ get_detail: { check: "", plant: "9000" } });
+    expect(buildApproverGetDetailPayload("", "9000")).toEqual({ get_detail: { check: " ", plant: "9000", nfa_type: "", funct: "" } });
   });
   it("parses sample response into 5 levels", () => {
     const r = pickApprovalChain(parseApprovalChains(sample), { plant: "9000", nfaType: "SCM ITEMS", functionName: "SCM" });
