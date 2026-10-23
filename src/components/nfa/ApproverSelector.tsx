@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSapApprovalChain } from "@/lib/sap-approval-flow";
+import { fetchSapApproverDetail } from "@/lib/sap-approval-flow";
 import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,11 +10,13 @@ interface Props {
   plant: string;
   nfaType: string;
   functionName: string;
+  /** SAP approver-mode flag: "X" predefined, "" dynamic. */
+  check?: string;
   onChange?: (selected: EnfaDocumentApprover[]) => void;
 }
 
 /** Lists configured Approval Chain approvers and lets the initiator pick which ones apply. */
-export function ApproverSelector({ plant, nfaType, functionName, onChange }: Props) {
+export function ApproverSelector({ plant, nfaType, functionName, check = "", onChange }: Props) {
   const resolveEmails = useServerFn(resolveApprovalUserEmails);
   const [levels, setLevels] = useState<EnfaDocumentApprover[]>([]);
   const [emails, setEmails] = useState<Record<string, string>>({});
@@ -31,7 +33,7 @@ export function ApproverSelector({ plant, nfaType, functionName, onChange }: Pro
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const res = await fetchSapApprovalChain({ plant, nfaType, functionName }, token, ctrl.signal);
+        const res = await fetchSapApproverDetail({ plant, nfaType, functionName, check }, token, ctrl.signal);
         if (ctrl.signal.aborted) return;
         const list = res.approvers.filter((a) => a.userId);
         setLevels(list);
@@ -47,7 +49,7 @@ export function ApproverSelector({ plant, nfaType, functionName, onChange }: Pro
       }
     })();
     return () => ctrl.abort();
-  }, [plant, nfaType, functionName, resolveEmails]);
+  }, [plant, nfaType, functionName, check, resolveEmails]);
 
   const selected = useMemo(
     () => levels.filter((_, i) => checked.has(i)).map((a, i) => ({ ...a, level: i + 1 })),

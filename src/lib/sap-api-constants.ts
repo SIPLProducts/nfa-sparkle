@@ -84,6 +84,11 @@ export function approverModeCheck(mode: string | undefined): string {
   return mode === "dynamic" ? "" : mode === "predefined" ? "X" : "";
 }
 
+/** SAP "get_detail" body used to load approvers for a plant on Create NFA. */
+export function buildApproverGetDetailPayload(check: string, plant: string) {
+  return { get_detail: { check: String(check ?? ""), plant: String(plant ?? "").trim() } };
+}
+
 /** Fills design1..15 / approve1..15 in order; unused slots are blank. */
 export function buildCreateApproverSlots(approvers: CreateApprover[] = []) {
   if (approvers.length > CREATE_APPROVER_SLOTS) {

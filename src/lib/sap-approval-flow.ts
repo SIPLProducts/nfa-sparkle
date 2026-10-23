@@ -192,3 +192,45 @@ export async function fetchResolvedSapApprovalFlow(
   }
   return fetchSapApprovalChain({ plant, nfaType, functionName }, token, signal);
 }
+/** Picks the chain for plant / NFA type / function from parsed SAP chains. */
+export function pickApprovalChain(
+  chains: ReturnType<typeof parseApprovalChains>,
+  input: { plant: string; nfaType: string; functionName?: string },
+): { approvers: EnfaDocumentApprover[]; functionName: string } {
+  const plantMatches = input.plant.trim() ? chains.filter((c) => sameSapValue(c.pspnr, input.plant)) : chains;
+  const typeMatches = input.nfaType.trim() ? plantMatches.filter((c) => sameSapValue(c.funct, input.nfaType)) : plantMatches;
+  const candidates = typeMatches.length ? typeMatches : plantMatches;
+  const exact = input.functionName?.trim()
+    ? candidates.find((c) => sameSapValue(c.extraTxt, input.functionName ?? ""))
+    : undefined;
+  const chain = exact ?? (candidates.length === 1 ? candidates[0] : undefined);
+  if (!chain) return { approvers: [], functionName: "" };
+  return {
+    functionName: chain.extraTxt,
+    approvers: chain.levels.map((l) => ({
+      level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
+    })),
+  };
+}
+
+/** Loads approvers for Create NFA from SAP's "get_detail" API; falls back to the configured chain API. */
+export async function fetchSapApproverDetail(
+  input: { plant: string; nfaType: string; functionName?: string; check: string },
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ approvers: EnfaDocumentApprover[]; functionName: string }> {
+  if (!token || !input.plant.trim()) return { approvers: [], functionName: "" };
+  const response = await fetch("/api/public/sap-approver-detail", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ check: input.check, plant: input.plant }),
+    signal,
+  });
+  if (!response.ok) {
+    if (response.status === 424) return fetchSapApprovalChain(input, token, signal);
+    const r = await response.json().catch(() => ({})) as SapObject;
+    throw new Error(String(r["error"] ?? "Approval chain is unavailable"));
+  }
+  const result = await response.json() as unknown;
+  return pickApprovalChain(parseApprovalChains(result), input);
+}
