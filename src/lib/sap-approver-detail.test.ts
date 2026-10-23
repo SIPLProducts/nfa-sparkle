@@ -1,0 +1,25 @@
+import { describe, it, expect } from "vitest";
+import { buildApproverGetDetailPayload } from "./sap-api-constants";
+import { parseApprovalChains } from "./sap/master";
+import { pickApprovalChain } from "./sap-approval-flow";
+
+const sample = [{
+  MANDT: "300", PSPNR: "9000", FUNCT: "SCM ITEMS", EXTR_TXT: "SCM", BEGDA: "2025-04-01", ENDDA: "9999-12-31",
+  DESIG1: "SCM HEAD", USERID1: "22012284", DESIG2: "DIRE-PROJ", USERID2: "22007746", DESIG3: "CFO", USERID3: "22011580",
+  DESIG4: "REG. HEAD", USERID4: "ABAPCON2", DESIG5: "GROUP CFO", USERID5: "22011580",
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [[`DESIG${i + 6}`, ""], [`USERID${i + 6}`, ""]]).flat()),
+}];
+
+describe("Approver get_detail", () => {
+  it("builds predefined payload", () => {
+    expect(buildApproverGetDetailPayload("X", "9000")).toEqual({ get_detail: { check: "X", plant: "9000" } });
+  });
+  it("builds dynamic payload", () => {
+    expect(buildApproverGetDetailPayload("", "9000")).toEqual({ get_detail: { check: "", plant: "9000" } });
+  });
+  it("parses sample response into 5 levels", () => {
+    const r = pickApprovalChain(parseApprovalChains(sample), { plant: "9000", nfaType: "SCM ITEMS", functionName: "SCM" });
+    expect(r.approvers.map((a) => a.userId)).toEqual(["22012284", "22007746", "22011580", "ABAPCON2", "22011580"]);
+    expect(r.approvers[3].role).toBe("REG. HEAD");
+  });
+});

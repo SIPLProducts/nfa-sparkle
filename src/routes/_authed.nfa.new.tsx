@@ -702,6 +702,7 @@ function NewNfaPage() {
                   plant={plant}
                   nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
                   functionName={functions.find((f) => f.code === func)?.name ?? func}
+                  check={approverModeCheck(approverMode)}
                   onChange={setSelectedApprovers}
                 />
                 <div className="flex justify-end">

@@ -34,6 +34,7 @@ import { Route as ApiPublicEnfaUpdateRouteImport } from './routes/api/public/enf
 import { Route as ApiPublicEnfaUploadRouteImport } from './routes/api/public/enfa-upload'
 import { Route as ApiPublicSapApprovalChainRouteImport } from './routes/api/public/sap-approval-chain'
 import { Route as ApiPublicSapApprovalFlowRouteImport } from './routes/api/public/sap-approval-flow'
+import { Route as ApiPublicSapApproverDetailRouteImport } from './routes/api/public/sap-approver-detail'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
 import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
 import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
@@ -172,6 +173,12 @@ const ApiPublicSapApprovalFlowRoute =
     path: '/api/public/sap-approval-flow',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSapApproverDetailRoute =
+  ApiPublicSapApproverDetailRouteImport.update({
+    id: '/api/public/sap-approver-detail',
+    path: '/api/public/sap-approver-detail',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
   id: '/api/public/sap-company',
   path: '/api/public/sap-company',
@@ -244,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-approval-chain': typeof ApiPublicSapApprovalChainRoute
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
+  '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -279,6 +287,7 @@ export interface FileRoutesByTo {
   '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-approval-chain': typeof ApiPublicSapApprovalChainRoute
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
+  '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -316,6 +325,7 @@ export interface FileRoutesById {
   '/api/public/enfa-upload': typeof ApiPublicEnfaUploadRoute
   '/api/public/sap-approval-chain': typeof ApiPublicSapApprovalChainRoute
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
+  '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-upload'
     | '/api/public/sap-approval-chain'
     | '/api/public/sap-approval-flow'
+    | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-upload'
     | '/api/public/sap-approval-chain'
     | '/api/public/sap-approval-flow'
+    | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -424,6 +436,7 @@ export interface FileRouteTypes {
     | '/api/public/enfa-upload'
     | '/api/public/sap-approval-chain'
     | '/api/public/sap-approval-flow'
+    | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
@@ -454,6 +467,7 @@ export interface RootRouteChildren {
   ApiPublicEnfaUploadRoute: typeof ApiPublicEnfaUploadRoute
   ApiPublicSapApprovalChainRoute: typeof ApiPublicSapApprovalChainRoute
   ApiPublicSapApprovalFlowRoute: typeof ApiPublicSapApprovalFlowRoute
+  ApiPublicSapApproverDetailRoute: typeof ApiPublicSapApproverDetailRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
   ApiPublicSapEnfaTypeRoute: typeof ApiPublicSapEnfaTypeRoute
   ApiPublicSapFunctionRoute: typeof ApiPublicSapFunctionRoute
@@ -639,6 +653,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSapApprovalFlowRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sap-approver-detail': {
+      id: '/api/public/sap-approver-detail'
+      path: '/api/public/sap-approver-detail'
+      fullPath: '/api/public/sap-approver-detail'
+      preLoaderRoute: typeof ApiPublicSapApproverDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sap-company': {
       id: '/api/public/sap-company'
       path: '/api/public/sap-company'
@@ -763,6 +784,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEnfaUploadRoute: ApiPublicEnfaUploadRoute,
   ApiPublicSapApprovalChainRoute: ApiPublicSapApprovalChainRoute,
   ApiPublicSapApprovalFlowRoute: ApiPublicSapApprovalFlowRoute,
+  ApiPublicSapApproverDetailRoute: ApiPublicSapApproverDetailRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
   ApiPublicSapEnfaTypeRoute: ApiPublicSapEnfaTypeRoute,
   ApiPublicSapFunctionRoute: ApiPublicSapFunctionRoute,
