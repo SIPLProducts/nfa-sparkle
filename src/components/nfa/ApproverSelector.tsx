@@ -97,12 +97,13 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
 
   return (
     <div className="space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Dynamic Approvers"}</p>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 px-3 py-2" />
-              {visible.length > 1 && <th className="px-3 py-2">NFA Type / Function</th>}
+              {showGroup && <th className="px-3 py-2">NFA Type / Function</th>}
               <th className="px-3 py-2">Level</th>
               <th className="px-3 py-2">Designation</th>
               <th className="px-3 py-2">User ID</th>
@@ -115,7 +116,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
                 <td className="px-3 py-2">
                   <Checkbox checked={checked.has(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
                 </td>
-                {visible.length > 1 && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
+                {showGroup && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
                 <td className="px-3 py-2">{a.level}</td>
                 <td className="px-3 py-2">{a.role || "—"}</td>
                 <td className="px-3 py-2 font-medium">{a.userId}</td>
