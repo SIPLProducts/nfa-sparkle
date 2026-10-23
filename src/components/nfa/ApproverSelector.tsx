@@ -5,6 +5,7 @@ import { fetchSapApprovalChain, fetchSapApproverChains, filterApproverChains } f
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+import { MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
@@ -138,7 +139,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
           </tbody>
         </table>
       </div>
-      {selected.length ? (
+      {selected.length >= MIN_CREATE_APPROVERS ? (
         <div className="text-sm">
           <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected sequence</p>
           <ol className="flex flex-wrap gap-2">
@@ -150,7 +151,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
           </ol>
         </div>
       ) : (
-        <p className="text-sm text-destructive">Please select at least one approver.</p>
+        <p className="text-sm text-destructive">Please select at least {MIN_CREATE_APPROVERS} approvers.</p>
       )}
     </div>
   );

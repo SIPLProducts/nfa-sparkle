@@ -41,3 +41,8 @@ import { APPROVER_DETAIL_ENDPOINT_NAMES } from "./sap-api-constants";
 it("prefers the 'Dynamic Approvals' API Settings entry", () => {
   expect(APPROVER_DETAIL_ENDPOINT_NAMES[0]).toBe("Dynamic Approvals");
 });
+
+import { MIN_CREATE_APPROVERS } from "./sap-api-constants";
+it("requires at least 2 approvers on Create NFA", () => {
+  expect(MIN_CREATE_APPROVERS).toBe(2);
+});

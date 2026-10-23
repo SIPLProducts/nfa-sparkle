@@ -20,7 +20,7 @@ import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { ApproverSelector } from "@/components/nfa/ApproverSelector";
-import { wrapCreatePayload, approverModeCheck } from "@/lib/sap-api-constants";
+import { wrapCreatePayload, approverModeCheck, MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   head: () => ({
@@ -315,6 +315,9 @@ function NewNfaPage() {
   async function submit(_asDraft: boolean) {
     if (!user) return;
     if (!company || !nfaType || !subject) return toast.error("Company, NFA Type and Subject are required");
+    if (selectedApprovers.length < MIN_CREATE_APPROVERS) {
+      return toast.error(`Please select at least ${MIN_CREATE_APPROVERS} approvers before submitting.`);
+    }
     setBusy(true);
     try {
       const plantObj = plants.find((p) => p.code === plant);
@@ -678,7 +681,7 @@ function NewNfaPage() {
             <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
               <div className="min-w-0">
                 <div className="text-sm font-medium">Approvers</div>
-                <div className="text-xs text-muted-foreground">
+                <div className={`text-xs ${plant && selectedApprovers.length < MIN_CREATE_APPROVERS ? "text-destructive" : "text-muted-foreground"}`}>
                   {plant && nfaType && func
                     ? `${selectedApprovers.length} selected`
                     : "Select a Plant to see the approvers."}

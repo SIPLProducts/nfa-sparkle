@@ -76,6 +76,9 @@ export const CREATE_WIRE_KEYS = [
 export interface CreateFile { file_name: string; file: string }
 export interface CreateApprover { designation: string; userId: string }
 
+/** Minimum approvers the initiator must select on Create NFA. */
+export const MIN_CREATE_APPROVERS = 2;
+
 /** Maximum approver slots SAP accepts on Create ENFA. */
 export const CREATE_APPROVER_SLOTS = 15;
 
