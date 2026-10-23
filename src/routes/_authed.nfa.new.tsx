@@ -681,7 +681,7 @@ function NewNfaPage() {
                 <div className="text-xs text-muted-foreground">
                   {plant && nfaType && func
                     ? `${selectedApprovers.length} selected`
-                    : "Select Project, NFA Type and Function to see the approvers."}
+                    : "Select a Plant to see the approvers."}
                 </div>
               </div>
               <Button type="button" size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setApproversOpen(true)}>
