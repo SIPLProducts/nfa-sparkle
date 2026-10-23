@@ -1553,6 +1553,47 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
   });
 }
 
+/** Loads approver chains for a plant via the settings-driven "Approver Get Detail" endpoint. */
+export async function callApproverGetDetail(input: { check: string; plant: string }): Promise<SapCallResult> {
+  const db = await admin();
+  const { data: exact } = await db
+    .from("sap_endpoint").select("*").ilike("name", "Approver Get Detail").eq("active", true)
+    .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  const { data: fallback } = exact
+    ? { data: null }
+    : await db
+        .from("sap_endpoint").select("*").ilike("name", "%get detail%").eq("active", true)
+        .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  const ep = exact ?? fallback;
+  if (!ep) {
+    return {
+      ok: false, status: null, latencyMs: 0, body: "",
+      error: "The SAP Approver Get Detail endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "GET").toUpperCase();
+  const { buildApproverGetDetailPayload } = await import("@/lib/sap-api-constants");
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(buildApproverGetDetailPayload(input.check, input.plant)),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
+
 /** Saves or removes an approval chain through the same settings-driven SAP endpoint. */
 export async function callManageApprovalChain(payload: Record<string, unknown>): Promise<SapCallResult> {
   const db = await admin();
