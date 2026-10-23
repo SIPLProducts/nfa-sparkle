@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getApprovalPrintContext } from "@/lib/print-initiator.functions";
+import { getApprovalPrintContext, getInitiatorRecordDetail } from "@/lib/print-initiator.functions";
 import { loadPrintComments } from "@/lib/print-form-data";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { parseApprovalPrintDetail, resolveApprovalPrintDocument, type PrintDataSource } from "@/lib/approval-print-document";
@@ -66,7 +66,7 @@ export async function prepareWebPrintForm(
     usrid_from: "", usrid_to: "", r_proc: "", r_comp: "",
     r_reje: "", r_init: "", r_clar: "",
   }, userName);
-  const [editDetail, selectDetail, reportRow, draftResult, comments, saved] = await Promise.all([
+  const [editDetail, ownSelectDetail, reportRow, draftResult, comments, saved] = await Promise.all([
     requestDetail("/api/public/enfa-detail"),
     requestDetail("/api/public/enfa-select"),
     fetch("/api/public/enfa-report", { method: "POST", headers, body: JSON.stringify(reportBody), signal })
@@ -78,6 +78,14 @@ export async function prepareWebPrintForm(
     getApprovalPrintContext({ data: { enfaNumber, screen } }).catch(() => null),
   ]);
   ensureActive();
+  // SAP answers Select only for the initiator; approvers get nothing back, so the
+  // server retries the read-only Select on the initiator's behalf.
+  let selectDetail = ownSelectDetail;
+  if (!editDetail && !selectDetail) {
+    const initiatorDetail = await getInitiatorRecordDetail({ data: { enfaNumber, screen } }).catch(() => null);
+    ensureActive();
+    if (initiatorDetail) selectDetail = parseApprovalPrintDetail(JSON.stringify([initiatorDetail])).detail;
+  }
   const hasRow = Object.values(row).some((value) => String(value ?? "").trim());
   if (!editDetail && !selectDetail && !reportRow && !saved?.savedDetail && !draftResult.data && !hasRow) {
     throw new Error("The web Print Form details are not available for this eNFA number.");
