@@ -684,7 +684,9 @@ function NewNfaPage() {
                 <div className={`text-xs ${plant && selectedApprovers.length < MIN_CREATE_APPROVERS ? "text-destructive" : "text-muted-foreground"}`}>
                   {plant && nfaType && func
                     ? `${selectedApprovers.length} selected`
-                    : "Select a Plant to see the approvers."}
+                    : approverMode === "predefined"
+                      ? "Select Project, NFA Type and Function to see the approvers."
+                      : plant ? `${selectedApprovers.length} selected` : "Select a Plant to see the approvers."}
                 </div>
               </div>
               <Button type="button" size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setApproversOpen(true)}>
