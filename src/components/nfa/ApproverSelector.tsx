@@ -51,20 +51,22 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     return () => ctrl.abort();
   }, [plant, nfaType, functionName, predefined]);
 
+  // Predefined narrows to the chosen chain; Dynamic shows SAP's reply as-is.
   const visible = useMemo(
-    () => (chains ? filterApproverChains(chains, { plant, nfaType, functionName }) : []),
-    [chains, plant, nfaType, functionName],
+    () => (chains ? (predefined ? filterApproverChains(chains, { plant, nfaType, functionName }) : chains) : []),
+    [chains, plant, nfaType, functionName, predefined],
   );
+  const showGroup = !predefined || visible.length > 1;
   const levels = useMemo<EnfaDocumentApprover[]>(() => {
     return visible.flatMap((c) => c.levels.map((l) => ({
       level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
-      group: visible.length > 1 ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
+      group: showGroup ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
     }))).filter((a) => a.userId);
-  }, [visible]);
+  }, [visible, showGroup]);
 
-  const levelKey = levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
+  const levelKey = `${check}::` + levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
   useEffect(() => {
-    setChecked(new Set(visible.length > 1 ? [] : levels.map((_, i) => i)));
+    setChecked(new Set(predefined && visible.length <= 1 ? levels.map((_, i) => i) : []));
     const ids = [...new Set(levels.map((a) => a.userId))];
     if (ids.length) resolveEmails({ data: { userIds: ids } }).then(setEmails).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,12 +97,13 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
 
   return (
     <div className="space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Dynamic Approvers"}</p>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 px-3 py-2" />
-              {visible.length > 1 && <th className="px-3 py-2">NFA Type / Function</th>}
+              {showGroup && <th className="px-3 py-2">NFA Type / Function</th>}
               <th className="px-3 py-2">Level</th>
               <th className="px-3 py-2">Designation</th>
               <th className="px-3 py-2">User ID</th>
@@ -113,7 +116,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
                 <td className="px-3 py-2">
                   <Checkbox checked={checked.has(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
                 </td>
-                {visible.length > 1 && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
+                {showGroup && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
                 <td className="px-3 py-2">{a.level}</td>
                 <td className="px-3 py-2">{a.role || "—"}</td>
                 <td className="px-3 py-2 font-medium">{a.userId}</td>
