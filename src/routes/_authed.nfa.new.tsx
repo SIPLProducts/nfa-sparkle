@@ -21,6 +21,61 @@ import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/e
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { ApproverSelector } from "@/components/nfa/ApproverSelector";
 import { wrapCreatePayload, approverModeCheck, MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Search, Check } from "lucide-react";
+
+function SearchPicker(props: {
+  value: string;
+  onChange: (v: string) => void;
+  options: Option[];
+  disabled?: boolean;
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = props.options.find((o) => o.code === props.value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={props.disabled}
+          className="w-full justify-between font-normal"
+        >
+          <span className={`truncate ${selected ? "" : "text-muted-foreground"}`}>
+            {selected ? `${selected.code} – ${selected.name}` : props.placeholder}
+          </span>
+          <Search className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[260px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={props.searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>{props.emptyText}</CommandEmpty>
+            <CommandGroup>
+              {props.options.map((o) => (
+                <CommandItem
+                  key={o.code}
+                  value={`${o.code} ${o.name}`}
+                  onSelect={() => { props.onChange(o.code); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${o.code === props.value ? "opacity-100" : "opacity-0"}`} />
+                  {o.code} – {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   head: () => ({
@@ -442,24 +497,21 @@ function NewNfaPage() {
           <Section icon={<Building2 className="h-4 w-4" />} title="Organisation & Type" desc="Master data is sourced from SAP.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Company" required>
-                <Select value={company} onValueChange={setCompany} disabled={companiesLoading || companies.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        companiesLoading
-                          ? "Loading companies from SAP…"
-                          : companies.length
-                            ? "Select company"
-                            : "No companies returned by SAP"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>{c.code} – {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchPicker
+                  value={company}
+                  onChange={setCompany}
+                  options={companies}
+                  disabled={companiesLoading || companies.length === 0}
+                  placeholder={
+                    companiesLoading
+                      ? "Loading companies from SAP…"
+                      : companies.length
+                        ? "Select company"
+                        : "No companies returned by SAP"
+                  }
+                  searchPlaceholder="Search company…"
+                  emptyText="No matching company."
+                />
                 {companiesError ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {companiesError}{" "}
@@ -474,26 +526,23 @@ function NewNfaPage() {
                 ) : null}
               </Field>
               <Field label="Plant">
-                <Select value={plant} onValueChange={setPlant} disabled={!company || plantsLoading || plants.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        !company
-                          ? "Select company first"
-                          : plantsLoading
-                            ? "Loading plants from SAP…"
-                            : plants.length
-                              ? "Select plant"
-                              : "No plants returned by SAP"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plants.map((p) => (
-                      <SelectItem key={p.code} value={p.code}>{p.code} – {p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchPicker
+                  value={plant}
+                  onChange={setPlant}
+                  options={plants}
+                  disabled={!company || plantsLoading || plants.length === 0}
+                  placeholder={
+                    !company
+                      ? "Select company first"
+                      : plantsLoading
+                        ? "Loading plants from SAP…"
+                        : plants.length
+                          ? "Select plant"
+                          : "No plants returned by SAP"
+                  }
+                  searchPlaceholder="Search plant…"
+                  emptyText="No matching plant."
+                />
                 {plantsError ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {plantsError}{" "}
