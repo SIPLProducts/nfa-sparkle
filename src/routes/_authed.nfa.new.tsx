@@ -102,6 +102,7 @@ function NewNfaPage() {
   const [budget, setBudget] = useState("");
   const [timeline, setTimeline] = useState("");
   const [desc, setDesc] = useState("");
+  const [descOpen, setDescOpen] = useState(false);
   const [approvers, setApprovers] = useState<ApproverDraft[]>([{ level: 1, email: "", designation: "" }]);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<File[]>([]);
@@ -611,30 +612,24 @@ function NewNfaPage() {
                 <Input type="number" value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="0" />
               </Field>
 
-              <Field label="Detailed Description" className="md:col-span-2">
-                <RichTextEditor
-                  value={desc}
-                  onChange={setDesc}
-                  minHeight="240px"
-                />
-                <div className="mt-1.5 flex flex-wrap items-center justify-end gap-2 text-[11px] text-muted-foreground">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs">
-                        <Maximize2 className="h-3.5 w-3.5" /> Expand editor
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
-                      <DialogHeader>
-                        <DialogTitle className="font-display">Detailed Description</DialogTitle>
-                        <DialogDescription className="sr-only">Edit the rich-text Detailed Description in an expanded view.</DialogDescription>
-                      </DialogHeader>
-                      <RichTextEditor value={desc} onChange={setDesc} minHeight="420px" />
-                      <DialogFooter><Button>Done</Button></DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </Field>
+              <div className="md:col-span-2 flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                <div className="text-sm font-medium">Detailed Description</div>
+                <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setDescOpen(true)}>
+                  <FileText className="h-3.5 w-3.5" /> Open
+                </Button>
+              </div>
+              <Dialog open={descOpen} onOpenChange={setDescOpen}>
+                <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="font-display text-base">Detailed Description</DialogTitle>
+                    <DialogDescription className="sr-only">Edit the rich-text Detailed Description.</DialogDescription>
+                  </DialogHeader>
+                  <RichTextEditor value={desc} onChange={setDesc} minHeight="45vh" />
+                  <DialogFooter>
+                    <Button type="button" onClick={() => setDescOpen(false)}>Done</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </Section>
         </div>
