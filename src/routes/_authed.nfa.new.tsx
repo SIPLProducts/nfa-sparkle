@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Send, FileText, Building2, Paperclip, Upload, X, Users } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
@@ -689,26 +688,27 @@ function NewNfaPage() {
                 <Users className="h-3.5 w-3.5" /> Open
               </Button>
             </div>
-            <DialogPrimitive.Root open={approversOpen} onOpenChange={setApproversOpen}>
-              <DialogPrimitive.Portal forceMount>
-              {approversOpen && <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=closed]:hidden" />}
-              <DialogPrimitive.Content forceMount className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-3xl max-h-[92vh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg data-[state=closed]:hidden">
-                <DialogHeader>
-                  <DialogTitle className="font-display text-base">Approvers</DialogTitle>
-                  <DialogDescription>Choose which configured approvers should review this NFA. Order follows the Approval Chain.</DialogDescription>
-                </DialogHeader>
+            <div
+              className={approversOpen ? "fixed inset-0 z-50 flex items-center justify-center" : "hidden"}
+              onKeyDown={(e) => { if (e.key === "Escape") setApproversOpen(false); }}
+            >
+              <div className="absolute inset-0 bg-black/80" onClick={() => setApproversOpen(false)} />
+              <div role="dialog" aria-modal="true" aria-labelledby="approvers-dialog-title" className="relative z-10 grid w-full max-w-3xl max-h-[92vh] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg">
+                <div className="flex flex-col space-y-1.5">
+                  <h2 id="approvers-dialog-title" className="font-display text-base font-semibold">Approvers</h2>
+                  <p className="text-sm text-muted-foreground">Choose which configured approvers should review this NFA. Order follows the Approval Chain.</p>
+                </div>
                 <ApproverSelector
                   plant={plant}
                   nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
                   functionName={functions.find((f) => f.code === func)?.name ?? func}
                   onChange={setSelectedApprovers}
                 />
-                <DialogFooter>
+                <div className="flex justify-end">
                   <Button type="button" onClick={() => setApproversOpen(false)}>Done</Button>
-                </DialogFooter>
-              </DialogPrimitive.Content>
-              </DialogPrimitive.Portal>
-            </DialogPrimitive.Root>
+                </div>
+              </div>
+            </div>
           </Section>
          </div>
         </div>
