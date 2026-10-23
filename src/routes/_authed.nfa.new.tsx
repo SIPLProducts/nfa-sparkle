@@ -20,7 +20,6 @@ import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { ApproverSelector } from "@/components/nfa/ApproverSelector";
-import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { wrapCreatePayload, approverModeCheck } from "@/lib/sap-api-constants";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
