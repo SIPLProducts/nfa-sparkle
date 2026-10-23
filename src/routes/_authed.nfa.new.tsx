@@ -389,7 +389,23 @@ function NewNfaPage() {
         return;
       }
       toast.success(sap.message);
-      nav({ to: "/nfa/my" });
+      // Stay on Create NFA and clear the form for the next NFA.
+      setCompany("");
+      setPlant("");
+      setApproverMode("predefined");
+      setSelectedApprovers([]);
+      setApproversOpen(false);
+      setNfaType("");
+      setFunc("");
+      setSubject("");
+      setScope("");
+      setBudget("");
+      setTimeline("");
+      setDesc("");
+      setDescOpen(false);
+      setApprovers([{ level: 1, email: "", designation: "" }]);
+      setPending([]);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
