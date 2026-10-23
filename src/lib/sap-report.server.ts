@@ -1560,7 +1560,8 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
     .from("sap_endpoint").select("*").ilike("name", pattern).eq("active", true)
     .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
   let ep: any = null;
-  for (const pattern of ["Dynamic Approvals", "Approver Get Detail", "%dynamic approval%", "%get detail%"]) {
+  const { APPROVER_DETAIL_ENDPOINT_NAMES } = await import("@/lib/sap-api-constants");
+  for (const pattern of APPROVER_DETAIL_ENDPOINT_NAMES) {
     ep = await find(pattern);
     if (ep) break;
   }
