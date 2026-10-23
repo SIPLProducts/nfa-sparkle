@@ -52,3 +52,16 @@ it("Predefined sends check X, Dynamic sends blank", () => {
   expect(approverModeCheck("predefined")).toBe("X");
   expect(approverModeCheck("dynamic")).toBe("");
 });
+
+import { vi } from "vitest";
+import { fetchSapApproverChains } from "./sap-approval-flow";
+it("Dynamic failure never calls the Approval Chain API", async () => {
+  const calls: string[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    calls.push(url);
+    return new Response(JSON.stringify({ error: "Dynamic Approvals endpoint is not registered" }), { status: 424 });
+  }));
+  await expect(fetchSapApproverChains({ plant: "9000", check: "" }, "t")).rejects.toThrow(/not registered/);
+  expect(calls).toEqual(["/api/public/sap-approver-detail"]);
+  vi.unstubAllGlobals();
+});
