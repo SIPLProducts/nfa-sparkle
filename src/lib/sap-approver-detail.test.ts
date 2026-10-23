@@ -46,3 +46,9 @@ import { MIN_CREATE_APPROVERS } from "./sap-api-constants";
 it("requires at least 2 approvers on Create NFA", () => {
   expect(MIN_CREATE_APPROVERS).toBe(2);
 });
+
+import { approverModeCheck } from "./sap-api-constants";
+it("Predefined sends check X, Dynamic sends blank", () => {
+  expect(approverModeCheck("predefined")).toBe("X");
+  expect(approverModeCheck("dynamic")).toBe("");
+});

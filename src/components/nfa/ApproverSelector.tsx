@@ -27,11 +27,12 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sapMessage, setSapMessage] = useState("");
+  const predefined = check === "X";
 
   // Load from SAP as soon as Plant is chosen (and again when approver mode changes).
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (!plant) return;
+    if (!plant || predefined) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
@@ -49,11 +50,32 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
       }
     })();
     return () => ctrl.abort();
-  }, [plant, check]);
+  }, [plant, check, predefined]);
+
+  // Predefined Approvers: original Approval Chain lookup once Plant, NFA Type and Function are chosen.
+  useEffect(() => {
+    if (!predefined) return;
+    setChains(null); setFallback(null); setError(""); setSapMessage("");
+    if (!plant || !nfaType || !functionName) return;
+    const ctrl = new AbortController();
+    setLoading(true);
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const res = await fetchSapApprovalChain({ plant, nfaType, functionName }, data.session?.access_token ?? "", ctrl.signal);
+        if (!ctrl.signal.aborted) setFallback(res.approvers);
+      } catch (e) {
+        if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Approval chain is unavailable");
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => ctrl.abort();
+  }, [predefined, plant, nfaType, functionName]);
 
   // Fallback to the configured Approval Chain API when the get_detail API is unavailable.
   useEffect(() => {
-    if (!fallback || fallback.length || !plant || !nfaType || !functionName) return;
+    if (predefined || !fallback || fallback.length || !plant || !nfaType || !functionName) return;
     const ctrl = new AbortController();
     (async () => {
       try {
@@ -63,7 +85,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
       } catch { /* keep empty */ }
     })();
     return () => ctrl.abort();
-  }, [fallback, plant, nfaType, functionName]);
+  }, [predefined, fallback, plant, nfaType, functionName]);
 
   const visible = useMemo(
     () => (chains ? filterApproverChains(chains, { plant, nfaType, functionName }) : []),
@@ -99,12 +121,16 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     });
   }
 
+  if (predefined && (!plant || !nfaType || !functionName)) {
+    return <p className="text-sm text-muted-foreground">Select Project, NFA Type and Function to see the approvers.</p>;
+  }
   if (!plant) {
     return <p className="text-sm text-muted-foreground">Select a Plant to see the approvers.</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return <p className="text-sm text-muted-foreground">{error}</p>;
   if (!levels.length) {
+    if (predefined) return <p className="text-sm text-muted-foreground">No approval chain configured.</p>;
     if (fallback && (!nfaType || !functionName)) return <p className="text-sm text-muted-foreground">Select NFA Type and Function to see the approvers.</p>;
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
