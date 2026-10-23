@@ -41,8 +41,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
         const token = data.session?.access_token ?? "";
         const res = await fetchSapApproverChains({ plant, check }, token, ctrl.signal);
         if (ctrl.signal.aborted) return;
-        if (res.chains) { setChains(res.chains); setSapMessage(res.message); }
-        else { setChains([]); setFallback([]); }
+        setChains(res.chains ?? []); setSapMessage(res.message);
       } catch (e) {
         if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Approval chain is unavailable");
       } finally {
@@ -73,31 +72,17 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     return () => ctrl.abort();
   }, [predefined, plant, nfaType, functionName]);
 
-  // Fallback to the configured Approval Chain API when the get_detail API is unavailable.
-  useEffect(() => {
-    if (predefined || !fallback || fallback.length || !plant || !nfaType || !functionName) return;
-    const ctrl = new AbortController();
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const res = await fetchSapApprovalChain({ plant, nfaType, functionName }, data.session?.access_token ?? "", ctrl.signal);
-        if (!ctrl.signal.aborted && res.approvers.length) setFallback(res.approvers);
-      } catch { /* keep empty */ }
-    })();
-    return () => ctrl.abort();
-  }, [predefined, fallback, plant, nfaType, functionName]);
-
   const visible = useMemo(
     () => (chains ? filterApproverChains(chains, { plant, nfaType, functionName }) : []),
     [chains, plant, nfaType, functionName],
   );
   const levels = useMemo<EnfaDocumentApprover[]>(() => {
-    if (fallback && fallback.length) return fallback.filter((a) => a.userId);
+    if (predefined) return (fallback ?? []).filter((a) => a.userId);
     return visible.flatMap((c) => c.levels.map((l) => ({
       level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
       group: visible.length > 1 ? `${c.funct}${c.extraTxt ? ` / ${c.extraTxt}` : ""}` : "",
     }))).filter((a) => a.userId);
-  }, [visible, fallback]);
+  }, [visible, fallback, predefined]);
 
   const levelKey = levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
   useEffect(() => {
@@ -131,7 +116,6 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   if (error) return <p className="text-sm text-muted-foreground">{error}</p>;
   if (!levels.length) {
     if (predefined) return <p className="text-sm text-muted-foreground">No approval chain configured.</p>;
-    if (fallback && (!nfaType || !functionName)) return <p className="text-sm text-muted-foreground">Select NFA Type and Function to see the approvers.</p>;
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
 

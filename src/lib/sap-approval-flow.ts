@@ -238,7 +238,6 @@ export async function fetchSapApproverChains(
     signal,
   });
   if (!response.ok) {
-    if (response.status === 424) return { chains: null, message: "" };
     const r = await response.json().catch(() => ({})) as SapObject;
     throw new Error(String(r["error"] ?? "Approval chain is unavailable"));
   }
