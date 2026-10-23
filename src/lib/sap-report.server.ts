@@ -1554,7 +1554,7 @@ export async function callApprovalChain(approver?: string): Promise<SapCallResul
 }
 
 /** Loads approver chains for a plant via the settings-driven "Approver Get Detail" endpoint. */
-export async function callApproverGetDetail(input: { check: string; plant: string }): Promise<SapCallResult> {
+export async function callApproverGetDetail(input: { check: string; plant: string; nfaType?: string; funct?: string }): Promise<SapCallResult> {
   const db = await admin();
   const find = async (pattern: string) => (await db
     .from("sap_endpoint").select("*").ilike("name", pattern).eq("active", true)
@@ -1586,7 +1586,7 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
     method,
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
-    body: JSON.stringify(buildApproverGetDetailPayload(input.check, input.plant)),
+    body: JSON.stringify(buildApproverGetDetailPayload(input.check, input.plant, input.nfaType, input.funct)),
     username: username || undefined,
     password,
     maxBytes: 2_000_000,
