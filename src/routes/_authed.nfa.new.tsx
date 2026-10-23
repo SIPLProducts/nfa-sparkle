@@ -20,6 +20,7 @@ import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
 import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/enfa-working-document";
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { ApproverSelector } from "@/components/nfa/ApproverSelector";
+import { wrapCreatePayload, approverModeCheck } from "@/lib/sap-api-constants";
 
 export const Route = createFileRoute("/_authed/nfa/new")({
   head: () => ({
@@ -93,6 +94,7 @@ function NewNfaPage() {
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
   const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
+  const [selectedApprovers, setSelectedApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [nfaType, setNfaType] = useState("");
   const [func, setFunc] = useState("");
   const [subject, setSubject] = useState("");
@@ -369,8 +371,8 @@ function NewNfaPage() {
       }
       // user_name is the logged-in user's User ID (profiles.username) — never hardcoded.
       const sapUser = await resolveMySapUser(user?.id ?? "");
-      const payload = {
-        create: {
+      const payload = wrapCreatePayload(
+        {
           user_name: sapUser,
           CC_code: company,
           PSPNR: plant,
@@ -382,9 +384,14 @@ function NewNfaPage() {
           BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
           TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
           TEXT: plainDesc ? desc : "",
-          file: files,
         },
-      };
+        files,
+        sapUser,
+        {
+          approvers: selectedApprovers.map((a) => ({ designation: a.role, userId: a.userId })),
+          check: approverModeCheck(approverMode),
+        },
+      );
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const res = await fetch("/api/public/enfa-create", {
@@ -676,6 +683,7 @@ function NewNfaPage() {
               plant={plant}
               nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
               functionName={functions.find((f) => f.code === func)?.name ?? func}
+              onChange={setSelectedApprovers}
             />
           </Section>
          </div>

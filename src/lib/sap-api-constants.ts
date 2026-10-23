@@ -74,22 +74,49 @@ export const CREATE_WIRE_KEYS = [
 ] as const;
 
 export interface CreateFile { file_name: string; file: string }
+export interface CreateApprover { designation: string; userId: string }
+
+/** Maximum approver slots SAP accepts on Create ENFA. */
+export const CREATE_APPROVER_SLOTS = 15;
+
+/** Approver mode -> SAP `check` flag: Predefined = "X", Dynamic = "". */
+export function approverModeCheck(mode: string | undefined): string {
+  return mode === "dynamic" ? "" : mode === "predefined" ? "X" : "";
+}
+
+/** Fills design1..15 / approve1..15 in order; unused slots are blank. */
+export function buildCreateApproverSlots(approvers: CreateApprover[] = []) {
+  if (approvers.length > CREATE_APPROVER_SLOTS) {
+    throw new Error(`At most ${CREATE_APPROVER_SLOTS} approvers are allowed`);
+  }
+  const out: Record<string, string> = {};
+  for (let i = 1; i <= CREATE_APPROVER_SLOTS; i++) {
+    const a = approvers[i - 1];
+    out[`design${i}`] = String(a?.designation ?? "").trim();
+    out[`approve${i}`] = String(a?.userId ?? "").trim().toUpperCase();
+  }
+  return out;
+}
 
 /**
  * Wraps a flat field map + attachments into SAP's `{ create: { ... } }` payload.
  * `userName` (the logged-in User ID) overrides any `user_name` in `flat`.
+ * When `approvers`/`check` are supplied they are added as SAP's approver slots and mode flag.
  */
 export function wrapCreatePayload(
   flat: Record<string, unknown>,
   files: CreateFile[] = [],
   userName?: string,
+  extra?: { approvers?: CreateApprover[]; check?: string },
 ) {
   const lower: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(flat ?? {})) lower[k.trim().toLowerCase()] = v;
   if (userName) lower["user_name"] = userName;
   const create: Record<string, unknown> = {};
+  if (extra) Object.assign(create, buildCreateApproverSlots(extra.approvers ?? []));
   for (const key of CREATE_WIRE_KEYS) create[key] = (lower[key.toLowerCase()] ?? "").toString().trim();
   create["file"] = files.map((f) => ({ file_name: String(f.file_name ?? ""), file: String(f.file ?? "") }));
+  if (extra) create["check"] = String(extra.check ?? "");
   return { create };
 }
 
@@ -97,8 +124,10 @@ export function wrapCreatePayload(
 export const CREATE_BODY_SAMPLE = JSON.stringify(
   {
     create: {
+      ...buildCreateApproverSlots([]),
       ...Object.fromEntries(CREATE_WIRE_KEYS.map((k) => [k, ""])),
       file: [{ file_name: "", file: "" }],
+      check: "",
     },
   },
   null,
