@@ -81,10 +81,12 @@ export async function prepareWebPrintForm(
   // SAP answers Select only for the initiator; approvers get nothing back, so the
   // server retries the read-only Select on the initiator's behalf.
   let selectDetail = ownSelectDetail;
-  if (!editDetail && !selectDetail) {
+  let initiatorName = saved?.initiatorName?.trim() ?? "";
+  if ((!editDetail && !selectDetail) || !initiatorName) {
     const initiatorDetail = await getInitiatorRecordDetail({ data: { enfaNumber, screen } }).catch(() => null);
     ensureActive();
-    if (initiatorDetail) selectDetail = parseApprovalPrintDetail(JSON.stringify([initiatorDetail])).detail;
+    if (initiatorDetail && !editDetail && !selectDetail) selectDetail = parseApprovalPrintDetail(JSON.stringify([initiatorDetail])).detail;
+    if (!initiatorName) initiatorName = initiatorDetail?.INIT_DISPLAY_NAME?.trim() ?? "";
   }
   const hasRow = Object.values(row).some((value) => String(value ?? "").trim());
   if (!editDetail && !selectDetail && !reportRow && !saved?.savedDetail && !draftResult.data && !hasRow) {
@@ -97,7 +99,7 @@ export async function prepareWebPrintForm(
     savedDetail: saved?.savedDetail,
     draft: draftResult.data,
     comments,
-    initiatorName: saved?.initiatorName ?? "",
+    initiatorName,
   });
   const plant = String(row.PSPNR ?? "").trim() || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
   const flow = plant && resolved.document.nfaType

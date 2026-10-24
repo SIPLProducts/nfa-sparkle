@@ -172,5 +172,14 @@ export const getInitiatorRecordDetail = createServerFn({ method: "POST" })
     const detail = await selectRecordAsInitiator([me?.username ?? "", ...all], (u) => callEnfaSelect(data.enfaNumber, { user_name: u }));
     if (!detail) return null;
     if (data.screen === "nfa_my" && String(detail.INIT_USERID ?? "").trim().toUpperCase() !== String(me?.username ?? "").trim().toUpperCase()) return null;
-    return Object.fromEntries(Object.entries(detail).map(([k, v]) => [k, v == null ? "" : String(v)]));
+    const out: Record<string, string> = Object.fromEntries(Object.entries(detail).map(([k, v]) => [k, v == null ? "" : String(v)]));
+    // Initiator display name: the portal profile for SAP's INIT_USERID, else SAP's own name/ID.
+    const initUser = String(out.INIT_USERID ?? "").trim();
+    let initName = "";
+    if (initUser) {
+      const { data: prof } = await db.from("profiles").select("full_name").ilike("username", initUser).limit(1).maybeSingle();
+      initName = String((prof as { full_name?: string | null } | null)?.full_name ?? "").trim();
+    }
+    out.INIT_DISPLAY_NAME = initName || String(out.INIT_NAME ?? "").trim() || initUser;
+    return out;
   });

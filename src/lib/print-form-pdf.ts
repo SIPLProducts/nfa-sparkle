@@ -59,7 +59,16 @@ function createPdfBlocks(element: HTMLElement): HTMLElement[] {
     const descriptionCell = headerRows[descriptionIndex]?.querySelector<HTMLTableCellElement>(".enfa-doc-content");
     if (descriptionCell) {
       const richChildren = Array.from(descriptionCell.querySelector<HTMLElement>(".rich-content")?.children ?? []);
-      if (richChildren.length > 0) richChildren.forEach((child) => blocks.push(contentTable(headerTable, descriptionCell, child)));
+      if (richChildren.length > 0) {
+        richChildren.forEach((child, index) => {
+          const piece = contentTable(headerTable, descriptionCell, child);
+          // One continuous description section: no borders between its pieces.
+          piece.classList.add("enfa-pdf-desc");
+          if (index === 0) piece.classList.add("enfa-pdf-desc-first");
+          if (index === richChildren.length - 1) piece.classList.add("enfa-pdf-desc-last");
+          blocks.push(piece);
+        });
+      }
       else blocks.push(contentTable(headerTable, descriptionCell));
     }
   }
