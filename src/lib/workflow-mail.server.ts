@@ -110,7 +110,8 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
         connectionTimeout: 15_000, greetingTimeout: 15_000,
         auth: smtp.user ? { user: smtp.user, pass: password } : undefined,
       });
-      return t.sendMail(msg);
+      const info = await t.sendMail(msg);
+      return { ...info, via: "direct" };
     },
   };
   return { transporter, from, config };
