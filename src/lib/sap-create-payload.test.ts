@@ -17,6 +17,12 @@ describe("Create ENFA payload", () => {
     expect(create.check).toBe("X");
     expect(create.user_name).toBe("SIPL_QM");
   });
+  it("never sends the text key", () => {
+    const { create } = wrapCreatePayload({ TEXT: "desc", SUBJECT: "s" }, [], "U", { approvers: [], check: "" });
+    expect("text" in create).toBe(false);
+    expect("TEXT" in create).toBe(false);
+    expect(create.SUBJECT).toBe("s");
+  });
   it("rejects more than 15 approvers", () => {
     const many = Array.from({ length: 16 }, (_, i) => ({ designation: "D", userId: `U${i}` }));
     expect(() => wrapCreatePayload({}, [], "X", { approvers: many, check: "" })).toThrow();
