@@ -465,7 +465,6 @@ function NewNfaPage() {
           SCOPE_IMPACT: scope,
           BUDGET_IMPACT: budget ? Number(budget).toFixed(2) : "",
           TIMELINE_IMPACT: timeline ? String(parseInt(timeline, 10)) : "",
-          TEXT: plainDesc ? desc : "",
         },
         files,
         sapUser,

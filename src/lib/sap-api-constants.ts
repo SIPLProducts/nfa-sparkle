@@ -70,7 +70,6 @@ export const CREATE_WIRE_KEYS = [
   "SCOPE_IMPACT",
   "BUDGET_IMPACT",
   "TIMELINE_IMPACT",
-  "TEXT",
 ] as const;
 
 export interface CreateFile { file_name: string; file: string }
