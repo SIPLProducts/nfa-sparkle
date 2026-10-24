@@ -227,11 +227,34 @@ export async function resolveWorkflowContext(input: {
   } catch (e) {
     console.warn("[workflow-mail] SAP context lookup failed:", (e as Error)?.message ?? e);
   }
-  const hintApprovers = (hint.approvers ?? []).map(ids);
+  // The approvers the initiator selected at creation are the record's real chain.
+  const saved = await loadSavedChain(input.enfaNo);
+  if (saved.length) {
+    chainIds = saved;
+    const i = src.indexOf("chain:sap");
+    if (i >= 0) src.splice(i, 1);
+    src.push("chain:saved");
+  }
+  const hintApprovers = saved.length ? [] : (hint.approvers ?? []).map(ids);
   const approvers = Array.from({ length: MAX_APPROVAL_LEVELS }, (_, i) => ids([chainIds[i] ?? "", ...(hintApprovers[i] ?? [])]));
   if (!src.some((s) => s.startsWith("chain")) && hintApprovers.some((a) => a.length)) src.push("chain:screen");
   const level = actingLevel(Array.from({ length: MAX_APPROVAL_LEVELS }, (_, i) => chainIds[i] ?? ""), input.actorUserId, hint.level ?? 1, initiator);
   return { context: { subject: hint.subject, initiator, approvers, level }, source: src.join(",") || "none" };
+}
+
+/** User IDs saved per level when the NFA was created ([] when none). Pure parsing in savedChainIds. */
+export function savedChainIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, MAX_APPROVAL_LEVELS).map((a: any) => String(a?.userId ?? "").trim());
+}
+
+async function loadSavedChain(enfaNo: string): Promise<string[]> {
+  try {
+    const db = await admin();
+    const { data } = await db.from("sap_record_draft").select("approvers").eq("enfa_number", enfaNo).maybeSingle();
+    const out = savedChainIds(data?.approvers);
+    return out.some(Boolean) ? out : [];
+  } catch { return []; }
 }
 
 type MailProfile = { username: string | null; full_name: string | null; email: string | null; status: string | null };
