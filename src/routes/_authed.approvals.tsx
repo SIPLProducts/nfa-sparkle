@@ -348,10 +348,16 @@ function ApprovalsInbox() {
             comments,
             initiatorName: savedContext.initiatorName,
           });
-           const finalComments = mergeCompletePrintComments(comments, savedContext.savedComments, resolved.document.approvers);
+           // Use the same preparation as Preview (it reads SAP on the initiator's behalf
+           // when the approver gets nothing back), falling back to the inline data.
+           const shared = await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>)
+             .catch(() => null);
+           const pdfDocument = shared?.document ?? resolved.document;
+           const finalComments = shared?.comments
+             ?? mergeCompletePrintComments(comments, savedContext.savedComments, resolved.document.approvers);
            const generated = await createApprovalPrintFormPdf({
             nfaNo: selectedEnfaNo,
-            document: resolved.document,
+            document: pdfDocument,
              comments: finalComments,
             approvalFlow: {
               plant: val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "",
