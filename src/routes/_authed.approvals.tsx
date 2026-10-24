@@ -360,9 +360,9 @@ function ApprovalsInbox() {
             document: pdfDocument,
              comments: finalComments,
             approvalFlow: {
-              plant: val(selectedRow, "PSPNR") || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "",
-              nfaType: resolved.document.nfaType,
-              functionName: resolved.document.functionName,
+              plant: val(selectedRow, "PSPNR") || pdfDocument.plantLabel.split(/[–-]/)[0]?.trim() || "",
+              nfaType: pdfDocument.nfaType,
+              functionName: pdfDocument.functionName,
             },
             documentStatus: isFinalApproval
               ? "approved"
