@@ -125,3 +125,10 @@ it("saved dynamic chain routes initiator's submit to the first selected approver
   expect(pick2("approve", { initiator: ["PRADEEP"], approvers: chain.map((c) => [c]), level: 0 }).people).toEqual(["9003"]);
   expect(pick2("approve", { initiator: ["PRADEEP"], approvers: chain.map((c) => [c]), level: 1 }).people).toEqual(["9005"]);
 });
+
+it("saved dynamic chain: final approval, reject and back mail the initiator", () => {
+  const ctx = { initiator: ["PRADEEP"], approvers: savedChainIds([{ userId: "9003" }, { userId: "9005" }]).map((c) => [c]) };
+  expect(pick2("approve", { ...ctx, level: 2 }).people).toEqual(["PRADEEP"]);
+  expect(pick2("reject", { ...ctx, level: 1 }).people).toEqual(["PRADEEP"]);
+  expect(pick2("back_to_initiator", { ...ctx, level: 2 }).people).toEqual(["PRADEEP"]);
+});
