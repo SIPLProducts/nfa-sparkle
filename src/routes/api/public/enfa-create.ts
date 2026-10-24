@@ -127,6 +127,31 @@ export const Route = createFileRoute("/api/public/enfa-create")({
           /* pass SAP's raw body through unchanged */
         }
 
+        // After SAP accepts: keep the selected approvers against the number, then email level 1.
+        try {
+          const parsed = JSON.parse(out);
+          const enfaNo = String(parsed?.ENFA_NO ?? "").trim();
+          const chosen = approvers.filter((a) => a.userId.trim());
+          if (String(parsed?.STATUS ?? "").toUpperCase() === "S" && enfaNo && chosen.length) {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const check = String(src.check ?? input?.check ?? "").trim();
+            await (supabaseAdmin as any).from("sap_record_draft").upsert({
+              enfa_number: enfaNo,
+              approvers: chosen.map((a, i) => ({ level: i + 1, designation: a.designation, userId: a.userId.trim().toUpperCase() })),
+              approver_mode: check === "X" ? "predefined" : "dynamic",
+              updated_by: claimsData.claims.sub as string,
+            });
+            const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
+            const actorEmail = String((claimsData.claims as { email?: string }).email ?? "");
+            await notifyWorkflowAction({
+              action: "approve", enfaNo, comment: "", actor: userName || actorEmail, actorEmail, actorUserId: userName,
+              context: { subject: String(src.SUBJECT ?? ""), initiator: [userName], level: 0 },
+            });
+          }
+        } catch (e) {
+          console.warn("[enfa-create] post-create notify failed:", (e as Error)?.message ?? e);
+        }
+
         return new Response(out, { status: 200, headers });
       },
     },
