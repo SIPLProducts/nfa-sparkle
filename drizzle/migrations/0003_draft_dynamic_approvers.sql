@@ -1,0 +1,1 @@
+ALTER TABLE public.sap_record_draft ADD COLUMN IF NOT EXISTS approvers jsonb, ADD COLUMN IF NOT EXISTS approver_mode text;

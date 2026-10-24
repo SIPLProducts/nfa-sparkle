@@ -740,6 +740,8 @@ export type Database = {
       }
       sap_record_draft: {
         Row: {
+          approver_mode: string | null
+          approvers: Json | null
           budget_impact: number | null
           created_at: string
           detailed_description: string | null
@@ -751,6 +753,8 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          approver_mode?: string | null
+          approvers?: Json | null
           budget_impact?: number | null
           created_at?: string
           detailed_description?: string | null
@@ -762,6 +766,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          approver_mode?: string | null
+          approvers?: Json | null
           budget_impact?: number | null
           created_at?: string
           detailed_description?: string | null
