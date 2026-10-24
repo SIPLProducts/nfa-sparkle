@@ -100,7 +100,7 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
             err.code = body?.code;
             throw err;
           }
-          return body;
+          return { ...body, via: "relay" };
         }
         if (res) console.warn("[workflow-mail] middleware has no /mail/send; sending directly");
       }
@@ -315,13 +315,13 @@ export async function notifyWorkflowAction(raw: {
   const resolved = await resolveWorkflowContext({ enfaNo: raw.enfaNo, actorUserId: raw.actorUserId ?? "", hint: raw.context });
   const input = { ...raw, context: resolved.context };
   const mail = await buildWorkflowMail(input);
-  const record = async (status: string, error?: string) => {
+  const record = async (status: string, error?: string, via?: string) => {
     try {
       const db = await admin();
       await db.from("email_log").insert({
         enfa_no: input.enfaNo, action: mail.final ? "final_approve" : input.action, status,
         people: mail.people, recipients: mail.to, error: error ?? null,
-        level: input.context.level ?? null, source: resolved.source,
+        level: input.context.level ?? null, source: via ? `${resolved.source},mail:${via}` : resolved.source,
       });
     } catch { /* logging never blocks */ }
   };
@@ -343,9 +343,9 @@ export async function notifyWorkflowAction(raw: {
   }
   try {
     const { transporter, from } = await transport();
-    await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text, html: mail.html });
+    const sent: any = await transporter.sendMail({ from, to: mail.to, cc: config.cc.length ? config.cc : undefined, subject: mail.subject, text: mail.text, html: mail.html });
     console.info(`[workflow-mail] ${input.enfaNo} ${input.action}: sent to ${mail.to.join(", ")}`);
-    await record("sent");
+    await record("sent", undefined, sent?.via);
   } catch (e) {
     const msg = friendlyMailError(e);
     console.warn(`[workflow-mail] ${input.enfaNo} ${input.action}: failed — ${msg}`);
