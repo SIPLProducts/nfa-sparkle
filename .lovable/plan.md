@@ -1,19 +1,26 @@
-# Fix Comments section on the Print Form
+# Fix missing Initiator and Approval Chain in the DMS PDF
 
-## What's wrong
-For NFAs created directly in SAP (like 100208), the approvers have a Role and User ID but no portal name. The Comments section labels each remark by name only, so:
-- the remark "okay" appears with no User ID in front of it;
-- approvers who haven't commented are left out of the list.
+## Root cause
+Preview and the PDF sent to DMS gather record details in two different ways.
 
-The reference PDF lists every approver by User ID (9001, 9002, 9003) under "Current Version Comments".
+- **Preview / Print Form** uses the shared preparation step. SAP returns record details only to the initiator, so when an approver opens the form, this step fetches the details on the initiator's behalf. That fills in the Initiator name, Function and Approval Chain.
+- **DMS PDF** (built on Reject and Final Approval in the Approvals screen) collects its own data and asks SAP as the approver. SAP returns nothing, so the PDF has an empty Initiator and Function and no Approval Chain grid. The uploaded ENFA 100210 PDF shows exactly this.
 
 ## Fix
-1. Label each SAP comment (COMMENT1, COMMENT2 …) with its approver's name, or their **User ID** when there's no name.
-2. Under "Current Version Comments", list every approver in level order with their remark beside their ID when they entered one, e.g. `9001 — okay`, `9002`, `9003`. Older version history stays the same.
+1. When the Approvals screen builds the DMS PDF, use the same shared preparation step as Preview. The PDF then gets the same Initiator name, Function, Approval Chain and merged comments as Preview.
+2. Keep everything else on the DMS path as it is:
+   - the approver's own comment is still added
+   - the APPROVED watermark still appears on final approval
+   - the same company logo is used
+   - the PDF and the SAP request it is attached to stay the same
+3. If the shared step fails, fall back to the current way of collecting data, so an approval or rejection is never blocked.
 
-This applies to the Print Form, Preview when SAP returns X, Approvals, and the downloaded PDF. SAP requests, payloads and the workflow don't change.
+## Out of scope
+- Preview, Print Form, emails and SAP request formats stay unchanged.
+- Other actions (Approve before the final level, Back to Initiator, Clarification) still don't attach a PDF.
 
 ## Technical details
-- `src/lib/print-comment-history.ts`: `pairPrintCommentsWithApprovers` falls back to `approver.userId`; `mergeCompletePrintComments` adds a current-version entry for each approver without a comment, sorted by level.
-- `src/components/document/EnfaDocument.tsx`: the fallback list uses `name || userId`.
-- Test in `print-comment-history.test.ts`: approvers with no names plus COMMENT1="okay" produce `9001 — okay`, `9002`, `9003` in that order.
+- In `src/routes/_authed.approvals.tsx`, inside the `needsActionPdf` branch, call `prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow)`. Pass its `document` and `comments` to `createApprovalPrintFormPdf`. Keep the existing inline resolution only as a `catch` fallback.
+- `createApprovalPrintFormPdf` stays as it is. Its second flow merge is safe because `mergeApprovalFlow` does not create duplicates.
+- Add a test asserting that the shared preparation step is the source the DMS PDF uses for Initiator and Approval Chain, with an approver-only (empty) Select response.
+- Verify with tests and a type check. A real DMS upload can only be checked on the Quality server.
