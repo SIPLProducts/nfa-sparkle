@@ -490,6 +490,21 @@ function NewNfaPage() {
         `${res.status} ${res.statusText}`.trim();
       const enfaNo = parsed?.ENFA_NO ? String(parsed.ENFA_NO) : "";
       if (res.ok && String(parsed?.STATUS ?? "").toUpperCase() === "S" && enfaNo) {
+        // Keep the rich Detailed Description against the SAP number for the Print Form.
+        try {
+          const { error: draftError } = await supabase.from("sap_record_draft").upsert({
+            enfa_number: enfaNo,
+            subject,
+            scope_impact: scope || null,
+            budget_impact: budget ? Number(budget) : null,
+            timeline_days: timeline ? parseInt(timeline, 10) : null,
+            detailed_description: plainDesc ? desc : null,
+            updated_by: user?.id ?? null,
+          });
+          if (draftError) console.warn("[create] description save failed:", draftError.message);
+        } catch (err) {
+          console.warn("[create] description save failed:", (err as Error).message);
+        }
         return { ok: true, message: sapMessage };
       }
       return { ok: false, message: sapMessage };
