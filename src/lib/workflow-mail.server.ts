@@ -82,19 +82,27 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
   const transporter = {
     async sendMail(msg: { from: string; to: string | string[]; cc?: string[]; subject: string; text?: string; html?: string }) {
       if (relayUrl) {
-        const res = await fetch(relayUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-proxy-secret": (secret ?? "").trim(), "ngrok-skip-browser-warning": "1" },
-          body: JSON.stringify({ smtp, ...msg, to: Array.isArray(msg.to) ? msg.to : [msg.to] }),
-        });
-        const body = await res.json().catch(() => ({} as any));
-        if (res.status === 404) throw new Error("The middleware does not support email yet. Update and restart the middleware.");
-        if (!res.ok || !body?.ok) {
-          const err: any = new Error(body?.error || `Email relay failed (${res.status})`);
-          err.code = body?.code;
-          throw err;
+        let res: Response | null = null;
+        try {
+          res = await fetch(relayUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-proxy-secret": (secret ?? "").trim(), "ngrok-skip-browser-warning": "1" },
+            body: JSON.stringify({ smtp, ...msg, to: Array.isArray(msg.to) ? msg.to : [msg.to] }),
+          });
+        } catch (e) {
+          console.warn("[workflow-mail] relay unreachable, sending directly:", (e as Error)?.message);
         }
-        return body;
+        // An older middleware without /mail/send (404) or an unreachable relay falls back to direct SMTP.
+        if (res && res.status !== 404) {
+          const body = await res.json().catch(() => ({} as any));
+          if (!res.ok || !body?.ok) {
+            const err: any = new Error(body?.error || `Email relay failed (${res.status})`);
+            err.code = body?.code;
+            throw err;
+          }
+          return body;
+        }
+        if (res) console.warn("[workflow-mail] middleware has no /mail/send; sending directly");
       }
       const nodemailer = (await import("nodemailer")).default;
       const t = nodemailer.createTransport({
