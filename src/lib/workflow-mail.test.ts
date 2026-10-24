@@ -117,3 +117,11 @@ describe("workflow mail signature", () => {
     expect(renderSig({ ...base, senderName: " " })).toContain("eNFA Portal</p>");
   });
 });
+
+import { savedChainIds, pickRecipients as pick2 } from "./workflow-mail.server";
+it("saved dynamic chain routes initiator's submit to the first selected approver", () => {
+  const chain = savedChainIds([{ level: 1, userId: "9003" }, { level: 2, userId: "9005" }]);
+  expect(chain).toEqual(["9003", "9005"]);
+  expect(pick2("approve", { initiator: ["PRADEEP"], approvers: chain.map((c) => [c]), level: 0 }).people).toEqual(["9003"]);
+  expect(pick2("approve", { initiator: ["PRADEEP"], approvers: chain.map((c) => [c]), level: 1 }).people).toEqual(["9005"]);
+});
