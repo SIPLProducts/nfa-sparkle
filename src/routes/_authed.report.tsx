@@ -38,7 +38,7 @@ const EMPTY: SapReportFilters = {
   r_proc: "", r_comp: "", r_reje: "", r_init: "", r_clar: "",
 };
 
-const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 
 const BASE_COLS: { key: keyof SapReportRow; label: string }[] = [
   { key: "REFFLD", label: "ENFA Number" },
