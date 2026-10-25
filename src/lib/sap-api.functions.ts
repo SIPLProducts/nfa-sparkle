@@ -602,6 +602,15 @@ export interface SapReportRow {
   ROLE4: string; APPR4: string; STAT4: string;
   ROLE5: string; APPR5: string; STAT5: string;
   ROLE6: string; APPR6: string; STAT6: string;
+  ROLE7: string; APPR7: string; STAT7: string;
+  ROLE8: string; APPR8: string; STAT8: string;
+  ROLE9: string; APPR9: string; STAT9: string;
+  ROLE10: string; APPR10: string; STAT10: string;
+  ROLE11: string; APPR11: string; STAT11: string;
+  ROLE12: string; APPR12: string; STAT12: string;
+  ROLE13: string; APPR13: string; STAT13: string;
+  ROLE14: string; APPR14: string; STAT14: string;
+  ROLE15: string; APPR15: string; STAT15: string;
   STATUS_TXT: string;
 }
 
