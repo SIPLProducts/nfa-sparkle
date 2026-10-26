@@ -61,7 +61,7 @@ describe("complete shared web Print Form preparation", () => {
     const report = JSON.parse(String(calls[2]?.[1]?.body));
     expect(JSON.stringify(report)).toContain("record-id");
     expect(JSON.stringify(report)).toContain("DYNAMIC-USER");
-    expect(mocks.flow).toHaveBeenCalledWith({ plant: "Plant", nfaType: "Type", functionName: "Function" }, "test-token", undefined);
+    expect(mocks.flow).toHaveBeenCalledWith({ enfaNo: "record-id", plant: "Plant", nfaType: "Type", functionName: "Function" }, "test-token", undefined);
   });
 
   it("retains saved rich content and levels when optional SAP sources are unavailable", async () => {
