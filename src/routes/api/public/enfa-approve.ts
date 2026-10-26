@@ -159,7 +159,9 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
           void (async () => {
             const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
+            const preResolved = await preResolvedP;
             await notifyWorkflowAction({
+              preResolved,
               action: rawAction as (typeof allowed)[number],
               enfaNo: reffld,
               comment: String(input.comment ?? ""),
