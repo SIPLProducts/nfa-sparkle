@@ -17,6 +17,16 @@ export function applyApproverNames(approvers: EnfaDocumentApprover[], names: Rec
   });
 }
 
+/** Replaces blank or ID-only comment names with the portal name for that User ID. */
+export function applyCommentNames<T extends { name: string; approverId?: string }>(comments: T[], names: Record<string, string>): T[] {
+  return comments.map((c) => {
+    const id = c.approverId?.trim() ?? "";
+    const portal = id ? names[id.toUpperCase()] : "";
+    const current = c.name?.trim() ?? "";
+    return portal && (!current || current.toUpperCase() === id.toUpperCase()) ? { ...c, name: portal } : c;
+  });
+}
+
 /** Report supplements Select without replacing populated Select fields with blanks. */
 export function supplementPrintDetail(primary: PrintDataSource | null, supplemental: PrintDataSource | null): PrintDataSource {
   const merged: PrintDataSource = {};
@@ -135,7 +145,7 @@ export async function prepareWebPrintForm(
   );
   return {
     document,
-    comments: mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers),
+    comments: applyCommentNames(mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers), names),
     missingFields,
   };
 }
