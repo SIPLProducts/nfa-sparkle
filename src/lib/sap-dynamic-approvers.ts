@@ -41,3 +41,14 @@ export function parseDynamicApprovers(raw: unknown): DynamicApproverRecord[] {
   }
   return out;
 }
+
+/** User IDs per level (index = level-1) for one ENFA from the dynamic list; [] when none. */
+export function dynamicChainIds(records: DynamicApproverRecord[], enfaNo: string): string[] {
+  const want = String(enfaNo ?? "").trim().replace(/^0+/, "");
+  const rec = records.find((r) => r.nfaNo.replace(/^0+/, "") === want && want);
+  if (!rec) return [];
+  const out: string[] = [];
+  for (const l of rec.levels) if (l.level >= 1 && l.level <= DYNAMIC_APPROVER_SLOTS) out[l.level - 1] = l.userId.trim();
+  const ids = Array.from({ length: out.length }, (_, i) => out[i] ?? "");
+  return ids.some(Boolean) ? ids : [];
+}
