@@ -19,4 +19,4 @@ export async function runWithinBudget(
   }
 }
 
-export const EMAIL_STEP_BUDGET_MS = 12_000;
+export const EMAIL_STEP_BUDGET_MS = 25_000;
