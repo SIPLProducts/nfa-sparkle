@@ -7,6 +7,7 @@ import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
 import { Checkbox } from "@/components/ui/checkbox";
+import { orderSelected, toggleOrdered } from "@/lib/approver-order";
 
 interface Props {
   plant: string;
@@ -23,7 +24,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   const [chains, setChains] = useState<ReturnType<typeof parseApprovalChains> | null>(null);
   const [fallback, setFallback] = useState<EnfaDocumentApprover[] | null>(null);
   const [emails, setEmails] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sapMessage, setSapMessage] = useState("");
@@ -66,24 +67,18 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
 
   const levelKey = `${check}::` + levels.map((a) => `${a.userId}|${a.level}|${(a as { group?: string }).group ?? ""}`).join(",");
   useEffect(() => {
-    setChecked(new Set(predefined && visible.length <= 1 ? levels.map((_, i) => i) : []));
+    setChecked(predefined && visible.length <= 1 ? levels.map((_, i) => i) : []);
     const ids = [...new Set(levels.map((a) => a.userId))];
     if (ids.length) resolveEmails({ data: { userIds: ids } }).then(setEmails).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelKey]);
 
-  const selected = useMemo(
-    () => levels.filter((_, i) => checked.has(i)).map((a, i) => ({ ...a, level: i + 1 })),
-    [levels, checked],
-  );
+  // Selection order (not list order) decides each approver's level.
+  const selected = useMemo(() => orderSelected(levels, checked), [levels, checked]);
   useEffect(() => { onChange?.(selected); }, [selected, onChange]);
 
   function toggle(i: number) {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i); else next.add(i);
-      return next;
-    });
+    setChecked((prev) => toggleOrdered(prev, i));
   }
 
   if (!plant) {
@@ -114,7 +109,10 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
             {levels.map((a, i) => (
               <tr key={`${a.userId}-${i}`} className="border-t">
                 <td className="px-3 py-2">
-                  <Checkbox checked={checked.has(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={checked.includes(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
+                    {checked.includes(i) && <span className="text-xs font-semibold text-primary">#{checked.indexOf(i) + 1}</span>}
+                  </div>
                 </td>
                 {showGroup && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
                 <td className="px-3 py-2">{a.level}</td>
