@@ -33,45 +33,88 @@ function unwrapSapValue(value: unknown): unknown {
   return current;
 }
 
-/** Maps SAP COMMENT1..COMMENTn fields into current-version Print Form comments. */
-export function parseSapPrintComments(value: unknown): EnfaDocumentComment[] {
-  const unwrapped = unwrapSapValue(value);
-  const first = Array.isArray(unwrapped) ? unwrapped[0] : unwrapped;
-  if (!first || typeof first !== "object" || Array.isArray(first)) return [];
-  const record = first as SapCommentRecord;
+function readVersion(record: SapCommentRecord): number | undefined {
+  const key = Object.keys(record).find((candidate) => /^(VER|VERSION)$/i.test(candidate.trim()));
+  const value = key ? Number(String(record[key] ?? "").trim()) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function commentsFromRecord(record: SapCommentRecord, version: number | undefined): EnfaDocumentComment[] {
+  const approverKeys = new Map<number, string>();
+  for (const key of Object.keys(record)) {
+    const match = key.trim().match(/^APPROVER(\d+)$/i);
+    if (match) approverKeys.set(Number(match[1]), key);
+  }
   return Object.keys(record)
     .map((key) => ({ key, match: key.trim().match(/^COMMENT(\d+)$/i) }))
     .filter((entry): entry is { key: string; match: RegExpMatchArray } => Boolean(entry.match))
     .sort((a, b) => Number(a.match[1]) - Number(b.match[1]))
     .flatMap(({ key, match }) => {
       const text = String(record[key] ?? "").trim();
-      return text ? [{ name: "", text, version: undefined, level: Number(match[1]) }] : [];
+      if (!text) return [];
+      const level = Number(match[1]);
+      const approverKey = approverKeys.get(level);
+      const approverId = approverKey ? String(record[approverKey] ?? "").trim() : "";
+      return [{ name: "", text, version, level, ...(approverId ? { approverId } : {}) }];
     });
 }
 
-/** Keeps API current comments while retaining numbered history from the saved SAP document. */
+/**
+ * Maps SAP comment rows (one per VER, with APPROVERn/COMMENTn slots) into Print Form comments.
+ * The highest version is the current one; lower versions become numbered history.
+ */
+export function parseSapPrintComments(value: unknown): EnfaDocumentComment[] {
+  const unwrapped = unwrapSapValue(value);
+  const rows = (Array.isArray(unwrapped) ? unwrapped : [unwrapped])
+    .filter((row): row is SapCommentRecord => Boolean(row) && typeof row === "object" && !Array.isArray(row));
+  if (!rows.length) return [];
+  const versions = rows.map(readVersion);
+  const latest = Math.max(0, ...versions.filter((v): v is number => typeof v === "number"));
+  return rows
+    .map((row, index) => ({ row, version: versions[index] }))
+    .sort((a, b) => (b.version ?? Infinity) - (a.version ?? Infinity))
+    .flatMap(({ row, version }) =>
+      commentsFromRecord(row, version === undefined || version === latest ? undefined : version));
+}
+
+/** Keeps API comments while retaining saved numbered history for versions the API did not return. */
 export function mergePrintCommentSources(
   apiComments: EnfaDocumentComment[],
   savedHistory: EnfaDocumentComment[],
 ): EnfaDocumentComment[] {
   if (!apiComments.length) return savedHistory;
-  return [...apiComments, ...savedHistory.filter((comment) => typeof comment.version === "number")];
+  const apiVersions = new Set(apiComments.map((comment) => comment.version).filter((v) => typeof v === "number"));
+  return [
+    ...apiComments,
+    ...savedHistory.filter((comment) => typeof comment.version === "number" && !apiVersions.has(comment.version)),
+  ];
 }
 
-/** Pairs level-based SAP comments with the matching dynamic approver name. */
+/** Pairs SAP comments with the matching approver name (by User ID, then level). */
 export function pairPrintCommentsWithApprovers(
   comments: EnfaDocumentComment[],
   approvers: EnfaDocumentApprover[],
 ): EnfaDocumentComment[] {
-  return comments.map((comment, index) => ({
-    ...comment,
-    name: comment.name.trim()
-      || (typeof comment.level === "number"
-        ? approvers.find((approver, index) => (approver.level ?? index + 1) === comment.level)?.name?.trim()
-        : "")
-      || (comment.version === undefined ? approvers[index]?.name?.trim() : "")
-      || "",
-  }));
+  return comments.map((comment, index) => {
+    const id = comment.approverId?.trim().toLowerCase() ?? "";
+    const byId = id
+      ? approvers.find((approver) => approver.userId?.trim().toLowerCase() === id)?.name?.trim()
+      : "";
+    return {
+      ...comment,
+      name: comment.name.trim()
+        || byId
+        || (typeof comment.level === "number" && !id
+          ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
+          : "")
+        || (comment.version === undefined && !id && comment.level === undefined ? approvers[index]?.name?.trim() : "")
+        || comment.approverId?.trim()
+        || (typeof comment.level === "number"
+          ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
+          : "")
+        || "",
+    };
+  });
 }
 
 /** Keeps current SAP remarks first and fills missing levels from the complete saved approval rows. */
