@@ -1566,6 +1566,12 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
     if (ep) break;
   }
   if (!ep) {
+    // Fall back to any active entry whose template is a get_detail request.
+    ep = (await db.from("sap_endpoint").select("*").eq("active", true)
+      .ilike("request_body", "%get_detail%").not("name", "ilike", "%dynamic approvers list%")
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+  }
+  if (!ep) {
     return {
       ok: false, status: null, latencyMs: 0, body: "",
       error: "The SAP Approver Get Detail endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",

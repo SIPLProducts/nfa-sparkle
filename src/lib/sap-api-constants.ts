@@ -87,7 +87,7 @@ export function approverModeCheck(mode: string | undefined): string {
 }
 
 /** API Settings names tried, in order, for the Create NFA approver lookup. */
-export const APPROVER_DETAIL_ENDPOINT_NAMES = ["Dynamic Approvals", "Approver Get Detail", "%dynamic approval%", "%get detail%"] as const;
+export const APPROVER_DETAIL_ENDPOINT_NAMES = ["Dynamic Approvals", "Approver Get Detail", "%approvals in create%", "%dynamic approval%", "%get detail%"] as const;
 
 /** Approver mode -> `check` for the get_detail lookup: Predefined = "X", Dynamic = " ". */
 export function approverDetailCheck(mode: string | undefined): string {

@@ -38,6 +38,10 @@ describe("Plant-only approver listing", () => {
 });
 
 import { APPROVER_DETAIL_ENDPOINT_NAMES } from "./sap-api-constants";
+it("also finds the renamed 'Approvals In create' entry", () => {
+  expect(APPROVER_DETAIL_ENDPOINT_NAMES).toContain("%approvals in create%");
+});
+
 it("prefers the 'Dynamic Approvals' API Settings entry", () => {
   expect(APPROVER_DETAIL_ENDPOINT_NAMES[0]).toBe("Dynamic Approvals");
 });
