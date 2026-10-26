@@ -23,6 +23,8 @@ export interface EnfaDocumentComment {
   version?: number;
   /** Optional SAP approval level used to pair COMMENTn with the matching approver. */
   level?: number;
+  /** Optional SAP APPROVERn User ID used to resolve the approver's name. */
+  approverId?: string;
 }
 
 export interface EnfaDocumentProps {
