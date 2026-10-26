@@ -502,9 +502,6 @@ function ApprovalsInbox() {
               <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
                 <Eye className="h-3.5 w-3.5" /> Preview
               </Button>
-              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
-                {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
-              </Button>
               <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
                 <Paperclip className="h-3.5 w-3.5" /> Attached Docs
               </Button>

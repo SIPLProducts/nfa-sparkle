@@ -397,9 +397,6 @@ export function RecordEditDialog({
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
 
-            <Button variant="outline" className="gap-1.5" onClick={() => setPrintOpen(true)} disabled={loading}>
-              <Printer className="h-3.5 w-3.5" /> Print Form
-            </Button>
 
             {readOnly ? null : (
               <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>
