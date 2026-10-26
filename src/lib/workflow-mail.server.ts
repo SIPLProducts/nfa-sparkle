@@ -253,6 +253,15 @@ export async function resolveWorkflowContext(input: {
   } catch (e) {
     console.warn("[workflow-mail] SAP context lookup failed:", (e as Error)?.message ?? e);
   }
+  // SAP stops returning a record once it is rejected: fall back to the saved initiator.
+  if (!initiator.length) {
+    try {
+      const db = await admin();
+      const { data } = await db.rpc("get_print_initiator", { _enfa_number: input.enfaNo });
+      const saved = String(data ?? "").trim();
+      if (saved) { initiator = [saved]; src.push("initiator:saved"); }
+    } catch { /* no saved initiator */ }
+  }
   // SAP's per-ENFA dynamic approvers win, then the chain saved at creation, then the predefined chain.
   let saved = await loadDynamicChain(input.enfaNo);
   let tag = "chain:sap-dynamic";
@@ -342,9 +351,32 @@ export async function notifyWorkflowAction(raw: {
   /** Signed-in approver's User ID (profiles.username). */
   actorUserId?: string;
   context: WorkflowNotifyContext;
+  /** Context resolved before the SAP action (used for Reject, when SAP no longer returns the record afterwards). */
+  preResolved?: { context: WorkflowNotifyContext; source: string } | null;
 }) {
+  try {
+    await sendWorkflowNotification(raw);
+  } catch (e) {
+    // Never lose an attempt silently: record the failure with its reason.
+    const msg = (e as Error)?.message ?? String(e);
+    console.warn(`[workflow-mail] ${raw.enfaNo} ${raw.action}: failed before sending — ${msg}`);
+    try {
+      const db = await admin();
+      await db.from("email_log").insert({
+        enfa_no: raw.enfaNo, action: raw.action, status: "failed", people: [], recipients: [],
+        error: msg.slice(0, 500), level: raw.context.level ?? null, source: raw.preResolved?.source ?? "none",
+      });
+    } catch { /* logging never blocks */ }
+  }
+}
+
+async function sendWorkflowNotification(raw: Parameters<typeof notifyWorkflowAction>[0]) {
   const { config } = await loadEmailConfig();
-  const resolved = await resolveWorkflowContext({ enfaNo: raw.enfaNo, actorUserId: raw.actorUserId ?? "", hint: raw.context });
+  let resolved = raw.preResolved ?? null;
+  if (!resolved || !ids(resolved.context.initiator).length) {
+    const after = await resolveWorkflowContext({ enfaNo: raw.enfaNo, actorUserId: raw.actorUserId ?? "", hint: raw.context });
+    resolved = resolved ? mergeResolved(resolved, after) : after;
+  }
   const input = { ...raw, context: resolved.context };
   const mail = await buildWorkflowMail(input);
   const record = async (status: string, error?: string, via?: string) => {
