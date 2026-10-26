@@ -141,3 +141,22 @@ describe("SAP dynamic approvers drive routing", () => {
   it("level 1 approve emails dynamic approver 2", () => expect(pickRecipients("approve", c)).toEqual({ people: ["D2"], final: false }));
   it("last dynamic approver's approval emails the initiator", () => expect(pickRecipients("approve", { ...c, level: 2 })).toEqual({ people: ["INIT"], final: true }));
 });
+
+import { mergeResolved as _merge } from "./workflow-mail.server";
+describe("reject: initiator read before SAP rejects", () => {
+  it("keeps the pre-reject initiator when SAP no longer returns it", () => {
+    const r = _merge(
+      { context: { initiator: ["KVVK"], approvers: [["9001"]], level: 1 }, source: "initiator:sap" },
+      { context: { initiator: [], approvers: [], level: 1 }, source: "none" },
+    );
+    expect(r.context.initiator).toEqual(["KVVK"]);
+    expect(r.source).toBe("initiator:sap");
+  });
+  it("uses the later lookup when the earlier one found no initiator", () => {
+    const r = _merge(
+      { context: { initiator: [], approvers: [] }, source: "none" },
+      { context: { initiator: ["KVVK"], approvers: [] }, source: "initiator:saved" },
+    );
+    expect(r.context.initiator).toEqual(["KVVK"]);
+  });
+});
