@@ -290,15 +290,28 @@ app.post("/mail/send", requireSecret, async (req, res) => {
     return res.status(500).json({ ok: false, error: "nodemailer is not installed in the middleware. Run: npm install nodemailer" });
   }
   try {
-    const transporter = nodemailer.createTransport({
-      host: s.host, port: Number(s.port), secure: !!s.secure, ignoreTLS: !!s.ignoreTLS,
-      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000,
-      auth: s.user ? { user: s.user, pass: s.pass || "" } : undefined,
-    });
-    const info = await transporter.sendMail({
-      from: p.from, to, cc: Array.isArray(p.cc) && p.cc.length ? p.cc : undefined,
-      subject: p.subject || "", text: p.text || undefined, html: p.html || undefined,
-    });
+    const { resolveSmtpHost, isTransientNetworkError } = require("./smtp-resolve");
+    const send = async () => {
+      // Pre-resolve with OS/public-DNS fallbacks; TLS still verifies the real host name.
+      const host = await resolveSmtpHost(s.host);
+      const transporter = nodemailer.createTransport({
+        host, port: Number(s.port), secure: !!s.secure, ignoreTLS: !!s.ignoreTLS,
+        connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000,
+        auth: s.user ? { user: s.user, pass: s.pass || "" } : undefined,
+        ...(host !== s.host ? { servername: s.host, tls: { servername: s.host } } : {}),
+      });
+      return transporter.sendMail({
+        from: p.from, to, cc: Array.isArray(p.cc) && p.cc.length ? p.cc : undefined,
+        subject: p.subject || "", text: p.text || undefined, html: p.html || undefined,
+      });
+    };
+    let info;
+    try { info = await send(); } catch (e) {
+      if (!isTransientNetworkError(e)) throw e;
+      console.warn(`[middleware] MAIL retry after: ${(e && e.message) || e}`);
+      await new Promise((r) => setTimeout(r, 1500));
+      info = await send();
+    }
     console.log(`[middleware] MAIL sent to ${to.join(", ")} id=${info.messageId}`);
     res.json({ ok: true, messageId: info.messageId });
   } catch (e) {
