@@ -177,7 +177,7 @@ export function resolveApprovalPrintDocument(input: {
     date: merged("BEGDA", "DATE", "CREATED_AT"),
     initiator: nonBlank(input.initiatorName),
     nfaType: merged("FUNCT", "FUNCT_TXT", "NFA_TYPE"),
-    functionName: merged("EXTR_TXT", "FUNCTION_NAME", "FUNCTION"),
+    functionName: merged("EXTR_TXT", "EXTRA_TXT", "FUNCTION_NAME", "FUNCTION"),
     subject: merged("SUBJECT") || nonBlank(draft?.subject),
     scope: merged("SCOPE_IMPACT") || nonBlank(draft?.scope_impact),
     budget: merged("BUDGET_IMPACT") || nonBlank(draft?.budget_impact),

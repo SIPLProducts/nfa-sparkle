@@ -493,6 +493,9 @@ function NewNfaPage() {
             timeline_days: timeline ? parseInt(timeline, 10) : null,
             detailed_description: plainDesc ? desc : null,
             updated_by: user?.id ?? null,
+            initiator_id: user?.id ?? null,
+            initiator_name: initiatorName || null,
+            function_name: (functions.find((f) => f.code === func)?.name ?? func) || null,
           });
           if (draftError) console.warn("[create] description save failed:", draftError.message);
         } catch (err) {
