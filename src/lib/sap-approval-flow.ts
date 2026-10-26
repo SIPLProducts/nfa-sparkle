@@ -109,7 +109,9 @@ export function restrictToFlow(
     if (id && !byId.has(id)) byId.set(id, a);
   }
   return flow.map((f, index): EnfaDocumentApprover => {
-    const s = byId.get(f.userId?.trim().toUpperCase() ?? "");
+    const level = f.level ?? index + 1;
+    const s = byId.get(f.userId?.trim().toUpperCase() ?? "")
+      ?? (existing ?? []).find((e, i) => (e.level ?? i + 1) === level && !e.userId?.trim());
     return {
       level: f.level ?? index + 1,
       role: f.role?.trim() || s?.role?.trim() || "",
