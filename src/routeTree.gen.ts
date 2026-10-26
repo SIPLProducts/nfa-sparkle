@@ -36,6 +36,7 @@ import { Route as ApiPublicSapApprovalChainRouteImport } from './routes/api/publ
 import { Route as ApiPublicSapApprovalFlowRouteImport } from './routes/api/public/sap-approval-flow'
 import { Route as ApiPublicSapApproverDetailRouteImport } from './routes/api/public/sap-approver-detail'
 import { Route as ApiPublicSapCompanyRouteImport } from './routes/api/public/sap-company'
+import { Route as ApiPublicSapDynamicApproversRouteImport } from './routes/api/public/sap-dynamic-approvers'
 import { Route as ApiPublicSapEnfaTypeRouteImport } from './routes/api/public/sap-enfa-type'
 import { Route as ApiPublicSapFunctionRouteImport } from './routes/api/public/sap-function'
 import { Route as ApiPublicSapLogoRouteImport } from './routes/api/public/sap-logo'
@@ -184,6 +185,12 @@ const ApiPublicSapCompanyRoute = ApiPublicSapCompanyRouteImport.update({
   path: '/api/public/sap-company',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSapDynamicApproversRoute =
+  ApiPublicSapDynamicApproversRouteImport.update({
+    id: '/api/public/sap-dynamic-approvers',
+    path: '/api/public/sap-dynamic-approvers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSapEnfaTypeRoute = ApiPublicSapEnfaTypeRouteImport.update({
   id: '/api/public/sap-enfa-type',
   path: '/api/public/sap-enfa-type',
@@ -253,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
   '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-dynamic-approvers': typeof ApiPublicSapDynamicApproversRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
@@ -289,6 +297,7 @@ export interface FileRoutesByTo {
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
   '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-dynamic-approvers': typeof ApiPublicSapDynamicApproversRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
@@ -327,6 +336,7 @@ export interface FileRoutesById {
   '/api/public/sap-approval-flow': typeof ApiPublicSapApprovalFlowRoute
   '/api/public/sap-approver-detail': typeof ApiPublicSapApproverDetailRoute
   '/api/public/sap-company': typeof ApiPublicSapCompanyRoute
+  '/api/public/sap-dynamic-approvers': typeof ApiPublicSapDynamicApproversRoute
   '/api/public/sap-enfa-type': typeof ApiPublicSapEnfaTypeRoute
   '/api/public/sap-function': typeof ApiPublicSapFunctionRoute
   '/api/public/sap-logo': typeof ApiPublicSapLogoRoute
@@ -365,6 +375,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-approval-flow'
     | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
+    | '/api/public/sap-dynamic-approvers'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-approval-flow'
     | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
+    | '/api/public/sap-dynamic-approvers'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
@@ -438,6 +450,7 @@ export interface FileRouteTypes {
     | '/api/public/sap-approval-flow'
     | '/api/public/sap-approver-detail'
     | '/api/public/sap-company'
+    | '/api/public/sap-dynamic-approvers'
     | '/api/public/sap-enfa-type'
     | '/api/public/sap-function'
     | '/api/public/sap-logo'
@@ -469,6 +482,7 @@ export interface RootRouteChildren {
   ApiPublicSapApprovalFlowRoute: typeof ApiPublicSapApprovalFlowRoute
   ApiPublicSapApproverDetailRoute: typeof ApiPublicSapApproverDetailRoute
   ApiPublicSapCompanyRoute: typeof ApiPublicSapCompanyRoute
+  ApiPublicSapDynamicApproversRoute: typeof ApiPublicSapDynamicApproversRoute
   ApiPublicSapEnfaTypeRoute: typeof ApiPublicSapEnfaTypeRoute
   ApiPublicSapFunctionRoute: typeof ApiPublicSapFunctionRoute
   ApiPublicSapLogoRoute: typeof ApiPublicSapLogoRoute
@@ -667,6 +681,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSapCompanyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sap-dynamic-approvers': {
+      id: '/api/public/sap-dynamic-approvers'
+      path: '/api/public/sap-dynamic-approvers'
+      fullPath: '/api/public/sap-dynamic-approvers'
+      preLoaderRoute: typeof ApiPublicSapDynamicApproversRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sap-enfa-type': {
       id: '/api/public/sap-enfa-type'
       path: '/api/public/sap-enfa-type'
@@ -786,6 +807,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSapApprovalFlowRoute: ApiPublicSapApprovalFlowRoute,
   ApiPublicSapApproverDetailRoute: ApiPublicSapApproverDetailRoute,
   ApiPublicSapCompanyRoute: ApiPublicSapCompanyRoute,
+  ApiPublicSapDynamicApproversRoute: ApiPublicSapDynamicApproversRoute,
   ApiPublicSapEnfaTypeRoute: ApiPublicSapEnfaTypeRoute,
   ApiPublicSapFunctionRoute: ApiPublicSapFunctionRoute,
   ApiPublicSapLogoRoute: ApiPublicSapLogoRoute,
