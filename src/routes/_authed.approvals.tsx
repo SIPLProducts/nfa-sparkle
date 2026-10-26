@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadApprovalPrintContext, loadPrintComments } from "@/lib/print-form-data";
