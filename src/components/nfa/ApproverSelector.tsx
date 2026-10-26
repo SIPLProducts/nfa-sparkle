@@ -29,6 +29,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   const [error, setError] = useState("");
   const [sapMessage, setSapMessage] = useState("");
   const predefined = check === "X";
+  const [attempt, setAttempt] = useState(0);
 
   // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
@@ -44,13 +45,16 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
         if (ctrl.signal.aborted) return;
         setChains(res.chains ?? []); setSapMessage(res.message);
       } catch (e) {
-        if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Approval chain is unavailable");
+        if (!ctrl.signal.aborted) {
+          const msg = e instanceof Error ? e.message : "Approval chain is unavailable";
+          setError(/failed to fetch|networkerror|load failed/i.test(msg) ? "Could not reach the portal, please try again." : msg);
+        }
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
     })();
     return () => ctrl.abort();
-  }, [plant, nfaType, functionName, predefined]);
+  }, [plant, nfaType, functionName, predefined, attempt]);
 
   // Predefined narrows to the chosen chain; Dynamic shows SAP's reply as-is.
   const visible = useMemo(
@@ -85,7 +89,12 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     return <p className="text-sm text-muted-foreground">Select a Plant to see the approvers.</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
-  if (error) return <p className="text-sm text-muted-foreground">{error}</p>;
+  if (error) return (
+    <p className="text-sm text-muted-foreground">
+      {error}{" "}
+      <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((n) => n + 1)}>Retry</button>
+    </p>
+  );
   if (!levels.length) {
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
