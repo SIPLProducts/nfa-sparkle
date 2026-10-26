@@ -1,26 +1,25 @@
 # Send the rejection email to the initiator after SAP confirms a Reject
 
-## What the email log shows
-- Up to 06:44 today, Reject on ENFA 100217 emailed the initiator (KVVK). But SAP had not actually rejected the record. Those were false successes.
-- At 06:47 the Reject was **skipped: "Initiator could not be read from SAP for this record"**.
-- Since the empty-reply fix, **no Reject has been logged at all**, while Approve emails (100218, 100219) still go out normally.
+## What the checks show
+- Your middleware log shows SAP **did confirm** the Reject of ENFA 100218: `SAP STATUS: 200`, reply `"rejected"`. The payload was correct (REFFLD, Comment, PDF).
+- The app reads `"rejected"` as success, so the email step should have started.
+- But the email log has **no row at all** for that Reject. Approve emails for 100218 and 100219 were logged and sent normally.
+- The last earlier Reject row (100217, 06:47) was **skipped: "Initiator could not be read from SAP for this record"**.
 
-## Likely causes (confirmed in step 1)
-1. **SAP's real "rejected" reply is being read as "no confirmation".** The new reply check only accepts plain text or an object with MESSAGE/STATUS. If SAP confirms with a list, a different key, or text the error filter catches, no email is started.
-2. **The initiator can't be found once the record is rejected.** The server finds the initiator through SAP's record Select. After rejection SAP may stop returning it, and the Approvals screen sends no initiator ID with the action. So nobody gets the email.
+## Likely cause (confirmed in step 1)
+The email step starts but stops before it writes its log row. The most likely reason is the initiator lookup. The server finds the initiator by asking SAP for the record as each portal user. Once a record is rejected, SAP stops returning it. The lookup then fails or runs too long, and the error is only written to the server console. The Approvals screen sends no initiator ID with the action, so there is no backup.
 
 ## Steps
-1. **Confirm.** Reject a test record and capture SAP's exact reply (the PDF is left out of the log) and what the initiator lookup returns. Check the server log for "SAP did not confirm".
-2. **Accept SAP's real confirmation.** Extend the reply check to the reply shape SAP actually sends for a successful reject. Empty replies and SAP error texts still count as not confirmed.
-3. **Always know the initiator.** Look up the initiator from SAP *before* sending the Reject, while the record is still readable, and pass it to the email step. After that, use the saved NFA initiator and the Approvals row values if the lookup fails.
-4. **One email per real rejection.** The email goes out once, in the background, after SAP confirms. It is recorded in the email log as before.
-5. **Tests.** Add unit tests for SAP's confirmed reject reply and for "initiator found before reject is used when SAP's lookup fails afterwards". Run the email and reply tests.
+1. **Confirm.** Run the email step for 100218 as a dry run on the server and record where it stops (initiator lookup, chain lookup, or sending).
+2. **Find the initiator before rejecting.** For Reject only, look up the initiator while the record is still readable, before the Reject goes to SAP. Use that result for the email after SAP confirms. If it fails, use the saved NFA initiator, then the Approvals row values.
+3. **Always log the outcome.** Any error in the email step is written to the email log as "failed" with its reason, so it never disappears silently.
+4. **Send once, in the background,** only after SAP confirms. The Reject response is not delayed.
+5. **Tests.** Unit tests for: a pre-found initiator used when SAP's lookup fails after rejection, and an error in the email step still producing a log row. Then a real email to the initiator for 100218 through your saved settings.
 
 ## Not changing
-Approve, Back to Initiator, Clarification, the email design and recipient rules, SAP payloads and endpoints, the Reject PDF, and other screens.
+Approve, Back to Initiator, Clarification, the email design and recipient rules, SAP payloads and endpoints, the Reject PDF, the reply check, and other screens.
 
 ## Technical details
-- `src/lib/sap-action-reply.ts`: handle arrays (first element), alternate keys (`MSG`, `TYPE`, `RETURN`), and keep the empty/error rules.
-- `src/routes/api/public/enfa-approve.ts`: for `reject` only, start `resolveWorkflowContext` before `callEnfaApprovalAction` and pass the pre-resolved initiator as the hint to `notifyWorkflowAction`.
-- `src/lib/workflow-mail.server.ts`: fall back to the saved `nfa` initiator (`get_print_initiator`) when Select returns nothing.
-- Tests in `sap-action-reply.test.ts` and `workflow-mail.test.ts`.
+- `src/routes/api/public/enfa-approve.ts`: for `reject`, start `resolveWorkflowContext` (with a timeout) before `callEnfaApprovalAction`; pass its initiator into the `notifyWorkflowAction` hint.
+- `src/lib/workflow-mail.server.ts`: accept a pre-resolved context; add `get_print_initiator` / saved `nfa` initiator fallback; wrap the whole flow so a thrown error writes a `failed` `email_log` row.
+- Tests in `workflow-mail.test.ts`.
