@@ -132,3 +132,12 @@ it("saved dynamic chain: final approval, reject and back mail the initiator", ()
   expect(pick2("reject", { ...ctx, level: 1 }).people).toEqual(["PRADEEP"]);
   expect(pick2("back_to_initiator", { ...ctx, level: 2 }).people).toEqual(["PRADEEP"]);
 });
+
+import { dynamicChainIds } from "./sap-dynamic-approvers";
+describe("SAP dynamic approvers drive routing", () => {
+  const chain = dynamicChainIds([{ nfaNo: "100190", levels: [
+    { level: 1, designation: "BU Head", userId: "D1" }, { level: 2, designation: "PH", userId: "D2" }] }], "100190");
+  const c = { initiator: "INIT", approvers: chain, level: 1 } as any;
+  it("level 1 approve emails dynamic approver 2", () => expect(pickRecipients("approve", c)).toEqual({ people: ["D2"], final: false }));
+  it("last dynamic approver's approval emails the initiator", () => expect(pickRecipients("approve", { ...c, level: 2 })).toEqual({ people: ["INIT"], final: true }));
+});
