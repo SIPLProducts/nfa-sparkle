@@ -103,7 +103,7 @@ export async function prepareWebPrintForm(
   });
   const plant = String(row.PSPNR ?? "").trim() || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
   const flow = plant && resolved.document.nfaType
-    ? await fetchResolvedSapApprovalFlow({ plant, nfaType: resolved.document.nfaType, functionName: resolved.document.functionName }, session.access_token, signal)
+    ? await fetchResolvedSapApprovalFlow({ plant, nfaType: resolved.document.nfaType, functionName: resolved.document.functionName, enfaNo: enfaNumber }, session.access_token, signal)
       .catch(() => ({ approvers: [], functionName: "" }))
     : { approvers: [], functionName: "" };
   ensureActive();
