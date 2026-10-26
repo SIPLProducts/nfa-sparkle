@@ -236,13 +236,15 @@ export async function resolveWorkflowContext(input: {
   } catch (e) {
     console.warn("[workflow-mail] SAP context lookup failed:", (e as Error)?.message ?? e);
   }
-  // The approvers the initiator selected at creation are the record's real chain.
-  const saved = await loadSavedChain(input.enfaNo);
+  // SAP's per-ENFA dynamic approvers win, then the chain saved at creation, then the predefined chain.
+  let saved = await loadDynamicChain(input.enfaNo);
+  let tag = "chain:sap-dynamic";
+  if (!saved.length) { saved = await loadSavedChain(input.enfaNo); tag = "chain:saved"; }
   if (saved.length) {
     chainIds = saved;
     const i = src.indexOf("chain:sap");
     if (i >= 0) src.splice(i, 1);
-    src.push("chain:saved");
+    src.push(tag);
   }
   const hintApprovers = saved.length ? [] : (hint.approvers ?? []).map(ids);
   const approvers = Array.from({ length: MAX_APPROVAL_LEVELS }, (_, i) => ids([chainIds[i] ?? "", ...(hintApprovers[i] ?? [])]));
@@ -255,6 +257,19 @@ export async function resolveWorkflowContext(input: {
 export function savedChainIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, MAX_APPROVAL_LEVELS).map((a: any) => String(a?.userId ?? "").trim());
+}
+
+async function loadDynamicChain(enfaNo: string): Promise<string[]> {
+  try {
+    const { callDynamicApproversList } = await import("@/lib/sap-report.server");
+    const { parseDynamicApprovers, dynamicChainIds } = await import("@/lib/sap-dynamic-approvers");
+    const r = await callDynamicApproversList(enfaNo);
+    if (!r.ok) return [];
+    return dynamicChainIds(parseDynamicApprovers(r.body), enfaNo).slice(0, MAX_APPROVAL_LEVELS);
+  } catch (e) {
+    console.warn("[workflow-mail] dynamic approvers lookup failed:", (e as Error)?.message ?? e);
+    return [];
+  }
 }
 
 async function loadSavedChain(enfaNo: string): Promise<string[]> {
