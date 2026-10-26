@@ -106,12 +106,26 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
         }
       }
       const nodemailer = (await import("nodemailer")).default;
-      const t = nodemailer.createTransport({
-        host: smtp.host, port, secure: ssl, ignoreTLS: smtp.ignoreTLS,
-        connectionTimeout: 15_000, greetingTimeout: 15_000,
-        auth: smtp.user ? { user: smtp.user, pass: password } : undefined,
-      });
-      const info = await t.sendMail(msg);
+      const { resolveSmtpHost, nodeHostResolvers, isTransientNetworkError } = await import("@/lib/smtp-resolve");
+      const sendDirect = async () => {
+        // Pre-resolve with OS/public-DNS fallbacks; TLS still verifies the real host name.
+        let host = smtp.host;
+        const resolvers = await nodeHostResolvers();
+        if (resolvers.length) host = await resolveSmtpHost(smtp.host, resolvers);
+        const t = nodemailer.createTransport({
+          host, port, secure: ssl, ignoreTLS: smtp.ignoreTLS,
+          connectionTimeout: 15_000, greetingTimeout: 15_000,
+          auth: smtp.user ? { user: smtp.user, pass: password } : undefined,
+          ...(host !== smtp.host ? { servername: smtp.host, tls: { servername: smtp.host } } : {}),
+        } as any);
+        return t.sendMail(msg);
+      };
+      let info: any;
+      try { info = await sendDirect(); } catch (e) {
+        if (!isTransientNetworkError(e)) throw e;
+        await new Promise((r) => setTimeout(r, 1500));
+        info = await sendDirect();
+      }
       return { ...info, via: "direct" };
     },
   };
