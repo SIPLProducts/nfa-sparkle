@@ -154,13 +154,14 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         if (!ok) console.warn("[enfa-approve] SAP did not confirm", rawAction, reffld, safeRequestSummary(result.request?.body));
 
         if (ok) {
-          // Sent in the background so the user gets SAP's reply at once; the email
-          // (and its email_log row) completes after the response, and never changes the SAP result.
+          // Awaited within a time budget: background work can be stopped once the reply is sent,
+          // which silently dropped emails. The email never changes the SAP result.
           const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
-          void (async () => {
-            const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
+          const { runWithinBudget, EMAIL_STEP_BUDGET_MS } = await import("@/lib/email-budget");
+          const mailMod = await import("@/lib/workflow-mail.server");
+          await runWithinBudget(async () => {
             const preResolved = await preResolvedP;
-            await notifyWorkflowAction({
+            await mailMod.notifyWorkflowAction({
               preResolved,
               action: rawAction as (typeof allowed)[number],
               enfaNo: reffld,
@@ -177,7 +178,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
                 level: Number(n.level) || 1,
               },
             });
-          })().catch((e) => console.warn("[enfa-approve] notification failed:", (e as Error)?.message ?? e));
+          }, EMAIL_STEP_BUDGET_MS, () => mailMod.logEmailTimeout(reffld, rawAction, Number(n.level) || 1));
         }
 
         return new Response(JSON.stringify({ ok, message, raw }), { status: 200, headers });

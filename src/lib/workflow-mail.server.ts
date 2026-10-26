@@ -386,6 +386,17 @@ export async function notifyWorkflowAction(raw: {
   }
 }
 
+/** Records an email step that ran past its time budget, so no attempt goes unlogged. */
+export async function logEmailTimeout(enfaNo: string, action: string, level: number | null) {
+  try {
+    const db = await admin();
+    await db.from("email_log").insert({
+      enfa_no: enfaNo, action, status: "failed", people: [], recipients: [],
+      error: "Email step timed out", level, source: "timeout",
+    });
+  } catch { /* logging never blocks */ }
+}
+
 async function sendWorkflowNotification(raw: Parameters<typeof notifyWorkflowAction>[0]) {
   const { config } = await loadEmailConfig();
   let resolved = raw.preResolved ?? null;
