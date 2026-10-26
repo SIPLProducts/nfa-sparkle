@@ -44,7 +44,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { user, loading, canAccess } = useAuth();
+  const { user, loading, canAccess, accessError, retryAccess } = useAuth();
   const nav = useNavigate();
   const [mine, setMine] = useState<NfaRow[]>([]);
   const [pending, setPending] = useState<{ nfa: NfaRow; ap: ApproverRow }[]>([]);
@@ -127,6 +127,15 @@ function Index() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Redirecting to sign in…
+      </div>
+    );
+  }
+
+  if (!dashboardAllowed && !firstAllowedPath && accessError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
+        <p>Unable to load your access. Please check your connection and try again.</p>
+        <Button size="sm" onClick={retryAccess}>Retry</Button>
       </div>
     );
   }
