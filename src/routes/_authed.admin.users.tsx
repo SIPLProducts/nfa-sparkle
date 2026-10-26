@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
+import { DynamicApproversTab } from "@/components/admin/DynamicApproversTab";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,6 +145,9 @@ function UserManagement() {
           <TabsTrigger value="chain" className="gap-2">
             <GitBranch className="h-4 w-4" /> Approval Chain
           </TabsTrigger>
+          <TabsTrigger value="dynamic" className="gap-2">
+            <GitBranch className="h-4 w-4" /> Dynamic Approvers
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <UsersTab />
@@ -156,6 +160,9 @@ function UserManagement() {
         </TabsContent>
         <TabsContent value="chain">
           <ApprovalChainTab />
+        </TabsContent>
+        <TabsContent value="dynamic">
+          <DynamicApproversTab />
         </TabsContent>
       </Tabs>
     </div>
