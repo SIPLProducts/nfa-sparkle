@@ -39,7 +39,7 @@ export async function createApprovalPrintFormPdf(input: {
   const [logoSrc, flow] = await Promise.all([
     loadCompanyLogo(input.document.companyCode, input.token).catch(() => undefined),
     canLoadApprovalFlow
-      ? fetchResolvedSapApprovalFlow(input.approvalFlow, input.token).catch(() => ({ approvers: [], functionName: "" }))
+      ? fetchResolvedSapApprovalFlow({ ...input.approvalFlow, enfaNo: input.nfaNo }, input.token).catch(() => ({ approvers: [], functionName: "" }))
       : Promise.resolve({ approvers: [], functionName: "" }),
   ]);
   const approvers = mergeApprovalFlow(input.document.approvers, flow.approvers, false);

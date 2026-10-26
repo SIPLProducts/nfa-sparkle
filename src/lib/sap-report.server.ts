@@ -1716,6 +1716,8 @@ export async function callSapApprovalFlow(input: {
   plant: string;
   nfaType: string;
   functionName: string;
+  enfaNo?: string;
+  check?: "X" | "";
 }): Promise<SapCallResult> {
   const db = await admin();
   const { data: exact } = await db
@@ -1760,16 +1762,11 @@ export async function callSapApprovalFlow(input: {
   }
   const wrapperKey = Object.keys(template).find((key) => key.toLowerCase() === "get_data") ?? "get_data";
   const savedInner = template[wrapperKey];
-  const getData = savedInner && typeof savedInner === "object" && !Array.isArray(savedInner)
-    ? { ...(savedInner as Record<string, unknown>) }
-    : {};
-  const replace = (key: "plant" | "nfa_type" | "funct", value: string) => {
-    const existingKey = Object.keys(getData).find((candidate) => candidate.toLowerCase() === key) ?? key;
-    getData[existingKey] = value.trim();
-  };
-  replace("plant", input.plant);
-  replace("nfa_type", input.nfaType);
-  replace("funct", input.functionName);
+  const { buildApprovalFlowPayload } = await import("@/lib/sap-api-constants");
+  const getData = buildApprovalFlowPayload(
+    savedInner && typeof savedInner === "object" && !Array.isArray(savedInner) ? (savedInner as Record<string, unknown>) : {},
+    { check: input.check ?? "X", plant: input.plant, nfaType: input.nfaType, funct: input.functionName, enfaNo: input.enfaNo },
+  );
 
   const system = await loadSystem(ep.system_id ?? null);
   const { username, password } = await credentialsFor(ep, system);

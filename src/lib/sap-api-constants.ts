@@ -155,3 +155,26 @@ export const CREATE_BODY_SAMPLE = JSON.stringify(
   null,
   2,
 );
+
+/**
+ * Approval-flow `get_data` body. Predefined ("X") sends plant/type/function and
+ * never `enfa_no`; Dynamic ("") sends only `enfa_no`, other fields blank.
+ */
+export function buildApprovalFlowPayload(
+  template: Record<string, unknown>,
+  input: { check: "X" | ""; plant: string; nfaType: string; funct: string; enfaNo?: string },
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...template };
+  const dynamic = input.check === "";
+  const set = (key: string, value: string) => {
+    const k = Object.keys(out).find((c) => c.toLowerCase() === key) ?? key;
+    out[k] = value.trim();
+  };
+  set("check", input.check);
+  set("plant", dynamic ? "" : input.plant);
+  set("nfa_type", dynamic ? "" : input.nfaType);
+  set("funct", dynamic ? "" : input.funct);
+  for (const k of Object.keys(out)) if (k.toLowerCase() === "enfa_no") delete out[k];
+  if (dynamic) out["enfa_no"] = String(input.enfaNo ?? "").trim();
+  return out;
+}

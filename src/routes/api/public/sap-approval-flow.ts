@@ -6,6 +6,7 @@ const InputSchema = z.object({
   plant: z.string().trim().min(1).max(40),
   nfaType: z.string().trim().min(1).max(120),
   functionName: z.string().trim().min(1).max(120),
+  enfaNo: z.string().trim().max(40).optional(),
 });
 
 export const Route = createFileRoute("/api/public/sap-approval-flow")({
@@ -34,7 +35,19 @@ export const Route = createFileRoute("/api/public/sap-approval-flow")({
     catch { return Response.json({ error: "Plant, NFA Type, and Function are required" }, { status: 400 }); }
     try {
       const { callSapApprovalFlow } = await import("@/lib/sap-report.server");
-      const result = await callSapApprovalFlow(input);
+      // Dynamic records (saved at creation) ask SAP by ENFA number only; others use the predefined lookup.
+      let dynamic = false;
+      if (input.enfaNo) {
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data } = await (supabaseAdmin as any).from("sap_record_draft").select("approver_mode").eq("enfa_number", input.enfaNo).maybeSingle();
+          dynamic = String(data?.approver_mode ?? "") === "dynamic";
+        } catch { /* treat as predefined */ }
+      }
+      let result = await callSapApprovalFlow({ ...input, check: dynamic ? "" : "X" });
+      if (dynamic && (!result.ok || !parseSapApprovalFlow(result.body).length)) {
+        result = await callSapApprovalFlow({ ...input, check: "X" });
+      }
       if (!result.ok) return Response.json(
         { ok: false, message: result.error || result.body || "The SAP approval flow is unavailable" },
         { status: 200, headers: { "cache-control": "private, no-store" } },

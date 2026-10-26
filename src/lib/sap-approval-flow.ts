@@ -43,7 +43,7 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
   const first = Array.isArray(unwrapped) ? unwrapped[0] : unwrapped;
   if (!first || typeof first !== "object" || Array.isArray(first)) return [];
   const record = first as SapObject;
-  return Array.from({ length: 7 }, (_, index): EnfaDocumentApprover => {
+  return Array.from({ length: 15 }, (_, index): EnfaDocumentApprover => {
     const level = index + 1;
     return {
       level,
@@ -99,7 +99,7 @@ export function mergeApprovalFlow(
 
 /** Calls the authenticated app endpoint while keeping SAP credentials server-side. */
 export async function fetchSapApprovalFlow(
-  input: { plant: string; nfaType: string; functionName: string },
+  input: { plant: string; nfaType: string; functionName: string; enfaNo?: string },
   token: string,
   signal?: AbortSignal,
 ): Promise<EnfaDocumentApprover[]> {
@@ -175,7 +175,7 @@ export async function fetchSapApprovalChain(
 
 /** Loads the record-specific flow, falling back to the configured chain API. */
 export async function fetchResolvedSapApprovalFlow(
-  input: { plant: string; nfaType: string; functionName: string },
+  input: { plant: string; nfaType: string; functionName: string; enfaNo?: string },
   token: string,
   signal?: AbortSignal,
 ): Promise<{ approvers: EnfaDocumentApprover[]; functionName: string }> {
@@ -184,7 +184,7 @@ export async function fetchResolvedSapApprovalFlow(
   const functionName = input.functionName.trim();
   if (plant && nfaType && functionName) {
     try {
-      const approvers = await fetchSapApprovalFlow({ plant, nfaType, functionName }, token, signal);
+      const approvers = await fetchSapApprovalFlow({ plant, nfaType, functionName, enfaNo: input.enfaNo?.trim() || undefined }, token, signal);
       if (approvers.length) return { approvers, functionName };
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") throw error;
