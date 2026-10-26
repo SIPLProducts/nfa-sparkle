@@ -135,22 +135,10 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           /* leave as plain text */
         }
 
-        let message = "";
-        let ok = true;
-        if (typeof raw === "string") {
-          message = raw.trim().replace(/^"|"$/g, "");
-          // SAP signals failures in plain text too (e.g. "Note For Approval
-          // Can Only Be Rejected By Initiator") — flag those as errors so the
-          // screen shows an error toast instead of a success one.
-          if (/can only be|not allowed|cannot|not permitted|no authorization|error/i.test(message)) {
-            ok = false;
-          }
-        } else if (raw && typeof raw === "object") {
-          const o = raw as Record<string, unknown>;
-          message = String(o["MESSAGE"] ?? o["message"] ?? o["Message"] ?? "").trim();
-          const status = String(o["STATUS"] ?? o["status"] ?? "").trim().toUpperCase();
-          if (status === "E") ok = false;
-        }
+        // Empty replies are not confirmations; only a confirmed action sends email.
+        const { classifyActionReply } = await import("@/lib/sap-action-reply");
+        const { ok, message } = classifyActionReply(raw);
+        if (!ok) console.warn("[enfa-approve] SAP did not confirm", rawAction, reffld, safeRequestSummary(result.request?.body));
 
         if (ok) {
           // Awaited so the server cannot end the request before the email is sent and logged;
