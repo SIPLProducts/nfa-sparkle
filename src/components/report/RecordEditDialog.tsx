@@ -9,7 +9,7 @@ import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 
 import { PLANTS, COMPANIES } from "@/lib/sap/master";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { FileText, Loader2, Printer, Save } from "lucide-react";
+import { FileText, Loader2, Save } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentApprover, EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadPrintComments, loadPrintInitiator, sapApproverUserId } from "@/lib/print-form-data";
@@ -397,9 +397,6 @@ export function RecordEditDialog({
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Cancel"}</Button>
 
-            <Button variant="outline" className="gap-1.5" onClick={() => setPrintOpen(true)} disabled={loading}>
-              <Printer className="h-3.5 w-3.5" /> Print Form
-            </Button>
 
             {readOnly ? null : (
               <Button className="gap-1.5" onClick={sendToSap} disabled={sending || loading}>

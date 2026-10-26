@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
-import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, Printer, RefreshCw, RotateCcw, Search, X } from "lucide-react";
+import { CheckCircle2, Eye, FileText, HelpCircle, Loader2, Paperclip, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import { PrintFormDialog } from "@/components/document/PrintFormDialog";
 import type { EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import { loadApprovalPrintContext, loadPrintComments } from "@/lib/print-form-data";
@@ -501,9 +501,6 @@ function ApprovalsInbox() {
               </Button>
               <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setPreviewOpen(true)}>
                 <Eye className="h-3.5 w-3.5" /> Preview
-              </Button>
-              <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo || printLoading} onClick={() => { if (requireSelection()) void openPrintForm(); }}>
-                {printLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print Form
               </Button>
               <Button size="sm" variant="outline" className="h-9 gap-1.5 bg-card" disabled={!selectedEnfaNo} onClick={() => requireSelection() && setDocsOpen(true)}>
                 <Paperclip className="h-3.5 w-3.5" /> Attached Docs
