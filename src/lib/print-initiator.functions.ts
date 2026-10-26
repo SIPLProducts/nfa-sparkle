@@ -93,7 +93,26 @@ export const getApprovalPrintContext = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
     if (recordError) throw new Error("Unable to load the saved Print Form record");
-    if (!record) return { savedDetail: null, initiatorName: "", savedComments: [] };
+    if (!record) {
+      // SAP-created NFAs: use the initiator and function saved alongside the draft.
+      const { data: draft } = await db
+        .from("sap_record_draft")
+        .select("initiator_id, initiator_name, function_name")
+        .eq("enfa_number", data.enfaNumber)
+        .maybeSingle();
+      const d = draft as { initiator_id: string | null; initiator_name: string | null; function_name: string | null } | null;
+      if (!d) return { savedDetail: null, initiatorName: "", savedComments: [] };
+      if (data.screen === "nfa_my" && d.initiator_id && d.initiator_id !== context.userId) {
+        throw new Error("Forbidden: this Print Form does not belong to you");
+      }
+      let name = d.initiator_name?.trim() ?? "";
+      if (!name && d.initiator_id) {
+        const { data: p } = await db.from("profiles").select("full_name").eq("id", d.initiator_id).maybeSingle();
+        name = String((p as { full_name?: string | null } | null)?.full_name ?? "").trim();
+      }
+      const fn = d.function_name?.trim() ?? "";
+      return { savedDetail: fn ? { REFFLD: data.enfaNumber, EXTR_TXT: fn } : null, initiatorName: name, savedComments: [] };
+    }
     if (data.screen === "nfa_my" && record.initiator_id !== context.userId) {
       throw new Error("Forbidden: this Print Form does not belong to you");
     }
@@ -181,5 +200,28 @@ export const getInitiatorRecordDetail = createServerFn({ method: "POST" })
       initName = String((prof as { full_name?: string | null } | null)?.full_name ?? "").trim();
     }
     out.INIT_DISPLAY_NAME = initName || String(out.INIT_NAME ?? "").trim() || initUser;
+    return out;
+  });
+
+/** Maps SAP approver User IDs to portal full names (read-only, permission-checked). */
+export const resolveApproverNames = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userIds: string[]; screen?: "approvals" | "report" | "nfa_my" }) => ({
+    userIds: Array.from(new Set((input.userIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))).slice(0, 60),
+    screen: input.screen === "report" || input.screen === "nfa_my" ? input.screen : "approvals",
+  }))
+  .handler(async ({ data, context }): Promise<Record<string, string>> => {
+    if (!data.userIds.length) return {};
+    const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
+    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], data.screen);
+    const db = await getAdminClient();
+    const { data: rows } = await db.from("profiles").select("username, full_name, status");
+    const wanted = new Set(data.userIds.map((id) => id.toUpperCase()));
+    const out: Record<string, string> = {};
+    for (const p of (rows ?? []) as Array<{ username: string | null; full_name: string | null; status: string | null }>) {
+      const key = String(p.username ?? "").trim().toUpperCase();
+      const name = String(p.full_name ?? "").trim();
+      if (key && name && wanted.has(key) && !out[key]) out[key] = name;
+    }
     return out;
   });

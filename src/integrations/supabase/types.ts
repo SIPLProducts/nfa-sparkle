@@ -746,6 +746,9 @@ export type Database = {
           created_at: string
           detailed_description: string | null
           enfa_number: string
+          function_name: string | null
+          initiator_id: string | null
+          initiator_name: string | null
           scope_impact: string | null
           subject: string | null
           timeline_days: number | null
@@ -759,6 +762,9 @@ export type Database = {
           created_at?: string
           detailed_description?: string | null
           enfa_number: string
+          function_name?: string | null
+          initiator_id?: string | null
+          initiator_name?: string | null
           scope_impact?: string | null
           subject?: string | null
           timeline_days?: number | null
@@ -772,6 +778,9 @@ export type Database = {
           created_at?: string
           detailed_description?: string | null
           enfa_number?: string
+          function_name?: string | null
+          initiator_id?: string | null
+          initiator_name?: string | null
           scope_impact?: string | null
           subject?: string | null
           timeline_days?: number | null
