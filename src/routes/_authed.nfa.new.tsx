@@ -369,6 +369,7 @@ function NewNfaPage() {
   async function submit(_asDraft: boolean) {
     if (!user) return;
     if (!company || !nfaType || !subject) return toast.error("Company, NFA Type and Subject are required");
+    if (!func) return toast.error("Please select a Function before submitting.");
     if (selectedApprovers.length < MIN_CREATE_APPROVERS) {
       return toast.error(`Please select at least ${MIN_CREATE_APPROVERS} approvers before submitting.`);
     }
@@ -646,7 +647,7 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="Function">
+              <Field label="Function" required>
                 <Select value={func} onValueChange={setFunc} disabled={!nfaType || functionsLoading || functions.length === 0}>
                   <SelectTrigger>
                     <SelectValue
