@@ -27,6 +27,7 @@ import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { prepareWebPrintForm } from "@/lib/prepare-web-print-form";
 import { mergeCompletePrintComments } from "@/lib/print-comment-history";
+import { editPayloadReadsFor } from "@/lib/approval-action-sources";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -386,7 +387,10 @@ function ApprovalsInbox() {
           const timer = setTimeout(() => ctrl.abort(), 8000);
           const me = await resolveMySapUser(sessionData.session?.user?.id ?? "");
           // The record's Select detail carries the initiator's User ID (worklist rows hold names only).
-          const initiatorLookup = fetch("/api/public/enfa-select", {
+          // Reject skips this `edit`-payload read; the server resolves the initiator for the email.
+          const initiatorLookup = !editPayloadReadsFor(action).includes("/api/public/enfa-select")
+            ? Promise.resolve("")
+            : fetch("/api/public/enfa-select", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ edit: { user_name: me, reffld: selectedEnfaNo } }),
