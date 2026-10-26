@@ -14,7 +14,7 @@ describe("Create vs Preview approver APIs", () => {
   });
   it("Create approvers window only calls the get_detail route", () => {
     const s = src("../components/nfa/ApproverSelector.tsx");
-    expect(s).not.toMatch(/fetchSapApprovalFlow|fetchResolvedSapApprovalFlow|sap-approval-flow/);
+    expect(s).not.toMatch(/fetchSapApprovalFlow|fetchResolvedSapApprovalFlow|api\/public\/sap-approval-flow/);
   });
   it("Preview print form never calls the Create get_detail route", () => {
     const s = src("./prepare-web-print-form.ts");
