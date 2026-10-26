@@ -50,3 +50,28 @@ export function parseSapLogoResponse(body: string): string {
   if (!mime) throw new Error("SAP returned an unsupported company logo format");
   return `data:${mime};base64,${base64}`;
 }
+
+const logoRequests = new Map<string, Promise<string>>();
+
+/** One SAP logo request per company code per session; failures are not cached. */
+export function fetchSapLogoDataUrl(companyCode: string, token: string, fetcher: typeof fetch = fetch): Promise<string> {
+  const code = companyCode.trim();
+  const cached = logoRequests.get(code);
+  if (cached) return cached;
+  const request = fetcher("/api/public/sap-logo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ companyCode: code }),
+  }).then(async (response) => {
+    const result = await response.json() as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
+    if (!response.ok || !result.ok || !result.dataUrl) throw new Error(result.message || result.error || "Company logo is unavailable");
+    return result.dataUrl;
+  });
+  logoRequests.set(code, request);
+  request.catch(() => logoRequests.delete(code));
+  return request;
+}
+
+export function clearSapLogoCache() {
+  logoRequests.clear();
+}

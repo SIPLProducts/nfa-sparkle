@@ -17,3 +17,14 @@ describe("SAP company logo response", () => {
     expect(() => parseSapLogoResponse(JSON.stringify("YWJjZA=="))).toThrow("unsupported company logo format");
   });
 });
+import { fetchSapLogoDataUrl, clearSapLogoCache } from "./sap-logo";
+describe("fetchSapLogoDataUrl", () => {
+  it("asks SAP once per company code", async () => {
+    clearSapLogoCache();
+    let calls = 0;
+    const fetcher = (async () => { calls++; return new Response(JSON.stringify({ ok: true, dataUrl: "data:image/png;base64,iVBOR" })); }) as typeof fetch;
+    await Promise.all([fetchSapLogoDataUrl("1000", "t", fetcher), fetchSapLogoDataUrl("1000", "t", fetcher)]);
+    await fetchSapLogoDataUrl("1000", "t", fetcher);
+    expect(calls).toBe(1);
+  });
+});

@@ -1,3 +1,4 @@
+import { fetchSapLogoDataUrl } from "@/lib/sap-logo";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,14 +20,7 @@ export function usePrintFormLogo(companyCode: string | undefined, open: boolean)
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const response = await fetch("/api/public/sap-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ companyCode }),
-          signal: controller.signal,
-        });
-        const result = await response.json() as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
-        if (!response.ok || !result.ok || !result.dataUrl) throw new Error(result.message || result.error || "Company logo is unavailable");
+        const result = { dataUrl: await fetchSapLogoDataUrl(companyCode, token) };
         const image = new Image();
         image.decoding = "async";
         image.src = result.dataUrl;

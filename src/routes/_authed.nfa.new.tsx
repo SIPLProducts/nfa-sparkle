@@ -1,3 +1,4 @@
+import { fetchSapLogoDataUrl } from "@/lib/sap-logo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -115,15 +116,7 @@ async function resolveMySapUser(userId: string): Promise<string> {
 
 async function fetchCompanyLogoForDocx(companyCode: string, token: string): Promise<string | undefined> {
   if (!companyCode || !token) return undefined;
-  const response = await fetch("/api/public/sap-logo", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ companyCode }),
-  });
-  const result = (await response.json()) as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
-  if (!response.ok || !result.ok || !result.dataUrl) {
-    throw new Error(result.message || result.error || "Company logo is unavailable");
-  }
+  const result = { dataUrl: await fetchSapLogoDataUrl(companyCode, token) };
   const dataUrl = result.dataUrl;
   if (dataUrl.startsWith("data:image/png")) return dataUrl;
   return await new Promise((resolve, reject) => {

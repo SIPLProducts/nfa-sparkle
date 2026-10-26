@@ -1,3 +1,4 @@
+import { fetchSapLogoDataUrl } from "@/lib/sap-logo";
 import { createRoot } from "react-dom/client";
 import { EnfaDocument, type EnfaDocumentComment } from "@/components/document/EnfaDocument";
 import type { ApprovalPrintDocument } from "@/lib/approval-print-document";
@@ -7,15 +8,7 @@ import { createPrintFormPdf } from "@/lib/print-form-pdf";
 
 async function loadCompanyLogo(companyCode: string, token: string): Promise<string | undefined> {
   if (!companyCode.trim() || !token) return undefined;
-  const response = await fetch("/api/public/sap-logo", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ companyCode }),
-  });
-  const result = await response.json() as { ok?: boolean; dataUrl?: string; message?: string; error?: string };
-  if (!response.ok || !result.ok || !result.dataUrl) {
-    throw new Error(result.message || result.error || "Company logo is unavailable");
-  }
+  const result = { dataUrl: await fetchSapLogoDataUrl(companyCode, token) };
   if (result.dataUrl.startsWith("data:image/png")) return result.dataUrl;
   const image = new Image();
   image.decoding = "async";
