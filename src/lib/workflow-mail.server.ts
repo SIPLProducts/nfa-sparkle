@@ -279,6 +279,22 @@ export async function resolveWorkflowContext(input: {
   return { context: { subject: hint.subject, initiator, approvers, level }, source: src.join(",") || "none" };
 }
 
+type Resolved = { context: WorkflowNotifyContext; source: string };
+/** Combines a pre-action context with a post-action one: the earlier initiator wins, then the later. Pure. */
+export function mergeResolved(before: Resolved, after: Resolved): Resolved {
+  const bi = ids(before.context.initiator);
+  const hasChain = (before.context.approvers ?? []).some((a) => ids(a).length);
+  return {
+    context: {
+      ...after.context,
+      initiator: bi.length ? bi : after.context.initiator,
+      approvers: hasChain ? before.context.approvers : after.context.approvers,
+      level: hasChain ? before.context.level : after.context.level,
+    },
+    source: bi.length ? before.source : after.source,
+  };
+}
+
 /** User IDs saved per level when the NFA was created ([] when none). Pure parsing in savedChainIds. */
 export function savedChainIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
