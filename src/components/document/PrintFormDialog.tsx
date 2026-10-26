@@ -99,7 +99,7 @@ export function PrintFormDialog({
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const flow = await fetchResolvedSapApprovalFlow({ plant, nfaType, functionName }, token, controller.signal);
+        const flow = await fetchResolvedSapApprovalFlow({ plant, nfaType, functionName, enfaNo: doc.nfaNo }, token, controller.signal);
         setFlowApprovers(flow.approvers);
         setFlowFunctionName(flow.functionName);
       } catch (error) {
