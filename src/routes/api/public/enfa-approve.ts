@@ -141,10 +141,10 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
         if (!ok) console.warn("[enfa-approve] SAP did not confirm", rawAction, reffld, safeRequestSummary(result.request?.body));
 
         if (ok) {
-          // Awaited so the server cannot end the request before the email is sent and logged;
-          // failures are caught and never change the SAP result.
+          // Sent in the background so the user gets SAP's reply at once; the email
+          // (and its email_log row) completes after the response, and never changes the SAP result.
           const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
-          try {
+          void (async () => {
             const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
             await notifyWorkflowAction({
               action: rawAction as (typeof allowed)[number],
@@ -162,9 +162,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
                 level: Number(n.level) || 1,
               },
             });
-          } catch (e) {
-            console.warn("[enfa-approve] notification failed:", (e as Error)?.message ?? e);
-          }
+          })().catch((e) => console.warn("[enfa-approve] notification failed:", (e as Error)?.message ?? e));
         }
 
         return new Response(JSON.stringify({ ok, message, raw }), { status: 200, headers });
