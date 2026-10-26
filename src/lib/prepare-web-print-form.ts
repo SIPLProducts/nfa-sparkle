@@ -17,6 +17,18 @@ export function applyApproverNames(approvers: EnfaDocumentApprover[], names: Rec
   });
 }
 
+/** Replaces blank or ID-only comment names with the portal name for that User ID. */
+export function applyCommentNames<T extends { name: string; approverId?: string }>(comments: T[], names: Record<string, string>): T[] {
+  return comments.map((c) => {
+    const id = c.approverId?.trim() ?? "";
+    const current = c.name?.trim() ?? "";
+    const portal = (id ? names[id.toUpperCase()] : "") || names[current.replace(/^0+/, "").toUpperCase()] || names[current.toUpperCase()] || "";
+    if (!portal) return c;
+    const idOnly = !current || current.toUpperCase() === id.toUpperCase() || /^\d+$/.test(current) || names[current.toUpperCase()] === portal;
+    return idOnly ? { ...c, name: portal } : c;
+  });
+}
+
 /** Report supplements Select without replacing populated Select fields with blanks. */
 export function supplementPrintDetail(primary: PrintDataSource | null, supplemental: PrintDataSource | null): PrintDataSource {
   const merged: PrintDataSource = {};
@@ -119,7 +131,7 @@ export async function prepareWebPrintForm(
     : { approvers: [], functionName: "" };
   ensureActive();
   const mergedApprovers = restrictToFlow(resolved.document.approvers, flow.approvers);
-  const ids = [...mergedApprovers.map((a) => a.userId), ...comments.map((c) => c.approverId ?? "")].filter((id) => id?.trim());
+  const ids = [...mergedApprovers.map((a) => a.userId), ...comments.flatMap((c) => [c.approverId ?? "", /^\d+$/.test(c.name?.trim() ?? "") ? c.name.trim() : ""]), ...(saved?.savedComments ?? []).flatMap((c) => [/^\d+$/.test(c.name?.trim() ?? "") ? c.name.trim() : ""])].filter((id) => id?.trim());
   const names = ids.length
     ? await resolveApproverNames({ data: { userIds: ids, screen } }).catch(() => ({} as Record<string, string>))
     : {};
@@ -135,7 +147,7 @@ export async function prepareWebPrintForm(
   );
   return {
     document,
-    comments: mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers),
+    comments: applyCommentNames(mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers), names),
     missingFields,
   };
 }
