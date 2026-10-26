@@ -27,6 +27,7 @@ import { createApprovalPrintFormPdf } from "@/lib/approval-print-pdf";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { prepareWebPrintForm } from "@/lib/prepare-web-print-form";
 import { mergeCompletePrintComments } from "@/lib/print-comment-history";
+import { editPayloadReadsFor } from "@/lib/approval-action-sources";
 
 export const Route = createFileRoute("/_authed/approvals")({
   head: () => ({
@@ -327,9 +328,12 @@ function ApprovalsInbox() {
           }).then(async (response) => response.ok
             ? normaliseRows(await response.json()).find((row) => val(row, "REFFLD") === selectedEnfaNo) ?? null
             : null).catch(() => null);
+          // Reject must not send SAP the `edit` payload, so it skips those record reads.
+          const editReads = editPayloadReadsFor(action);
+          const skipped = Promise.resolve({ response: new Response(null, { status: 204 }), text: "" });
           const [editResult, selectResult, reportRow, draftResult, comments, savedContext] = await Promise.all([
-            requestDetails("/api/public/enfa-detail"),
-            requestDetails("/api/public/enfa-select"),
+            editReads.includes("/api/public/enfa-detail") ? requestDetails("/api/public/enfa-detail") : skipped,
+            editReads.includes("/api/public/enfa-select") ? requestDetails("/api/public/enfa-select") : skipped,
             reportDetails,
             supabase.from("sap_record_draft")
               .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
@@ -337,8 +341,8 @@ function ApprovalsInbox() {
             loadPrintComments(selectedEnfaNo),
             loadApprovalPrintContext(selectedEnfaNo),
           ]);
-          const editDetail = editResult.response.ok ? parseApprovalPrintDetail(editResult.text).detail : null;
-          const selectDetail = selectResult.response.ok ? parseApprovalPrintDetail(selectResult.text).detail : null;
+          const editDetail = editResult.response.status === 200 ? parseApprovalPrintDetail(editResult.text).detail : null;
+          const selectDetail = selectResult.response.status === 200 ? parseApprovalPrintDetail(selectResult.text).detail : null;
           const resolved = resolveApprovalPrintDocument({
             editDetail,
             selectDetail: { ...(selectDetail ?? {}), ...(reportRow as unknown as Record<string, unknown> | null ?? {}) },
@@ -350,8 +354,10 @@ function ApprovalsInbox() {
           });
            // Use the same preparation as Preview (it reads SAP on the initiator's behalf
            // when the approver gets nothing back), falling back to the inline data.
-           const shared = await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>)
-             .catch(() => null);
+           // Reject skips it because it reads SAP with the `edit` payload.
+           const shared = editReads.length
+             ? await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>).catch(() => null)
+             : null;
            const pdfDocument = shared?.document ?? resolved.document;
            const finalComments = shared?.comments
              ?? mergeCompletePrintComments(comments, savedContext.savedComments, resolved.document.approvers);
@@ -381,7 +387,10 @@ function ApprovalsInbox() {
           const timer = setTimeout(() => ctrl.abort(), 8000);
           const me = await resolveMySapUser(sessionData.session?.user?.id ?? "");
           // The record's Select detail carries the initiator's User ID (worklist rows hold names only).
-          const initiatorLookup = fetch("/api/public/enfa-select", {
+          // Reject skips this `edit`-payload read; the server resolves the initiator for the email.
+          const initiatorLookup = !editPayloadReadsFor(action).includes("/api/public/enfa-select")
+            ? Promise.resolve("")
+            : fetch("/api/public/enfa-select", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ edit: { user_name: me, reffld: selectedEnfaNo } }),
