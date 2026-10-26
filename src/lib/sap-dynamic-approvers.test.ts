@@ -17,3 +17,14 @@ describe("dynamic approvers list", () => {
     ] }]);
   });
 });
+
+import { dynamicChainIds } from "./sap-dynamic-approvers";
+describe("dynamicChainIds", () => {
+  const recs = [
+    { nfaNo: "100190", levels: [{ level: 1, designation: "BU Head", userId: "A1" }, { level: 2, designation: "PH", userId: "A2" }] },
+    { nfaNo: "100191", levels: [{ level: 1, designation: "X", userId: "B1" }] },
+  ];
+  it("matches the ENFA by REFFLD", () => expect(dynamicChainIds(recs, "100190")).toEqual(["A1", "A2"]));
+  it("ignores other NFAs", () => expect(dynamicChainIds(recs, "100191")).toEqual(["B1"]));
+  it("returns empty when no match", () => expect(dynamicChainIds(recs, "999")).toEqual([]));
+});
