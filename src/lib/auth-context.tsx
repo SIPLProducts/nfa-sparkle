@@ -10,6 +10,7 @@ interface AuthCtx {
   loading: boolean;
   roles: Role[];
   accessError: string | null;
+  retryAccess: () => void;
   hasRole: (r: Role) => boolean;
   canAccess: (s: ScreenKey) => boolean;
   signOut: () => Promise<void>;
@@ -25,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
 
   async function loadPermissions() {
     const { data, error } = await supabase
@@ -34,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Unable to load screen permissions", error);
       setPermissionError(`Unable to load screen permissions: ${error.message}`);
       setPerms({});
-      return;
+      return false;
     }
     const nextPermissions: Record<string, boolean> = {};
     for (const row of (data ?? []) as { role_key: string | null; screen: string; allowed: boolean }[]) {
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setPerms(nextPermissions);
     setPermissionError(null);
+    return true;
   }
 
   async function loadRoles(userId: string) {
@@ -50,11 +54,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Unable to load user roles", error);
       setRoleError(`Unable to load user roles: ${error.message}`);
       setRoles([]);
-      return;
+      return false;
     }
     const list = ((data ?? []) as { role_key: string }[]).map((r) => r.role_key);
     setRoles(Array.from(new Set(list)));
     setRoleError(null);
+    return true;
+  }
+
+  /** Loads roles + permissions, retrying transient failures so a blip never looks like "no access". */
+  async function loadAccess(userId: string) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const [r, p] = await Promise.all([loadRoles(userId), loadPermissions()]);
+        if (r && p) return;
+      } catch (e) {
+        console.error("Unable to load access", e);
+        setRoleError(`Unable to load your access: ${(e as Error)?.message ?? e}`);
+      }
+      await new Promise((res) => setTimeout(res, 800 * (attempt + 1)));
+    }
   }
 
   useEffect(() => {
@@ -75,13 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         if (!sameUser) {
           currentUserId = nextId;
-          accessLoad = Promise.all([loadRoles(s.user.id), loadPermissions()])
-            .then(() => undefined)
-            .catch((e) => {
-              console.error("Unable to load access during bootstrap", e);
-              setRoles([]);
-              setPerms({});
-            });
+          setAccessLoading(true);
+          accessLoad = loadAccess(s.user.id).finally(() => {
+            if (!cancelled) setAccessLoading(false);
+          });
         }
         await accessLoad;
       } else {
@@ -90,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles([]);
         setPerms({});
         setPermissionError(null);
+        setRoleError(null);
+        setAccessLoading(false);
       }
       if (!cancelled && initial) setLoading(false);
     }
@@ -115,13 +133,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Manual retry from the "Unable to load your access" screen.
+  useEffect(() => {
+    if (!retryTick || !user) return;
+    let cancelled = false;
+    setAccessLoading(true);
+    void loadAccess(user.id).finally(() => { if (!cancelled) setAccessLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryTick]);
 
   const value: AuthCtx = {
     user,
     session,
-    loading,
+    // Auth is not "ready" until the signed-in user's access has loaded, so no screen
+    // makes an access decision from empty roles.
+    loading: loading || accessLoading,
     roles,
     accessError: roleError ?? permissionError,
+    retryAccess: () => setRetryTick((t) => t + 1),
     hasRole: (r) => roles.includes(r) || roles.includes(`custom_${r}`),
     canAccess: (s) => {
       if (roles.length === 0) return false;
