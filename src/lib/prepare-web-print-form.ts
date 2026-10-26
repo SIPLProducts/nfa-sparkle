@@ -21,9 +21,11 @@ export function applyApproverNames(approvers: EnfaDocumentApprover[], names: Rec
 export function applyCommentNames<T extends { name: string; approverId?: string }>(comments: T[], names: Record<string, string>): T[] {
   return comments.map((c) => {
     const id = c.approverId?.trim() ?? "";
-    const portal = id ? names[id.toUpperCase()] : "";
     const current = c.name?.trim() ?? "";
-    return portal && (!current || current.toUpperCase() === id.toUpperCase()) ? { ...c, name: portal } : c;
+    const portal = (id ? names[id.toUpperCase()] : "") || names[current.replace(/^0+/, "").toUpperCase()] || names[current.toUpperCase()] || "";
+    if (!portal) return c;
+    const idOnly = !current || current.toUpperCase() === id.toUpperCase() || /^\d+$/.test(current) || names[current.toUpperCase()] === portal;
+    return idOnly ? { ...c, name: portal } : c;
   });
 }
 
@@ -129,7 +131,7 @@ export async function prepareWebPrintForm(
     : { approvers: [], functionName: "" };
   ensureActive();
   const mergedApprovers = restrictToFlow(resolved.document.approvers, flow.approvers);
-  const ids = [...mergedApprovers.map((a) => a.userId), ...comments.map((c) => c.approverId ?? "")].filter((id) => id?.trim());
+  const ids = [...mergedApprovers.map((a) => a.userId), ...comments.flatMap((c) => [c.approverId ?? "", /^\d+$/.test(c.name?.trim() ?? "") ? c.name.trim() : ""]), ...(saved?.savedComments ?? []).flatMap((c) => [c.approverId ?? "", /^\d+$/.test(c.name?.trim() ?? "") ? c.name.trim() : ""])].filter((id) => id?.trim());
   const names = ids.length
     ? await resolveApproverNames({ data: { userIds: ids, screen } }).catch(() => ({} as Record<string, string>))
     : {};
