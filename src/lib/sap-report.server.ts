@@ -1594,6 +1594,40 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
   });
 }
 
+/** Lists dynamic approvers saved in SAP (blank = all NFAs) via the "Dynamic Approvers List" entry. */
+export async function callDynamicApproversList(nfaNo: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { DYNAMIC_APPROVERS_LIST_ENDPOINT, buildDynamicApproversListPayload } = await import("@/lib/sap-dynamic-approvers");
+  const { data: ep } = await db
+    .from("sap_endpoint").select("*").ilike("name", DYNAMIC_APPROVERS_LIST_ENDPOINT).eq("active", true)
+    .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  if (!ep) {
+    return {
+      ok: false, status: null, latencyMs: 0, body: "",
+      error: `The SAP "${DYNAMIC_APPROVERS_LIST_ENDPOINT}" endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.`,
+    };
+  }
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "GET").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(buildDynamicApproversListPayload(nfaNo)),
+    username: username || undefined,
+    password,
+    maxBytes: 4_000_000,
+    timeoutMs: 120_000,
+  });
+}
+
 /** Saves or removes an approval chain through the same settings-driven SAP endpoint. */
 export async function callManageApprovalChain(payload: Record<string, unknown>): Promise<SapCallResult> {
   const db = await admin();
