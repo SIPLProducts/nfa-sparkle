@@ -88,21 +88,22 @@ async function transport(override?: Partial<EmailConfig>, overridePassword?: str
             method: "POST",
             headers: { "Content-Type": "application/json", "x-proxy-secret": (secret ?? "").trim(), "ngrok-skip-browser-warning": "1" },
             body: JSON.stringify({ smtp, ...msg, to: Array.isArray(msg.to) ? msg.to : [msg.to] }),
+            signal: AbortSignal.timeout(20_000),
           });
         } catch (e) {
           console.warn("[workflow-mail] relay unreachable, sending directly:", (e as Error)?.message);
         }
-        // An older middleware without /mail/send (404) or an unreachable relay falls back to direct SMTP.
-        if (res && res.status !== 404) {
+        if (res) {
           const body = await res.json().catch(() => ({} as any));
-          if (!res.ok || !body?.ok) {
+          if (res.ok && body?.ok) return { ...body, via: "relay" };
+          // Real SMTP rejections (bad credentials) are reported; relay/tunnel faults fall back to direct SMTP.
+          if (body?.code === "EAUTH") {
             const err: any = new Error(body?.error || `Email relay failed (${res.status})`);
-            err.code = body?.code;
+            err.code = body.code;
             throw err;
           }
-          return { ...body, via: "relay" };
+          console.warn(`[workflow-mail] relay failed (${res.status} ${body?.error ?? ""}); sending directly`);
         }
-        if (res) console.warn("[workflow-mail] middleware has no /mail/send; sending directly");
       }
       const nodemailer = (await import("nodemailer")).default;
       const t = nodemailer.createTransport({
