@@ -85,3 +85,35 @@ describe("Print Form comment history", () => {
     ]);
   });
 });
+describe("parseSapPrintComments versioned reply", () => {
+  const row = (ver: number, a3: string, c3: string) => ({
+    REFFLD: "100221", VER: ver,
+    APPROVER1: "1001", COMMENT1: "ok approve",
+    APPROVER2: "9001", COMMENT2: "ok approve",
+    APPROVER3: a3, COMMENT3: c3,
+    APPROVER15: "", COMMENT15: "",
+  });
+  const reply = [row(1, "", "ok"), row(2, "", "ok"), row(3, "9002", "ok approve")];
+
+  it("reads every version, highest as current", () => {
+    const parsed = parseSapPrintComments(reply);
+    expect(parsed.filter((c) => c.version === undefined)).toHaveLength(3);
+    expect(parsed.filter((c) => c.version === 2)).toHaveLength(3);
+    expect(parsed.filter((c) => c.version === 1)).toHaveLength(3);
+    expect(parsed[2]).toMatchObject({ level: 3, approverId: "9002", text: "ok approve" });
+  });
+
+  it("resolves names by approver User ID, falling back to the ID", () => {
+    const paired = pairPrintCommentsWithApprovers(parseSapPrintComments(reply), [
+      { level: 1, role: "Site Head", userId: "1001", name: "Ravi" },
+    ]);
+    expect(paired[0]?.name).toBe("Ravi");
+    expect(paired[1]?.name).toBe("9001");
+  });
+
+  it("still reads a single unversioned object", () => {
+    expect(parseSapPrintComments({ COMMENT1: "a", COMMENT2: "" })).toEqual([
+      { name: "", text: "a", version: undefined, level: 1 },
+    ]);
+  });
+});

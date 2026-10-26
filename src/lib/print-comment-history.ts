@@ -100,19 +100,15 @@ export function pairPrintCommentsWithApprovers(
     const byId = id
       ? approvers.find((approver) => approver.userId?.trim().toLowerCase() === id)?.name?.trim()
       : "";
+    const byLevel = typeof comment.level === "number"
+      ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
+      : "";
+    const name = comment.name.trim()
+      || (id ? byId || comment.approverId?.trim() : byLevel || (comment.version === undefined ? approvers[index]?.name?.trim() : ""))
+      || "";
     return {
       ...comment,
-      name: comment.name.trim()
-        || byId
-        || (typeof comment.level === "number" && !id
-          ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
-          : "")
-        || (comment.version === undefined && !id && comment.level === undefined ? approvers[index]?.name?.trim() : "")
-        || comment.approverId?.trim()
-        || (typeof comment.level === "number"
-          ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
-          : "")
-        || "",
+      name,
     };
   });
 }
