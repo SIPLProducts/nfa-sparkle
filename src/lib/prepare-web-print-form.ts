@@ -1,10 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getApprovalPrintContext, getInitiatorRecordDetail } from "@/lib/print-initiator.functions";
+import { getApprovalPrintContext, getInitiatorRecordDetail, resolveApproverNames } from "@/lib/print-initiator.functions";
 import { loadPrintComments } from "@/lib/print-form-data";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { parseApprovalPrintDetail, resolveApprovalPrintDocument, type PrintDataSource } from "@/lib/approval-print-document";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { mergeCompletePrintComments } from "@/lib/print-comment-history";
+import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
+
+/** Replaces blank or ID-only approver names with the portal name for that User ID. */
+export function applyApproverNames(approvers: EnfaDocumentApprover[], names: Record<string, string>): EnfaDocumentApprover[] {
+  return approvers.map((a) => {
+    const id = a.userId?.trim() ?? "";
+    const portal = names[id.toUpperCase()];
+    const current = a.name?.trim() ?? "";
+    return portal && (!current || current.toUpperCase() === id.toUpperCase()) ? { ...a, name: portal } : a;
+  });
+}
 
 /** Report supplements Select without replacing populated Select fields with blanks. */
 export function supplementPrintDetail(primary: PrintDataSource | null, supplemental: PrintDataSource | null): PrintDataSource {
@@ -107,10 +118,17 @@ export async function prepareWebPrintForm(
       .catch(() => ({ approvers: [], functionName: "" }))
     : { approvers: [], functionName: "" };
   ensureActive();
+  const mergedApprovers = mergeApprovalFlow(resolved.document.approvers, flow.approvers, false);
+  const ids = [...mergedApprovers.map((a) => a.userId), ...comments.map((c) => c.approverId ?? "")].filter((id) => id?.trim());
+  const names = ids.length
+    ? await resolveApproverNames({ data: { userIds: ids, screen } }).catch(() => ({} as Record<string, string>))
+    : {};
+  ensureActive();
   const document = {
     ...resolved.document,
+    initiator: resolved.document.initiator || String(reportRow?.INIT_NAME ?? reportRow?.INIT_USERID ?? "").trim(),
     functionName: resolved.document.functionName || flow.functionName,
-    approvers: mergeApprovalFlow(resolved.document.approvers, flow.approvers, false),
+    approvers: applyApproverNames(mergedApprovers, names),
   };
   const missingFields = resolved.missingFields.filter((field) =>
     !(field === "Function" && document.functionName) && !(field === "Approval Chain" && document.approvers.length),
