@@ -140,6 +140,8 @@ export function friendlyMailError(e: any): string {
     return "The mail server rejected the username or App Password. Use the full mailbox address and a 16-character App Password.";
   if (/proxy request failed|TLS Handshake Failed/i.test(msg))
     return "This server cannot open mail connections (hosted preview). Test on the local or Quality server.";
+  if (code === "EDNS" || /queryA|EAI_AGAIN/i.test(msg))
+    return `The mail server address could not be looked up (${msg}). Check the DNS/internet settings of the machine sending email.`;
   if (code === "ETIMEDOUT" || /timeout/i.test(msg)) return "The mail server did not respond in time. Check host, port and firewall.";
   if (code === "ECONNECTION" || code === "ESOCKET" || /ECONNREFUSED|ENOTFOUND/i.test(msg))
     return `Cannot reach the mail server (${msg}). Check host, port and encryption.`;
