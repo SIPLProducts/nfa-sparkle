@@ -202,3 +202,26 @@ export const getInitiatorRecordDetail = createServerFn({ method: "POST" })
     out.INIT_DISPLAY_NAME = initName || String(out.INIT_NAME ?? "").trim() || initUser;
     return out;
   });
+
+/** Maps SAP approver User IDs to portal full names (read-only, permission-checked). */
+export const resolveApproverNames = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userIds: string[]; screen?: "approvals" | "report" | "nfa_my" }) => ({
+    userIds: Array.from(new Set((input.userIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))).slice(0, 60),
+    screen: input.screen === "report" || input.screen === "nfa_my" ? input.screen : "approvals",
+  }))
+  .handler(async ({ data, context }): Promise<Record<string, string>> => {
+    if (!data.userIds.length) return {};
+    const { assertScreenAccess, getAdminClient } = await import("@/lib/user-admin.server");
+    await assertScreenAccess(context as Parameters<typeof assertScreenAccess>[0], data.screen);
+    const db = await getAdminClient();
+    const { data: rows } = await db.from("profiles").select("username, full_name, status");
+    const wanted = new Set(data.userIds.map((id) => id.toUpperCase()));
+    const out: Record<string, string> = {};
+    for (const p of (rows ?? []) as Array<{ username: string | null; full_name: string | null; status: string | null }>) {
+      const key = String(p.username ?? "").trim().toUpperCase();
+      const name = String(p.full_name ?? "").trim();
+      if (key && name && wanted.has(key) && !out[key]) out[key] = name;
+    }
+    return out;
+  });
