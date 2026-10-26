@@ -321,7 +321,7 @@ function ApprovalsInbox() {
             usrid_from: "", usrid_to: "", r_proc: "", r_comp: "",
             r_reje: "", r_init: "", r_clar: "",
           };
-          const reportDetails = fetch("/api/public/enfa-report", {
+          const reportDetails = () => fetch("/api/public/enfa-report", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify(wrapReportPayload(reportPayload, userName)),
@@ -330,17 +330,27 @@ function ApprovalsInbox() {
             : null).catch(() => null);
           // Reject must not send SAP the `edit` payload, so it skips those record reads.
           const editReads = editPayloadReadsFor(action);
+          // Final approval uses the shared preparation (one set of record reads); the
+          // inline reads below run only when that preparation fails.
+          const shared = editReads.length
+            ? await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>).catch(() => null)
+            : null;
           const skipped = Promise.resolve({ response: new Response(null, { status: 204 }), text: "" });
-          const [editResult, selectResult, reportRow, draftResult, comments, savedContext] = await Promise.all([
-            editReads.includes("/api/public/enfa-detail") ? requestDetails("/api/public/enfa-detail") : skipped,
-            editReads.includes("/api/public/enfa-select") ? requestDetails("/api/public/enfa-select") : skipped,
-            reportDetails,
-            supabase.from("sap_record_draft")
-              .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
-              .eq("enfa_number", selectedEnfaNo).maybeSingle(),
-            loadPrintComments(selectedEnfaNo),
-            loadApprovalPrintContext(selectedEnfaNo),
-          ]);
+          const [editResult, selectResult, reportRow, draftResult, comments, savedContext] = shared
+            ? [await skipped, await skipped, null, { data: null }, [], { savedDetail: undefined, initiatorName: "", savedComments: [] }] as unknown as Awaited<ReturnType<typeof loadInline>>
+            : await loadInline();
+          function loadInline() {
+            return Promise.all([
+              editReads.includes("/api/public/enfa-detail") ? requestDetails("/api/public/enfa-detail") : skipped,
+              editReads.includes("/api/public/enfa-select") ? requestDetails("/api/public/enfa-select") : skipped,
+              reportDetails(),
+              supabase.from("sap_record_draft")
+                .select("subject, scope_impact, budget_impact, timeline_days, detailed_description")
+                .eq("enfa_number", selectedEnfaNo).maybeSingle(),
+              loadPrintComments(selectedEnfaNo),
+              loadApprovalPrintContext(selectedEnfaNo),
+            ]);
+          }
           const editDetail = editResult.response.status === 200 ? parseApprovalPrintDetail(editResult.text).detail : null;
           const selectDetail = selectResult.response.status === 200 ? parseApprovalPrintDetail(selectResult.text).detail : null;
           const resolved = resolveApprovalPrintDocument({
@@ -352,12 +362,6 @@ function ApprovalsInbox() {
             comments,
             initiatorName: savedContext.initiatorName,
           });
-           // Use the same preparation as Preview (it reads SAP on the initiator's behalf
-           // when the approver gets nothing back), falling back to the inline data.
-           // Reject skips it because it reads SAP with the `edit` payload.
-           const shared = editReads.length
-             ? await prepareWebPrintForm(selectedEnfaNo, "approvals", selectedRow as unknown as Record<string, unknown>).catch(() => null)
-             : null;
            const pdfDocument = shared?.document ?? resolved.document;
            const finalComments = shared?.comments
              ?? mergeCompletePrintComments(comments, savedContext.savedComments, resolved.document.approvers);
