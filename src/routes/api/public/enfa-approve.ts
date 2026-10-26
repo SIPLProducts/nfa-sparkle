@@ -92,6 +92,19 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           }
         }
 
+        // Reject: SAP stops returning the record once rejected, so read the initiator first
+        // (in parallel with the action, bounded so it never delays the response much).
+        const n0 = (input as { notify?: { subject?: unknown; level?: unknown } }).notify ?? {};
+        const preResolvedP: Promise<{ context: any; source: string } | null> =
+          rawAction === "reject"
+            ? Promise.race([
+                import("@/lib/workflow-mail.server").then((m) =>
+                  m.resolveWorkflowContext({ enfaNo: reffld, actorUserId: userName, hint: { subject: String(n0.subject ?? "").slice(0, 300), level: Number(n0.level) || 1 } }),
+                ),
+                new Promise<null>((r) => setTimeout(() => r(null), 30_000)),
+              ]).catch(() => null)
+            : Promise.resolve(null);
+
         const result = await callEnfaApprovalAction({
           action: rawAction as (typeof allowed)[number],
           reffld,
@@ -146,7 +159,9 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
           const n = (input as { notify?: { subject?: unknown; initiator?: unknown; approvers?: unknown; level?: unknown } }).notify ?? {};
           void (async () => {
             const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
+            const preResolved = await preResolvedP;
             await notifyWorkflowAction({
+              preResolved,
               action: rawAction as (typeof allowed)[number],
               enfaNo: reffld,
               comment: String(input.comment ?? ""),
