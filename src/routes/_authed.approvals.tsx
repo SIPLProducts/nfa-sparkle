@@ -379,38 +379,10 @@ function ApprovalsInbox() {
           });
           actionPdf = { base64: generated.base64, filename: generated.filename };
         }
-        // Approver User IDs come from SAP's record approval flow (the worklist row often has names only).
-        let flowIds: string[] = [];
-        let initiatorId = "";
-        if (selectedRow) {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 8000);
-          const me = await resolveMySapUser(sessionData.session?.user?.id ?? "");
-          // The record's Select detail carries the initiator's User ID (worklist rows hold names only).
-          // Reject skips this `edit`-payload read; the server resolves the initiator for the email.
-          const initiatorLookup = !editPayloadReadsFor(action).includes("/api/public/enfa-select")
-            ? Promise.resolve("")
-            : fetch("/api/public/enfa-select", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ edit: { user_name: me, reffld: selectedEnfaNo } }),
-            signal: ctrl.signal,
-          }).then(async (r) => {
-            if (!r.ok) return "";
-            const d = parseApprovalPrintDetail(await r.text()).detail as Record<string, unknown> | null;
-            return String(d?.["INIT_USERID"] ?? d?.["init_userid"] ?? "").trim();
-          }).catch(() => "");
-          try {
-            const flow = await fetchResolvedSapApprovalFlow({
-              plant: val(selectedRow, "PSPNR"),
-              nfaType: val(selectedRow, "FUNCT") || val(selectedRow, "FUNCT_TXT"),
-              functionName: val(selectedRow, "EXTR_TXT") || val(selectedRow, "EXTRA_TXT") || val(selectedRow, "EXTRA"),
-            }, token, ctrl.signal);
-            for (const a of flow.approvers) { const lv = Number(a.level); if (lv >= 1 && lv <= 15) flowIds[lv - 1] = (a.userId ?? "").trim(); }
-          } catch { flowIds = []; }
-          initiatorId = await initiatorLookup;
-          clearTimeout(timer);
-        }
+        // The server resolves the initiator and the record's approval chain from SAP itself
+        // before emailing, so the action is sent at once with the worklist row as hints.
+        const flowIds: string[] = [];
+        const initiatorId = "";
         const res = await fetch("/api/public/enfa-approve", {
           method: "POST",
           headers: {

@@ -143,10 +143,11 @@ export const Route = createFileRoute("/api/public/enfa-create")({
             });
             const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
             const actorEmail = String((claimsData.claims as { email?: string }).email ?? "");
-            await notifyWorkflowAction({
+            // Background: the creator sees SAP's confirmation without waiting for the email.
+            void notifyWorkflowAction({
               action: "approve", enfaNo, comment: "", actor: userName || actorEmail, actorEmail, actorUserId: userName,
               context: { subject: String(src.SUBJECT ?? ""), initiator: [userName], level: 0 },
-            });
+            }).catch((e) => console.warn("[enfa-create] post-create notify failed:", (e as Error)?.message ?? e));
           }
         } catch (e) {
           console.warn("[enfa-create] post-create notify failed:", (e as Error)?.message ?? e);
