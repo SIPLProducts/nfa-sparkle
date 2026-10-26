@@ -3,7 +3,7 @@ import { getApprovalPrintContext, getInitiatorRecordDetail, resolveApproverNames
 import { loadPrintComments } from "@/lib/print-form-data";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { parseApprovalPrintDetail, resolveApprovalPrintDocument, type PrintDataSource } from "@/lib/approval-print-document";
-import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
+import { fetchResolvedSapApprovalFlow, restrictToFlow } from "@/lib/sap-approval-flow";
 import { mergeCompletePrintComments } from "@/lib/print-comment-history";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 
@@ -118,7 +118,7 @@ export async function prepareWebPrintForm(
       .catch(() => ({ approvers: [], functionName: "" }))
     : { approvers: [], functionName: "" };
   ensureActive();
-  const mergedApprovers = mergeApprovalFlow(resolved.document.approvers, flow.approvers, false);
+  const mergedApprovers = restrictToFlow(resolved.document.approvers, flow.approvers);
   const ids = [...mergedApprovers.map((a) => a.userId), ...comments.map((c) => c.approverId ?? "")].filter((id) => id?.trim());
   const names = ids.length
     ? await resolveApproverNames({ data: { userIds: ids, screen } }).catch(() => ({} as Record<string, string>))

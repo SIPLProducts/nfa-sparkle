@@ -97,6 +97,33 @@ export function mergeApprovalFlow(
   }).filter((approver) => Object.values(approver).some((value) => typeof value === "string" && value.trim()));
 }
 
+/** SAP's flow is authoritative: keep only its levels, filling blanks from the same User ID. */
+export function restrictToFlow(
+  existing: EnfaDocumentApprover[] | undefined,
+  flow: EnfaDocumentApprover[],
+): EnfaDocumentApprover[] {
+  if (!flow.length) return mergeApprovalFlow(existing, flow, false);
+  const byId = new Map<string, EnfaDocumentApprover>();
+  for (const a of existing ?? []) {
+    const id = a.userId?.trim().toUpperCase();
+    if (id && !byId.has(id)) byId.set(id, a);
+  }
+  return flow.map((f, index): EnfaDocumentApprover => {
+    const level = f.level ?? index + 1;
+    const s = byId.get(f.userId?.trim().toUpperCase() ?? "")
+      ?? (existing ?? []).find((e, i) => (e.level ?? i + 1) === level && !e.userId?.trim());
+    return {
+      level: f.level ?? index + 1,
+      role: f.role?.trim() || s?.role?.trim() || "",
+      userId: f.userId?.trim() || "",
+      name: f.name?.trim() || s?.name?.trim() || "",
+      status: f.status?.trim() || s?.status?.trim() || "",
+      actedDate: f.actedDate?.trim() || s?.actedDate?.trim() || "",
+      actedTime: f.actedTime?.trim() || s?.actedTime?.trim() || "",
+    };
+  });
+}
+
 /** Calls the authenticated app endpoint while keeping SAP credentials server-side. */
 export async function fetchSapApprovalFlow(
   input: { plant: string; nfaType: string; functionName: string; enfaNo?: string },
