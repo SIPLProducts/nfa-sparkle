@@ -292,7 +292,7 @@ app.post("/mail/send", requireSecret, async (req, res) => {
   try {
     const transporter = nodemailer.createTransport({
       host: s.host, port: Number(s.port), secure: !!s.secure, ignoreTLS: !!s.ignoreTLS,
-      connectionTimeout: 15000, greetingTimeout: 15000,
+      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000,
       auth: s.user ? { user: s.user, pass: s.pass || "" } : undefined,
     });
     const info = await transporter.sendMail({
