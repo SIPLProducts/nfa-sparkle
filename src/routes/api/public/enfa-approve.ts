@@ -169,7 +169,7 @@ export const Route = createFileRoute("/api/public/enfa-approve")({
                 subject: String(n.subject ?? "").slice(0, 300),
                 initiator: (Array.isArray(n.initiator) ? n.initiator : [n.initiator]).slice(0, 6).map((a) => String(a ?? "").slice(0, 120)),
                 approvers: Array.isArray(n.approvers)
-                  ? n.approvers.slice(0, 7).map((a) => (Array.isArray(a) ? a : [a]).slice(0, 5).map((x) => String(x ?? "").slice(0, 120)))
+                  ? n.approvers.slice(0, 15).map((a) => (Array.isArray(a) ? a : [a]).slice(0, 5).map((x) => String(x ?? "").slice(0, 120)))
                   : [],
                 level: Number(n.level) || 1,
               },

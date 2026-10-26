@@ -1604,9 +1604,14 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
 export async function callDynamicApproversList(nfaNo: string): Promise<SapCallResult> {
   const db = await admin();
   const { DYNAMIC_APPROVERS_LIST_ENDPOINT, buildDynamicApproversListPayload } = await import("@/lib/sap-dynamic-approvers");
-  const { data: ep } = await db
+  const { data: exact } = await db
     .from("sap_endpoint").select("*").ilike("name", DYNAMIC_APPROVERS_LIST_ENDPOINT).eq("active", true)
     .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  // Renamed entries are still found by their dynamic_approvers request template.
+  const { data: byBody } = exact ? { data: null } : await db
+    .from("sap_endpoint").select("*").ilike("request_body", "%dynamic_approvers%").eq("active", true)
+    .order("created_at", { ascending: true }).limit(1).maybeSingle();
+  const ep = exact ?? byBody;
   if (!ep) {
     return {
       ok: false, status: null, latencyMs: 0, body: "",

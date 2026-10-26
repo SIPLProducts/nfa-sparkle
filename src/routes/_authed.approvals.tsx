@@ -397,7 +397,7 @@ function ApprovalsInbox() {
               nfaType: val(selectedRow, "FUNCT") || val(selectedRow, "FUNCT_TXT"),
               functionName: val(selectedRow, "EXTR_TXT") || val(selectedRow, "EXTRA_TXT") || val(selectedRow, "EXTRA"),
             }, token, ctrl.signal);
-            for (const a of flow.approvers) { const lv = Number(a.level); if (lv >= 1 && lv <= 7) flowIds[lv - 1] = (a.userId ?? "").trim(); }
+            for (const a of flow.approvers) { const lv = Number(a.level); if (lv >= 1 && lv <= 15) flowIds[lv - 1] = (a.userId ?? "").trim(); }
           } catch { flowIds = []; }
           initiatorId = await initiatorLookup;
           clearTimeout(timer);
