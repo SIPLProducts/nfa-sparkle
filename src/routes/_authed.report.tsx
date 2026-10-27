@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { NFA_TYPES, PLANTS, FUNCTIONS, nfaTypeDisplayLabel } from "@/lib/sap/master";
+import { PLANTS, FUNCTIONS, nfaTypeDisplayLabel, parseEnfaTypeF4 } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,6 +176,46 @@ function normaliseRows(value: unknown): SapReportRow[] {
 
 function Report() {
   const [f, setF] = useState<SapReportFilters>(EMPTY);
+  // NFA Type options come from the same SAP "ENFA Type F4" service as Create NFA.
+  const [nfaTypes, setNfaTypes] = useState<{ code: string; name: string }[]>([]);
+  const [nfaTypesLoading, setNfaTypesLoading] = useState(true);
+  const [nfaTypesError, setNfaTypesError] = useState("");
+  const [nfaTypeReload, setNfaTypeReload] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setNfaTypesLoading(true);
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-enfa-type", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: "{}",
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parseEnfaTypeF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { setNfaTypes(list); setNfaTypesError(""); }
+        else {
+          const p = parsed as Record<string, unknown> | null;
+          const detail =
+            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
+            (text ? text.slice(0, 300) : "") ||
+            `SAP responded with status ${res.status}`;
+          setNfaTypes([]);
+          setNfaTypesError(res.ok ? "SAP returned no NFA types." : `SAP: ${String(detail)}`);
+        }
+      } catch {
+        if (!cancelled) { setNfaTypes([]); setNfaTypesError("Could not reach the SAP NFA type service."); }
+      } finally {
+        if (!cancelled) setNfaTypesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [nfaTypeReload]);
   const [rows, setRows] = useState<SapReportRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -375,7 +415,42 @@ function Report() {
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <RangeSelect label="Plant" options={PLANTS} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
-          <SingleSelect label="ENFA Type" options={NFA_TYPES} value={f.funct_from} onChange={setPair("funct_from", "funct_to")} renderLabel={nfaTypeDisplayLabel} />
+          <div className="space-y-1.5">
+            <Label className="text-xs">ENFA Type</Label>
+            <Select
+              value={f.funct_from}
+              onValueChange={(v) => setPair("funct_from", "funct_to")(v === "_all" ? "" : v)}
+              disabled={nfaTypesLoading || nfaTypes.length === 0}
+            >
+              <SelectTrigger className="w-full min-w-0">
+                <SelectValue
+                  placeholder={
+                    nfaTypesLoading
+                      ? "Loading NFA types from SAP…"
+                      : nfaTypes.length
+                        ? "Any"
+                        : "No NFA types returned by SAP"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Any</SelectItem>
+                {nfaTypes.map((t) => <SelectItem key={t.code} value={t.code}>{nfaTypeDisplayLabel(t)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {nfaTypesError ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {nfaTypesError}{" "}
+                <button
+                  type="button"
+                  className="font-medium text-primary underline underline-offset-2"
+                  onClick={() => setNfaTypeReload((n) => n + 1)}
+                >
+                  Retry
+                </button>
+              </p>
+            ) : null}
+          </div>
           <SingleSelect label="Function" options={FUNCTIONS} value={f.extra_from} onChange={setPair("extra_from", "extra_to")} />
           <RangeInput label="Date range" type="date" from={f.dat_from} to={f.dat_to} onFrom={set("dat_from")} onTo={set("dat_to")} />
         </div>
