@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { PageHeader } from "@/components/PageHeader";
 import { RichTextEditor, htmlToPlainText } from "@/components/RichTextEditor";
 import { toast } from "@/lib/swal";
+import { coreDraftPayload } from "@/lib/draft-save-payload";
 import { Send, FileText, Building2, Paperclip, Upload, X, Users } from "lucide-react";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { generateEnfaDocx } from "@/lib/enfa-docx.functions";
@@ -486,7 +487,7 @@ function NewNfaPage() {
       if (res.ok && String(parsed?.STATUS ?? "").toUpperCase() === "S" && enfaNo) {
         // Keep the rich Detailed Description against the SAP number for the Print Form.
         try {
-          const { error: draftError } = await supabase.from("sap_record_draft").upsert({
+          const fullDraft = {
             enfa_number: enfaNo,
             subject,
             scope_impact: scope || null,
@@ -497,11 +498,19 @@ function NewNfaPage() {
             initiator_id: user?.id ?? null,
             initiator_name: initiatorName || null,
             function_name: (functions.find((f) => f.code === func)?.name ?? func) || null,
-            // Also saved here so the record keeps its approver mode even if the server-side save is unavailable.
             approvers: selectedApprovers.filter((a) => a.userId.trim()).map((a, i) => ({ level: i + 1, designation: a.role, userId: a.userId.trim().toUpperCase() })),
             approver_mode: approverModeCheck(approverMode) === "X" ? "predefined" : "dynamic",
-          });
-          if (draftError) console.warn("[create] description save failed:", draftError.message);
+          };
+          let { error: draftError } = await supabase.from("sap_record_draft").upsert(fullDraft as any);
+          if (draftError) {
+            // Newer columns may be missing on a server database; never lose the description because of them.
+            console.warn("[create] full draft save failed, retrying core fields:", draftError.message);
+            ({ error: draftError } = await supabase.from("sap_record_draft").upsert(coreDraftPayload(fullDraft) as any));
+          }
+          if (draftError) {
+            console.warn("[create] description save failed:", draftError.message);
+            toast.warning?.(`NFA ${enfaNo} was created, but the Detailed Description could not be saved: ${draftError.message}`);
+          }
         } catch (err) {
           console.warn("[create] description save failed:", (err as Error).message);
         }
