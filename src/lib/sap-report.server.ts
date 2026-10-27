@@ -1625,9 +1625,15 @@ export async function callDynamicApproversList(nfaNo: string): Promise<SapCallRe
     ...((ep.request_headers ?? {}) as Record<string, string>),
   };
   const { username, password } = await credentialsFor(ep, sys);
+  // The dynamic_approvers list lives on the enfa_report service; entries copied from
+  // the Approval Chain (enfa_approval) return master chains without the ENFA number.
+  const rawPath = String(ep.path_or_url ?? "");
+  const path = /enfa_approval\/APPROVAL/i.test(rawPath)
+    ? rawPath.replace(/\/e-nfa\/enfa_approval\/APPROVAL/i, "/e-nfa/enfa_report//create")
+    : rawPath;
   return callSap({
     system: sys,
-    path: ep.path_or_url ?? "",
+    path,
     method: (ep.http_method ?? "GET").toUpperCase(),
     headers,
     query: (ep.request_query ?? {}) as Record<string, string>,
