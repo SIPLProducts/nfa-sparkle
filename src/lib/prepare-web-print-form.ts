@@ -17,6 +17,25 @@ export function applyApproverNames(approvers: EnfaDocumentApprover[], names: Rec
   });
 }
 
+/** Fills blank, numeric or generic "Approver N" comment names from the approval grid (User ID, then level), else shows the User ID. */
+export function fillCommentNamesFromChain<T extends { name: string; approverId?: string; level?: number }>(
+  comments: T[],
+  approvers: { userId?: string; name?: string; level?: number }[],
+): T[] {
+  return comments.map((c) => {
+    const current = c.name?.trim() ?? "";
+    if (current && !/^\d+$/.test(current) && !/^approver\s*\d+$/i.test(current)) return c;
+    const id = (c.approverId?.trim() || (/^\d+$/.test(current) ? current : "")).toUpperCase();
+    const byId = id ? approvers.find((a) => (a.userId ?? "").trim().toUpperCase() === id) : undefined;
+    const byLevel = !byId && typeof c.level === "number" ? approvers.find((a, i) => (a.level ?? i + 1) === c.level) : undefined;
+    const source = byId ?? byLevel;
+    const chainName = source?.name?.trim() ?? "";
+    const name = (chainName && chainName.toUpperCase() !== (source?.userId ?? "").trim().toUpperCase() ? chainName : "")
+      || id || (source?.userId ?? "").trim() || current;
+    return name === current ? c : { ...c, name };
+  });
+}
+
 /** Replaces blank or ID-only comment names with the portal name for that User ID. */
 export function applyCommentNames<T extends { name: string; approverId?: string }>(comments: T[], names: Record<string, string>): T[] {
   return comments.map((c) => {
