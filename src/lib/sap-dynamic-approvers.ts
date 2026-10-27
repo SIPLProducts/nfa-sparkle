@@ -10,6 +10,9 @@ export function buildDynamicApproversListPayload(nfaNo = "") {
   return { dynamic_approvers: String(nfaNo ?? "").trim() };
 }
 
+/** SAP systems name the ENFA number differently; REFFLD stays first. */
+const ENFA_KEYS = ["REFFLD", "REF_FLD", "ENFA_NO", "ENFANO", "NFA_NO", "NFANO", "ENFA_NUMBER"];
+
 function pick(row: Record<string, unknown>, key: string) {
   const hit = Object.keys(row).find((k) => k.trim().toUpperCase() === key);
   return hit ? String(row[hit] ?? "").trim() : "";
@@ -30,7 +33,7 @@ export function parseDynamicApprovers(raw: unknown): DynamicApproverRecord[] {
   for (const row of data) {
     if (!row || typeof row !== "object") continue;
     const r = row as Record<string, unknown>;
-    const nfaNo = pick(r, "REFFLD");
+    const nfaNo = ENFA_KEYS.map((k) => pick(r, k)).find(Boolean) ?? "";
     const levels: DynamicApproverLevel[] = [];
     for (let i = 1; i <= DYNAMIC_APPROVER_SLOTS; i++) {
       const designation = pick(r, `DESIG${i}`);
