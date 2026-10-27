@@ -166,7 +166,7 @@ export async function prepareWebPrintForm(
   );
   return {
     document,
-    comments: applyCommentNames(mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers), names),
+    comments: fillCommentNamesFromChain(applyCommentNames(mergeCompletePrintComments(comments, saved?.savedComments ?? [], document.approvers), names), document.approvers),
     missingFields,
   };
 }
