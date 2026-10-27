@@ -38,11 +38,21 @@ export const Route = createFileRoute("/api/public/sap-approval-flow")({
       // Dynamic records (saved at creation) ask SAP by ENFA number only; others use the predefined lookup.
       let dynamic = false;
       if (input.enfaNo) {
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { data } = await (supabaseAdmin as any).from("sap_record_draft").select("approver_mode").eq("enfa_number", input.enfaNo).maybeSingle();
-          dynamic = String(data?.approver_mode ?? "") === "dynamic";
-        } catch { /* treat as predefined */ }
+        // Read as the signed-in user first (works without the service key), then the admin client.
+        const readMode = async (db: any) => {
+          const { data, error } = await db.from("sap_record_draft").select("approver_mode").eq("enfa_number", input.enfaNo).maybeSingle();
+          if (error) throw error;
+          return String(data?.approver_mode ?? "");
+        };
+        let mode = "";
+        try { mode = await readMode(supabase); } catch { /* try admin */ }
+        if (!mode) {
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            mode = await readMode(supabaseAdmin);
+          } catch (e) { console.warn("[sap-approval-flow] approver mode lookup failed:", (e as Error)?.message ?? e); }
+        }
+        dynamic = mode === "dynamic";
       }
       let result = await callSapApprovalFlow({ ...input, check: dynamic ? "" : "X" });
       if (dynamic && (!result.ok || !parseSapApprovalFlow(result.body).length)) {

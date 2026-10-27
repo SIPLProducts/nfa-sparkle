@@ -497,6 +497,9 @@ function NewNfaPage() {
             initiator_id: user?.id ?? null,
             initiator_name: initiatorName || null,
             function_name: (functions.find((f) => f.code === func)?.name ?? func) || null,
+            // Also saved here so the record keeps its approver mode even if the server-side save is unavailable.
+            approvers: selectedApprovers.filter((a) => a.userId.trim()).map((a, i) => ({ level: i + 1, designation: a.role, userId: a.userId.trim().toUpperCase() })),
+            approver_mode: approverModeCheck(approverMode) === "X" ? "predefined" : "dynamic",
           });
           if (draftError) console.warn("[create] description save failed:", draftError.message);
         } catch (err) {
