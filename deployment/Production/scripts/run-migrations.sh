@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# eNFA PRODUCTION - apply all SQL migrations to the self-hosted Supabase database.
+#
+# Idempotent: every applied file is recorded in public.schema_migrations_applied,
+# so re-running only applies what is new.
+#
+# Usage:
+#   cd /apps/webapplications/NFA_Approval/Production
+#   ./scripts/run-migrations.sh          # password read from backend/.env
+#
+# Optional env:
+#   PGHOST (default 127.0.0.1)  PGPORT (auto-detected, fallback 54422)
+#   PGUSER (postgres)  PGDATABASE (postgres)
+#   MIGRATIONS_DIR (default <production-root>/backend/migrations)
+#   DRY_RUN=1   -> only list what would be applied
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [[ -z "${PRODUCTION_ROOT:-}" ]]; then
+  if [[ -d "$SCRIPT_DIR/../backend" ]]; then
+    PRODUCTION_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  else
+    PRODUCTION_ROOT="$REPO_ROOT"
+  fi
+fi
+if [[ -z "${MIGRATIONS_DIR:-}" ]]; then
+  if [[ -d "$PRODUCTION_ROOT/backend/migrations" ]]; then
+    MIGRATIONS_DIR="$PRODUCTION_ROOT/backend/migrations"
+  else
+    MIGRATIONS_DIR="$REPO_ROOT/supabase/migrations"
+  fi
+fi
+
+export PGHOST="${PGHOST:-127.0.0.1}"
+if [[ -z "${PGPORT:-}" ]] && command -v docker >/dev/null 2>&1; then
+  detected_port="$(docker port nfa-production-db 5432/tcp 2>/dev/null | head -n1 | awk -F: '{print $NF}')"
+  PGPORT="${detected_port:-54422}"
+fi
+export PGPORT="${PGPORT:-54422}"
+export PGUSER="${PGUSER:-postgres}"
+export PGDATABASE="${PGDATABASE:-postgres}"
+
+# A pasted placeholder such as <POSTGRES_PASSWORD from backend/.env> is never a
+# real password - reject it up front instead of showing a raw Postgres error.
+if [[ "${PGPASSWORD:-}" == *"<"* || "${PGPASSWORD:-}" == *">"* ]]; then
+  echo "PGPASSWORD looks like placeholder text, not a real password."
+  echo "Just run ./scripts/run-migrations.sh with no PGPASSWORD - it reads backend/.env."
+  exit 1
+fi
+
+# Read the password straight from backend/.env so nobody has to type or paste it.
+if [[ -z "${PGPASSWORD:-}" && -f "$PRODUCTION_ROOT/backend/.env" ]]; then
+  env_pw="$(grep -E '^[[:space:]]*POSTGRES_PASSWORD[[:space:]]*=' "$PRODUCTION_ROOT/backend/.env" \
+    | tail -n1 | cut -d= -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")"
+  if [[ -n "$env_pw" ]]; then
+    echo "Using POSTGRES_PASSWORD from backend/.env"
+    PGPASSWORD="$env_pw"
+    export PGPASSWORD
+  fi
+fi
+
+if [[ -z "${PGPASSWORD:-}" ]]; then
+  read -rsp "Postgres password for $PGUSER@$PGHOST:$PGPORT: " PGPASSWORD
+  echo
+  export PGPASSWORD
+fi
+
+command -v psql >/dev/null || { echo "psql not found. sudo apt install -y postgresql-client"; exit 1; }
+[[ -d "$MIGRATIONS_DIR" ]] || { echo "No migrations directory at $MIGRATIONS_DIR"; exit 1; }
+
+echo "Production root: $PRODUCTION_ROOT"
+echo "Database    : $PGUSER@$PGHOST:$PGPORT/$PGDATABASE"
+echo "Migrations  : $MIGRATIONS_DIR"
+echo
+
+psql -v ON_ERROR_STOP=1 -q -c "
+  CREATE TABLE IF NOT EXISTS public.schema_migrations_applied (
+    filename   text PRIMARY KEY,
+    applied_at timestamptz NOT NULL DEFAULT now()
+  );" >/dev/null
+
+applied=0
+skipped=0
+failed=""
+
+shopt -s nullglob
+for file in $(ls -1 "$MIGRATIONS_DIR"/*.sql | sort); do
+  name="$(basename "$file")"
+
+  already="$(psql -tAq -c "SELECT 1 FROM public.schema_migrations_applied WHERE filename = '$name'")"
+  if [[ "$already" == "1" ]]; then
+    printf '  skip   %s\n' "$name"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    printf '  would  %s\n' "$name"
+    applied=$((applied + 1))
+    continue
+  fi
+
+  printf '  apply  %s ... ' "$name"
+  if psql -v ON_ERROR_STOP=1 -q --single-transaction -f "$file" >/tmp/enfa-migrate.log 2>&1; then
+    psql -v ON_ERROR_STOP=1 -q -c \
+      "INSERT INTO public.schema_migrations_applied(filename) VALUES ('$name')
+       ON CONFLICT (filename) DO NOTHING;" >/dev/null
+    echo "ok"
+    applied=$((applied + 1))
+  else
+    echo "FAILED"
+    echo "-------------------------------------------------------------"
+    cat /tmp/enfa-migrate.log
+    echo "-------------------------------------------------------------"
+    failed="$name"
+    break
+  fi
+done
+
+echo
+echo "applied: $applied   skipped: $skipped"
+
+if [[ -n "$failed" ]]; then
+  echo "Stopped at $failed. Fix the error above and re-run - completed files are not re-applied."
+  exit 1
+fi
+
+echo "Schema is up to date."
+echo "Next: create the admin login in Studio, then run scripts/seed-admin.sql"
