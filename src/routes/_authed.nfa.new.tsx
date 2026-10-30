@@ -23,6 +23,7 @@ import { embedDescriptionImages, fileToBase64, saveGeneratedDocx } from "@/lib/e
 import { fetchSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { ApproverSelector } from "@/components/nfa/ApproverSelector";
 import { wrapCreatePayload, approverModeCheck, MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
+import { missingCreateFields } from "@/lib/nfa-required-fields";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Check } from "lucide-react";
@@ -363,14 +364,18 @@ function NewNfaPage() {
     }
     if (accepted.length) setPending((prev) => [...prev, ...accepted]);
   }
+  useEffect(() => {
+    if (approverMode === "dynamic") { setNfaType(""); setFunc(""); }
+  }, [approverMode]);
+
   function removeFile(idx: number) {
     setPending((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function submit(_asDraft: boolean) {
     if (!user) return;
-    if (!company || !nfaType || !subject) return toast.error("Company, NFA Type and Subject are required");
-    if (!func) return toast.error("Please select a Function before submitting.");
+    const missing = missingCreateFields(approverMode, { company, nfaType, func, subject });
+    if (missing) return toast.error(missing);
     if (selectedApprovers.length < MIN_CREATE_APPROVERS) {
       return toast.error(`Please select at least ${MIN_CREATE_APPROVERS} approvers before submitting.`);
     }
@@ -629,8 +634,8 @@ function NewNfaPage() {
                   </label>
                 </RadioGroup>
               </Field>
-              <Field label="NFA Type" required>
-                <Select value={nfaType} onValueChange={setNfaType} disabled={nfaTypesLoading || nfaTypes.length === 0}>
+              <Field label="NFA Type" required={approverMode !== "dynamic"}>
+                <Select value={nfaType} onValueChange={setNfaType} disabled={approverMode === "dynamic" || nfaTypesLoading || nfaTypes.length === 0}>
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
@@ -659,8 +664,8 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="Function" required>
-                <Select value={func} onValueChange={setFunc} disabled={!nfaType || functionsLoading || functions.length === 0}>
+              <Field label="Function" required={approverMode !== "dynamic"}>
+                <Select value={func} onValueChange={setFunc} disabled={approverMode === "dynamic" || !nfaType || functionsLoading || functions.length === 0}>
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
