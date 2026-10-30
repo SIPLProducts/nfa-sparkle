@@ -569,6 +569,7 @@ function CreateUserDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
+  const [deptError, setDeptError] = useState(false);
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [email, setEmail] = useState("");
@@ -588,6 +589,7 @@ function CreateUserDialog({
       setEmployeeId("");
       setCompanyCode("");
       setDepartment("");
+      setDeptError(false);
       setContact("");
       setStatus("ACTIVE");
       setEmail("");
@@ -608,6 +610,11 @@ function CreateUserDialog({
     }
     if (!role) {
       toast.error("Select a role");
+      return;
+    }
+    if (!department.trim()) {
+      setDeptError(true);
+      toast.error("Department is required");
       return;
     }
     setBusy(true);
@@ -722,12 +729,17 @@ function CreateUserDialog({
               }}
             />
             <div className="space-y-1.5">
-              <Label>Department</Label>
+              <Label>Department *</Label>
               <Input
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                onChange={(e) => {
+                  setDepartment(e.target.value);
+                  if (e.target.value.trim()) setDeptError(false);
+                }}
                 autoComplete="off"
+                aria-invalid={deptError}
               />
+              {deptError && <p className="text-xs text-destructive">Department is required</p>}
             </div>
           </div>
           <div className="space-y-1.5">
