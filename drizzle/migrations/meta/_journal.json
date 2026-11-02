@@ -50,6 +50,13 @@
       "when": 1793604655317,
       "tag": "0006_create_departments_designations",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793623261688,
+      "tag": "0007_create_companies",
+      "breakpoints": true
     }
   ]
 }
