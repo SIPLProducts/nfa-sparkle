@@ -282,6 +282,7 @@ function UsersTab() {
                   <th className="px-4 py-2.5 text-left font-medium">Email</th>
                   <th className="px-4 py-2.5 text-left font-medium">Company</th>
                   <th className="px-4 py-2.5 text-left font-medium">Department</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Designation</th>
                   <th className="px-4 py-2.5 text-left font-medium">Contact</th>
                   <th className="px-4 py-2.5 text-left font-medium">Roles</th>
                   <th className="px-4 py-2.5 text-left font-medium">Status</th>
@@ -313,6 +314,9 @@ function UsersTab() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       <div className="break-words">{u.department || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <div className="break-words">{u.designation || "—"}</div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{u.contact || "—"}</td>
                     <td className="px-4 py-3">
@@ -570,6 +574,8 @@ function CreateUserDialog({
   const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
   const [deptError, setDeptError] = useState(false);
+  const [designation, setDesignation] = useState("");
+  const [desigError, setDesigError] = useState(false);
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [email, setEmail] = useState("");
@@ -590,6 +596,8 @@ function CreateUserDialog({
       setCompanyCode("");
       setDepartment("");
       setDeptError(false);
+      setDesignation("");
+      setDesigError(false);
       setContact("");
       setStatus("ACTIVE");
       setEmail("");
@@ -617,6 +625,11 @@ function CreateUserDialog({
       toast.error("Department is required");
       return;
     }
+    if (!designation.trim()) {
+      setDesigError(true);
+      toast.error("Designation is required");
+      return;
+    }
     setBusy(true);
     try {
       await onSubmit({
@@ -632,6 +645,7 @@ function CreateUserDialog({
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
         DEPT: department,
+        DESIG: designation,
       });
 
     } catch (e) {
@@ -741,6 +755,19 @@ function CreateUserDialog({
               />
               {deptError && <p className="text-xs text-destructive">Department is required</p>}
             </div>
+            <div className="space-y-1.5">
+              <Label>Designation *</Label>
+              <Input
+                value={designation}
+                onChange={(e) => {
+                  setDesignation(e.target.value);
+                  if (e.target.value.trim()) setDesigError(false);
+                }}
+                autoComplete="off"
+                aria-invalid={desigError}
+              />
+              {desigError && <p className="text-xs text-destructive">Designation is required</p>}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Password *</Label>
@@ -815,6 +842,7 @@ function EditUserDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
+  const [designation, setDesignation] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [role, setRole] = useState<Role | "">("");
@@ -830,6 +858,7 @@ function EditUserDialog({
       setEmployeeId(user.employee_id ?? "");
       setCompanyCode(user.company_code ?? "");
       setDepartment(user.department ?? "");
+      setDesignation(user.designation ?? "");
       setContact(user.contact ?? "");
       setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
       setRole(user.roles[0] ?? "");
@@ -856,6 +885,7 @@ function EditUserDialog({
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
         DEPT: department,
+        DESIG: designation,
       });
 
       onClose();
@@ -902,6 +932,10 @@ function EditUserDialog({
             <div className="space-y-1.5">
               <Label>Department</Label>
               <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Designation</Label>
+              <Input value={designation} onChange={(e) => setDesignation(e.target.value)} autoComplete="off" />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

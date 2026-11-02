@@ -14,6 +14,7 @@ interface CreateManagedUserInput {
   EMP_ID: string;
   COMPANY_CODE?: string;
   DEPT: string;
+  DESIG?: string;
 }
 
 function json(data: unknown, status = 200) {

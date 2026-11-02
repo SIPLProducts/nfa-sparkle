@@ -436,6 +436,7 @@ export type Database = {
           contact: string | null
           created_at: string
           department: string | null
+          designation: string | null
           email: string | null
           employee_id: string | null
           first_name: string | null
@@ -451,6 +452,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           department?: string | null
+          designation?: string | null
           email?: string | null
           employee_id?: string | null
           first_name?: string | null
@@ -466,6 +468,7 @@ export type Database = {
           contact?: string | null
           created_at?: string
           department?: string | null
+          designation?: string | null
           email?: string | null
           employee_id?: string | null
           first_name?: string | null
