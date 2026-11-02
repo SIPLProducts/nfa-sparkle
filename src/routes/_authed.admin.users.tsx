@@ -557,7 +557,7 @@ function CompanyNameField({
   );
 }
 
-function CreateUserSection(({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+function CreateUserSection({ title, hint, children }: { title: string; hint: string; children: React.ReactNode } {
   return (
     <section className="rounded-xl border bg-muted/30 p-4 sm:p-5">
       <div className="mb-4">
