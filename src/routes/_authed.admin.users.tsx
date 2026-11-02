@@ -146,6 +146,9 @@ function UserManagement() {
           <TabsTrigger value="designations" className="gap-2">
             <BadgeCheck className="h-4 w-4" /> Designations
           </TabsTrigger>
+          <TabsTrigger value="companies" className="gap-2">
+            <Building2 className="h-4 w-4" /> Companies
+          </TabsTrigger>
           <TabsTrigger value="perms" className="gap-2">
             <ShieldCheck className="h-4 w-4" /> Screen Permissions
           </TabsTrigger>
@@ -167,6 +170,9 @@ function UserManagement() {
         </TabsContent>
         <TabsContent value="designations">
           <MasterListTab kind="designations" singular="Designation" nameLabel="Designation Name" showCode={false} showActive={false} />
+        </TabsContent>
+        <TabsContent value="companies">
+          <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={false} showActive={false} />
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />
