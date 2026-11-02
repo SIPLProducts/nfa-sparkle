@@ -163,7 +163,7 @@ function UserManagement() {
           <RolesTab />
         </TabsContent>
         <TabsContent value="departments">
-          <MasterListTab kind="departments" singular="Department" />
+          <MasterListTab kind="departments" singular="Department" nameLabel="Department Name" showCode={false} showActive={false} />
         </TabsContent>
         <TabsContent value="designations">
           <MasterListTab kind="designations" singular="Designation" nameLabel="Designation Name" showCode={false} showActive={false} />
