@@ -842,6 +842,7 @@ function EditUserDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [department, setDepartment] = useState("");
+  const [designation, setDesignation] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [role, setRole] = useState<Role | "">("");
