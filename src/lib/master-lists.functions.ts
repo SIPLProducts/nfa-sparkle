@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertScreenAccess, getAdminClient as admin } from "./user-admin.server";
 
-export type MasterKind = "departments" | "designations";
+export type MasterKind = "departments" | "designations" | "companies";
 
 export interface MasterItem {
   id: string;
@@ -22,7 +22,7 @@ export interface MasterInput {
 }
 
 function checkKind(kind: string): MasterKind {
-  if (kind !== "departments" && kind !== "designations") throw new Error("Invalid list");
+  if (kind !== "departments" && kind !== "designations" && kind !== "companies") throw new Error("Invalid list");
   return kind;
 }
 
