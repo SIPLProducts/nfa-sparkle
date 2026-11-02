@@ -557,18 +557,6 @@ function CompanyNameField({
   );
 }
 
-function CreateUserSection({ title, hint, children }: { title: string; hint: string; children: import("react").ReactNode }) {
-  return (
-    <section className="rounded-xl border bg-muted/30 p-4 sm:p-5">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
-    </section>
-  );
-}
-
 function CreateUserDialog({
   open,
   onOpenChange,
@@ -700,8 +688,8 @@ function CreateUserDialog({
             <p className="text-sm text-muted-foreground">The account is confirmed immediately and can sign in right away.</p>
           </div>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
-          <CreateUserSection title="Account" hint="Sign-in identity and account status.">
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>User ID {req}</Label>
               <Input
@@ -726,8 +714,6 @@ function CreateUserDialog({
                 </SelectContent>
               </Select>
             </div>
-          </CreateUserSection>
-          <CreateUserSection title="Personal details" hint="Name and contact information.">
             <div className="space-y-1.5">
               <Label>First name {req}</Label>
               <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -749,8 +735,6 @@ function CreateUserDialog({
                 autoComplete="off"
               />
             </div>
-          </CreateUserSection>
-          <CreateUserSection title="Organisation" hint="Company, department, designation and access role.">
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
@@ -789,8 +773,6 @@ function CreateUserDialog({
               <Label>Role {req}</Label>
               <RolePicker value={role} onChange={setRole} />
             </div>
-          </CreateUserSection>
-          <CreateUserSection title="Security" hint="Set the initial sign-in password.">
             <div className="space-y-1.5">
               <Label>Password {req}</Label>
               <div className="relative">
@@ -829,7 +811,7 @@ function CreateUserDialog({
                 </button>
               </div>
             </div>
-          </CreateUserSection>
+          </div>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
           <Button variant="outline" onClick={closeDialog} className="w-full sm:w-auto">
