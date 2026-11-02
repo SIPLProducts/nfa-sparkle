@@ -43,6 +43,13 @@
       "when": 1793595337203,
       "tag": "0005_add_profile_designation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793604655317,
+      "tag": "0006_create_departments_designations",
+      "breakpoints": true
     }
   ]
 }

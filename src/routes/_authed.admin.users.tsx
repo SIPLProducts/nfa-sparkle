@@ -27,7 +27,8 @@ import {
   Check,
   ChevronsUpDown,
 } from "lucide-react";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Building2, BadgeCheck } from "lucide-react";
+import { MasterListTab } from "@/components/admin/MasterListTab";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { DynamicApproversTab } from "@/components/admin/DynamicApproversTab";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
@@ -139,6 +140,12 @@ function UserManagement() {
           <TabsTrigger value="roles" className="gap-2">
             <Shield className="h-4 w-4" /> Roles
           </TabsTrigger>
+          <TabsTrigger value="departments" className="gap-2">
+            <Building2 className="h-4 w-4" /> Departments
+          </TabsTrigger>
+          <TabsTrigger value="designations" className="gap-2">
+            <BadgeCheck className="h-4 w-4" /> Designations
+          </TabsTrigger>
           <TabsTrigger value="perms" className="gap-2">
             <ShieldCheck className="h-4 w-4" /> Screen Permissions
           </TabsTrigger>
@@ -154,6 +161,12 @@ function UserManagement() {
         </TabsContent>
         <TabsContent value="roles">
           <RolesTab />
+        </TabsContent>
+        <TabsContent value="departments">
+          <MasterListTab kind="departments" singular="Department" />
+        </TabsContent>
+        <TabsContent value="designations">
+          <MasterListTab kind="designations" singular="Designation" />
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />
