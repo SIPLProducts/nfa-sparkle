@@ -73,7 +73,7 @@ export const CREATE_WIRE_KEYS = [
 ] as const;
 
 export interface CreateFile { file_name: string; file: string }
-export interface CreateApprover { designation: string; userId: string }
+export interface CreateApprover { designation: string; userId: string; name?: string }
 
 /** Minimum approvers the initiator must select on Create NFA. */
 export const MIN_CREATE_APPROVERS = 2;
@@ -116,6 +116,8 @@ export function buildCreateApproverSlots(approvers: CreateApprover[] = []) {
     const a = approvers[i - 1];
     out[`design${i}`] = String(a?.designation ?? "").trim();
     out[`approve${i}`] = String(a?.userId ?? "").trim().toUpperCase();
+    // Slot 1 uses `name01` because `name1` is the plant name.
+    out[i === 1 ? "name01" : `name${i}`] = String(a?.name ?? "").trim();
   }
   return out;
 }

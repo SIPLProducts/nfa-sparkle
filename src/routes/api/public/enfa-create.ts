@@ -71,12 +71,29 @@ export const Route = createFileRoute("/api/public/enfa-create")({
         const fromSlots: any[] = [];
         for (let i = 1; i <= 15; i++) {
           const d = src[`design${i}`], a = src[`approve${i}`];
-          if (String(a ?? "").trim() || String(d ?? "").trim()) fromSlots.push({ designation: d, userId: a });
+          const n = src[i === 1 ? "name01" : `name${i}`];
+          if (String(a ?? "").trim() || String(d ?? "").trim()) fromSlots.push({ designation: d, userId: a, name: n });
         }
         const approvers = (rawApprovers.length ? rawApprovers : fromSlots).map((a) => ({
           designation: String(a?.designation ?? ""),
           userId: String(a?.userId ?? ""),
+          name: String(a?.name ?? "").trim(),
         }));
+        // Fill missing approver names from the approvers' portal profiles.
+        const needNames = [...new Set(approvers.filter((a) => !a.name && a.userId.trim()).map((a) => a.userId.trim().toUpperCase()))];
+        if (needNames.length) {
+          try {
+            const { data: profs } = await supabase.from("profiles").select("username, full_name");
+            const byId = new Map<string, string>();
+            for (const p of (profs ?? []) as any[]) {
+              const u = String(p?.username ?? "").trim().toUpperCase();
+              if (u && needNames.includes(u)) byId.set(u, String(p?.full_name ?? "").trim());
+            }
+            for (const a of approvers) if (!a.name) a.name = byId.get(a.userId.trim().toUpperCase()) ?? "";
+          } catch (e) {
+            console.error("[enfa-create] approver name lookup failed:", (e as Error).message);
+          }
+        }
         const hasCheck = "check" in src || "check" in (input ?? {});
         let payload;
         try {
