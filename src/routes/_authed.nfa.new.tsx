@@ -469,7 +469,7 @@ function NewNfaPage() {
         files,
         sapUser,
         {
-          approvers: selectedApprovers.map((a) => ({ designation: a.role, userId: a.userId })),
+          approvers: selectedApprovers.map((a) => ({ designation: a.role, userId: a.userId, name: (a as { name?: string }).name ?? "" })),
           check: approverModeCheck(approverMode),
         },
       );
