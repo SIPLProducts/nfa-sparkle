@@ -36,6 +36,7 @@ export interface ManagedUser {
   employee_id: string | null;
   company_code: string | null;
   department: string | null;
+  designation: string | null;
   contact: string | null;
   status: string;
   roles: RoleKey[];
@@ -155,7 +156,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, department, contact, status").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, department, designation, contact, status").in("id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
     const pmap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
@@ -180,6 +181,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           employee_id: p?.employee_id ?? null,
           company_code: p?.company_code ?? null,
           department: p?.department ?? null,
+          designation: (p as any)?.designation ?? null,
           contact: p?.contact ?? null,
           status: (p?.status as string) ?? "ACTIVE",
           roles: rmap.get(u.id) ?? [],
@@ -204,6 +206,7 @@ export interface CreateUserPayload {
   EMP_ID: string;
   COMPANY_CODE?: string;
   DEPT: string;
+  DESIG?: string;
 }
 
 export interface UpdateUserPayload extends Omit<CreateUserPayload, "PASSWORD" | "CONFPWRD"> {
@@ -259,6 +262,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         employee_id: data.EMP_ID?.trim() || null,
         company_code: data.COMPANY_CODE?.trim() || null,
         department: data.DEPT?.trim() || null,
+        designation: data.DESIG?.trim() || null,
         contact: data.CONTACT || null,
         status: data.STATUS,
         is_active: data.STATUS === "ACTIVE",

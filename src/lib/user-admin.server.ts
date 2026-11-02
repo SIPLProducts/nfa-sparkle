@@ -13,6 +13,7 @@ export interface CreateManagedUserInput {
   EMP_ID: string;
   COMPANY_CODE?: string;
   DEPT: string;
+  DESIG?: string;
 }
 
 export async function assertScreenAccess(ctx: PermissionContext, screen: string) {
@@ -131,6 +132,7 @@ export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateMa
     employee_id: data.EMP_ID?.trim() || null,
     company_code: data.COMPANY_CODE?.trim() || null,
     department: data.DEPT?.trim() || null,
+    designation: data.DESIG?.trim() || null,
     contact: data.CONTACT || null,
     status: data.STATUS,
     is_active: data.STATUS === "ACTIVE",
