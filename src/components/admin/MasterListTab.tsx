@@ -30,7 +30,19 @@ import {
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const fmt = (s: string) => new Date(s).toLocaleString();
 
-export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: string }) {
+export function MasterListTab({
+  kind,
+  singular,
+  nameLabel = "Name",
+  showCode = true,
+  showActive = true,
+}: {
+  kind: MasterKind;
+  singular: string;
+  nameLabel?: string;
+  showCode?: boolean;
+  showActive?: boolean;
+}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listMasterItems);
   const createFn = useServerFn(createMasterItem);
@@ -75,17 +87,17 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
             <tr>
-              <th className="px-3 py-2 font-medium">Name</th>
-              <th className="px-3 py-2 font-medium">Code</th>
+              <th className="px-3 py-2 font-medium">{nameLabel}</th>
+              {showCode && <th className="px-3 py-2 font-medium">Code</th>}
               <th className="px-3 py-2 font-medium">Description</th>
-              <th className="px-3 py-2 font-medium">Status</th>
+              {showActive && <th className="px-3 py-2 font-medium">Status</th>}
               <th className="px-3 py-2 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={3 + (showCode ? 1 : 0) + (showActive ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground">
                   No {lower}s found.
                 </td>
               </tr>
@@ -93,11 +105,13 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
               rows.map((r) => (
                 <tr key={r.id} className="border-t">
                   <td className="px-3 py-2 font-medium">{r.name}</td>
-                  <td className="px-3 py-2">{r.code || "—"}</td>
+                  {showCode && <td className="px-3 py-2">{r.code || "—"}</td>}
                   <td className="px-3 py-2 text-muted-foreground">{r.description || "—"}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "Active" : "Inactive"}</Badge>
-                  </td>
+                  {showActive && (
+                    <td className="px-3 py-2">
+                      <Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "Active" : "Inactive"}</Badge>
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       <Button size="icon" variant="ghost" aria-label="View" onClick={() => setViewing(r)}>
@@ -135,6 +149,9 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
       <ItemDialog
         open={createOpen}
         singular={singular}
+        nameLabel={nameLabel}
+        showCode={showCode}
+        showActive={showActive}
         item={null}
         onOpenChange={setCreateOpen}
         onSubmit={async (v) => {
@@ -146,6 +163,9 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
       <ItemDialog
         open={!!editing}
         singular={singular}
+        nameLabel={nameLabel}
+        showCode={showCode}
+        showActive={showActive}
         item={editing}
         onOpenChange={(o) => !o && setEditing(null)}
         onSubmit={async (v) => {
@@ -162,14 +182,22 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
           </DialogHeader>
           {viewing && (
             <dl className="grid grid-cols-3 gap-y-3 text-sm">
-              <dt className="text-muted-foreground">Name</dt>
+              <dt className="text-muted-foreground">{nameLabel}</dt>
               <dd className="col-span-2 font-medium">{viewing.name}</dd>
-              <dt className="text-muted-foreground">Code</dt>
-              <dd className="col-span-2">{viewing.code || "—"}</dd>
+              {showCode && (
+                <>
+                  <dt className="text-muted-foreground">Code</dt>
+                  <dd className="col-span-2">{viewing.code || "—"}</dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Description</dt>
               <dd className="col-span-2 whitespace-pre-wrap">{viewing.description || "—"}</dd>
-              <dt className="text-muted-foreground">Status</dt>
-              <dd className="col-span-2">{viewing.is_active ? "Active" : "Inactive"}</dd>
+              {showActive && (
+                <>
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd className="col-span-2">{viewing.is_active ? "Active" : "Inactive"}</dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Created</dt>
               <dd className="col-span-2">{fmt(viewing.created_at)}</dd>
               <dt className="text-muted-foreground">Updated</dt>
@@ -190,12 +218,18 @@ export function MasterListTab({ kind, singular }: { kind: MasterKind; singular: 
 function ItemDialog({
   open,
   singular,
+  nameLabel,
+  showCode,
+  showActive,
   item,
   onOpenChange,
   onSubmit,
 }: {
   open: boolean;
   singular: string;
+  nameLabel: string;
+  showCode: boolean;
+  showActive: boolean;
   item: MasterItem | null;
   onOpenChange: (o: boolean) => void;
   onSubmit: (v: { name: string; code: string; description: string; is_active: boolean }) => Promise<void>;
@@ -220,7 +254,7 @@ function ItemDialog({
   const save = async () => {
     if (!name.trim()) {
       setNameError(true);
-      toast.error("Name is required");
+      toast.error(`${nameLabel} is required`);
       return;
     }
     setSaving(true);
@@ -244,7 +278,7 @@ function ItemDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>
-              Name <span className="text-destructive">*</span>
+              {nameLabel} <span className="text-destructive">*</span>
             </Label>
             <Input
               value={name}
@@ -253,20 +287,24 @@ function ItemDialog({
                 if (e.target.value.trim()) setNameError(false);
               }}
             />
-            {nameError && <p className="text-xs text-destructive">Name is required</p>}
+            {nameError && <p className="text-xs text-destructive">{nameLabel} is required</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label>Code</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} />
-          </div>
+          {showCode && (
+            <div className="space-y-1.5">
+              <Label>Code</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
-          <div className="flex items-center gap-3">
-            <Switch checked={active} onCheckedChange={setActive} id="master-active" />
-            <Label htmlFor="master-active">Active</Label>
-          </div>
+          {showActive && (
+            <div className="flex items-center gap-3">
+              <Switch checked={active} onCheckedChange={setActive} id="master-active" />
+              <Label htmlFor="master-active">Active</Label>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
