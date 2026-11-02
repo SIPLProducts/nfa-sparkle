@@ -172,7 +172,7 @@ function UserManagement() {
           <MasterListTab kind="designations" singular="Designation" nameLabel="Designation Name" showCode={false} showActive={false} />
         </TabsContent>
         <TabsContent value="companies">
-          <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={false} showActive={false} />
+          <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={true} codeLabel="Company Code" descriptionLabel="Company Description" showActive={false} />
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />

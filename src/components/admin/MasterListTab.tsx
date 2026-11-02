@@ -36,12 +36,16 @@ export function MasterListTab({
   nameLabel = "Name",
   showCode = true,
   showActive = true,
+  codeLabel = "Code",
+  descriptionLabel = "Description",
 }: {
   kind: MasterKind;
   singular: string;
   nameLabel?: string;
   showCode?: boolean;
   showActive?: boolean;
+  codeLabel?: string;
+  descriptionLabel?: string;
 }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listMasterItems);
@@ -87,9 +91,9 @@ export function MasterListTab({
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
             <tr>
+              {showCode && <th className="px-3 py-2 font-medium">{codeLabel}</th>}
               <th className="px-3 py-2 font-medium">{nameLabel}</th>
-              {showCode && <th className="px-3 py-2 font-medium">Code</th>}
-              <th className="px-3 py-2 font-medium">Description</th>
+              <th className="px-3 py-2 font-medium">{descriptionLabel}</th>
               {showActive && <th className="px-3 py-2 font-medium">Status</th>}
               <th className="px-3 py-2 text-right font-medium">Actions</th>
             </tr>
@@ -104,8 +108,8 @@ export function MasterListTab({
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2 font-medium">{r.name}</td>
                   {showCode && <td className="px-3 py-2">{r.code || "—"}</td>}
+                  <td className="px-3 py-2 font-medium">{r.name}</td>
                   <td className="px-3 py-2 text-muted-foreground">{r.description || "—"}</td>
                   {showActive && (
                     <td className="px-3 py-2">
@@ -152,6 +156,8 @@ export function MasterListTab({
         nameLabel={nameLabel}
         showCode={showCode}
         showActive={showActive}
+        codeLabel={codeLabel}
+        descriptionLabel={descriptionLabel}
         item={null}
         onOpenChange={setCreateOpen}
         onSubmit={async (v) => {
@@ -166,6 +172,8 @@ export function MasterListTab({
         nameLabel={nameLabel}
         showCode={showCode}
         showActive={showActive}
+        codeLabel={codeLabel}
+        descriptionLabel={descriptionLabel}
         item={editing}
         onOpenChange={(o) => !o && setEditing(null)}
         onSubmit={async (v) => {
@@ -186,11 +194,11 @@ export function MasterListTab({
               <dd className="col-span-2 font-medium">{viewing.name}</dd>
               {showCode && (
                 <>
-                  <dt className="text-muted-foreground">Code</dt>
+                  <dt className="text-muted-foreground">{codeLabel}</dt>
                   <dd className="col-span-2">{viewing.code || "—"}</dd>
                 </>
               )}
-              <dt className="text-muted-foreground">Description</dt>
+              <dt className="text-muted-foreground">{descriptionLabel}</dt>
               <dd className="col-span-2 whitespace-pre-wrap">{viewing.description || "—"}</dd>
               {showActive && (
                 <>
@@ -221,6 +229,8 @@ function ItemDialog({
   nameLabel,
   showCode,
   showActive,
+  codeLabel,
+  descriptionLabel,
   item,
   onOpenChange,
   onSubmit,
@@ -230,6 +240,8 @@ function ItemDialog({
   nameLabel: string;
   showCode: boolean;
   showActive: boolean;
+  codeLabel: string;
+  descriptionLabel: string;
   item: MasterItem | null;
   onOpenChange: (o: boolean) => void;
   onSubmit: (v: { name: string; code: string; description: string; is_active: boolean }) => Promise<void>;
@@ -276,6 +288,12 @@ function ItemDialog({
           <DialogDescription>Fields marked * are required.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {showCode && (
+            <div className="space-y-1.5">
+              <Label>{codeLabel}</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>
               {nameLabel} <span className="text-destructive">*</span>
@@ -289,14 +307,8 @@ function ItemDialog({
             />
             {nameError && <p className="text-xs text-destructive">{nameLabel} is required</p>}
           </div>
-          {showCode && (
-            <div className="space-y-1.5">
-              <Label>Code</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} />
-            </div>
-          )}
           <div className="space-y-1.5">
-            <Label>Description</Label>
+            <Label>{descriptionLabel}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
           {showActive && (
