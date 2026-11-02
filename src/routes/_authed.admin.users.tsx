@@ -557,6 +557,18 @@ function CompanyNameField({
   );
 }
 
+function CreateUserSection({ title, hint, children }: { title: string; hint: string; children: import("react").ReactNode }) {
+  return (
+    <section className="rounded-xl border bg-muted/30 p-4 sm:p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
 function CreateUserDialog({
   open,
   onOpenChange,
@@ -657,12 +669,14 @@ function CreateUserDialog({
 
   if (!open) return null;
 
+  const req = <span className="text-destructive">*</span>;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="presentation">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4" role="presentation">
       <div
         aria-labelledby="create-user-title"
         aria-modal="true"
-        className="relative grid w-full max-w-lg gap-4 rounded-lg border bg-background p-6 shadow-lg"
+        className="relative flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl"
         role="dialog"
       >
         <Button
@@ -675,53 +689,33 @@ function CreateUserDialog({
         >
           <X className="h-4 w-4" />
         </Button>
-        <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h2 id="create-user-title" className="text-lg font-semibold leading-none tracking-tight">
-            Create user
-          </h2>
-          <p className="text-sm text-muted-foreground">The account is confirmed immediately and can sign in right away.</p>
+        <div className="flex items-center gap-3 border-b px-5 py-4 pr-12 sm:px-6">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Plus className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 id="create-user-title" className="text-lg font-semibold leading-tight tracking-tight">
+              Create user
+            </h2>
+            <p className="text-sm text-muted-foreground">The account is confirmed immediately and can sign in right away.</p>
+          </div>
         </div>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="space-y-1.5">
-            <Label>User ID *</Label>
-            <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              maxLength={12}
-              autoComplete="off"
-            />
-            <p className="text-xs text-muted-foreground">
-              Used to sign in. Up to 12 characters: letters, numbers, dot, underscore or hyphen.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label>First name *</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Last name *</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email *</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
+          <CreateUserSection title="Account" hint="Sign-in identity and account status.">
             <div className="space-y-1.5">
-              <Label>Contact *</Label>
+              <Label>User ID {req}</Label>
               <Input
-                value={contact}
-                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                inputMode="numeric"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                maxLength={12}
                 autoComplete="off"
               />
+              <p className="text-xs text-muted-foreground">
+                Used to sign in. Up to 12 characters: letters, numbers, dot, underscore or hyphen.
+              </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Status *</Label>
+              <Label>Status {req}</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue />
@@ -732,8 +726,31 @@ function CreateUserDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          </CreateUserSection>
+          <CreateUserSection title="Personal details" hint="Name and contact information.">
+            <div className="space-y-1.5">
+              <Label>First name {req}</Label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Last name {req}</Label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email {req}</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contact {req}</Label>
+              <Input
+                value={contact}
+                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+          </CreateUserSection>
+          <CreateUserSection title="Organisation" hint="Company, department, designation and access role.">
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
@@ -743,7 +760,7 @@ function CreateUserDialog({
               }}
             />
             <div className="space-y-1.5">
-              <Label>Department *</Label>
+              <Label>Department {req}</Label>
               <Input
                 value={department}
                 onChange={(e) => {
@@ -756,7 +773,7 @@ function CreateUserDialog({
               {deptError && <p className="text-xs text-destructive">Department is required</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Designation *</Label>
+              <Label>Designation {req}</Label>
               <Input
                 value={designation}
                 onChange={(e) => {
@@ -768,58 +785,60 @@ function CreateUserDialog({
               />
               {desigError && <p className="text-xs text-destructive">Designation is required</p>}
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Password *</Label>
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+            <div className="space-y-1.5">
+              <Label>Role {req}</Label>
+              <RolePicker value={role} onChange={setRole} />
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Confirm password *</Label>
-            <div className="relative">
-              <Input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          </CreateUserSection>
+          <CreateUserSection title="Security" hint="Set the initial sign-in password.">
+            <div className="space-y-1.5">
+              <Label>Password {req}</Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Role *</Label>
-            <RolePicker value={role} onChange={setRole} />
-          </div>
+            <div className="space-y-1.5">
+              <Label>Confirm password {req}</Label>
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </CreateUserSection>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={closeDialog}>
+        <div className="flex flex-col-reverse gap-2 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <Button variant="outline" onClick={closeDialog} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={submit} disabled={busy} className="gap-2">
+          <Button onClick={submit} disabled={busy} className="w-full gap-2 sm:w-auto">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create user
           </Button>
-        </DialogFooter>
+        </div>
       </div>
     </div>
   );
