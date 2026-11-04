@@ -47,7 +47,7 @@ export const listMasterItems = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<MasterItem[]> => {
     await assertScreenAccess(context as any, "user_management");
     const db = await admin();
-    const { data: rows, error } = await db.from(data.kind).select("*").order("name");
+    const { data: rows, error } = await db.from(data.kind).select("*").order(data.kind === "companies" ? "code" : "name");
     if (error) throw new Error(error.message);
     return (rows ?? []) as MasterItem[];
   });
