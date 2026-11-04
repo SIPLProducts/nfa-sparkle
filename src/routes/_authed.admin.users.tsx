@@ -914,31 +914,69 @@ function EditUserDialog({
     }
   };
 
+  if (!user) return null;
+
+  const req = <span className="text-destructive">*</span>;
+
   return (
-    <Dialog open={!!user} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit user</DialogTitle>
-          <DialogDescription>{user?.email}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-          <div className="space-y-1.5">
-            <Label>First name *</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4" role="presentation">
+      <div
+        aria-labelledby="edit-user-title"
+        aria-modal="true"
+        className="relative flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl"
+        role="dialog"
+      >
+        <Button aria-label="Close" className="absolute right-3 top-3 h-8 w-8 p-0" onClick={onClose} size="icon" type="button" variant="ghost">
+          <X className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-3 border-b px-5 py-4 pr-12 sm:px-6">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Save className="h-5 w-5" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Last name *</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          <div className="min-w-0">
+            <h2 id="edit-user-title" className="text-lg font-semibold leading-tight tracking-tight">Edit user</h2>
+            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
           </div>
-          <div className="space-y-1.5">
-            <Label>User ID *</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email ID *</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-6">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>User ID {req}</Label>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status {req}</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>First name {req}</Label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Last name {req}</Label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email {req}</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contact {req}</Label>
+              <Input
+                value={contact}
+                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
@@ -955,45 +993,22 @@ function EditUserDialog({
               <Label>Designation</Label>
               <Input value={designation} onChange={(e) => setDesignation(e.target.value)} autoComplete="off" />
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Contact *</Label>
-              <Input
-                value={contact}
-                onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                inputMode="numeric"
-                autoComplete="off"
-              />
+              <Label>Role {req}</Label>
+              <RolePicker value={role} onChange={setRole} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Status *</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Role *</Label>
-            <RolePicker value={role} onChange={setRole} />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex flex-col-reverse gap-2 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={submit} disabled={busy} className="gap-2">
+          <Button onClick={submit} disabled={busy} className="w-full gap-2 sm:w-auto">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save changes
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   );
 }
 
