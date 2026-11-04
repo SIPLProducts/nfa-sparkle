@@ -207,7 +207,7 @@ function NewNfaPage() {
       try {
         const list = await listMyCompanies();
         if (cancelled) return;
-        setCompanies(list.map((c) => ({ value: c.code, label: `${c.code} – ${c.name}` })) as Option[]);
+        setCompanies(list);
         setCompaniesError("");
       } catch {
         if (!cancelled) {
