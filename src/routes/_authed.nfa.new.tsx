@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { parseCompanyF4, parsePlantF4, parseEnfaTypeF4, parseFunctionF4, nfaTypeDisplayLabel } from "@/lib/sap/master";
+import { listMyCompanies } from "@/lib/my-companies.functions";
+import { parsePlantF4, parseEnfaTypeF4, parseFunctionF4, nfaTypeDisplayLabel } from "@/lib/sap/master";
 import type { Option } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,32 +205,14 @@ function NewNfaPage() {
     setCompaniesLoading(true);
     (async () => {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token;
-        const res = await fetch("/api/public/sap-company", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: "{}",
-        });
-        const text = await res.text();
-        let parsed: unknown = null;
-        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
-        const list = res.ok ? parseCompanyF4(parsed) : [];
+        const list = await listMyCompanies();
         if (cancelled) return;
-        if (list.length) { setCompanies(list); setCompaniesError(""); }
-        else {
-          const p = parsed as Record<string, unknown> | null;
-          const detail =
-            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
-            (text ? text.slice(0, 300) : "") ||
-            `SAP responded with status ${res.status}`;
-          setCompanies([]);
-          setCompaniesError(`SAP: ${String(detail)}`);
-        }
+        setCompanies(list);
+        setCompaniesError("");
       } catch {
         if (!cancelled) {
           setCompanies([]);
-          setCompaniesError("Could not reach the SAP company service.");
+          setCompaniesError("Could not load companies.");
         }
       } finally {
         if (!cancelled) setCompaniesLoading(false);
@@ -554,10 +537,10 @@ function NewNfaPage() {
                   disabled={companiesLoading || companies.length === 0}
                   placeholder={
                     companiesLoading
-                      ? "Loading companies from SAP…"
+                      ? "Loading companies…"
                       : companies.length
                         ? "Select company"
-                        : "No companies returned by SAP"
+                        : "No companies assigned to your user"
                   }
                   searchPlaceholder="Search company…"
                   emptyText="No matching company."
