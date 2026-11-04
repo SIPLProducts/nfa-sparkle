@@ -34,7 +34,7 @@ import { DynamicApproversTab } from "@/components/admin/DynamicApproversTab";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { parseCompanyF4 } from "@/lib/sap/master";
+import { listMasterItems } from "@/lib/master-lists.functions";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -440,7 +440,7 @@ function UsersTab() {
   );
 }
 
-/** Company list from the SAP "Company F4" endpoint registered in Admin → SAP API Settings. */
+/** Company list from the web Company Master (User Management → Companies). */
 function useCompanyOptions(enabled: boolean) {
   const [options, setOptions] = useState<{ code: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -454,38 +454,17 @@ function useCompanyOptions(enabled: boolean) {
     setError("");
     (async () => {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token;
-        const res = await fetch("/api/public/sap-company", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: "{}",
-        });
-        const text = await res.text();
-        let parsed: unknown = null;
-        try {
-          parsed = text ? JSON.parse(text) : null;
-        } catch {
-          parsed = null;
-        }
-        const list = res.ok ? parseCompanyF4(parsed) : [];
+        const rows = await listMasterItems({ data: { kind: "companies" } });
+        const list = rows
+          .filter((r) => r.is_active && (r.code ?? "").trim())
+          .map((r) => ({ code: (r.code ?? "").trim(), name: r.name }));
         if (cancelled) return;
-        if (list.length) {
-          setOptions(list);
-          setError("");
-        } else {
-          const p = parsed as Record<string, unknown> | null;
-          const detail =
-            (p && typeof p === "object" && (p["error"] ?? p["MESSAGE"] ?? p["message"])) ||
-            (text ? text.slice(0, 200) : "") ||
-            `SAP responded with status ${res.status}`;
-          setOptions([]);
-          setError(`SAP: ${String(detail)}`);
-        }
+        setOptions(list);
+        setError(list.length ? "" : "No companies in Company Master");
       } catch {
         if (!cancelled) {
           setOptions([]);
-          setError("Could not reach the SAP company service.");
+          setError("Could not load companies.");
         }
       } finally {
         if (!cancelled) setLoading(false);
