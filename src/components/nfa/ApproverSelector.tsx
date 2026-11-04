@@ -120,7 +120,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
               <tr key={`${a.userId}-${i}`} className="border-t">
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Checkbox checked={checked.includes(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${details[a.userId]?.name || a.userId}`} />
+                    {!(predefined && visible.length <= 1) && <Checkbox checked={checked.includes(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${details[a.userId]?.name || a.userId}`} />}
                     {checked.includes(i) && <span className="text-xs font-semibold text-primary">#{checked.indexOf(i) + 1}</span>}
                   </div>
                 </td>
