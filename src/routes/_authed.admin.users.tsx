@@ -294,7 +294,7 @@ function UsersTab() {
                 <col className="w-[110px]" />
                 <col className="w-[160px]" />
               </colgroup>
-              <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr className="bg-muted/60">
                   <th className="px-4 py-2.5 text-left font-medium">Name</th>
                   <th className="px-4 py-2.5 text-left font-medium">User ID</th>
