@@ -26,6 +26,28 @@ export const resolveApprovalUserEmails = createServerFn({ method: "GET" })
     return map;
   });
 
+export const resolveApprovalUserDetails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userIds: string[] }) => input)
+  .handler(async ({ data, context }): Promise<Record<string, { name: string; department: string }>> => {
+    try {
+      await assertScreenAccess(context as any, "user_management");
+    } catch {
+      await assertScreenAccess(context as any, "nfa_new");
+    }
+    const db = await admin();
+    const { data: profiles } = await db.from("profiles").select("username, full_name, first_name, last_name, department, status");
+    const wanted = new Map((data.userIds ?? []).filter(Boolean).map((id) => [id.trim().toLowerCase(), id.trim()]));
+    const map: Record<string, { name: string; department: string }> = {};
+    for (const p of profiles ?? []) {
+      const key = String(p.username ?? "").trim().toLowerCase();
+      if (!key || !wanted.has(key) || String(p.status ?? "").toUpperCase() === "DELETED") continue;
+      const name = String(p.full_name ?? "").trim() || [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+      map[wanted.get(key) as string] = { name, department: String(p.department ?? "").trim() };
+    }
+    return map;
+  });
+
 export interface ChainLevel {
   level: number;
   approver_id: string;
