@@ -281,7 +281,7 @@ function UsersTab() {
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1480px] table-fixed text-sm">
+            <table className="w-full min-w-[1270px] table-fixed text-sm">
               <colgroup>
                 <col className="w-[150px]" />
                 <col className="w-[130px]" />
@@ -292,7 +292,7 @@ function UsersTab() {
                 <col className="w-[130px]" />
                 <col className="w-[100px]" />
                 <col className="w-[110px]" />
-                <col className="w-[360px]" />
+                <col className="w-[150px]" />
               </colgroup>
               <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr>
@@ -306,7 +306,7 @@ function UsersTab() {
                   <th className="px-4 py-2.5 text-left font-medium">Roles</th>
                   <th className="px-4 py-2.5 text-left font-medium">Status</th>
                   <th className="px-4 py-2.5 text-left font-medium">Created</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+                  <th className="sticky right-0 bg-muted px-4 py-2.5 text-center font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -354,24 +354,27 @@ function UsersTab() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap justify-end gap-1.5">
-                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(u)}>
-                          <Pencil className="h-3.5 w-3.5" /> Edit
+                    <td className="sticky right-0 bg-card px-4 py-3">
+                      <div className="flex flex-nowrap items-center justify-center gap-2">
+                        <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" title="Edit" aria-label="Edit" onClick={() => setEditing(u)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
-                          className="gap-1.5"
+                          className="h-8 w-8 shrink-0"
                           title="Reset password"
+                          aria-label="Reset password"
                           onClick={() => setPwUser(u)}
                         >
-                          <KeyRound className="h-3.5 w-3.5" /> Password
+                          <KeyRound className="h-4 w-4" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="destructive"
-                          className="gap-1.5"
+                          className="h-8 w-8 shrink-0"
+                          title="Delete"
+                          aria-label="Delete"
                           disabled={deleteUser.isPending}
                           onClick={async () => {
                             const confirmed = await swalConfirm({
@@ -383,7 +386,7 @@ function UsersTab() {
                             if (confirmed) deleteUser.mutate(u.id);
                           }}
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
