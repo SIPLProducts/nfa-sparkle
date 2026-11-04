@@ -482,7 +482,11 @@ function CompanyNameField({
   companyCode,
   onChange,
   companies,
+  required,
+  error,
 }: {
+  required?: boolean;
+  error?: boolean;
   companyCode: string;
   onChange: (code: string, name: string) => void;
   companies: ReturnType<typeof useCompanyOptions>;
@@ -493,14 +497,18 @@ function CompanyNameField({
 
   return (
     <div className="space-y-1.5">
-      <Label>Company Name</Label>
+      <Label>
+        {required ? "Company" : "Company Name"}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal"
+            aria-invalid={error}
+            className={cn("w-full justify-between font-normal", error && "border-destructive")}
             disabled={companies.loading || !companies.options.length}
           >
             <span className="truncate">
@@ -543,6 +551,7 @@ function CompanyNameField({
           </Command>
         </PopoverContent>
       </Popover>
+      {error ? <p className="text-xs text-destructive">Company is required</p> : null}
       {companies.error ? (
         <p className="text-xs text-destructive">
           {companies.error}{" "}
@@ -570,6 +579,7 @@ function CreateUserDialog({
   const [username, setUsername] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
+  const [companyError, setCompanyError] = useState(false);
   const [department, setDepartment] = useState("");
   const [deptError, setDeptError] = useState(false);
   const [designation, setDesignation] = useState("");
@@ -592,6 +602,7 @@ function CreateUserDialog({
       setUsername("");
       setEmployeeId("");
       setCompanyCode("");
+      setCompanyError(false);
       setDepartment("");
       setDeptError(false);
       setDesignation("");
@@ -616,6 +627,11 @@ function CreateUserDialog({
     }
     if (!role) {
       toast.error("Select a role");
+      return;
+    }
+    if (!companyCode) {
+      setCompanyError(true);
+      toast.error("Company is required");
       return;
     }
     if (!department.trim()) {
@@ -736,7 +752,10 @@ function CreateUserDialog({
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
+              required
+              error={companyError}
               onChange={(code, name) => {
+                setCompanyError(false);
                 setCompanyCode(code);
                 setEmployeeId(name);
               }}
