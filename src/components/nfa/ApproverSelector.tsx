@@ -110,13 +110,9 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="w-10 px-3 py-2" />
-              {showGroup && <th className="px-3 py-2">NFA Type / Function</th>}
-              <th className="px-3 py-2">Level</th>
               <th className="px-3 py-2">Department Name</th>
               <th className="px-3 py-2">Designation</th>
               <th className="px-3 py-2">Approver Name</th>
-              <th className="px-3 py-2">User ID</th>
-              <th className="px-3 py-2">Email ID</th>
             </tr>
           </thead>
           <tbody>
@@ -124,17 +120,13 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
               <tr key={`${a.userId}-${i}`} className="border-t">
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Checkbox checked={checked.includes(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${a.userId}`} />
+                    <Checkbox checked={checked.includes(i)} onCheckedChange={() => toggle(i)} aria-label={`Select ${details[a.userId]?.name || a.userId}`} />
                     {checked.includes(i) && <span className="text-xs font-semibold text-primary">#{checked.indexOf(i) + 1}</span>}
                   </div>
                 </td>
-                {showGroup && <td className="px-3 py-2 text-muted-foreground">{(a as { group?: string }).group}</td>}
-                <td className="px-3 py-2">{a.level}</td>
                 <td className="px-3 py-2">{details[a.userId]?.department || "—"}</td>
                 <td className="px-3 py-2">{a.role || "—"}</td>
                 <td className="px-3 py-2">{details[a.userId]?.name || "—"}</td>
-                <td className="px-3 py-2 font-medium">{a.userId}</td>
-                <td className="px-3 py-2 text-muted-foreground">{emails[a.userId] ?? "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -146,7 +138,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
           <ol className="flex flex-wrap gap-2">
             {selected.map((a) => (
               <li key={`${a.userId}-${a.level}`} className="rounded-md border bg-muted/40 px-2 py-1">
-                Level {a.level}: {a.userId}{details[a.userId]?.name ? ` – ${details[a.userId].name}` : ""}{a.role ? ` (${a.role})` : ""}
+                Level {a.level}: {details[a.userId]?.name || "—"}{a.role ? ` (${a.role})` : ""}
               </li>
             ))}
           </ol>
