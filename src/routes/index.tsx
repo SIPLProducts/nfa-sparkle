@@ -2,6 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { useAuth } from "@/lib/auth-context";
+import { useServerFn } from "@tanstack/react-start";
+import { getDashboardCounts } from "@/lib/dashboard-counts.functions";
+import type { DashboardCounts } from "@/lib/sap/dashboard-counts";
 import { SCREENS } from "@/lib/screens";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +65,10 @@ function Index() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const refreshIdRef = useRef(0);
+  const fetchCounts = useServerFn(getDashboardCounts);
+  const [sapCounts, setSapCounts] = useState<DashboardCounts | null>(null);
+  const [countsError, setCountsError] = useState("");
+  const [countsAttempt, setCountsAttempt] = useState(0);
   const dashboardAllowed = Boolean(user) && canAccess("dashboard");
   const firstAllowedPath = SCREENS.find(({ key }) => canAccess(key))?.path;
 
@@ -75,6 +82,16 @@ function Index() {
       nav({ to: firstAllowedPath, replace: true });
     }
   }, [loading, user, nav, canAccess, firstAllowedPath]);
+
+  useEffect(() => {
+    if (!user || !dashboardAllowed) return;
+    let cancelled = false;
+    setSapCounts(null); setCountsError("");
+    fetchCounts()
+      .then((r) => { if (!cancelled) { setSapCounts(r.counts); setCountsError(r.error); } })
+      .catch((e) => { if (!cancelled) setCountsError(e instanceof Error ? e.message : "Could not load dashboard counts."); });
+    return () => { cancelled = true; };
+  }, [user, dashboardAllowed, fetchCounts, countsAttempt]);
 
   useScreenEntryEffect("/", () => {
     if (!user || !dashboardAllowed) return;
@@ -154,10 +171,6 @@ function Index() {
 
   const submittedCount = mine.length;
   const underReviewCount = mine.filter((r) => r.status === "in_process").length;
-  const approvedCount = mine.filter((r) => r.status === "completed").length;
-  const rejectedCount = mine.filter((r) => r.status === "rejected").length;
-  const backToInitiatorCount = mine.filter((r) => r.status === "with_initiator").length;
-  const clarificationCount = mine.filter((r) => r.status === "clarification").length;
   void submittedCount;
   void underReviewCount;
 
@@ -220,12 +233,18 @@ function Index() {
     >
       {/* KPI strip */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-        <Kpi to="/approvals" icon={<Inbox className="h-5 w-5" />} label="Pending" caption="Awaiting your action" value={pending.length} tone="pending" />
-        <Kpi icon={<CheckCircle2 className="h-5 w-5" />} label="Approved" caption="Fully approved" value={approvedCount} tone="approved" />
-        <Kpi icon={<XCircle className="h-5 w-5" />} label="Rejected" caption="Closed as rejected" value={rejectedCount} tone="rejected" />
-        <Kpi to="/nfa/my" icon={<Undo2 className="h-5 w-5" />} label="Back to Initiator" caption="Returned for changes" value={backToInitiatorCount} tone="returned" />
-        <Kpi to="/nfa/my" icon={<HelpCircle className="h-5 w-5" />} label="Clarification" caption="Clarification requested" value={clarificationCount} tone="clarify" />
+        <Kpi to="/approvals" icon={<Inbox className="h-5 w-5" />} label="Pending" caption="Awaiting your action" value={sapCounts?.pending ?? null} tone="pending" />
+        <Kpi icon={<CheckCircle2 className="h-5 w-5" />} label="Approved" caption="Fully approved" value={sapCounts?.approved ?? null} tone="approved" />
+        <Kpi icon={<XCircle className="h-5 w-5" />} label="Rejected" caption="Closed as rejected" value={sapCounts?.rejected ?? null} tone="rejected" />
+        <Kpi to="/nfa/my" icon={<Undo2 className="h-5 w-5" />} label="Back to Initiator" caption="Returned for changes" value={sapCounts?.backToInitiator ?? null} tone="returned" />
+        <Kpi to="/nfa/my" icon={<HelpCircle className="h-5 w-5" />} label="Clarification" caption="Clarification requested" value={sapCounts?.clarification ?? null} tone="clarify" />
       </div>
+      {countsError ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Live counts unavailable: {countsError}{" "}
+          <button type="button" className="font-medium text-primary underline" onClick={() => setCountsAttempt((n) => n + 1)}>Retry</button>
+        </p>
+      ) : null}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Quick actions */}
@@ -288,11 +307,11 @@ function Index() {
         <section className="rounded-lg border border-border bg-card p-5 lg:col-span-3">
           <StatusDoughnut
             data={[
-              { name: "Pending", value: pending.length, color: "oklch(0.58 0.2 255)" },
-              { name: "Approved", value: approvedCount, color: "oklch(0.58 0.13 168)" },
-              { name: "Rejected", value: rejectedCount, color: "oklch(0.57 0.23 18)" },
-              { name: "Back to Initiator", value: backToInitiatorCount, color: "oklch(0.72 0.19 55)" },
-              { name: "Clarification", value: clarificationCount, color: "oklch(0.55 0.24 290)" },
+              { name: "Pending", value: sapCounts?.pending ?? 0, color: "oklch(0.58 0.2 255)" },
+              { name: "Approved", value: sapCounts?.approved ?? 0, color: "oklch(0.58 0.13 168)" },
+              { name: "Rejected", value: sapCounts?.rejected ?? 0, color: "oklch(0.57 0.23 18)" },
+              { name: "Back to Initiator", value: sapCounts?.backToInitiator ?? 0, color: "oklch(0.72 0.19 55)" },
+              { name: "Clarification", value: sapCounts?.clarification ?? 0, color: "oklch(0.55 0.24 290)" },
             ]}
           />
         </section>
@@ -311,7 +330,7 @@ function Kpi({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | null;
   caption: string;
   tone: keyof typeof KPI_TONES;
   to?: string;
@@ -330,7 +349,7 @@ function Kpi({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-status-ink/90 leading-tight">{label}</div>
-          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value}</div>
+          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value ?? "—"}</div>
           <div className="mt-2 text-xs text-status-ink/80">{caption}</div>
         </div>
         <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-status-ink/30 bg-status-ink/20 text-status-ink"}>{icon}</div>
