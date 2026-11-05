@@ -768,7 +768,7 @@ function NewNfaPage() {
                     ? `${selectedApprovers.length} selected`
                     : approverMode === "predefined"
                       ? "Select Project, NFA Type and Function to see the approvers."
-                      : plant ? `${selectedApprovers.length} selected` : "Select a Plant to see the approvers."}
+                      : plants.length ? `${selectedApprovers.length} selected` : "Select a Company to see the approvers."}
                 </div>
               </div>
               <Button type="button" size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setApproversOpen(true)}>
@@ -790,6 +790,7 @@ function NewNfaPage() {
                   nfaType={nfaTypes.find((t) => t.code === nfaType)?.name ?? nfaType}
                   functionName={functions.find((f) => f.code === func)?.name ?? func}
                   check={approverModeCheck(approverMode)}
+                  plants={plants.map((p) => p.code)}
                   onChange={setSelectedApprovers}
                 />
                 <div className="flex justify-end gap-2">

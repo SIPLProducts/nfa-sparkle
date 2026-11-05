@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const Input = z.object({ nfaNo: z.string().trim().max(20).regex(/^[A-Za-z0-9_-]*$/).default("") });
+const Input = z.object({
+  plants: z.array(z.string().trim().min(1).max(40)).min(1).max(2000),
+});
 
 export const Route = createFileRoute("/api/public/sap-dynamic-approvers")({
   server: {
@@ -39,35 +41,45 @@ export const Route = createFileRoute("/api/public/sap-dynamic-approvers")({
             return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
           }
           const { assertScreenAccess } = await import("@/lib/user-admin.server");
-          await assertScreenAccess({ supabase, userId: String(claimsData.claims.sub) }, "user_management");
+          await assertScreenAccess({ supabase, userId: String(claimsData.claims.sub) }, "nfa_new");
         } catch {
-          return Response.json({ error: "Forbidden: User Management permission required" }, { status: 403 });
+          return Response.json({ error: "Forbidden: Create NFA permission required" }, { status: 403 });
         }
 
         let parsed;
         try {
-          parsed = Input.parse(await request.json().catch(() => ({})));
+          parsed = Input.parse(await request.json());
         } catch {
-          return Response.json({ error: "Enter a valid NFA number" }, { status: 400 });
+          return Response.json({ error: "At least one plant is required" }, { status: 400 });
         }
 
-        const { callDynamicApproversList } = await import("@/lib/sap-report.server");
-        const result = await callDynamicApproversList(parsed.nfaNo);
-        const headers = { "cache-control": "no-store" };
+        const { callDynamicApprovers } = await import("@/lib/sap-report.server");
+        const result = await callDynamicApprovers(parsed);
+        const headers: Record<string, string> = {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "x-sap-status": String(result.status ?? ""),
+          "x-sap-url": result.request?.url ?? "",
+          "x-sap-method": result.request?.method ?? "",
+          "x-sap-request": String(result.request?.body ?? "").replace(/[^\x20-\x7E]/g, " ").slice(0, 2000),
+        };
         if (!result.ok) {
           const raw = result.body?.trim() ?? "";
           const detail = raw && !/^<!doctype html|^<html/i.test(raw) ? raw.slice(0, 300) : (result.error ?? "SAP request failed");
           return Response.json({ error: detail }, { status: 424, headers });
         }
-        const { parseDynamicApprovers } = await import("@/lib/sap-dynamic-approvers");
-        const body = result.body ?? "";
-        const records = parseDynamicApprovers(body);
-        let message = "";
-        if (!records.length) {
-          try { const p = JSON.parse(body); message = typeof p === "object" && p ? String((p as any).message ?? (p as any).MESSAGE ?? "") : String(p); }
-          catch { message = body.trim().slice(0, 300); }
+        let out = result.body || "[]";
+        try {
+          const p = JSON.parse(out);
+          if (p && typeof p === "object" && !Array.isArray(p) && "body" in p) {
+            const inner = (p as { body: unknown }).body;
+            out = typeof inner === "string" ? inner : JSON.stringify(inner ?? []);
+          }
+          JSON.parse(out);
+        } catch {
+          out = JSON.stringify({ message: out.trim() });
         }
-        return Response.json({ records, message }, { headers });
+        return new Response(out, { status: 200, headers });
       },
     },
   },

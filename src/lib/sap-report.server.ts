@@ -1589,6 +1589,49 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
   });
 }
 
+/** Create NFA dynamic approvers for all plants via the settings-driven "Dynamic Approvers" endpoint. */
+export async function callDynamicApprovers(input: { plants: string[] }): Promise<SapCallResult> {
+  const db = await admin();
+  const { DYNAMIC_APPROVERS_ENDPOINT_NAMES, buildDynamicApproversPayload } = await import("@/lib/sap-api-constants");
+  let ep: any = null;
+  for (const name of DYNAMIC_APPROVERS_ENDPOINT_NAMES) {
+    ep = (await db.from("sap_endpoint").select("*").ilike("name", name).eq("active", true)
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+    if (ep) break;
+  }
+  if (!ep) {
+    ep = (await db.from("sap_endpoint").select("*").eq("active", true)
+      .ilike("request_body", '%"approvers"%').not("name", "ilike", "%dynamic approvers list%")
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+  }
+  if (!ep) {
+    return {
+      ok: false, status: null, latencyMs: 0, body: "",
+      error: "The SAP Dynamic Approvers endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings.",
+    };
+  }
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "POST").toUpperCase();
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(buildDynamicApproversPayload(input.plants)),
+    username: username || undefined,
+    password,
+    maxBytes: 2_000_000,
+    timeoutMs: 120_000,
+  });
+}
+
 /** Lists dynamic approvers saved in SAP (blank = all NFAs) via the "Dynamic Approvers List" entry. */
 export async function callDynamicApproversList(nfaNo: string): Promise<SapCallResult> {
   const db = await admin();

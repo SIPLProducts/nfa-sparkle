@@ -275,6 +275,31 @@ export async function fetchSapApproverChains(
   return { chains: parseApprovalChains(result), message };
 }
 
+/** Create NFA Dynamic mode: approvers for every plant (separate from get_detail). */
+export async function fetchSapDynamicApprovers(
+  plants: string[],
+  token: string,
+  signal?: AbortSignal,
+): Promise<{ chains: ReturnType<typeof parseApprovalChains> | null; message: string }> {
+  const list = plants.map((p) => p.trim()).filter(Boolean);
+  if (!token || !list.length) return { chains: [], message: "" };
+  const response = await fetch("/api/public/sap-dynamic-approvers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ plants: list }),
+    signal,
+  });
+  if (!response.ok) {
+    const r = await response.json().catch(() => ({})) as SapObject;
+    throw new Error(String(r["error"] ?? "Dynamic approvers are unavailable"));
+  }
+  const result = await response.json() as unknown;
+  const message = result && typeof result === "object" && !Array.isArray(result)
+    ? String((result as SapObject)["message"] ?? (result as SapObject)["MESSAGE"] ?? "")
+    : "";
+  return { chains: parseApprovalChains(result), message };
+}
+
 /** Chains narrowed by NFA type / function when chosen; all plant chains otherwise. */
 export function filterApproverChains(
   chains: ReturnType<typeof parseApprovalChains>,
