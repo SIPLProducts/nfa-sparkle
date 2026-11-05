@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSapApproverChains, filterApproverChains } from "@/lib/sap-approval-flow";
+import { fetchSapApproverChains, fetchSapDynamicApprovers, filterApproverChains } from "@/lib/sap-approval-flow";
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails, resolveApprovalUserDetails } from "@/lib/approval-chain.functions";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
@@ -15,11 +15,13 @@ interface Props {
   functionName: string;
   /** SAP approver-mode flag: "X" predefined, "" dynamic. */
   check?: string;
+  /** Every plant code from Plant F4; used only by Dynamic mode. */
+  plants?: string[];
   onChange?: (selected: EnfaDocumentApprover[]) => void;
 }
 
 /** Lists configured Approval Chain approvers and lets the initiator pick which ones apply. */
-export function ApproverSelector({ plant, nfaType, functionName, check = "", onChange }: Props) {
+export function ApproverSelector({ plant, nfaType, functionName, check = "", plants = [], onChange }: Props) {
   const resolveEmails = useServerFn(resolveApprovalUserEmails);
   const [chains, setChains] = useState<ReturnType<typeof parseApprovalChains> | null>(null);
   const [fallback, setFallback] = useState<EnfaDocumentApprover[] | null>(null);
@@ -32,18 +34,21 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
   const [sapMessage, setSapMessage] = useState("");
   const predefined = check === "X";
   const [attempt, setAttempt] = useState(0);
+  const plantsKey = plants.join(",");
 
   // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (!plant) return;
+    if (predefined ? !plant : !plantsKey) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const res = await fetchSapApproverChains({ plant, check: predefined ? "X" : " ", nfaType, functionName }, token, ctrl.signal);
+        const res = predefined
+          ? await fetchSapApproverChains({ plant, check: "X", nfaType, functionName }, token, ctrl.signal)
+          : await fetchSapDynamicApprovers(plantsKey.split(","), token, ctrl.signal);
         if (ctrl.signal.aborted) return;
         setChains(res.chains ?? []); setSapMessage(res.message);
       } catch (e) {
@@ -56,7 +61,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
       }
     })();
     return () => ctrl.abort();
-  }, [plant, nfaType, functionName, predefined, attempt]);
+  }, [plant, nfaType, functionName, predefined, plantsKey, attempt]);
 
   // Predefined narrows to the chosen chain; Dynamic shows SAP's reply as-is.
   const visible = useMemo(
@@ -88,8 +93,8 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", onC
     setChecked((prev) => toggleOrdered(prev, i));
   }
 
-  if (!plant) {
-    return <p className="text-sm text-muted-foreground">Select a Plant to see the approvers.</p>;
+  if (predefined ? !plant : !plantsKey) {
+    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company to load its plants and approvers."}</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return (

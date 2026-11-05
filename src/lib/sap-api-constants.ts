@@ -89,6 +89,14 @@ export function approverModeCheck(mode: string | undefined): string {
 /** API Settings names tried, in order, for the Create NFA approver lookup. */
 export const APPROVER_DETAIL_ENDPOINT_NAMES = ["Dynamic Approvals", "Approver Get Detail", "%approvals in create%", "%dynamic approval%", "%get detail%"] as const;
 
+/** Create NFA "Dynamic Approvers" lookup (approvers payload with every plant), separate from get_detail. */
+export const DYNAMIC_APPROVERS_ENDPOINT_NAMES = ["Dynamic Approvers", "Dynamic Approvers API"] as const;
+
+export function buildDynamicApproversPayload(plants: string[]) {
+  const uniq = [...new Set((plants ?? []).map((p) => String(p ?? "").trim()).filter(Boolean))];
+  return { approvers: { check: "", plant: uniq.map((plant) => ({ plant })) } };
+}
+
 /** Approver mode -> `check` for the get_detail lookup: Predefined = "X", Dynamic = " ". */
 export function approverDetailCheck(mode: string | undefined): string {
   return mode === "predefined" ? "X" : " ";
