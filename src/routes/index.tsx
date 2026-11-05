@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   FileText,
   Inbox,
+  Undo2,
+  HelpCircle,
   BarChart3,
   PlusCircle,
   CheckCircle2,
@@ -152,6 +154,10 @@ function Index() {
   const underReviewCount = mine.filter((r) => r.status === "in_process").length;
   const approvedCount = mine.filter((r) => r.status === "completed").length;
   const rejectedCount = mine.filter((r) => r.status === "rejected").length;
+  const backToInitiatorCount = mine.filter((r) => r.status === "with_initiator").length;
+  const clarificationCount = mine.filter((r) => r.status === "clarification").length;
+  void submittedCount;
+  void underReviewCount;
 
   const ONGOING: NfaStatus[] = ["with_initiator", "in_process", "clarification"];
   const COMPLETED: NfaStatus[] = ["completed", "rejected"];
@@ -211,44 +217,12 @@ function Index() {
       }
     >
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <Kpi
-          to="/approvals"
-          icon={<Inbox className="h-5 w-5" />}
-          label="Pending With Me"
-          value={pending.length}
-          tile="from-sky-500 to-blue-700"
-          chip="bg-white/20 text-white ring-white/30"
-        />
-        <Kpi
-          to="/nfa/my"
-          icon={<Send className="h-5 w-5" />}
-          label="My Submitted NFAs"
-          value={submittedCount}
-          tile="from-indigo-500 to-violet-700"
-          chip="bg-white/20 text-white ring-white/30"
-        />
-        <Kpi
-          icon={<Clock className="h-5 w-5" />}
-          label="NFAs Under Review"
-          value={underReviewCount}
-          tile="from-amber-400 to-orange-600"
-          chip="bg-white/25 text-white ring-white/30"
-        />
-        <Kpi
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Approved NFAs"
-          value={approvedCount}
-          tile="from-emerald-500 to-teal-700"
-          chip="bg-white/20 text-white ring-white/30"
-        />
-        <Kpi
-          icon={<XCircle className="h-5 w-5" />}
-          label="Rejected NFAs"
-          value={rejectedCount}
-          tile="from-rose-500 to-red-700"
-          chip="bg-white/20 text-white ring-white/30"
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+        <Kpi to="/approvals" icon={<Inbox className="h-5 w-5" />} label="Pending" caption="Awaiting your action" value={pending.length} tone="pending" />
+        <Kpi icon={<CheckCircle2 className="h-5 w-5" />} label="Approved" caption="Fully approved" value={approvedCount} tone="approved" />
+        <Kpi icon={<XCircle className="h-5 w-5" />} label="Rejected" caption="Closed as rejected" value={rejectedCount} tone="rejected" />
+        <Kpi to="/nfa/my" icon={<Undo2 className="h-5 w-5" />} label="Back to Initiator" caption="Returned for changes" value={backToInitiatorCount} tone="returned" />
+        <Kpi to="/nfa/my" icon={<HelpCircle className="h-5 w-5" />} label="Clarification" caption="Clarification requested" value={clarificationCount} tone="clarify" />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -457,42 +431,48 @@ function Kpi({
   icon,
   label,
   value,
-  tile,
-  chip,
+  caption,
+  tone,
   to,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
-  tile: string;
-  chip: string;
+  caption: string;
+  tone: keyof typeof KPI_TONES;
   to?: string;
 }) {
   const Wrap: any = to ? Link : "div";
   const wrapProps: any = to ? { to } : {};
+  const t = KPI_TONES[tone];
   return (
     <Wrap
       {...wrapProps}
       className={
-        "relative block overflow-hidden rounded-lg p-4 text-white shadow-md ring-1 ring-white/10 bg-gradient-to-br transition hover:-translate-y-0.5 hover:shadow-lg " +
-        tile
+        "group relative block overflow-hidden rounded-xl border border-border bg-card p-4 pl-5 shadow-sm transition " +
+        (to ? "hover:-translate-y-0.5 hover:shadow-md" : "")
       }
     >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-      <div className="relative flex items-start justify-between gap-3">
+      <span className={"absolute inset-y-0 left-0 w-1.5 " + t.bar} />
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-white/80 leading-tight">
-            {label}
-          </div>
-          <div className="font-display mt-1 text-2xl sm:text-3xl font-bold leading-none">{value}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-tight">{label}</div>
+          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums " + t.text}>{value}</div>
+          <div className="mt-2 text-xs text-muted-foreground">{caption}</div>
         </div>
-        <div className={"grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-md ring-1 " + chip}>
-          {icon}
-        </div>
+        <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg " + t.chip}>{icon}</div>
       </div>
     </Wrap>
   );
 }
+
+const KPI_TONES = {
+  pending: { bar: "bg-status-pending", text: "text-status-pending", chip: "bg-status-pending/12 text-status-pending" },
+  approved: { bar: "bg-status-approved", text: "text-status-approved", chip: "bg-status-approved/12 text-status-approved" },
+  rejected: { bar: "bg-status-rejected", text: "text-status-rejected", chip: "bg-status-rejected/12 text-status-rejected" },
+  returned: { bar: "bg-status-returned", text: "text-status-returned", chip: "bg-status-returned/12 text-status-returned" },
+  clarify: { bar: "bg-status-clarify", text: "text-status-clarify", chip: "bg-status-clarify/12 text-status-clarify" },
+} as const;
 
 function StatusReportTable({
   rows,
