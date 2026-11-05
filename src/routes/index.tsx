@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { STATUS_LABEL, STATUS_TONE, type NfaRow, type NfaStatus, type ApproverRow } from "@/lib/nfa-types";
 import { Button } from "@/components/ui/button";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -267,160 +268,17 @@ function Index() {
           )}
         </section>
 
-        {/* NFA Status Report */}
+        {/* NFA Status Overview */}
         <section className="rounded-lg border border-border bg-card p-5 lg:col-span-3">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-base font-bold">NFA Status Report</h2>
-              <p className="text-xs text-muted-foreground">
-                Ongoing ({ongoingRows.length}) &middot; Completed ({completedRows.length})
-              </p>
-            </div>
-            <Link to="/report" className="text-xs font-medium text-accent hover:underline">Full report <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
-          </div>
-          {dataLoading ? (
-            <StatusReportSkeleton />
-          ) : mine.length === 0 ? (
-            <EmptyRow text="No NFAs yet — create your first one." />
-          ) : (
-            <Tabs value={tab} onValueChange={(v) => setTab(v as "ongoing" | "completed")}>
-              {/* Filters — sticky on mobile so they stay accessible while scrolling the table */}
-              <div className="sticky top-0 z-20 -mx-5 mb-3 border-b border-border bg-card/95 px-5 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:static md:z-auto md:mx-0 md:mb-3 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
-                {/* Mobile compact bar */}
-                <div className="flex items-center gap-2 md:hidden">
-                  <div className="relative flex-1 min-w-0">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search NFAs…"
-                      className="h-9 pl-8"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFiltersOpen((v) => !v)}
-                    className="h-9 shrink-0 gap-1.5 px-2.5"
-                    aria-expanded={filtersOpen}
-                    aria-label="Toggle filters"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    <span className="text-xs">Filters</span>
-                    {advancedCount > 0 && (
-                      <span className="ml-0.5 rounded-full bg-accent px-1.5 text-[10px] font-semibold text-accent-foreground">
-                        {advancedCount}
-                      </span>
-                    )}
-                  </Button>
-                  {filtersActive && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-9 shrink-0 px-2 text-muted-foreground"
-                      aria-label="Clear filters"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {/* Mobile expanded panel */}
-                {filtersOpen && (
-                  <div className="mt-2 grid grid-cols-2 gap-2 md:hidden">
-                    <Select value={deptFilter} onValueChange={setDeptFilter}>
-                      <SelectTrigger className="h-9 col-span-2"><SelectValue placeholder="Department" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All departments</SelectItem>
-                        {departments.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-9 col-span-2"><SelectValue placeholder="Status" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        {statusOptionsFor(tab).map((s) => (
-                          <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" aria-label="From date" />
-                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" aria-label="To date" />
-                  </div>
-                )}
-                {/* Desktop full row */}
-                <div className="hidden md:grid grid-cols-2 gap-2 lg:grid-cols-6">
-                  <div className="relative sm:col-span-2 lg:col-span-2">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search subject, eNFA #, plant…"
-                      className="h-9 pl-8"
-                    />
-                  </div>
-                  <Select value={deptFilter} onValueChange={setDeptFilter}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Department" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All departments</SelectItem>
-                      {departments.map((d) => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
-                      {statusOptionsFor(tab).map((s) => (
-                        <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" aria-label="From date" />
-                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" aria-label="To date" />
-                </div>
-                {filtersActive && (
-                  <div className="mt-2 hidden md:flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Showing filtered results</span>
-                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 gap-1 px-2 text-xs">
-                      <X className="h-3 w-3" /> Clear filters
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <TabsList className="mb-3">
-                <TabsTrigger value="ongoing" className="gap-1.5">
-                  <Clock className="h-3.5 w-3.5" /> Ongoing
-                  <span className="ml-1 rounded-full bg-sky-100 px-1.5 text-[10px] font-semibold text-sky-700">{ongoingRows.length}</span>
-                </TabsTrigger>
-                <TabsTrigger value="completed" className="gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Completed
-                  <span className="ml-1 rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-700">{completedRows.length}</span>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="ongoing" className="mt-0">
-                <StatusReportTable
-                  rows={ongoingRows}
-                  emptyText="No ongoing NFAs."
-                  filtersActive={filtersActive}
-                  onClearFilters={clearFilters}
-                />
-              </TabsContent>
-              <TabsContent value="completed" className="mt-0">
-                <StatusReportTable
-                  rows={completedRows}
-                  emptyText="No completed NFAs yet."
-                  filtersActive={filtersActive}
-                  onClearFilters={clearFilters}
-                />
-              </TabsContent>
-            </Tabs>
-          )}
+          <StatusDoughnut
+            data={[
+              { name: "Pending", value: pending.length, color: "oklch(0.58 0.2 255)" },
+              { name: "Approved", value: approvedCount, color: "oklch(0.58 0.13 168)" },
+              { name: "Rejected", value: rejectedCount, color: "oklch(0.57 0.23 18)" },
+              { name: "Back to Initiator", value: backToInitiatorCount, color: "oklch(0.72 0.19 55)" },
+              { name: "Clarification", value: clarificationCount, color: "oklch(0.55 0.24 290)" },
+            ]}
+          />
         </section>
       </div>
     </AppShell>
@@ -646,6 +504,52 @@ function StatusReportSkeleton() {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusDoughnut({ data }: { data: { name: string; value: number; color: string }[] }) {
+  const total = data.reduce((a, d) => a + d.value, 0);
+  const chartData = total > 0 ? data.filter((d) => d.value > 0) : [{ name: "None", value: 1, color: "var(--muted)" }];
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold">NFA Status Overview</h2>
+          <p className="text-xs text-muted-foreground">Status-wise distribution of NFAs</p>
+        </div>
+        <Link to="/report" className="text-xs font-medium text-accent hover:underline">Full report <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
+      </div>
+      <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-2">
+        <div className="relative mx-auto h-64 w-full max-w-xs">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={chartData} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="92%" paddingAngle={total > 0 && chartData.length > 1 ? 3 : 0} cornerRadius={6} stroke="none" isAnimationActive>
+                {chartData.map((d) => <Cell key={d.name} fill={d.color} />)}
+              </Pie>
+              {total > 0 && <Tooltip formatter={(v: number, n: string) => [v, n]} contentStyle={{ borderRadius: 8, fontSize: 12 }} />}
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-display text-3xl font-bold">{total}</span>
+            <span className="text-xs text-muted-foreground">{total > 0 ? "Total NFAs" : "No NFAs yet"}</span>
+          </div>
+        </div>
+        <ul className="space-y-2">
+          {data.map((d) => (
+            <li key={d.name} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: d.color }} />
+                {d.name}
+              </span>
+              <span className="text-sm">
+                <span className="font-bold">{d.value}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{total > 0 ? Math.round((d.value / total) * 100) : 0}%</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
