@@ -289,28 +289,17 @@ export async function callSapPlantF4(bukrs: string): Promise<SapCallResult> {
 
   // Start from the configured body template so any extra keys the customer adds
   // in API Settings are preserved, then set the selected company code.
-  let payload: Record<string, unknown> = { plant: { bukrs } };
-  const template = (ep.request_body ?? "").trim();
-  if (template) {
-    try {
-      const parsed = JSON.parse(template);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        const inner = (parsed as Record<string, unknown>)["plant"];
-        payload = {
-          ...(parsed as Record<string, unknown>),
-          plant: { ...(inner && typeof inner === "object" ? inner : {}), bukrs },
-        };
-      }
-    } catch {
-      return {
-        ok: false,
-        status: null,
-        latencyMs: 0,
-        body: "",
-        error:
-          'The Plant F4 request body in Admin → SAP API Settings is not valid JSON. Expected something like { "plant": { "bukrs": "" } }.',
-      };
-    }
+  const { buildPlantF4Payload } = await import("@/lib/sap/plant-payload");
+  const payload = buildPlantF4Payload(ep.request_body, bukrs);
+  if (!payload) {
+    return {
+      ok: false,
+      status: null,
+      latencyMs: 0,
+      body: "",
+      error:
+        'The Plant F4 request body in Admin → SAP API Settings is not valid JSON. Expected something like { "cc_code": { "check": "X", "CC_CODE": "" } }.',
+    };
   }
 
   return callSap({
