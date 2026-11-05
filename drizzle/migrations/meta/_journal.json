@@ -64,6 +64,13 @@
       "when": 1793783315223,
       "tag": "0008_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793891836627,
+      "tag": "0009_register_dynamic_approvers_endpoint",
+      "breakpoints": true
     }
   ]
 }
