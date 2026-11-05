@@ -561,3 +561,13 @@
   @page { size: A4; margin: 12mm; }
 }
 
+
+/* Dashboard status card gradients */
+@theme inline {
+  --color-status-ink: oklch(1 0 0);
+}
+@utility kpi-pending { background-image: linear-gradient(135deg, oklch(0.68 0.16 235), oklch(0.52 0.22 262)); box-shadow: 0 10px 24px -12px oklch(0.55 0.2 255 / 0.6); }
+@utility kpi-approved { background-image: linear-gradient(135deg, oklch(0.68 0.16 162), oklch(0.5 0.11 175)); box-shadow: 0 10px 24px -12px oklch(0.55 0.13 165 / 0.6); }
+@utility kpi-rejected { background-image: linear-gradient(135deg, oklch(0.63 0.24 15), oklch(0.5 0.21 22)); box-shadow: 0 10px 24px -12px oklch(0.55 0.22 18 / 0.6); }
+@utility kpi-returned { background-image: linear-gradient(135deg, oklch(0.78 0.17 70), oklch(0.66 0.21 42)); box-shadow: 0 10px 24px -12px oklch(0.7 0.19 55 / 0.6); }
+@utility kpi-clarify { background-image: linear-gradient(135deg, oklch(0.58 0.22 280), oklch(0.52 0.25 300)); box-shadow: 0 10px 24px -12px oklch(0.55 0.23 290 / 0.6); }

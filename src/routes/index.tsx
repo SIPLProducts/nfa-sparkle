@@ -449,29 +449,28 @@ function Kpi({
     <Wrap
       {...wrapProps}
       className={
-        "group relative block overflow-hidden rounded-xl border border-border bg-card p-4 pl-5 shadow-sm transition " +
+        "group relative block overflow-hidden rounded-xl p-4 pl-5 text-status-ink transition " + t.card + " " +
         (to ? "hover:-translate-y-0.5 hover:shadow-md" : "")
       }
     >
-      <span className={"absolute inset-y-0 left-0 w-1.5 " + t.bar} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-tight">{label}</div>
-          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums " + t.text}>{value}</div>
-          <div className="mt-2 text-xs text-muted-foreground">{caption}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-status-ink/90 leading-tight">{label}</div>
+          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value}</div>
+          <div className="mt-2 text-xs text-status-ink/80">{caption}</div>
         </div>
-        <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg " + t.chip}>{icon}</div>
+        <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-status-ink/30 bg-status-ink/20 text-status-ink"}>{icon}</div>
       </div>
     </Wrap>
   );
 }
 
 const KPI_TONES = {
-  pending: { bar: "bg-status-pending", text: "text-status-pending", chip: "bg-status-pending/12 text-status-pending" },
-  approved: { bar: "bg-status-approved", text: "text-status-approved", chip: "bg-status-approved/12 text-status-approved" },
-  rejected: { bar: "bg-status-rejected", text: "text-status-rejected", chip: "bg-status-rejected/12 text-status-rejected" },
-  returned: { bar: "bg-status-returned", text: "text-status-returned", chip: "bg-status-returned/12 text-status-returned" },
-  clarify: { bar: "bg-status-clarify", text: "text-status-clarify", chip: "bg-status-clarify/12 text-status-clarify" },
+  pending: { card: "kpi-pending" },
+  approved: { card: "kpi-approved" },
+  rejected: { card: "kpi-rejected" },
+  returned: { card: "kpi-returned" },
+  clarify: { card: "kpi-clarify" },
 } as const;
 
 function StatusReportTable({
