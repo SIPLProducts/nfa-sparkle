@@ -52,7 +52,7 @@ function SearchPicker(props: {
           className="w-full justify-between font-normal"
         >
           <span className={`truncate ${selected ? "" : "text-muted-foreground"}`}>
-            {selected ? `${selected.code} – ${selected.name}` : props.placeholder}
+            {selected ? (!selected.name || selected.name === selected.code ? selected.code : `${selected.code} – ${selected.name}`) : props.placeholder}
           </span>
           <Search className="ml-2 h-4 w-4 shrink-0 opacity-60" />
         </Button>
@@ -70,7 +70,7 @@ function SearchPicker(props: {
                   onSelect={() => { props.onChange(o.code); setOpen(false); }}
                 >
                   <Check className={`mr-2 h-4 w-4 ${o.code === props.value ? "opacity-100" : "opacity-0"}`} />
-                  {o.code} – {o.name}
+                  {!o.name || o.name === o.code ? o.code : `${o.code} – ${o.name}`}
                 </CommandItem>
               ))}
             </CommandGroup>
