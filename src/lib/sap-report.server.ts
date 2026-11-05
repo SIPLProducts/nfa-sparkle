@@ -1589,6 +1589,45 @@ export async function callApproverGetDetail(input: { check: string; plant: strin
   });
 }
 
+/** Dashboard status counts for a user via the settings-driven "Dashboard Count Api" endpoint. */
+export async function callDashboardCounts(userName: string): Promise<SapCallResult> {
+  const db = await admin();
+  const { DASHBOARD_COUNTS_ENDPOINT_NAMES, buildDashboardCountsPayload } = await import("@/lib/sap/dashboard-counts");
+  let ep: any = null;
+  for (const name of DASHBOARD_COUNTS_ENDPOINT_NAMES) {
+    ep = (await db.from("sap_endpoint").select("*").ilike("name", name).eq("active", true)
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+    if (ep) break;
+  }
+  if (!ep) {
+    ep = (await db.from("sap_endpoint").select("*").eq("active", true).ilike("request_body", '%"dashboard"%')
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+  }
+  if (!ep) {
+    return { ok: false, status: null, latencyMs: 0, body: "", error: "The SAP Dashboard Count Api endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings." };
+  }
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  const method = (ep.http_method ?? "GET").toUpperCase();
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method,
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(buildDashboardCountsPayload(userName)),
+    username: username || undefined,
+    password,
+    maxBytes: 200_000,
+    timeoutMs: 60_000,
+  });
+}
+
 /** Create NFA dynamic approvers for all plants via the settings-driven "Dynamic Approvers" endpoint. */
 export async function callDynamicApprovers(input: { plants: string[] }): Promise<SapCallResult> {
   const db = await admin();
