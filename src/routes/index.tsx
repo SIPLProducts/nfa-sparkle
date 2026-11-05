@@ -171,10 +171,6 @@ function Index() {
 
   const submittedCount = mine.length;
   const underReviewCount = mine.filter((r) => r.status === "in_process").length;
-  const approvedCount = mine.filter((r) => r.status === "completed").length;
-  const rejectedCount = mine.filter((r) => r.status === "rejected").length;
-  const backToInitiatorCount = mine.filter((r) => r.status === "with_initiator").length;
-  const clarificationCount = mine.filter((r) => r.status === "clarification").length;
   void submittedCount;
   void underReviewCount;
 
@@ -353,7 +349,7 @@ function Kpi({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-status-ink/90 leading-tight">{label}</div>
-          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value}</div>
+          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value ?? "—"}</div>
           <div className="mt-2 text-xs text-status-ink/80">{caption}</div>
         </div>
         <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-status-ink/30 bg-status-ink/20 text-status-ink"}>{icon}</div>
