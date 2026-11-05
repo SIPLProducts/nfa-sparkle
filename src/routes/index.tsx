@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FilterX,
+  Zap,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -228,38 +229,53 @@ function Index() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Quick actions */}
-        <section className="rounded-lg border border-border bg-card p-5 lg:col-span-1">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-base font-bold">Quick actions</h2>
+        <section className="relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm lg:col-span-1">
+          <div className="kpi-pending absolute inset-x-0 top-0 h-1" />
+          <div className="mb-4 flex items-center gap-3">
+            <div className="kpi-pending grid h-9 w-9 place-items-center rounded-lg text-primary-foreground"><Zap className="h-4 w-4" /></div>
+            <div>
+              <h2 className="font-display text-base font-bold">Quick actions</h2>
+              <p className="text-xs text-muted-foreground">Jump straight to common tasks</p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <QuickAction to="/nfa/new" icon={<PlusCircle className="h-4 w-4" />} title="Create NFA" desc="Raise a new Note For Approval" />
-            <QuickAction to="/nfa/my" icon={<FileText className="h-4 w-4" />} title="Edit NFA" desc="Edit, upload, track status" />
-            <QuickAction to="/approvals" icon={<Inbox className="h-4 w-4" />} title="Approvals inbox" desc="Approve · Reject · Send Back" />
-            <QuickAction to="/report" icon={<BarChart3 className="h-4 w-4" />} title="E-NFA Report" desc="Filter & export NFAs" />
+          <div className="space-y-2.5">
+            <QuickAction to="/nfa/new" tone="kpi-pending" icon={<PlusCircle className="h-4 w-4" />} title="Create NFA" desc="Raise a new Note For Approval" />
+            <QuickAction to="/nfa/my" tone="kpi-clarify" icon={<FileText className="h-4 w-4" />} title="Edit NFA" desc="Edit, upload, track status" />
+            <QuickAction to="/approvals" tone="kpi-approved" icon={<Inbox className="h-4 w-4" />} title="Approvals inbox" desc="Approve · Reject · Send Back" />
+            <QuickAction to="/report" tone="kpi-returned" icon={<BarChart3 className="h-4 w-4" />} title="E-NFA Report" desc="Filter & export NFAs" />
           </div>
         </section>
 
         {/* Pending approvals */}
-        <section className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="font-display text-base font-bold">Pending your approval</h2>
-              <p className="text-xs text-muted-foreground">Items waiting on your decision ({pending.length})</p>
+        <section className="relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
+          <div className="kpi-clarify absolute inset-x-0 top-0 h-1" />
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="kpi-clarify grid h-9 w-9 place-items-center rounded-lg text-primary-foreground"><Inbox className="h-4 w-4" /></div>
+              <div>
+                <h2 className="flex items-center gap-2 font-display text-base font-bold">
+                  Pending your approval
+                  <span className="kpi-clarify rounded-full px-2 py-0.5 text-xs font-semibold text-primary-foreground">{pending.length}</span>
+                </h2>
+                <p className="text-xs text-muted-foreground">Items waiting on your decision</p>
+              </div>
             </div>
-            <Link to="/approvals" className="text-xs font-medium text-accent hover:underline">View inbox <ArrowRight className="ml-0.5 inline h-3 w-3" /></Link>
+            <Link to="/approvals" className="inline-flex items-center gap-1 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-accent/15">View inbox <ArrowRight className="h-3 w-3" /></Link>
           </div>
           {pending.length === 0 ? (
             <EmptyRow text="You're all caught up." />
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="space-y-1.5">
               {pending.slice(0, 5).map(({ nfa, ap }) => (
-                <li key={ap.id} className="flex items-center justify-between gap-3 py-2.5">
+                <li key={ap.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 transition hover:bg-muted/40">
                   <div className="min-w-0">
                     <Link to="/nfa/$id" params={{ id: nfa.id }} className="block truncate text-sm font-medium text-accent hover:underline">
                       {nfa.enfa_number} — {nfa.subject}
                     </Link>
-                    <div className="truncate text-xs text-muted-foreground">{nfa.function ?? "—"} · {nfa.plant ?? "—"} · L{ap.level}</div>
+                    <div className="mt-0.5 flex items-center gap-2 truncate text-xs text-muted-foreground">
+                      <span className="rounded bg-secondary px-1.5 py-0.5 font-semibold text-primary">L{ap.level}</span>
+                      {nfa.function ?? "—"} · {nfa.plant ?? "—"}
+                    </div>
                   </div>
                   <Link to="/nfa/$id" params={{ id: nfa.id }}><Button size="sm" variant="outline">Open</Button></Link>
                 </li>
@@ -454,21 +470,27 @@ function StatusReportTable({
   );
 }
 
-function QuickAction({ to, icon, title, desc }: { to: string; icon: React.ReactNode; title: string; desc: string }) {
+function QuickAction({ to, icon, title, desc, tone }: { to: string; icon: React.ReactNode; title: string; desc: string; tone: string }) {
   return (
-    <Link to={to} className="group flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5 transition hover:border-accent hover:bg-muted/40">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-secondary text-primary">{icon}</div>
+    <Link to={to} className="group flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-md">
+      <div className={tone + " grid h-10 w-10 shrink-0 place-items-center rounded-lg text-primary-foreground"}>{icon}</div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{title}</div>
+        <div className="truncate text-sm font-semibold">{title}</div>
         <div className="truncate text-xs text-muted-foreground">{desc}</div>
       </div>
-      <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-accent" />
+      <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-accent" />
     </Link>
   );
 }
 
 function EmptyRow({ text }: { text: string }) {
-  return <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">{text}</div>;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-10 text-center">
+      <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-success/15 text-success"><CheckCircle2 className="h-6 w-6" /></div>
+      <div className="text-sm font-semibold">{text}</div>
+      <div className="mt-1 text-xs text-muted-foreground">New approval requests will appear here.</div>
+    </div>
+  );
 }
 
 function StatusReportSkeleton() {
