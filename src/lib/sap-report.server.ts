@@ -1628,6 +1628,40 @@ export async function callDashboardCounts(userName: string): Promise<SapCallResu
   });
 }
 
+/** Reports screen Plant F4 via the settings-driven "F4 In Reports Plant Field" endpoint. */
+export async function callReportPlantF4(): Promise<SapCallResult> {
+  const db = await admin();
+  const { REPORT_PLANT_ENDPOINT_NAMES, buildReportPlantPayload } = await import("@/lib/sap/report-plants");
+  let ep: any = null;
+  for (const name of REPORT_PLANT_ENDPOINT_NAMES) {
+    ep = (await db.from("sap_endpoint").select("*").ilike("name", name).eq("active", true)
+      .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
+    if (ep) break;
+  }
+  if (!ep) {
+    return { ok: false, status: null, latencyMs: 0, body: "", error: "The SAP \"F4 In Reports Plant Field\" endpoint is not registered or is inactive. Add or activate it in Admin → SAP API Settings." };
+  }
+  const sys = await loadSystem(ep.system_id ?? null);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...((ep.request_headers ?? {}) as Record<string, string>),
+  };
+  const { username, password } = await credentialsFor(ep, sys);
+  return callSap({
+    system: sys,
+    path: ep.path_or_url ?? "",
+    method: (ep.http_method ?? "GET").toUpperCase(),
+    headers,
+    query: (ep.request_query ?? {}) as Record<string, string>,
+    body: JSON.stringify(buildReportPlantPayload()),
+    username: username || undefined,
+    password,
+    maxBytes: 500_000,
+    timeoutMs: 60_000,
+  });
+}
+
 /** Create NFA dynamic approvers for all plants via the settings-driven "Dynamic Approvers" endpoint. */
 export async function callDynamicApprovers(input: { plants: string[] }): Promise<SapCallResult> {
   const db = await admin();
