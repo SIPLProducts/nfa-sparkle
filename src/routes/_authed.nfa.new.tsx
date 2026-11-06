@@ -144,6 +144,7 @@ function NewNfaPage() {
   const generateDocx = useServerFn(generateEnfaDocx);
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
+  const [plantError, setPlantError] = useState("");
   const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
   const [selectedApprovers, setSelectedApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [approversOpen, setApproversOpen] = useState(false);
@@ -357,6 +358,10 @@ function NewNfaPage() {
 
   async function submit(_asDraft: boolean) {
     if (!user) return;
+    if (!plant) {
+      setPlantError("Plant is required");
+      return toast.error("Plant is required");
+    }
     const missing = missingCreateFields(approverMode, { company, nfaType, func, subject });
     if (missing) return toast.error(missing);
     if (selectedApprovers.length < MIN_CREATE_APPROVERS) {
@@ -586,10 +591,10 @@ function NewNfaPage() {
                   </p>
                 ) : null}
               </Field>
-              <Field label="Plant">
+              <Field label="Plant" required>
                 <SearchPicker
                   value={plant}
-                  onChange={setPlant}
+                  onChange={(v) => { setPlant(v); if (v) setPlantError(""); }}
                   options={plants}
                   disabled={!company || plantsLoading || plants.length === 0}
                   placeholder={
@@ -604,6 +609,7 @@ function NewNfaPage() {
                   searchPlaceholder="Search plant…"
                   emptyText="No matching plant."
                 />
+                {plantError && !plant ? <p className="mt-1 text-xs text-destructive">{plantError}</p> : null}
                 {plantsError ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {plantsError}{" "}
