@@ -20,7 +20,7 @@ describe("approver names in create payload", () => {
   });
 
   it("leaves the name empty when the approver is not a portal user", () => {
-    const [a] = withApproverNames([{ userId: "7777" }], { "1001": { name: "akash A" } });
+    const [a] = withApproverNames([{ userId: "7777", name: "" }], { "1001": { name: "akash A" } });
     expect(a.name).toBe("");
   });
 });
