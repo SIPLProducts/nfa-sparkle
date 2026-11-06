@@ -1,23 +1,26 @@
-import { describe, it, expect, vi } from "vitest";
-vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
-vi.mock("@/lib/print-initiator.functions", () => ({}));
-vi.mock("@/lib/print-form-data", () => ({}));
-import { applyApproverNames } from "./prepare-web-print-form";
-import { pairPrintCommentsWithApprovers } from "./print-comment-history";
+import { describe, expect, it } from "vitest";
+import { withApproverNames } from "./approver-names";
+import { buildCreateApproverSlots } from "./sap-api-constants";
 
-describe("approver names for Print Form", () => {
-  const approvers = [
-    { level: 1, role: "MANAGER", userId: "9001", name: "" },
-    { level: 2, role: "SCM HEAD", userId: "9002", name: "9002" },
-    { level: 3, role: "PLANT HEAD", userId: "9003", name: "Kept Name" },
-  ];
-  it("fills blank or ID-only names from the portal", () => {
-    const out = applyApproverNames(approvers, { "9001": "Ravi Kumar", "9002": "Suresh Reddy", "9003": "Other" });
-    expect(out.map((a) => a.name)).toEqual(["Ravi Kumar", "Suresh Reddy", "Kept Name"]);
+describe("approver names in create payload", () => {
+  it("fills name01, name2, name3 from portal names", () => {
+    const approvers = withApproverNames(
+      [
+        { designation: "site head", userId: "1001" },
+        { designation: "MANAGER", userId: "9001" },
+        { designation: "HR MANGAER", userId: "9002" },
+      ],
+      { "1001": { name: "akash A" }, "9001": { name: "thiru sharvi" }, "9002": { name: "prasad sharvi" } },
+    );
+    const slots = buildCreateApproverSlots(approvers);
+    expect(slots.name01).toBe("akash A");
+    expect(slots.name2).toBe("thiru sharvi");
+    expect(slots.name3).toBe("prasad sharvi");
+    expect(slots.approve1).toBe("1001");
   });
-  it("pairs comments with the resolved name by User ID", () => {
-    const named = applyApproverNames(approvers, { "9002": "Suresh Reddy" });
-    const [c] = pairPrintCommentsWithApprovers([{ name: "", text: "ok", level: 2, approverId: "9002" }], named);
-    expect(c?.name).toBe("Suresh Reddy");
+
+  it("leaves the name empty when the approver is not a portal user", () => {
+    const [a] = withApproverNames([{ userId: "7777" }], { "1001": { name: "akash A" } });
+    expect(a.name).toBe("");
   });
 });

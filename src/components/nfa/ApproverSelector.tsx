@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchSapApproverChains, fetchSapDynamicApprovers, filterApproverChains } from "@/lib/sap-approval-flow";
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails, resolveApprovalUserDetails } from "@/lib/approval-chain.functions";
+import { withApproverNames } from "@/lib/approver-names";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -86,7 +87,8 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   }, [levelKey]);
 
   // Selection order (not list order) decides each approver's level.
-  const selected = useMemo(() => orderSelected(levels, checked), [levels, checked]);
+  // Attach each approver's portal name so the create payload's name slots are filled.
+  const selected = useMemo(() => withApproverNames(orderSelected(levels, checked), details), [levels, checked, details]);
   useEffect(() => { onChange?.(selected); }, [selected, onChange]);
 
   function toggle(i: number) {
