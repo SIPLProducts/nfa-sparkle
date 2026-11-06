@@ -68,7 +68,7 @@ export function AppShell({
         <div key={sec} className={cn("mt-4", collapsed && "mt-2")}>
           <div
             className={cn(
-              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 transition-all duration-300",
+              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sky transition-all duration-300",
               collapsed ? "h-0 overflow-hidden py-0 opacity-0" : "block"
             )}
           >
@@ -103,7 +103,7 @@ export function AppShell({
                       >
                         {n.label}
                       </span>
-                      {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />}
+                      {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />}
                     </Link>
                   </li>
                 );
@@ -115,7 +115,7 @@ export function AppShell({
         <div className={cn("mt-4", collapsed && "mt-2")}>
           <div
             className={cn(
-              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 transition-all duration-300",
+              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sky transition-all duration-300",
               collapsed ? "h-0 overflow-hidden py-0 opacity-0" : "block"
             )}
           >
