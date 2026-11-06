@@ -1,3 +1,6 @@
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { wrapReportPayload } from "@/lib/sap-api-constants";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -63,6 +66,47 @@ function statusTone(s: string) {
   return "bg-muted text-muted-foreground";
 }
 
+function PlantCombobox({
+  placeholder, options, value, onChange,
+}: {
+  placeholder: string;
+  options: { code: string; name: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.code === value);
+  const label = current ? `${current.code} – ${current.name}` : value || placeholder;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open}
+          className="h-9 min-w-0 flex-1 justify-between px-3 font-normal">
+          <span className={`truncate ${value ? "" : "text-muted-foreground"}`}>{label}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] min-w-64 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search plant code or name…" />
+          <CommandList>
+            <CommandEmpty>No plant found</CommandEmpty>
+            <CommandGroup>
+              <CommandItem value="__any__ Any" onSelect={() => { onChange(""); setOpen(false); }}>Any</CommandItem>
+              {options.map((o) => (
+                <CommandItem key={o.code} value={`${o.code} ${o.name}`} onSelect={() => { onChange(o.code); setOpen(false); }}>
+                  <Check className={`mr-2 h-4 w-4 ${value === o.code ? "opacity-100" : "opacity-0"}`} />
+                  {o.code} – {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function RangeSelect({
   label, options, from, to, onFrom, onTo,
 }: {
@@ -75,21 +119,9 @@ function RangeSelect({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <div className="flex items-center gap-2">
-        <Select value={from} onValueChange={(v) => onFrom(v === "_all" ? "" : v)}>
-          <SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="From" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_all">Any</SelectItem>
-            {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <PlantCombobox placeholder="From" options={options} value={from} onChange={onFrom} />
         <span className="text-xs text-muted-foreground">to</span>
-        <Select value={to} onValueChange={(v) => onTo(v === "_all" ? "" : v)}>
-          <SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="To" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_all">Any</SelectItem>
-            {options.map((o) => <SelectItem key={o.code} value={o.code}>{o.code} – {o.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <PlantCombobox placeholder="To" options={options} value={to} onChange={onTo} />
       </div>
     </div>
   );
