@@ -83,7 +83,14 @@ export const Route = createFileRoute("/api/public/enfa-create")({
         const needNames = [...new Set(approvers.filter((a) => !a.name && a.userId.trim()).map((a) => a.userId.trim().toUpperCase()))];
         if (needNames.length) {
           try {
-            const { data: profs } = await supabase.from("profiles").select("username, full_name");
+            // Caller is verified above; profile RLS only exposes the caller's own row,
+            // so read approver names (username + full_name only) with the server client.
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const lookups = [...new Set(needNames.flatMap((u) => [u, u.toLowerCase()]))];
+            const { data: profs } = await supabaseAdmin
+              .from("profiles")
+              .select("username, full_name")
+              .in("username", lookups);
             const byId = new Map<string, string>();
             for (const p of (profs ?? []) as any[]) {
               const u = String(p?.username ?? "").trim().toUpperCase();
