@@ -20,7 +20,7 @@ export function AnumatiWordmark({
         <span className={onDark ? "text-brand-orange" : "text-brand-orange-light"} style={{ fontFamily: "var(--font-wordmark-hi)" }}>मति</span>
       </span>
       <span
-        className={cn("font-serif uppercase", onDark ? "text-white" : "text-[#373435]")}
+        className={cn("font-serif uppercase", onDark ? "text-white" : "text-charcoal")}
         style={{ fontSize: Math.max(9, size * 0.2), letterSpacing: "0.3em", marginTop: size * 0.14 * 0.5 }}
       >
         Anumati
