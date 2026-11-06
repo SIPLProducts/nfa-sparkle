@@ -307,11 +307,11 @@ function Index() {
         <section className="rounded-lg border border-border bg-card p-5 lg:col-span-3">
           <StatusDoughnut
             data={[
-              { name: "Pending", value: sapCounts?.pending ?? 0, color: "oklch(0.58 0.2 255)" },
-              { name: "Approved", value: sapCounts?.approved ?? 0, color: "oklch(0.58 0.13 168)" },
-              { name: "Rejected", value: sapCounts?.rejected ?? 0, color: "oklch(0.57 0.23 18)" },
-              { name: "Back to Initiator", value: sapCounts?.backToInitiator ?? 0, color: "oklch(0.72 0.19 55)" },
-              { name: "Clarification", value: sapCounts?.clarification ?? 0, color: "oklch(0.55 0.24 290)" },
+              { name: "Pending", value: sapCounts?.pending ?? 0, color: "#0077BD" },
+              { name: "Approved", value: sapCounts?.approved ?? 0, color: "#12803A" },
+              { name: "Rejected", value: sapCounts?.rejected ?? 0, color: "#B42318" },
+              { name: "Back to Initiator", value: sapCounts?.backToInitiator ?? 0, color: "#B85A0A" },
+              { name: "Clarification", value: sapCounts?.clarification ?? 0, color: "#373435" },
             ]}
           />
         </section>

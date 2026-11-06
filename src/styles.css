@@ -7,11 +7,11 @@
 /* Navy Trust enterprise design system (Libre Baskerville + IBM Plex Sans) */
 
 @theme inline {
-  --color-status-pending: oklch(0.58 0.17 250);
-  --color-status-approved: oklch(0.6 0.15 155);
-  --color-status-rejected: oklch(0.58 0.2 25);
-  --color-status-returned: oklch(0.7 0.16 65);
-  --color-status-clarify: oklch(0.55 0.19 295);
+  --color-status-pending: #0077BD;
+  --color-status-approved: #12803A;
+  --color-status-rejected: #B42318;
+  --color-status-returned: #B85A0A;
+  --color-status-clarify: #373435;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -20,7 +20,21 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Libre Baskerville", ui-serif, Georgia, serif;
+  --font-serif: "Marcellus", Optima, ui-serif, Georgia, serif;
+  --font-wordmark-te: "Noto Sans Telugu", sans-serif;
+  --font-wordmark-hi: "Noto Sans Devanagari", sans-serif;
+  --color-deep-blue: #003F69;
+  --color-sky: #91D8F6;
+  --color-on-deep: #D6EEFA;
+  --color-on-deep-muted: #B9DDF0;
+  --color-ink: #1F2A33;
+  --color-charcoal: #373435;
+  --color-grey-text: #566069;
+  --color-blue-tint: #E3F1FA;
+  --color-login-surface: #F8FAFC;
+  --color-field-border: #C9D1D9;
+  --color-brand-orange-light: #DE7012;
+  --color-brand-sky-accent: #4DC8F4;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --color-brand: var(--brand-navy);
   --color-print-paper: var(--print-paper);
@@ -73,33 +87,33 @@
   --print-paper: oklch(1 0 0);
 
   /* Corporate blue theme (reference #0166A8) */
-  --brand-navy: oklch(0.42 0.115 245);
-  --brand-navy-2: oklch(0.47 0.125 245);
-  --brand-blue: oklch(0.52 0.13 245);
+  --brand-navy: #003F69;
+  --brand-navy-2: #00568F;
+  --brand-blue: #0077BD;
   --brand-blue-light: oklch(0.66 0.115 240);
-  --brand-orange: oklch(0.68 0.175 52);
-  --brand-green: oklch(0.62 0.155 148);
+  --brand-orange: #E77817;
+  --brand-green: #21B354;
   --brand-surface: oklch(0.945 0.014 245);
   --brand-gold: oklch(0.78 0.13 70);
 
-  --background: oklch(0.975 0.007 245);
-  --foreground: oklch(0.28 0.06 245);
+  --background: #F3F6F9;
+  --foreground: #1F2A33;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.28 0.06 245);
+  --card-foreground: #1F2A33;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.28 0.06 245);
+  --popover-foreground: #1F2A33;
   --primary: var(--brand-blue);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: var(--brand-surface);
   --secondary-foreground: var(--brand-navy);
   --muted: var(--brand-surface);
-  --muted-foreground: oklch(0.48 0.035 245);
+  --muted-foreground: #566069;
   --accent: var(--brand-blue-light);
   --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.55 0.20 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.88 0.016 245);
-  --input: oklch(0.88 0.016 245);
+  --border: #E1E6EB;
+  --input: #C9D1D9;
   --ring: var(--brand-blue);
   --success: var(--brand-green);
   --success-foreground: oklch(0.99 0 0);
@@ -109,13 +123,13 @@
   --chart-4: oklch(0.72 0.09 225);
   --chart-5: oklch(0.55 0.20 27);
 
-  --sidebar: var(--brand-blue);
+  --sidebar: #003F69;
   --sidebar-foreground: oklch(0.97 0.012 245);
-  --sidebar-primary: oklch(0.99 0 0);
-  --sidebar-primary-foreground: var(--brand-blue);
-  --sidebar-accent: oklch(0.44 0.12 245);
+  --sidebar-primary: #0077BD;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #0077BD;
   --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(0.46 0.115 245);
+  --sidebar-border: #0A4E7C;
   --sidebar-ring: oklch(0.85 0.06 245);
 
 }
@@ -566,8 +580,8 @@
 @theme inline {
   --color-status-ink: oklch(1 0 0);
 }
-@utility kpi-pending { background-image: linear-gradient(135deg, oklch(0.68 0.16 235), oklch(0.52 0.22 262)); box-shadow: 0 10px 24px -12px oklch(0.55 0.2 255 / 0.6); }
-@utility kpi-approved { background-image: linear-gradient(135deg, oklch(0.68 0.16 162), oklch(0.5 0.11 175)); box-shadow: 0 10px 24px -12px oklch(0.55 0.13 165 / 0.6); }
-@utility kpi-rejected { background-image: linear-gradient(135deg, oklch(0.63 0.24 15), oklch(0.5 0.21 22)); box-shadow: 0 10px 24px -12px oklch(0.55 0.22 18 / 0.6); }
-@utility kpi-returned { background-image: linear-gradient(135deg, oklch(0.78 0.17 70), oklch(0.66 0.21 42)); box-shadow: 0 10px 24px -12px oklch(0.7 0.19 55 / 0.6); }
-@utility kpi-clarify { background-image: linear-gradient(135deg, oklch(0.58 0.22 280), oklch(0.52 0.25 300)); box-shadow: 0 10px 24px -12px oklch(0.55 0.23 290 / 0.6); }
+@utility kpi-pending { background-color: var(--color-status-pending); box-shadow: 0 6px 16px -10px var(--color-status-pending); }
+@utility kpi-approved { background-color: var(--color-status-approved); box-shadow: 0 6px 16px -10px var(--color-status-approved); }
+@utility kpi-rejected { background-color: var(--color-status-rejected); box-shadow: 0 6px 16px -10px var(--color-status-rejected); }
+@utility kpi-returned { background-color: var(--color-status-returned); box-shadow: 0 6px 16px -10px var(--color-status-returned); }
+@utility kpi-clarify { background-color: var(--color-status-clarify); box-shadow: 0 6px 16px -10px var(--color-status-clarify); }

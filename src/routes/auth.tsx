@@ -11,13 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/lib/swal";
+import { AnumatiWordmark } from "@/components/brand/AnumatiWordmark";
 import { ShieldCheck, Workflow, FileCheck2, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [
-    { title: "Sign in - NFA Portal" },
+    { title: "Anumati – Sign in" },
     { name: "description", content: "Sign in to manage eNFA requests, approvals, and SAP reports." },
-    { property: "og:title", content: "Sign in - NFA Portal" },
+    { property: "og:title", content: "Anumati – Sign in" },
     { property: "og:description", content: "Sign in to manage eNFA requests, approvals, and SAP reports." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
@@ -60,43 +61,40 @@ function AuthPage() {
     }
   }
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2 bg-slate-50">
+    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2 bg-login-surface font-sans text-ink">
       {/* Left brand panel */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-brand to-brand-2 p-12 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.18) 0, transparent 45%)",
-          }}
-        />
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-white/25">
-            <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
-          </div>
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-deep-blue p-12 text-white">
+        <div className="flex items-center gap-4">
+          <img src="/ramky-logo.png" alt="Ramky Estates" className="h-14 w-auto object-contain" />
+          <div className="h-10 w-px bg-white/30" />
           <div>
-            <div className="text-lg font-semibold tracking-wide">NFA Portal</div>
-            <div className="text-xs text-white/70">Note For Approval · SAP Integrated</div>
+            <div className="text-sm font-semibold">Note For Approval</div>
+            <div className="text-xs text-on-deep-muted">SAP Integrated</div>
           </div>
         </div>
 
-        <div className="relative z-10 space-y-6">
-          <h1 className="text-4xl font-semibold leading-tight">
-            Govern approvals with<br />
-            <span className="text-white/90">enterprise-grade control.</span>
+        <div className="space-y-8">
+          <div className="flex gap-2">
+            <span className="h-2.5 w-2.5 bg-brand-orange" />
+            <span className="h-2.5 w-2.5 bg-brand-sky-accent" />
+            <span className="h-2.5 w-2.5 bg-brand-green" />
+          </div>
+          <AnumatiWordmark tone="dark" size={88} />
+          <h1 className="font-serif text-[40px] font-normal leading-tight">
+            Paperless approvals, with a<br />complete trail.
           </h1>
-          <p className="max-w-md text-sm leading-relaxed text-white/75">
-            Initiate, route and approve Notes For Approval across companies, projects and functions —
-            backed by your SAP master data and a complete audit trail.
+          <p className="max-w-md text-[15px] leading-relaxed text-on-deep">
+            Raise, route and approve Notes For Approval across companies, projects and functions,
+            linked to your SAP master data with every step recorded.
           </p>
-          <ul className="space-y-3 text-sm text-white/85">
-            <li className="flex items-center gap-3"><Workflow className="h-4 w-4 text-white/70" /> Multi-level approval chains</li>
-            <li className="flex items-center gap-3"><FileCheck2 className="h-4 w-4 text-white/70" /> Attachments, comments & audit log</li>
-            <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-white/70" /> Role-based access & RLS security</li>
+          <ul className="space-y-3 text-sm text-on-deep">
+            <li className="flex items-center gap-3"><Workflow className="h-4 w-4 text-sky" strokeWidth={1.8} /> Multi-level approval chains</li>
+            <li className="flex items-center gap-3"><FileCheck2 className="h-4 w-4 text-sky" strokeWidth={1.8} /> Attachments, comments & audit log</li>
+            <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-sky" strokeWidth={1.8} /> Role-based access & RLS security</li>
           </ul>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between text-xs text-white/60">
+        <div className="flex items-center justify-between text-xs text-on-deep-muted">
           <span>© {new Date().getFullYear()} Sharvi Infotech. All rights reserved.</span>
           <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Secure SSO</span>
         </div>
@@ -105,46 +103,40 @@ function AuthPage() {
       {/* Right form panel */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
-          <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md border border-border bg-card p-1.5 shadow-sm ring-1 ring-border/40">
-              <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
-            </div>
-            <div>
-              <div className="text-base font-semibold text-slate-900">NFA Portal</div>
-              <div className="text-xs text-slate-500">Note For Approval · SAP Integrated</div>
-            </div>
+          <div className="mb-6 flex justify-center">
+            <AnumatiWordmark size={52} align="center" />
           </div>
 
-          <Card className="border-slate-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-xl font-semibold text-slate-900">Welcome back</CardTitle>
-              <p className="text-sm text-slate-500">Sign in to access your approvals workspace.</p>
+              <CardTitle className="font-serif text-2xl font-normal text-ink">Welcome</CardTitle>
+              <p className="text-sm text-grey-text">Sign in to access your approvals workspace.</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="signin-email">User ID / Email</Label>
-                    <Input id="signin-email" placeholder="Enter your User ID or Email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
+                  <Label htmlFor="signin-email" className="text-[13px] font-semibold">User ID / Email</Label>
+                  <Input id="signin-email" className="h-11 border-field-border" placeholder="Enter your User ID or Email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="signin-pwd" className="text-[13px] font-semibold">Password</Label>
+                    <a href="#" className="text-xs text-brand-blue underline">Forgot password?</a>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="signin-pwd">Password</Label>
-                      <a href="#" className="text-xs text-brand hover:underline">Forgot password?</a>
-                    </div>
-                    <Input id="signin-pwd" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" autoComplete="current-password" />
-                  </div>
-                  <Button onClick={signIn} disabled={busy} className="w-full bg-brand hover:bg-brand-2 text-primary-foreground">
-                    {busy ? "Signing in…" : "Sign in"}
-                  </Button>
-                  <p className="pt-1 text-center text-xs text-slate-500">
-                    Protected by role-based access. Unauthorized use is prohibited.
-                  </p>
+                  <Input id="signin-pwd" className="h-11 border-field-border" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" autoComplete="current-password" />
+                </div>
+                <Button onClick={signIn} disabled={busy} className="h-11 w-full bg-brand-blue text-sm font-semibold text-primary-foreground hover:bg-brand-blue/90">
+                  {busy ? "Signing in…" : "Sign in"}
+                </Button>
+                <p className="pt-1 text-center text-xs text-grey-text">
+                  Protected by role-based access. Unauthorized use is prohibited.
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          <p className="mt-6 text-center text-xs text-slate-500">
-            Need help? Contact <a className="text-brand underline-offset-2 hover:underline" href="mailto:it-support@company.com">IT Support</a>
+          <p className="mt-6 text-center text-xs text-grey-text">
+            Need help? Contact <a className="text-brand-blue underline" href="mailto:it-support@company.com">IT Support</a>
           </p>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { AnumatiWordmark } from "@/components/brand/AnumatiWordmark";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ export function AppShell({
         <div key={sec} className={cn("mt-4", collapsed && "mt-2")}>
           <div
             className={cn(
-              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 transition-all duration-300",
+              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sky transition-all duration-300",
               collapsed ? "h-0 overflow-hidden py-0 opacity-0" : "block"
             )}
           >
@@ -102,7 +103,7 @@ export function AppShell({
                       >
                         {n.label}
                       </span>
-                      {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />}
+                      {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />}
                     </Link>
                   </li>
                 );
@@ -114,7 +115,7 @@ export function AppShell({
         <div className={cn("mt-4", collapsed && "mt-2")}>
           <div
             className={cn(
-              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 transition-all duration-300",
+              "px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sky transition-all duration-300",
               collapsed ? "h-0 overflow-hidden py-0 opacity-0" : "block"
             )}
           >
@@ -176,10 +177,7 @@ export function AppShell({
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
                 <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
               </div>
-              <div className="flex min-w-0 flex-col justify-center overflow-hidden">
-                <div className="font-display text-base font-bold leading-tight tracking-tight text-white">NFA Portal</div>
-                <div className="truncate text-[11px] uppercase leading-tight tracking-[0.14em] text-white/55">SAP Integrated</div>
-              </div>
+              <AnumatiWordmark tone="dark" size={24} />
             </div>
           )}
           <Button
@@ -225,20 +223,17 @@ export function AppShell({
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 ring-1 ring-white/15">
                         <img src="/ramky-logo.png" alt="Ramky Estates" className="h-full w-full object-contain" />
                       </div>
-                      <div className="leading-tight">
-                        <div className="font-display text-base font-bold">NFA Portal</div>
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-white/55">SAP Integrated</div>
-                      </div>
+                      <AnumatiWordmark tone="dark" size={24} />
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="overflow-y-auto px-3 pb-6">{navList(false)}</nav>
                 </SheetContent>
               </Sheet>
               <div className="hidden md:flex min-w-0 flex-col">
-                {title && <h1 className="font-display truncate text-lg font-bold">{title}</h1>}
+                {title && <h1 className="font-display truncate text-[22px] font-normal">{title}</h1>}
                 {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
               </div>
-              <div className="md:hidden font-display text-lg font-bold">NFA Portal</div>
+              <div className="md:hidden"><AnumatiWordmark size={20} /></div>
             </div>
             <div className="flex items-center gap-2">
               <div className="hidden items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 sm:flex">
