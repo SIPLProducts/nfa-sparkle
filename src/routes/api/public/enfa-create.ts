@@ -165,15 +165,7 @@ export const Route = createFileRoute("/api/public/enfa-create")({
               approver_mode: check === "X" ? "predefined" : "dynamic",
               updated_by: claimsData.claims.sub as string,
             });
-            const { notifyWorkflowAction } = await import("@/lib/workflow-mail.server");
-            const actorEmail = String((claimsData.claims as { email?: string }).email ?? "");
-            // Awaited within a time budget so the email is never cut off after the reply.
-            const { runWithinBudget, EMAIL_STEP_BUDGET_MS } = await import("@/lib/email-budget");
-            const { logEmailTimeout } = await import("@/lib/workflow-mail.server");
-            await runWithinBudget(() => notifyWorkflowAction({
-              action: "approve", enfaNo, comment: "", actor: userName || actorEmail, actorEmail, actorUserId: userName,
-              context: { subject: String(src.SUBJECT ?? ""), initiator: [userName], level: 0 },
-            }), EMAIL_STEP_BUDGET_MS, () => logEmailTimeout(enfaNo, "approve", 0));
+            // No email on create: workflow emails start with approver actions.
           }
         } catch (e) {
           console.warn("[enfa-create] post-create notify failed:", (e as Error)?.message ?? e);
