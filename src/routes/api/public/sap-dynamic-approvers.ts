@@ -4,6 +4,7 @@ import { z } from "zod";
 const Input = z.object({
   plants: z.array(z.string().trim().min(1).max(40)).min(1).max(2000),
 });
+const ListInput = z.object({ nfaNo: z.string().trim().max(40).optional() });
 
 export const Route = createFileRoute("/api/public/sap-dynamic-approvers")({
   server: {
@@ -35,20 +36,50 @@ export const Route = createFileRoute("/api/public/sap-dynamic-approvers")({
             },
           },
         });
+        const rawBody: unknown = await request.json().catch(() => ({}));
+        // Requests without `plants` come from User Management's Dynamic Approvers list.
+        const isList = !(rawBody && typeof rawBody === "object" && "plants" in rawBody);
         try {
           const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
           if (claimsErr || !claimsData?.claims?.sub) {
             return Response.json({ error: "Unauthorized: session token was rejected" }, { status: 401 });
           }
           const { assertScreenAccess } = await import("@/lib/user-admin.server");
-          await assertScreenAccess({ supabase, userId: String(claimsData.claims.sub) }, "nfa_new");
+          await assertScreenAccess({ supabase, userId: String(claimsData.claims.sub) }, isList ? "user_management" : "nfa_new");
         } catch {
-          return Response.json({ error: "Forbidden: Create NFA permission required" }, { status: 403 });
+          return Response.json(
+            { error: isList ? "Forbidden: User Management permission required" : "Forbidden: Create NFA permission required" },
+            { status: 403 },
+          );
+        }
+
+        if (isList) {
+          const listInput = ListInput.safeParse(rawBody);
+          if (!listInput.success) return Response.json({ error: "Invalid NFA number" }, { status: 400 });
+          const { callDynamicApproversList } = await import("@/lib/sap-report.server");
+          const { parseDynamicApprovers } = await import("@/lib/sap-dynamic-approvers");
+          const r = await callDynamicApproversList(listInput.data.nfaNo ?? "");
+          if (!r.ok) {
+            const raw = r.body?.trim() ?? "";
+            const detail = raw && !/^<!doctype html|^<html/i.test(raw) ? raw.slice(0, 300) : (r.error ?? "SAP request failed");
+            return Response.json({ error: detail }, { status: 424 });
+          }
+          const records = parseDynamicApprovers(r.body ?? "");
+          let message = "";
+          if (!records.length) {
+            try {
+              const j = JSON.parse(r.body ?? "");
+              message = typeof j?.message === "string" ? j.message : "";
+            } catch {
+              message = (r.body ?? "").trim().slice(0, 300);
+            }
+          }
+          return Response.json({ records, message }, { headers: { "cache-control": "no-store" } });
         }
 
         let parsed;
         try {
-          parsed = Input.parse(await request.json());
+          parsed = Input.parse(rawBody);
         } catch {
           return Response.json({ error: "At least one plant is required" }, { status: 400 });
         }
