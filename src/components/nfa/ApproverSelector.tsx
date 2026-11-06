@@ -117,6 +117,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
               <th className="w-10 px-3 py-2" />
               <th className="px-3 py-2">Department Name</th>
               <th className="px-3 py-2">Designation</th>
+              <th className="px-3 py-2">User ID</th>
               <th className="px-3 py-2">Approver Name</th>
             </tr>
           </thead>
@@ -131,6 +132,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
                 </td>
                 <td className="px-3 py-2">{details[a.userId]?.department || "—"}</td>
                 <td className="px-3 py-2">{a.role || "—"}</td>
+                <td className="px-3 py-2 font-mono text-xs">{a.userId || "—"}</td>
                 <td className="px-3 py-2">{details[a.userId]?.name || "—"}</td>
               </tr>
             ))}
