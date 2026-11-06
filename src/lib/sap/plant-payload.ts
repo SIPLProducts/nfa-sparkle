@@ -1,9 +1,15 @@
 /**
- * Builds the Plant F4 request body. Starts from the configured template (Admin →
- * SAP API Settings) and fills `cc_code.CC_CODE` with the selected company code,
- * keeping `check` from the template (default "X"). Returns null for invalid JSON.
+ * Builds the Plant F4 request body from the configured template (Admin → SAP API
+ * Settings). Supports `{ plant: { check, bukrs } }` and the older
+ * `{ cc_code: { check, CC_CODE } }` shape. `check` follows the approver mode:
+ * Predefined = "X", Dynamic = "". When no mode is given, the template's check
+ * (default "X") is kept. Returns null for invalid JSON.
  */
-export function buildPlantF4Payload(template: string | null | undefined, companyCode: string): Record<string, unknown> | null {
+export function buildPlantF4Payload(
+  template: string | null | undefined,
+  companyCode: string,
+  check?: "X" | "",
+): Record<string, unknown> | null {
   let base: Record<string, unknown> = {};
   const t = (template ?? "").trim();
   if (t) {
@@ -14,8 +20,14 @@ export function buildPlantF4Payload(template: string | null | undefined, company
       return null;
     }
   }
-  const innerRaw = base["cc_code"];
-  const inner = innerRaw && typeof innerRaw === "object" && !Array.isArray(innerRaw) ? (innerRaw as Record<string, unknown>) : {};
-  const check = String(inner["check"] ?? "").trim() || "X";
-  return { ...base, cc_code: { ...inner, check, CC_CODE: String(companyCode ?? "").trim() } };
+  const code = String(companyCode ?? "").trim();
+  const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+  const plantInner = obj(base["plant"]);
+  if (plantInner) {
+    const c = check ?? (String(plantInner["check"] ?? "").trim() || "X");
+    return { ...base, plant: { ...plantInner, check: c, bukrs: code } };
+  }
+  const inner = obj(base["cc_code"]) ?? {};
+  const c = check ?? (String(inner["check"] ?? "").trim() || "X");
+  return { ...base, cc_code: { ...inner, check: c, CC_CODE: code } };
 }

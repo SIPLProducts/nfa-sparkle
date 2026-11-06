@@ -234,7 +234,7 @@ function NewNfaPage() {
         const res = await fetch("/api/public/sap-plant", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ bukrs: company }),
+          body: JSON.stringify({ bukrs: company, check: approverModeCheck(approverMode) === "X" ? "X" : "" }),
         });
         const text = await res.text();
         let parsed: unknown = null;
@@ -258,7 +258,7 @@ function NewNfaPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [company, plantReload]);
+  }, [company, plantReload, approverMode]);
 
   // NFA Type list comes from the SAP "ENFA Type F4" endpoint registered in Admin → SAP API Settings.
   useEffect(() => {
