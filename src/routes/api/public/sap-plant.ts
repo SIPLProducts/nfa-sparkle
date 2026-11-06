@@ -45,9 +45,11 @@ export const Route = createFileRoute("/api/public/sap-plant")({
         }
 
         let bukrs = "";
+        let check: "X" | "" | undefined;
         try {
           const input = (await request.json()) as Record<string, unknown> | null;
           bukrs = String(input?.["bukrs"] ?? "").trim();
+          if (input && "check" in input) check = String(input["check"] ?? "").trim().toUpperCase() === "X" ? "X" : "";
         } catch {
           bukrs = "";
         }
@@ -57,7 +59,7 @@ export const Route = createFileRoute("/api/public/sap-plant")({
 
         let result;
         try {
-          result = await callSapPlantF4(bukrs);
+          result = await callSapPlantF4(bukrs, check);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Plant service failed";
           return Response.json(

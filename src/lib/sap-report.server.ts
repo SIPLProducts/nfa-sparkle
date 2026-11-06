@@ -241,7 +241,7 @@ export const REPORT_KEYS = [
  * registered "Plant F4" endpoint. Host, path, method, headers, query and
  * credentials all come from Admin → SAP API Settings — nothing is hardcoded.
  */
-export async function callSapPlantF4(bukrs: string): Promise<SapCallResult> {
+export async function callSapPlantF4(bukrs: string, check?: "X" | ""): Promise<SapCallResult> {
   const db = await admin();
   const { data: exactEndpoint } = await db
     .from("sap_endpoint")
@@ -290,7 +290,7 @@ export async function callSapPlantF4(bukrs: string): Promise<SapCallResult> {
   // Start from the configured body template so any extra keys the customer adds
   // in API Settings are preserved, then set the selected company code.
   const { buildPlantF4Payload } = await import("@/lib/sap/plant-payload");
-  const payload = buildPlantF4Payload(ep.request_body, bukrs);
+  const payload = buildPlantF4Payload(ep.request_body, bukrs, check);
   if (!payload) {
     return {
       ok: false,
