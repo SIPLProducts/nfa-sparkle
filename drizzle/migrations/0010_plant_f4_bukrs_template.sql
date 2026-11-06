@@ -1,0 +1,1 @@
+UPDATE public.sap_endpoint SET request_body = '{"plant":{"check":"X","bukrs":"9000"}}' WHERE name ILIKE 'Plant F4';

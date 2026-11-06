@@ -71,6 +71,13 @@
       "when": 1793891836627,
       "tag": "0009_register_dynamic_approvers_endpoint",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793940972735,
+      "tag": "0010_plant_f4_bukrs_template",
+      "breakpoints": true
     }
   ]
 }
