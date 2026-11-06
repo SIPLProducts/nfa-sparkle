@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { type SapReportFilters, type SapReportRow } from "@/lib/sap-api.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { PLANTS, FUNCTIONS, nfaTypeDisplayLabel, parseEnfaTypeF4 } from "@/lib/sap/master";
+import { useServerFn } from "@tanstack/react-start";
+import { getReportPlants } from "@/lib/report-plants.functions";
+import { FUNCTIONS, nfaTypeDisplayLabel, parseEnfaTypeF4 } from "@/lib/sap/master";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,6 +178,17 @@ function normaliseRows(value: unknown): SapReportRow[] {
 
 function Report() {
   const [f, setF] = useState<SapReportFilters>(EMPTY);
+  // Plant options come from SAP "F4 In Reports Plant Field".
+  const fetchReportPlants = useServerFn(getReportPlants);
+  const [reportPlants, setReportPlants] = useState<{ code: string; name: string }[]>([]);
+  const [reportPlantsError, setReportPlantsError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    fetchReportPlants()
+      .then((r) => { if (!alive) return; setReportPlants(r.plants); setReportPlantsError(r.error); })
+      .catch(() => { if (alive) setReportPlantsError("Could not load plants from SAP."); });
+    return () => { alive = false; };
+  }, [fetchReportPlants]);
   // NFA Type options come from the same SAP "ENFA Type F4" service as Create NFA.
   const [nfaTypes, setNfaTypes] = useState<{ code: string; name: string }[]>([]);
   const [nfaTypesLoading, setNfaTypesLoading] = useState(true);
@@ -414,7 +427,10 @@ function Report() {
           <h2 className="text-sm font-semibold tracking-wide text-foreground">Filters</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <RangeSelect label="Plant" options={PLANTS} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
+          <div>
+            <RangeSelect label="Plant" options={reportPlants} from={f.plant_from} to={f.plant_to} onFrom={set("plant_from")} onTo={set("plant_to")} />
+            {reportPlantsError && <p className="mt-1 text-xs text-destructive">{reportPlantsError}</p>}
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs">ENFA Type</Label>
             <Select
