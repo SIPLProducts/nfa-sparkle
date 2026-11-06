@@ -209,6 +209,54 @@ function RolePicker({ value, onChange }: { value: Role | ""; onChange: (r: Role)
   );
 }
 
+/** Dropdown fed by the Departments / Designations tabs (active entries, by name). */
+function MasterSelect({
+  kind,
+  value,
+  onChange,
+  invalid,
+}: {
+  kind: "departments" | "designations";
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+}) {
+  const noun = kind === "departments" ? "department" : "designation";
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["master-select", kind],
+    queryFn: () => listMasterItems({ data: { kind } }),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  if (isLoading) return <Skeleton className="h-10 w-full" />;
+  const names = Array.from(
+    new Set((data ?? []).filter((r) => r.is_active && r.name?.trim()).map((r) => r.name.trim())),
+  ).sort((a, b) => a.localeCompare(b));
+  // Keep a previously saved value selectable even if it is no longer in the list.
+  const options = value && !names.includes(value) ? [value, ...names] : names;
+  const label = kind === "departments" ? "Departments" : "Designations";
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger aria-invalid={invalid}>
+        <SelectValue placeholder={`Select a ${noun}`} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.length ? (
+          options.map((n) => (
+            <SelectItem key={n} value={n}>
+              {n}
+            </SelectItem>
+          ))
+        ) : (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+            {isError ? `Could not load ${noun}s.` : `No ${noun}s yet — add them in the ${label} tab.`}
+          </div>
+        )}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function UsersTab() {
   const qc = useQueryClient();
   const fetchUsers = useServerFn(listManagedUsers);
@@ -765,27 +813,27 @@ function CreateUserDialog({
             />
             <div className="space-y-1.5">
               <Label>Department {req}</Label>
-              <Input
+              <MasterSelect
+                kind="departments"
                 value={department}
-                onChange={(e) => {
-                  setDepartment(e.target.value);
-                  if (e.target.value.trim()) setDeptError(false);
+                onChange={(v) => {
+                  setDepartment(v);
+                  if (v.trim()) setDeptError(false);
                 }}
-                autoComplete="off"
-                aria-invalid={deptError}
+                invalid={deptError}
               />
               {deptError && <p className="text-xs text-destructive">Department is required</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Designation {req}</Label>
-              <Input
+              <MasterSelect
+                kind="designations"
                 value={designation}
-                onChange={(e) => {
-                  setDesignation(e.target.value);
-                  if (e.target.value.trim()) setDesigError(false);
+                onChange={(v) => {
+                  setDesignation(v);
+                  if (v.trim()) setDesigError(false);
                 }}
-                autoComplete="off"
-                aria-invalid={desigError}
+                invalid={desigError}
               />
               {desigError && <p className="text-xs text-destructive">Designation is required</p>}
             </div>
@@ -990,11 +1038,11 @@ function EditUserDialog({
             />
             <div className="space-y-1.5">
               <Label>Department</Label>
-              <Input value={department} onChange={(e) => setDepartment(e.target.value)} autoComplete="off" />
+              <MasterSelect kind="departments" value={department} onChange={setDepartment} />
             </div>
             <div className="space-y-1.5">
               <Label>Designation</Label>
-              <Input value={designation} onChange={(e) => setDesignation(e.target.value)} autoComplete="off" />
+              <MasterSelect kind="designations" value={designation} onChange={setDesignation} />
             </div>
             <div className="space-y-1.5">
               <Label>Role {req}</Label>
