@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { actionPdfStatus } from "@/lib/print-form-status";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
 import { supabase } from "@/integrations/supabase/client";
@@ -374,9 +375,11 @@ function ApprovalsInbox() {
               nfaType: pdfDocument.nfaType,
               functionName: pdfDocument.functionName,
             },
-            documentStatus: isFinalApproval
-              ? "approved"
-              : val(selectedRow, "STATUS_TXT") || val(selectedRow, "STATUS"),
+            documentStatus: actionPdfStatus(
+              action,
+              !!isFinalApproval,
+              val(selectedRow, "STATUS_TXT") || val(selectedRow, "STATUS"),
+            ),
             token,
             approvalComment: comment,
             approverName: userName,
