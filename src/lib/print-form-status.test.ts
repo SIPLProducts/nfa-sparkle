@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { printFormStatusLabel, readPrintFormStatus } from "./print-form-status";
 
 describe("Shared Print Form watermark", () => {
-  it.each(["In Process", "pending", "requested clarification", "back to initiator", "rejected", "", undefined])(
+  it.each(["In Process", "pending", "requested clarification", "back to initiator", "", , undefined])(
     "keeps DRAFT for non-final or unknown status %s", (status) => {
       expect(printFormStatusLabel(status)).toBe("DRAFT");
     },
@@ -20,5 +20,10 @@ describe("Shared Print Form watermark", () => {
     expect(readPrintFormStatus({ status: "approved" })).toBe("approved");
     expect(readPrintFormStatus({ ENFA_STATUS: "Completed" })).toBe("Completed");
     expect(readPrintFormStatus({ STAT1: "Approved" })).toBe("");
+  });
+});
+describe("Rejected watermark", () => {
+  it.each(["Rejected", "rejected", " REJECT "])("shows REJECTED for %s", (s) => {
+    expect(printFormStatusLabel(s)).toBe("REJECTED");
   });
 });

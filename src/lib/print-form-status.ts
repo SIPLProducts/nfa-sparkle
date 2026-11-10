@@ -1,6 +1,7 @@
 /** Only the record's overall status decides completion, never one approval level. */
-export function printFormStatusLabel(status: string | undefined): "DRAFT" | "APPROVED" {
+export function printFormStatusLabel(status: string | undefined): "DRAFT" | "APPROVED" | "REJECTED" {
   const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
+  if (["rejected", "reject"].includes(normalized)) return "REJECTED";
   return ["completed", "closed", "final", "approved", "finally_approved", "final_approved"].includes(normalized)
     ? "APPROVED" : "DRAFT";
 }
