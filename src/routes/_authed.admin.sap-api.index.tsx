@@ -185,7 +185,16 @@ function EndpointsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-sm">
+          <Plug className="h-4 w-4 text-primary" />
+          <span className="text-muted-foreground">Total APIs:</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-6" />
+          ) : (
+            <span className="font-semibold tabular-nums">{(data ?? []).length}</span>
+          )}
+        </div>
         <Button onClick={() => setOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New endpoint
         </Button>
