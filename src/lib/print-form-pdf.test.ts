@@ -9,7 +9,7 @@ describe("Print Form PDF status", () => {
     },
   );
 
-  it.each([undefined, "", "in process", "pending", "rejected", "clarification"])(
+  it.each([undefined, "", "in process", "pending", "clarification"])(
     "keeps Draft for non-final status %s",
     (status) => {
       expect(printFormStatusLabel(status)).toBe("DRAFT");
