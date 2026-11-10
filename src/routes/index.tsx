@@ -349,7 +349,7 @@ function Kpi({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-status-ink/90 leading-tight">{label}</div>
-          <div className={"font-display mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value ?? "—"}</div>
+          <div className={"font-sans mt-2 text-3xl font-bold leading-none tabular-nums text-status-ink"}>{value ?? "—"}</div>
           <div className="mt-2 text-xs text-status-ink/80">{caption}</div>
         </div>
         <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-status-ink/30 bg-status-ink/20 text-status-ink"}>{icon}</div>
@@ -573,7 +573,7 @@ function StatusDoughnut({ data }: { data: { name: string; value: number; color: 
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-display text-3xl font-bold">{total}</span>
+            <span className="font-sans text-3xl font-bold tabular-nums">{total}</span>
             <span className="text-xs text-muted-foreground">{total > 0 ? "Total NFAs" : "No NFAs yet"}</span>
           </div>
         </div>
