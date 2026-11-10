@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SapReportRow } from "@/lib/sap-api.functions";
-import { Printer, Download, Loader2, ExternalLink } from "lucide-react";
+import { Download, Loader2, ExternalLink } from "lucide-react";
 import { EnfaWebPreviewSelected, fetchEnfaPreviewPdf } from "@/lib/enfa-preview-pdf";
 import { EnfaDocument, type EnfaDocumentProps } from "@/components/document/EnfaDocument";
 import { normalizeEnfaDocument } from "@/lib/enfa-document-model";
@@ -132,17 +132,6 @@ export function RecordPreviewDialog({
     }
   }
 
-  const printPdf = () => {
-    if (pdfUrl) {
-      const w = window.open(pdfUrl, "_blank");
-      if (w) {
-        w.addEventListener("load", () => w.print(), { once: true });
-        return;
-      }
-    }
-    window.print();
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`max-h-[92vh] overflow-y-auto ${descriptionForm ? "max-w-4xl" : "max-w-3xl"}`}>
@@ -210,9 +199,6 @@ export function RecordPreviewDialog({
             </Button>
             </>
           ) : null}
-          <Button variant="outline" className="gap-1.5" onClick={printPdf} disabled={!!descriptionForm && logoLoading}>
-            <Printer className="h-3.5 w-3.5" /> Print
-          </Button>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
