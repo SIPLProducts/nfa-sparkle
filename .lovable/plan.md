@@ -1,14 +1,18 @@
-# Why the Rejected NFA shows DRAFT
+# Rejected NFA PDF stored in SAP shows DRAFT
 
-## Finding
-- The report shows NFA 100265 with ENFA Status "Rejected" (field `STATUS_TXT`).
-- The Preview reads the same field. In the current code, "Rejected" becomes the REJECTED watermark.
-- Your screenshots come from **enfa.siplproducts.com (Production)**. The Rejected fix was made after the last Production deployment, so Production still runs the old rule: "everything except Approved = DRAFT".
+## Root cause (confirmed in code)
+When an approver clicks **Reject**, the portal builds the Print Form PDF and sends it to SAP together with the reject action. At that moment the NFA's status is still "In Process" (SAP only marks it Rejected after it accepts the action). The PDF takes its label from that old status, so it says **DRAFT**. That is the file SAP stored (SIPL_QM161538_02.pdf for NFA 100265).
 
-## What to do (no code change needed)
-1. Copy the updated `src/lib/print-form-status.ts` to the Production server (also Quality if you want it there).
-2. Rebuild and restart the Production app with the usual Production deploy script, then restart the app process with PM2.
-3. Hard-refresh the browser (Ctrl+Shift+R), open E-NFA Report, filter on Rejected, select 100265 and click Preview. The watermark should say REJECTED.
+Final approval already handles this case: it labels the PDF APPROVED ahead of time. Reject does not.
 
-## If it still shows DRAFT after redeploy
-Next step is a code check: confirm the Preview gets the selected row's status. That would be a separate fix.
+## Fix
+- On the Reject action, label the PDF sent to SAP **REJECTED**. This works the same way final approval uses APPROVED.
+- Nothing else changes: approve PDFs, other actions, SAP calls, payloads, comments, layout and validations stay as they are.
+- Add a small test: Reject → REJECTED, final approve → APPROVED, other cases → current status.
+
+## Notes
+- PDFs SAP already stored, like 100265, keep DRAFT. Only rejections made after the change get REJECTED.
+- Quality and Production pick up the change after redeploy.
+
+## Technical
+`src/routes/_authed.approvals.tsx` ~line 377: `documentStatus: isFinalApproval ? "approved" : action === "reject" ? "rejected" : <row status>`. Move the choice into a small pure helper so it can be tested.
