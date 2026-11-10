@@ -27,3 +27,16 @@ describe("Rejected watermark", () => {
     expect(printFormStatusLabel(s)).toBe("REJECTED");
   });
 });
+
+import { actionPdfStatus } from "./print-form-status";
+describe("action PDF status", () => {
+  it("labels Reject PDFs REJECTED", () => {
+    expect(printFormStatusLabel(actionPdfStatus("reject", false, "In Process"))).toBe("REJECTED");
+  });
+  it("labels final approval PDFs APPROVED", () => {
+    expect(printFormStatusLabel(actionPdfStatus("approve", true, "In Process"))).toBe("APPROVED");
+  });
+  it("keeps the current status otherwise", () => {
+    expect(actionPdfStatus("approve", false, "In Process")).toBe("In Process");
+  });
+});

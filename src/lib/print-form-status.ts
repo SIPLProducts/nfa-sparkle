@@ -6,6 +6,13 @@ export function printFormStatusLabel(status: string | undefined): "DRAFT" | "APP
     ? "APPROVED" : "DRAFT";
 }
 
+/** Status for the PDF sent with a workflow action, before SAP updates the record. */
+export function actionPdfStatus(action: string, isFinalApproval: boolean, currentStatus: string): string {
+  if (isFinalApproval) return "approved";
+  if (action === "reject") return "rejected";
+  return currentStatus;
+}
+
 export function readPrintFormStatus(row: Record<string, unknown>): string {
   for (const alias of ["STATUS_TXT", "STATUS", "ENFA_STATUS"]) {
     const entry = Object.entries(row).find(([key]) => key.trim().toUpperCase() === alias);
