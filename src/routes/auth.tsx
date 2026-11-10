@@ -65,7 +65,7 @@ function AuthPage() {
       {/* Left brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between gap-[2vh] overflow-hidden bg-deep-blue p-[clamp(1.5rem,5vh,3rem)] text-white">
         <div className="flex items-center gap-4">
-          <img src="/ramky-logo.png" alt="Ramky Estates" className="h-[clamp(2.5rem,7vh,3.5rem)] w-auto object-contain" />
+          <img src="/ramky-logo-trim.png" alt="Ramky Estates" className="h-[clamp(2.5rem,7vh,3.5rem)] w-auto object-contain" />
           <div className="h-10 w-px bg-white/30" />
           <div>
             <div className="text-sm font-semibold">Note For Approval</div>
