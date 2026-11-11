@@ -181,7 +181,9 @@ export function buildApprovalFlowPayload(
     out[k] = value.trim();
   };
   set("check", input.check);
-  set("plant", dynamic ? "" : input.plant);
+  // Write the NFA's plant into the template's own plant field (werks or plant).
+  const plantKey = Object.keys(out).find((c) => ["werks", "plant"].includes(c.toLowerCase())) ?? "plant";
+  out[plantKey] = input.plant.trim();
   set("nfa_type", dynamic ? "" : input.nfaType);
   set("funct", dynamic ? "" : input.funct);
   for (const k of Object.keys(out)) if (k.toLowerCase() === "enfa_no") delete out[k];
