@@ -4,8 +4,8 @@ import { parseSapApprovalFlow } from "@/lib/sap-approval-flow";
 
 const InputSchema = z.object({
   plant: z.string().trim().min(1).max(40),
-  nfaType: z.string().trim().min(1).max(120),
-  functionName: z.string().trim().min(1).max(120),
+  nfaType: z.string().trim().max(120),
+  functionName: z.string().trim().max(120),
   enfaNo: z.string().trim().max(40).optional(),
 });
 
@@ -54,8 +54,12 @@ export const Route = createFileRoute("/api/public/sap-approval-flow")({
         }
         dynamic = mode === "dynamic";
       }
+      // Only Dynamic records may omit NFA Type / Function (they are blank by design).
+      if (!dynamic && (!input.nfaType || !input.functionName)) {
+        return Response.json({ error: "Plant, NFA Type, and Function are required" }, { status: 400 });
+      }
       let result = await callSapApprovalFlow({ ...input, check: dynamic ? "" : "X" });
-      if (dynamic && (!result.ok || !parseSapApprovalFlow(result.body).length)) {
+      if (dynamic && input.nfaType && input.functionName && (!result.ok || !parseSapApprovalFlow(result.body).length)) {
         result = await callSapApprovalFlow({ ...input, check: "X" });
       }
       if (!result.ok) return Response.json(

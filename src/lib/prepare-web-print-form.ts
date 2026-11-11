@@ -144,7 +144,7 @@ export async function prepareWebPrintForm(
     initiatorName,
   });
   const plant = String(row.PSPNR ?? "").trim() || resolved.document.plantLabel.split(/[–-]/)[0]?.trim() || "";
-  const flow = plant && resolved.document.nfaType
+  const flow = plant && (resolved.document.nfaType || enfaNumber)
     ? await fetchResolvedSapApprovalFlow({ plant, nfaType: resolved.document.nfaType, functionName: resolved.document.functionName, enfaNo: enfaNumber }, session.access_token, signal)
       .catch(() => ({ approvers: [], functionName: "" }))
     : { approvers: [], functionName: "" };

@@ -130,7 +130,8 @@ export async function fetchSapApprovalFlow(
   token: string,
   signal?: AbortSignal,
 ): Promise<EnfaDocumentApprover[]> {
-  if (!input.plant.trim() || !input.nfaType.trim() || !input.functionName.trim() || !token) return [];
+  if (!input.plant.trim() || !token) return [];
+  if (!input.enfaNo?.trim() && (!input.nfaType.trim() || !input.functionName.trim())) return [];
   const response = await fetch("/api/public/sap-approval-flow", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -209,7 +210,7 @@ export async function fetchResolvedSapApprovalFlow(
   const plant = input.plant.trim();
   const nfaType = input.nfaType.trim();
   const functionName = input.functionName.trim();
-  if (plant && nfaType && functionName) {
+  if (plant && ((nfaType && functionName) || input.enfaNo?.trim())) {
     try {
       const approvers = await fetchSapApprovalFlow({ plant, nfaType, functionName, enfaNo: input.enfaNo?.trim() || undefined }, token, signal);
       if (approvers.length) return { approvers, functionName };
