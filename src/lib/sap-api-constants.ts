@@ -185,6 +185,8 @@ export function buildApprovalFlowPayload(
   set("nfa_type", dynamic ? "" : input.nfaType);
   set("funct", dynamic ? "" : input.funct);
   for (const k of Object.keys(out)) if (k.toLowerCase() === "enfa_no") delete out[k];
-  if (dynamic) out["enfa_no"] = String(input.enfaNo ?? "").trim();
+  const enfaNo = String(input.enfaNo ?? "").trim();
+  // SAP needs the ENFA number for both check modes to return per-level DATE fields.
+  if (dynamic || enfaNo) out["enfa_no"] = enfaNo;
   return out;
 }
