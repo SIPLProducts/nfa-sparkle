@@ -14,6 +14,7 @@ export interface CreateManagedUserInput {
   ROLE: string;
   EMP_ID: string;
   COMPANY_CODE?: string;
+  SERIES?: string;
   DEPT: string;
   DESIG?: string;
 }
