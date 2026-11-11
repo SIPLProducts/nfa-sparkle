@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { GitBranch, Building2, BadgeCheck } from "lucide-react";
 import { MasterListTab } from "@/components/admin/MasterListTab";
+import { RangeTab, seriesQueryKey } from "@/components/admin/RangeTab";
+import { listCompanySeries } from "@/lib/company-series.functions";
 import { ApprovalChainTab } from "@/components/admin/ApprovalChainTab";
 import { DynamicApproversTab } from "@/components/admin/DynamicApproversTab";
 import { useScreenEntryEffect } from "@/hooks/use-screen-entry-effect";
@@ -172,7 +174,18 @@ function UserManagement() {
           <MasterListTab kind="designations" singular="Designation" nameLabel="Designation Name" showCode={false} showActive={false} />
         </TabsContent>
         <TabsContent value="companies">
-          <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={true} codeLabel="Company Code" descriptionLabel="Company Description" showActive={false} />
+          <Tabs defaultValue="list" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="list">Companies</TabsTrigger>
+              <TabsTrigger value="range">Range</TabsTrigger>
+            </TabsList>
+            <TabsContent value="list">
+              <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={true} codeLabel="Company Code" descriptionLabel="Company Description" showActive={false} />
+            </TabsContent>
+            <TabsContent value="range">
+              <RangeTab />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
         <TabsContent value="perms">
           <PermissionsTab />
@@ -414,6 +427,7 @@ function UsersTab() {
                         <div className="space-y-0.5">
                           <div className="font-medium text-foreground">{u.company_code || "—"}</div>
                           <div className="break-words text-xs">{u.employee_id || "—"}</div>
+                          {u.company_series ? <div className="text-xs">Series: {u.company_series}</div> : null}
                         </div>
                       ) : (
                         "—"
@@ -671,6 +685,7 @@ function CreateUserDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [companyError, setCompanyError] = useState(false);
+  const [series, setSeries] = useState("");
   const [department, setDepartment] = useState("");
   const [deptError, setDeptError] = useState(false);
   const [designation, setDesignation] = useState("");
@@ -694,6 +709,7 @@ function CreateUserDialog({
       setEmployeeId("");
       setCompanyCode("");
       setCompanyError(false);
+      setSeries("");
       setDepartment("");
       setDeptError(false);
       setDesignation("");
@@ -749,6 +765,7 @@ function CreateUserDialog({
         ROLE: role.join(","),
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
+        SERIES: series,
         DEPT: department,
         DESIG: designation,
       });
@@ -852,6 +869,10 @@ function CreateUserDialog({
               }}
             />
             <div className="space-y-1.5">
+              <Label>Series</Label>
+              <SeriesSelect value={series} onChange={setSeries} />
+            </div>
+            <div className="space-y-1.5">
               <Label>Department {req}</Label>
               <MasterSelect
                 kind="departments"
@@ -950,6 +971,7 @@ function EditUserDialog({
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
+  const [series, setSeries] = useState("");
   const [department, setDepartment] = useState("");
   const [designation, setDesignation] = useState("");
   const [contact, setContact] = useState("");
@@ -966,6 +988,7 @@ function EditUserDialog({
       setEmail(user.email ?? "");
       setEmployeeId(user.employee_id ?? "");
       setCompanyCode(user.company_code ?? "");
+      setSeries(user.company_series ?? "");
       setDepartment(user.department ?? "");
       setDesignation(user.designation ?? "");
       setContact(user.contact ?? "");
@@ -993,6 +1016,7 @@ function EditUserDialog({
         ROLE: role.join(","),
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
+        SERIES: series,
         DEPT: department,
         DESIG: designation,
       });
@@ -1076,6 +1100,10 @@ function EditUserDialog({
                 setEmployeeId(name);
               }}
             />
+            <div className="space-y-1.5">
+              <Label>Series</Label>
+              <SeriesSelect value={series} onChange={setSeries} />
+            </div>
             <div className="space-y-1.5">
               <Label>Department</Label>
               <MasterSelect kind="departments" value={department} onChange={setDepartment} />
@@ -1476,5 +1504,28 @@ function PermissionsTab() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const listFn = useServerFn(listCompanySeries);
+  const { data, isLoading } = useQuery({ queryKey: seriesQueryKey, queryFn: () => listFn() });
+  const rows = data ?? [];
+  const NONE = "__none__";
+  return (
+    <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+      <SelectTrigger>
+        <SelectValue placeholder={isLoading ? "Loading series…" : "Select a series"} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>{isLoading ? "Loading series…" : "No series"}</SelectItem>
+        {value && !rows.some((r) => r.series === value) ? <SelectItem value={value}>{value}</SelectItem> : null}
+        {rows.map((r) => (
+          <SelectItem key={r.id} value={r.series}>
+            {r.series} ({r.range_from}–{r.range_to})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

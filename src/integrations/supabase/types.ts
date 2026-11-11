@@ -139,6 +139,33 @@ export type Database = {
         }
         Relationships: []
       }
+      company_series: {
+        Row: {
+          created_at: string
+          id: string
+          range_from: number
+          range_to: number
+          series: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          range_from: number
+          range_to: number
+          series: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          range_from?: number
+          range_to?: number
+          series?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           code: string | null
@@ -523,6 +550,7 @@ export type Database = {
       profiles: {
         Row: {
           company_code: string | null
+          company_series: string | null
           contact: string | null
           created_at: string
           department: string | null
@@ -539,6 +567,7 @@ export type Database = {
         }
         Insert: {
           company_code?: string | null
+          company_series?: string | null
           contact?: string | null
           created_at?: string
           department?: string | null
@@ -555,6 +584,7 @@ export type Database = {
         }
         Update: {
           company_code?: string | null
+          company_series?: string | null
           contact?: string | null
           created_at?: string
           department?: string | null

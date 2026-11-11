@@ -35,6 +35,7 @@ export interface ManagedUser {
   last_name: string | null;
   employee_id: string | null;
   company_code: string | null;
+  company_series: string | null;
   department: string | null;
   designation: string | null;
   contact: string | null;
@@ -156,7 +157,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
     if (error) throw error;
     const ids: string[] = list.users.map((u: any) => u.id);
     const [{ data: profiles }, { data: custom }] = await Promise.all([
-      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, department, designation, contact, status").in("id", ids),
+      db.from("profiles").select("id, full_name, first_name, last_name, email, is_active, username, employee_id, company_code, company_series, department, designation, contact, status").in("id", ids),
       db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
     ]);
     const pmap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
@@ -180,6 +181,7 @@ export const listManagedUsers = createServerFn({ method: "GET" })
           last_name: p?.last_name ?? null,
           employee_id: p?.employee_id ?? null,
           company_code: p?.company_code ?? null,
+          company_series: (p as any)?.company_series ?? null,
           department: p?.department ?? null,
           designation: (p as any)?.designation ?? null,
           contact: p?.contact ?? null,
@@ -205,6 +207,7 @@ export interface CreateUserPayload {
   ROLE: string;
   EMP_ID: string;
   COMPANY_CODE?: string;
+  SERIES?: string;
   DEPT: string;
   DESIG?: string;
 }
@@ -261,6 +264,7 @@ export const updateManagedUser = createServerFn({ method: "POST" })
         username: data.USER_ID,
         employee_id: data.EMP_ID?.trim() || null,
         company_code: data.COMPANY_CODE?.trim() || null,
+        company_series: data.SERIES?.trim() || null,
         department: data.DEPT?.trim() || null,
         designation: data.DESIG?.trim() || null,
         contact: data.CONTACT || null,
