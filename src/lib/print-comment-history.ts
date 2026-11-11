@@ -41,9 +41,12 @@ function readVersion(record: SapCommentRecord): number | undefined {
 
 function commentsFromRecord(record: SapCommentRecord, version: number | undefined): EnfaDocumentComment[] {
   const approverKeys = new Map<number, string>();
+  const nameKeys = new Map<number, string>();
   for (const key of Object.keys(record)) {
-    const match = key.trim().match(/^APPROVER(\d+)$/i);
-    if (match) approverKeys.set(Number(match[1]), key);
+    const match = key.trim().match(/^APPROVER(\d+)$/i) ?? key.trim().match(/^APPR(\d+)$/i);
+    if (match && (!approverKeys.has(Number(match[1])) || /^APPROVER/i.test(key.trim()))) approverKeys.set(Number(match[1]), key);
+    const nameMatch = key.trim().match(/^NAME(\d+)$/i);
+    if (nameMatch) nameKeys.set(Number(nameMatch[1]), key);
   }
   return Object.keys(record)
     .map((key) => ({ key, match: key.trim().match(/^COMMENT(\d+)$/i) }))
@@ -55,7 +58,9 @@ function commentsFromRecord(record: SapCommentRecord, version: number | undefine
       const level = Number(match[1]);
       const approverKey = approverKeys.get(level);
       const approverId = approverKey ? String(record[approverKey] ?? "").trim() : "";
-      return [{ name: "", text, version, level, ...(approverId ? { approverId } : {}) }];
+      const nameKey = nameKeys.get(level);
+      const name = nameKey ? String(record[nameKey] ?? "").trim() : "";
+      return [{ name, text, version, level, ...(approverId ? { approverId } : {}) }];
     });
 }
 
