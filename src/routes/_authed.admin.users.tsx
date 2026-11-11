@@ -190,22 +190,19 @@ function UserManagement() {
 
 /* --------------------------------- users -------------------------------- */
 
-function RolePicker({ value, onChange }: { value: Role | ""; onChange: (r: Role) => void }) {
+function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) => void }) {
   const { data: roleDefs, isLoading } = useRoleDefs();
   if (isLoading) return <Skeleton className="h-10 w-full" />;
+  const toggle = (k: Role) => onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
   return (
-    <Select value={value || undefined} onValueChange={(v) => onChange(v as Role)}>
-      <SelectTrigger>
-        <SelectValue placeholder="Select a role" />
-      </SelectTrigger>
-      <SelectContent>
-        {(roleDefs ?? []).map((role) => (
-          <SelectItem key={role.key} value={role.key}>
-            {role.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="grid max-h-40 gap-1.5 overflow-y-auto rounded-md border border-input p-2 sm:grid-cols-2">
+      {(roleDefs ?? []).map((role) => (
+        <label key={role.key} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-muted">
+          <input type="checkbox" className="h-4 w-4 accent-primary" checked={value.includes(role.key)} onChange={() => toggle(role.key)} />
+          {role.name}
+        </label>
+      ))}
+    </div>
   );
 }
 
@@ -642,7 +639,7 @@ function CreateUserDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState<Role | "">("");
+  const [role, setRole] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
   const companies = useCompanyOptions(open);
 
@@ -676,8 +673,8 @@ function CreateUserDialog({
       toast.error("Passwords do not match");
       return;
     }
-    if (!role) {
-      toast.error("Select a role");
+    if (!role.length) {
+      toast.error("Select at least one role");
       return;
     }
     if (!companyCode) {
@@ -706,7 +703,7 @@ function CreateUserDialog({
         CONTACT: contact,
         PASSWORD: password,
         CONFPWRD: confirmPassword,
-        ROLE: role,
+        ROLE: role.join(","),
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
         DEPT: department,
@@ -914,7 +911,7 @@ function EditUserDialog({
   const [designation, setDesignation] = useState("");
   const [contact, setContact] = useState("");
   const [status, setStatus] = useState("ACTIVE");
-  const [role, setRole] = useState<Role | "">("");
+  const [role, setRole] = useState<Role[]>([]);
   const [busy, setBusy] = useState(false);
   const companies = useCompanyOptions(!!user);
 
@@ -930,14 +927,14 @@ function EditUserDialog({
       setDesignation(user.designation ?? "");
       setContact(user.contact ?? "");
       setStatus(user.status ?? (user.is_active ? "ACTIVE" : "INACTIVE"));
-      setRole(user.roles[0] ?? "");
+      setRole(user.roles ?? []);
     }
   }, [user]);
 
   const submit = async () => {
     if (!user) return;
-    if (!role) {
-      toast.error("Select a role");
+    if (!role.length) {
+      toast.error("Select at least one role");
       return;
     }
     setBusy(true);
@@ -950,7 +947,7 @@ function EditUserDialog({
         EMAIL: email,
         STATUS: status,
         CONTACT: contact,
-        ROLE: role,
+        ROLE: role.join(","),
         EMP_ID: employeeId,
         COMPANY_CODE: companyCode,
         DEPT: department,
