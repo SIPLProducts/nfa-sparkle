@@ -1545,12 +1545,5 @@ function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string
       </p>
     ) : null}
     </>
-    {isError ? (
-      <p className="text-xs text-destructive">
-        Could not load series.{" "}
-        <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
-      </p>
-    ) : null}
-    </>
   );
 }
