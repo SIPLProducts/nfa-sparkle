@@ -857,6 +857,9 @@ function CreateUserDialog({
                 autoComplete="off"
               />
             </div>
+            <div className="sm:col-span-2 rounded-lg border bg-muted/20 p-4">
+              <p className="mb-3 text-sm font-semibold">Company</p>
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
@@ -868,9 +871,11 @@ function CreateUserDialog({
                 setEmployeeId(name);
               }}
             />
-            <div className="space-y-1.5">
-              <Label>Series</Label>
-              <SeriesSelect value={series} onChange={setSeries} />
+                <div className="space-y-1.5">
+                  <Label>Series</Label>
+                  <SeriesSelect value={series} onChange={setSeries} />
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Department {req}</Label>
@@ -1092,6 +1097,9 @@ function EditUserDialog({
                 autoComplete="off"
               />
             </div>
+            <div className="sm:col-span-2 rounded-lg border bg-muted/20 p-4">
+              <p className="mb-3 text-sm font-semibold">Company</p>
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
             <CompanyNameField
               companies={companies}
               companyCode={companyCode}
@@ -1100,9 +1108,11 @@ function EditUserDialog({
                 setEmployeeId(name);
               }}
             />
-            <div className="space-y-1.5">
-              <Label>Series</Label>
-              <SeriesSelect value={series} onChange={setSeries} />
+                <div className="space-y-1.5">
+                  <Label>Series</Label>
+                  <SeriesSelect value={series} onChange={setSeries} />
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Department</Label>
@@ -1509,10 +1519,11 @@ function PermissionsTab() {
 
 function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const listFn = useServerFn(listCompanySeries);
-  const { data, isLoading } = useQuery({ queryKey: seriesQueryKey, queryFn: () => listFn() });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: seriesQueryKey, queryFn: () => listFn(), staleTime: 0 });
   const rows = data ?? [];
   const NONE = "__none__";
   return (
+    <>
     <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
       <SelectTrigger>
         <SelectValue placeholder={isLoading ? "Loading series…" : "Select a series"} />
@@ -1527,5 +1538,12 @@ function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string
         ))}
       </SelectContent>
     </Select>
+    {isError ? (
+      <p className="text-xs text-destructive">
+        Could not load series.{" "}
+        <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
+      </p>
+    ) : null}
+    </>
   );
 }
