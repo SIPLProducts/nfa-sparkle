@@ -261,6 +261,18 @@ export function parseApprovalChains(raw: unknown): SapApprovalChain[] {
     }
     const str = (k: string) => String(lower[k] ?? "").trim();
     const levels: ApprovalChainLevel[] = [];
+    // Flat Dynamic Approvers row: one approver per row (APPROVER / DESIGN), grouped by plant + function.
+    if (!str("desig1") && !str("userid1") && (str("approver") || str("design"))) {
+      const pspnr = str("pspnr"), funct = str("funct");
+      let chain = out.find((c) => c.pspnr === pspnr && c.funct === funct && !c.lineIndex && (c as { flat?: boolean }).flat);
+      if (!chain) {
+        chain = { pspnr, funct, extraTxt: str("extr_txt"), begda: "", endda: "", lineIndex: "", levels: [] };
+        Object.defineProperty(chain, "flat", { value: true, enumerable: false });
+        out.push(chain);
+      }
+      chain.levels.push({ level: chain.levels.length + 1, designation: str("design"), userId: str("approver") });
+      continue;
+    }
     for (let i = 1; i <= 15; i++) {
       const designation = str(`desig${i}`);
       const userId = str(`userid${i}`);

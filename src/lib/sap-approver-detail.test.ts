@@ -73,12 +73,27 @@ it("Dynamic failure never calls the Approval Chain API", async () => {
 import { buildDynamicApproversPayload } from "./sap-api-constants";
 describe("Dynamic Approvers API", () => {
   it("sends every plant once", () => {
-    expect(buildDynamicApproversPayload(["9000", " 9001", "9000", ""])).toEqual({ approvers: { check: "", plant: [{ plant: "9000" }, { plant: "9001" }] } });
+    expect(buildDynamicApproversPayload(["9000", " 9001", "9000", ""])).toEqual({ approvers1: { check: " ", plant: [{ plant: "9000" }, { plant: "9001" }] } });
   });
   it("parses sample response into 4 approvers", () => {
     const row = { MANDT: "300", PSPNR: "9064", FUNCT: "BUDGET DEVIATION", EXTR_TXT: "SALES", BEGDA: "2025-04-01", ENDDA: "9999-12-31",
       DESIG1: "SALES HEAD", USERID1: "22004695", DESIG2: "CFO", USERID2: "22010458", DESIG3: "REG. HEAD", USERID3: "22008709", DESIG4: "GROUP CFO", USERID4: "90000000" };
     const chains = parseApprovalChains([row]);
     expect(chains[0].levels.filter((l) => l.userId).map((l) => l.userId)).toEqual(["22004695", "22010458", "22008709", "90000000"]);
+  });
+});
+
+import { parseApprovalChains as parseFlat } from "./sap/master";
+describe("Dynamic Approvers flat response", () => {
+  it("maps APPROVER/DESIGN rows into one chain per plant+function", () => {
+    const chains = parseFlat([
+      { PSPNR: "9000", FUNCT: "SCM ITEMS", APPROVER: "22012284", DESIGN: "SCM HEAD" },
+      { PSPNR: "9000", FUNCT: "SCM ITEMS", APPROVER: "22007746", DESIGN: "DIRE-PROJ" },
+    ]);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].levels).toEqual([
+      { level: 1, designation: "SCM HEAD", userId: "22012284" },
+      { level: 2, designation: "DIRE-PROJ", userId: "22007746" },
+    ]);
   });
 });
