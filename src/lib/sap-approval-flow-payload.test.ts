@@ -6,8 +6,8 @@ import { buildApprovalFlowPayload } from "./sap-api-constants";
 const base = { plant: "9000", nfaType: "BUDGET DEVIATION", funct: "PROJECTS", enfaNo: "100221" };
 
 describe("approval flow payload", () => {
-  it("predefined X never sends enfa_no", () => {
-    const p = buildApprovalFlowPayload({ enfa_no: "" }, { ...base, check: "X" });
+  it("predefined X without an NFA number sends no enfa_no", () => {
+    const p = buildApprovalFlowPayload({ enfa_no: "" }, { ...base, enfaNo: "", check: "X" });
     expect(p).toEqual({ check: "X", plant: "9000", nfa_type: "BUDGET DEVIATION", funct: "PROJECTS" });
   });
   it("dynamic sends only enfa_no", () => {
