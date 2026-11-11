@@ -738,7 +738,7 @@ function CreateUserDialog({
     }
     if (!companyCode) {
       setCompanyError(true);
-      toast.error("Company is required");
+      toast.error("Company Series is required");
       return;
     }
     if (!department.trim()) {
@@ -857,25 +857,19 @@ function CreateUserDialog({
                 autoComplete="off"
               />
             </div>
-            <div className="sm:col-span-2 rounded-lg border bg-muted/20 p-4">
-              <p className="mb-3 text-sm font-semibold">Company</p>
-              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <CompanyNameField
-              companies={companies}
-              companyCode={companyCode}
-              required
-              error={companyError}
-              onChange={(code, name) => {
-                setCompanyError(false);
-                setCompanyCode(code);
-                setEmployeeId(name);
-              }}
-            />
-                <div className="space-y-1.5">
-                  <Label>Series</Label>
-                  <SeriesSelect value={series} onChange={setSeries} />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Company Series {req}</Label>
+              <SeriesSelect
+                value={series}
+                required
+                invalid={companyError}
+                onChange={(v) => {
+                  setCompanyError(false);
+                  setSeries(v);
+                  setCompanyCode(v);
+                }}
+              />
+              {companyError && <p className="text-xs text-destructive">Company Series is required</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Department {req}</Label>
@@ -1097,22 +1091,16 @@ function EditUserDialog({
                 autoComplete="off"
               />
             </div>
-            <div className="sm:col-span-2 rounded-lg border bg-muted/20 p-4">
-              <p className="mb-3 text-sm font-semibold">Company</p>
-              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <CompanyNameField
-              companies={companies}
-              companyCode={companyCode}
-              onChange={(code, name) => {
-                setCompanyCode(code);
-                setEmployeeId(name);
-              }}
-            />
-                <div className="space-y-1.5">
-                  <Label>Series</Label>
-                  <SeriesSelect value={series} onChange={setSeries} />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Company Series</Label>
+              <SeriesSelect
+                value={series}
+                fallbackCode={companyCode}
+                onChange={(v) => {
+                  setSeries(v);
+                  setCompanyCode(v);
+                }}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Department</Label>
@@ -1517,33 +1505,52 @@ function PermissionsTab() {
   );
 }
 
-function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function SeriesSelect({
+  value,
+  onChange,
+  required = false,
+  invalid = false,
+  fallbackCode = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  invalid?: boolean;
+  fallbackCode?: string;
+}) {
   const listFn = useServerFn(listCompanySeries);
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: seriesQueryKey, queryFn: () => listFn(), staleTime: 0 });
   const rows = data ?? [];
   const NONE = "__none__";
+  // Earlier users have only a company code (e.g. 9301): pre-select the series whose range contains it.
+  useEffect(() => {
+    if (value || !fallbackCode || !rows.length) return;
+    const code = Number(fallbackCode);
+    const hit = rows.find((r) => r.series === fallbackCode) ?? (Number.isFinite(code) ? rows.find((r) => code >= r.range_from && code <= r.range_to) : undefined);
+    if (hit) onChange(hit.series);
+  }, [value, fallbackCode, rows]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <>
-    <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
-      <SelectTrigger>
-        <SelectValue placeholder={isLoading ? "Loading series…" : "Select a series"} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={NONE}>{isLoading ? "Loading series…" : "No series"}</SelectItem>
-        {value && !rows.some((r) => r.series === value) ? <SelectItem value={value}>{value}</SelectItem> : null}
-        {rows.map((r) => (
-          <SelectItem key={r.id} value={r.series}>
-            {r.series} ({r.range_from}–{r.range_to})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-    {isError ? (
-      <p className="text-xs text-destructive">
-        Could not load series.{" "}
-        <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
-      </p>
-    ) : null}
+      <Select value={value || (required ? undefined : NONE)} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+        <SelectTrigger aria-invalid={invalid}>
+          <SelectValue placeholder={isLoading ? "Loading series…" : "Select a series"} />
+        </SelectTrigger>
+        <SelectContent>
+          {!required && <SelectItem value={NONE}>No series</SelectItem>}
+          {value && !rows.some((r) => r.series === value) ? <SelectItem value={value}>{value}</SelectItem> : null}
+          {rows.map((r) => (
+            <SelectItem key={r.id} value={r.series}>
+              {r.series} ({r.range_from}–{r.range_to})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {isError ? (
+        <p className="text-xs text-destructive">
+          Could not load series.{" "}
+          <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
+        </p>
+      ) : null}
     </>
   );
 }
