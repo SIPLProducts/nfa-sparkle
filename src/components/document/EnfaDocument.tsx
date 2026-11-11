@@ -75,6 +75,14 @@ export function formatApproverDate(value?: string): string {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : v;
 }
 
+/** SAP times (HHMMSS / HH:MM:SS); zero or blank times return "". */
+export function formatApproverTime(value?: string): string {
+  const v = String(value ?? "").trim();
+  if (!v || /^[0:]+$/.test(v)) return "";
+  const m = v.match(/^(\d{1,2}):?(\d{2}):?(\d{2})$/);
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}:${m[3]}` : v;
+}
+
 export function EnfaDocument({
   companyName,
   nfaNo,
@@ -195,8 +203,10 @@ export function EnfaDocument({
                         <div><span className="font-bold">Role:</span> {a.role || ""}</div>
                         <div><span className="font-bold">User id:</span> {a.userId || ""}</div>
                         <div className="enfa-approver-name">{a.name || ""}</div>
-                        <div>{formatApproverDate(a.actedDate) || "."}</div>
-                        <div className="font-bold">{a.actedTime || "0:00:00"}</div>
+                        <div>{formatApproverDate(a.actedDate)}</div>
+                        {formatApproverTime(a.actedTime) && (
+                          <div className="font-bold">{formatApproverTime(a.actedTime)}</div>
+                        )}
                       </>
                     ) : (
                       <span>&nbsp;</span>
