@@ -117,3 +117,16 @@ describe("parseSapPrintComments versioned reply", () => {
     ]);
   });
 });
+
+import { parseSapPrintComments as parseNamed } from "./print-comment-history";
+describe("SAP NAMEn/APPRn comment mapping", () => {
+  it("puts approver name beside each comment", () => {
+    const rows = [{ REFFLD: "100255", VER: 0, APPR1: "9001", NAME1: "thiru sharvi", COMMENT1: "ok",
+      APPR2: "9002", NAME2: "prasad sharvi", COMMENT2: "ok", APPR3: "9003", NAME3: "yashaswini sharvi", COMMENT3: "ok",
+      APPR4: "", NAME4: "", COMMENT4: "" }];
+    const out = parseNamed(rows);
+    expect(out.map((c) => [c.name, c.text, c.approverId])).toEqual([
+      ["thiru sharvi", "ok", "9001"], ["prasad sharvi", "ok", "9002"], ["yashaswini sharvi", "ok", "9003"],
+    ]);
+  });
+});
