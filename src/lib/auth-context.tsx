@@ -3,12 +3,15 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Role, ScreenKey } from "@/lib/screens";
 import { clearScreenState } from "@/lib/screen-state";
+import { ACTIVE_ROLE_STORAGE_KEY, readStoredActiveRole, resolveActiveRole } from "@/lib/active-role";
 
 interface AuthCtx {
   user: User | null;
   session: Session | null;
   loading: boolean;
   roles: Role[];
+  activeRole: Role | null;
+  setActiveRole: (r: Role) => void;
   accessError: string | null;
   retryAccess: () => void;
   hasRole: (r: Role) => boolean;
@@ -28,6 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roleError, setRoleError] = useState<string | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  const [storedRole, setStoredRole] = useState<string | null>(null);
+  useEffect(() => { setStoredRole(readStoredActiveRole()); }, []);
+  const activeRole = resolveActiveRole(roles, storedRole);
+  const setActiveRole = (r: Role) => {
+    try { window.localStorage.setItem(ACTIVE_ROLE_STORAGE_KEY, r); } catch { /* ignore */ }
+    setStoredRole(r);
+  };
 
   async function loadPermissions() {
     const { data, error } = await supabase
@@ -150,13 +160,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // makes an access decision from empty roles.
     loading: loading || accessLoading,
     roles,
+    activeRole,
+    setActiveRole,
     accessError: roleError ?? permissionError,
     retryAccess: () => setRetryTick((t) => t + 1),
     hasRole: (r) => roles.includes(r) || roles.includes(`custom_${r}`),
     canAccess: (s) => {
-      if (roles.length === 0) return false;
-      if (Object.keys(perms).length === 0) return roles.includes("custom_admin");
-      return roles.some((r) => perms[`${r}:${s}`]);
+      if (!activeRole) return false;
+      if (Object.keys(perms).length === 0) return activeRole === "custom_admin";
+      return !!perms[`${activeRole}:${s}`];
     },
     signOut: async () => {
       clearScreenState();

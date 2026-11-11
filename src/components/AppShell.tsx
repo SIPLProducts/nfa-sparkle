@@ -46,7 +46,7 @@ export function AppShell({
   subtitle?: string;
   actions?: ReactNode;
 }) {
-  const { user, roles, accessError, canAccess, signOut } = useAuth();
+  const { user, roles, activeRole, setActiveRole, accessError, canAccess, signOut } = useAuth();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const usesFixedRecordsViewport = pathname === "/nfa/my" || pathname === "/approvals";
@@ -56,11 +56,8 @@ export function AppShell({
   const sections = Array.from(new Set(visibleNav.map((n) => n.section)));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const roleLabel = roles.includes("custom_admin")
-    ? "Admin"
-    : roles[0]
-      ? roles[0].replace(/^custom_/, "").replaceAll("_", " ")
-      : "No role";
+  const fmtRole = (r: string) => (r === "custom_admin" ? "Admin" : r.replace(/^custom_/, "").replaceAll("_", " "));
+  const roleLabel = activeRole ? fmtRole(activeRole) : "No role";
 
   const navList = (collapsed: boolean) => (
     <>
@@ -236,6 +233,18 @@ export function AppShell({
               <div className="md:hidden"><AnumatiWordmark size={20} /></div>
             </div>
             <div className="flex items-center gap-2">
+              {roles.length > 1 && (
+                <select
+                  aria-label="Switch role"
+                  value={activeRole ?? ""}
+                  onChange={(e) => setActiveRole(e.target.value)}
+                  className="h-9 max-w-[140px] rounded-md border border-border bg-card px-2 text-xs font-medium capitalize text-foreground"
+                >
+                  {roles.map((r) => (
+                    <option key={r} value={r}>{fmtRole(r)}</option>
+                  ))}
+                </select>
+              )}
               <div className="hidden items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 sm:flex">
                 <div className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                   {(user?.email ?? "U").slice(0, 1).toUpperCase()}

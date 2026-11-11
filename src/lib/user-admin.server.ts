@@ -1,3 +1,5 @@
+import { getRequestHeader } from "@tanstack/react-start/server";
+import { ACTIVE_ROLE_HEADER, effectiveRoles } from "@/lib/active-role";
 export type AdminContext = { supabase: any; userId: string };
 export type PermissionContext = AdminContext;
 export interface CreateManagedUserInput {
@@ -23,7 +25,10 @@ export async function assertScreenAccess(ctx: PermissionContext, screen: string)
   ]);
   if (roleError || permissionError) throw new Error("Unable to verify screen access");
 
-  const roles = new Set((assignments ?? []).map((row: { role_key: string }) => row.role_key));
+  const assigned = (assignments ?? []).map((row: { role_key: string }) => row.role_key);
+  let active: string | undefined;
+  try { active = getRequestHeader(ACTIVE_ROLE_HEADER) ?? undefined; } catch { active = undefined; }
+  const roles = new Set(effectiveRoles(assigned, active));
   const hasPermission = (permissions ?? []).some(
     (row: { role_key: string | null; allowed: boolean }) =>
       !!row.role_key && row.allowed && roles.has(row.role_key),
