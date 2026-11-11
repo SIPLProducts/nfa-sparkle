@@ -383,6 +383,8 @@ function ApprovalsInbox() {
             token,
             approvalComment: comment,
             approverName: userName,
+            approverId: userName,
+            actingLevel: selectedRow ? currentLevel(selectedRow) : undefined,
           });
           actionPdf = { base64: generated.base64, filename: generated.filename };
         }
