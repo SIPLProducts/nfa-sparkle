@@ -108,7 +108,11 @@ export function pairPrintCommentsWithApprovers(
     const byLevel = typeof comment.level === "number"
       ? approvers.find((approver, i) => (approver.level ?? i + 1) === comment.level)?.name?.trim()
       : "";
-    const name = comment.name.trim()
+    const rawName = comment.name.trim();
+    const nameAsId = rawName
+      ? approvers.find((approver) => approver.userId?.trim().toLowerCase() === rawName.toLowerCase())?.name?.trim()
+      : "";
+    const name = nameAsId || rawName
       || (id ? byId || comment.approverId?.trim() : byLevel || (comment.version === undefined ? approvers[index]?.name?.trim() : ""))
       || "";
     return {
@@ -187,4 +191,24 @@ export function orderedCommentVersions(comments: EnfaDocumentComment[]): Array<n
     else hasCurrent = true;
   }
   return [...(hasCurrent ? [undefined] : []), ...Array.from(versions).sort((a, b) => b - a)];
+}
+/** Fills today's date (YYYY-MM-DD) on the level being actioned when SAP has not dated it yet. */
+export function stampActingApproverDate(
+  approvers: EnfaDocumentApprover[],
+  actingLevel: number | undefined,
+  approverId?: string,
+  today: Date = new Date(),
+): EnfaDocumentApprover[] {
+  const id = approverId?.trim().toLowerCase() ?? "";
+  let index = typeof actingLevel === "number"
+    ? approvers.findIndex((a, i) => (a.level ?? i + 1) === actingLevel)
+    : -1;
+  if (index < 0 && id) index = approvers.findIndex((a) => a.userId?.trim().toLowerCase() === id);
+  if (index < 0) return approvers;
+  const current = approvers[index];
+  const existing = current?.actedDate?.replace(/[0.\-\/\s]/g, "") ?? "";
+  if (!current || existing) return approvers;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  return approvers.map((a, i) => (i === index ? { ...a, actedDate: date } : a));
 }

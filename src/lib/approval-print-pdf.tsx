@@ -5,6 +5,7 @@ import type { ApprovalPrintDocument } from "@/lib/approval-print-document";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { pairPrintCommentsWithApprovers } from "@/lib/print-comment-history";
 import { createPrintFormPdf } from "@/lib/print-form-pdf";
+import { stampActingApproverDate } from "@/lib/print-comment-history";
 
 async function loadCompanyLogo(companyCode: string, token: string): Promise<string | undefined> {
   if (!companyCode.trim() || !token) return undefined;
@@ -34,17 +35,36 @@ export async function createApprovalPrintFormPdf(input: {
   token: string;
   approvalComment: string;
   approverName: string;
+  /** Acting approver's SAP User ID, resolved to the chain's approver name. */
+  approverId?: string;
+  /** Approval level being actioned; stamped with today's date when SAP has none yet. */
+  actingLevel?: number;
 }): Promise<{ base64: string; filename: string; byteLength: number }> {
-  const canLoadApprovalFlow = Boolean(input.approvalFlow.plant.trim() && input.approvalFlow.nfaType.trim());
+  const canLoadApprovalFlow = Boolean(input.approvalFlow.plant.trim() && (input.approvalFlow.nfaType.trim() || input.nfaNo.trim()));
   const [logoSrc, flow] = await Promise.all([
     loadCompanyLogo(input.document.companyCode, input.token).catch(() => undefined),
     canLoadApprovalFlow
       ? fetchResolvedSapApprovalFlow({ ...input.approvalFlow, enfaNo: input.nfaNo }, input.token).catch(() => ({ approvers: [], functionName: "" }))
       : Promise.resolve({ approvers: [], functionName: "" }),
   ]);
-  const approvers = mergeApprovalFlow(input.document.approvers, flow.approvers, false);
+  const approvers = stampActingApproverDate(
+    mergeApprovalFlow(input.document.approvers, flow.approvers, false),
+    input.actingLevel,
+    input.approverId,
+  );
+  const actingId = input.approverId?.trim() ?? "";
+  const actingName = actingId
+    ? approvers.find((a) => a.userId?.trim().toLowerCase() === actingId.toLowerCase())?.name?.trim()
+      || (typeof input.actingLevel === "number" ? approvers.find((a, i) => (a.level ?? i + 1) === input.actingLevel)?.name?.trim() : "")
+      || ""
+    : "";
   const comments = pairPrintCommentsWithApprovers(input.approvalComment.trim()
-    ? [...input.comments, { name: input.approverName.trim(), text: input.approvalComment.trim() }]
+    ? [...input.comments, {
+        name: actingName || (actingId ? "" : input.approverName.trim()),
+        approverId: actingId || undefined,
+        level: input.actingLevel,
+        text: input.approvalComment.trim(),
+      }]
     : input.comments, approvers);
   const source = document.createElement("div");
   source.className = "enfa-print-area enfa-pdf-source";
