@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthedApprovalsRouteImport } from './routes/_authed.approvals'
 import { Route as AuthedReportRouteImport } from './routes/_authed.report'
 import { Route as AuthedAdminEmailRouteImport } from './routes/_authed.admin.email'
@@ -58,6 +59,11 @@ const AuthedRoute = AuthedRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedApprovalsRoute = AuthedApprovalsRouteImport.update({
@@ -236,6 +242,7 @@ const AuthedNfaIdChangeRoute = AuthedNfaIdChangeRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
   '/admin/email': typeof AuthedAdminEmailRoute
@@ -273,6 +280,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/approvals': typeof AuthedApprovalsRoute
   '/report': typeof AuthedReportRoute
   '/admin/email': typeof AuthedAdminEmailRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_authed/approvals': typeof AuthedApprovalsRoute
   '/_authed/report': typeof AuthedReportRoute
   '/_authed/admin/email': typeof AuthedAdminEmailRoute
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/approvals'
     | '/report'
     | '/admin/email'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/approvals'
     | '/report'
     | '/admin/email'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/auth'
+    | '/reset-password'
     | '/_authed/approvals'
     | '/_authed/report'
     | '/_authed/admin/email'
@@ -465,6 +477,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicCreateUserRoute: typeof ApiPublicCreateUserRoute
   ApiPublicEnfaApprovalRoute: typeof ApiPublicEnfaApprovalRoute
   ApiPublicEnfaApproveRoute: typeof ApiPublicEnfaApproveRoute
@@ -511,6 +524,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/approvals': {
@@ -790,6 +810,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicCreateUserRoute: ApiPublicCreateUserRoute,
   ApiPublicEnfaApprovalRoute: ApiPublicEnfaApprovalRoute,
   ApiPublicEnfaApproveRoute: ApiPublicEnfaApproveRoute,
