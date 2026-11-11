@@ -192,17 +192,60 @@ function UserManagement() {
 
 function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) => void }) {
   const { data: roleDefs, isLoading } = useRoleDefs();
+  const [open, setOpen] = useState(false);
   if (isLoading) return <Skeleton className="h-10 w-full" />;
+  const roles = roleDefs ?? [];
+  const nameOf = (k: Role) => roles.find((r) => r.key === k)?.name ?? k;
   const toggle = (k: Role) => onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
   return (
-    <div className="grid max-h-40 gap-1.5 overflow-y-auto rounded-md border border-input p-2 sm:grid-cols-2">
-      {(roleDefs ?? []).map((role) => (
-        <label key={role.key} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-muted">
-          <input type="checkbox" className="h-4 w-4 accent-primary" checked={value.includes(role.key)} onChange={() => toggle(role.key)} />
-          {role.name}
-        </label>
-      ))}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-left text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <span className="flex flex-1 flex-wrap gap-1">
+            {value.length === 0 ? (
+              <span className="text-muted-foreground">Select roles</span>
+            ) : (
+              value.map((k) => (
+                <Badge key={k} variant="secondary" className="gap-1 pr-1">
+                  {nameOf(k)}
+                  <span
+                    role="button"
+                    aria-label={`Remove ${nameOf(k)}`}
+                    className="rounded-sm px-0.5 hover:bg-muted-foreground/20"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); toggle(k); }}
+                  >
+                    ×
+                  </span>
+                </Badge>
+              ))
+            )}
+          </span>
+          <span className="text-muted-foreground">▾</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search roles..." />
+          <CommandList>
+            <CommandEmpty>No roles found.</CommandEmpty>
+            <CommandGroup>
+              {roles.map((role) => (
+                <CommandItem key={role.key} value={role.name} onSelect={() => toggle(role.key)} className="gap-2">
+                  <Checkbox checked={value.includes(role.key)} className="pointer-events-none" />
+                  {role.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
