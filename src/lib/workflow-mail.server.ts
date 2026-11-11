@@ -556,3 +556,35 @@ export function renderWorkflowMailHtml(m: {
 <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6">This is an automated notification. Please do not reply.<br>&copy; ${m.date.getFullYear()} ${esc(sender)}. All rights reserved.</td></tr>
 </table></td></tr></table></body></html>`;
 }
+
+/** Sends a password reset link using the saved Email Configuration. */
+export async function sendPasswordResetMail(to: string, link: string, name: string) {
+  const { config } = await loadEmailConfig();
+  const log = async (status: string, error?: string) => {
+    try {
+      const db = await admin();
+      await db.from("email_log").insert({ enfa_no: "-", action: "password_reset", status, people: [], recipients: [to], error: error ?? null, level: null, source: "forgot_password" });
+    } catch { /* logging never blocks */ }
+  };
+  if (!config.enabled) { await log("skipped", "Sending is switched off in Email Configuration"); throw new Error("NOT_CONFIGURED"); }
+  const sender = senderLabel(config.fromName);
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1f2937">
+<div style="background:#003F69;color:#fff;padding:16px 20px;font-size:18px">Password reset</div>
+<div style="padding:20px;border:1px solid #e5e7eb;border-top:0">
+<p>Dear ${esc(name || "User")},</p>
+<p>We received a request to reset your portal password. Click the button below to set a new password. This link expires soon and can be used once.</p>
+<p style="text-align:center;margin:24px 0"><a href="${esc(link)}" style="background:#0077BD;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:bold">Reset password</a></p>
+<p style="font-size:12px;color:#6b7280">If the button does not work, copy this link into your browser:<br>${esc(link)}</p>
+<p>If you did not request this, you can ignore this email.</p>
+<p>Regards,<br>${esc(sender)}</p></div></div>`;
+  try {
+    const { transporter, from } = await transport();
+    await transporter.sendMail({ from, to, subject: "Reset your portal password", text: `Dear ${name || "User"},\n\nReset your password using this link:\n${link}\n\nIf you did not request this, ignore this email.\n\nRegards,\n${sender}\n`, html });
+    await log("sent");
+  } catch (e) {
+    const msg = friendlyMailError(e);
+    await log("failed", msg);
+    throw new Error(msg);
+  }
+}

@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveLoginId } from "@/lib/auth-login.functions";
+import { requestPasswordReset } from "@/lib/password-reset.functions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 import { useAuth } from "@/lib/auth-context";
 import { SCREENS } from "@/lib/screens";
@@ -33,6 +35,23 @@ function AuthPage() {
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
   const resolveLogin = useServerFn(resolveLoginId);
+  const sendReset = useServerFn(requestPasswordReset);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotLogin, setForgotLogin] = useState("");
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submitForgot() {
+    const login = forgotLogin.trim();
+    if (!login) { setForgotMsg({ ok: false, text: "Enter your User ID or Email" }); return; }
+    setForgotBusy(true);
+    try {
+      const r = await sendReset({ data: { login } });
+      setForgotMsg({ ok: r.ok, text: r.message });
+    } catch (e) {
+      setForgotMsg({ ok: false, text: e instanceof Error ? e.message : "Could not send reset link" });
+    } finally { setForgotBusy(false); }
+  }
   const firstAllowedPath = SCREENS.find(({ key }) => canAccess(key))?.path ?? "/";
 
   useEffect(() => {
@@ -121,7 +140,7 @@ function AuthPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="signin-pwd" className="text-[13px] font-semibold">Password</Label>
-                    <a href="#" className="text-xs text-brand-blue underline">Forgot password?</a>
+                    <button type="button" onClick={() => { setForgotLogin(email); setForgotMsg(null); setForgotOpen(true); }} className="text-xs text-brand-blue underline">Forgot password?</button>
                   </div>
                   <Input id="signin-pwd" className="h-11 border-field-border" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" autoComplete="current-password" />
                 </div>
@@ -137,6 +156,23 @@ function AuthPage() {
 
         </div>
       </div>
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Forgot password</DialogTitle>
+            <DialogDescription>Enter your User ID or Email. We will email you a link to reset your password.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="forgot-login" className="text-[13px] font-semibold">User ID / Email</Label>
+            <Input id="forgot-login" className="h-11 border-field-border" value={forgotLogin} onChange={(e) => setForgotLogin(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitForgot(); }} />
+            {forgotMsg && <p className={forgotMsg.ok ? "text-sm text-success" : "text-sm text-destructive"}>{forgotMsg.text}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setForgotOpen(false)}>Close</Button>
+            <Button onClick={submitForgot} disabled={forgotBusy} className="bg-brand-blue text-primary-foreground hover:bg-brand-blue/90">{forgotBusy ? "Sending…" : "Send reset link"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
