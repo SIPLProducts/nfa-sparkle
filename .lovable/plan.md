@@ -3,6 +3,8 @@
 ## Cause (confirmed)
 NFA 100269 was created with **Dynamic Approvers**, so NFA Type and Function are empty by design (the Print Form shows them blank). The Print Form only asks SAP for the approval chain when Plant, NFA Type **and** Function are all filled in. With those two blank, it never asks, so the chain boxes are empty. With no chain, the comments list has no approver names to show either.
 
+Your Postman call (check "", werks 9000, blank nfa_type/funct, enfa_no 100269) returns the chain (site head / 1001, SCM HEAD / 9002), so SAP has the data; the app simply never sends that request.
+
 Predefined NFAs are not affected.
 
 ## Fix
