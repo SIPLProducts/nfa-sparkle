@@ -5,7 +5,7 @@ import type { ApprovalPrintDocument } from "@/lib/approval-print-document";
 import { fetchResolvedSapApprovalFlow, mergeApprovalFlow } from "@/lib/sap-approval-flow";
 import { pairPrintCommentsWithApprovers } from "@/lib/print-comment-history";
 import { createPrintFormPdf } from "@/lib/print-form-pdf";
-import { stampActingApproverDate } from "@/lib/print-comment-history";
+import { normalizeSapId, stampActingApproverDate } from "@/lib/print-comment-history";
 
 async function loadCompanyLogo(companyCode: string, token: string): Promise<string | undefined> {
   if (!companyCode.trim() || !token) return undefined;
@@ -54,7 +54,7 @@ export async function createApprovalPrintFormPdf(input: {
   );
   const actingId = input.approverId?.trim() ?? "";
   const actingName = actingId
-    ? approvers.find((a) => a.userId?.trim().toLowerCase() === actingId.toLowerCase())?.name?.trim()
+    ? approvers.find((a) => normalizeSapId(a.userId) === normalizeSapId(actingId))?.name?.trim()
       || (typeof input.actingLevel === "number" ? approvers.find((a, i) => (a.level ?? i + 1) === input.actingLevel)?.name?.trim() : "")
       || ""
     : "";

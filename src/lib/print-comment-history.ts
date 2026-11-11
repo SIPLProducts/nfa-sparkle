@@ -192,6 +192,11 @@ export function orderedCommentVersions(comments: EnfaDocumentComment[]): Array<n
   }
   return [...(hasCurrent ? [undefined] : []), ...Array.from(versions).sort((a, b) => b - a)];
 }
+/** Trimmed, lower-cased SAP User ID with leading zeros removed. */
+export function normalizeSapId(value?: string): string {
+  const v = String(value ?? "").trim().toLowerCase();
+  return v.replace(/^0+(?=.)/, "");
+}
 /** Fills today's date (YYYY-MM-DD) on the level being actioned when SAP has not dated it yet. */
 export function stampActingApproverDate(
   approvers: EnfaDocumentApprover[],
@@ -199,11 +204,17 @@ export function stampActingApproverDate(
   approverId?: string,
   today: Date = new Date(),
 ): EnfaDocumentApprover[] {
-  const id = approverId?.trim().toLowerCase() ?? "";
-  let index = typeof actingLevel === "number"
-    ? approvers.findIndex((a, i) => (a.level ?? i + 1) === actingLevel)
-    : -1;
-  if (index < 0 && id) index = approvers.findIndex((a) => a.userId?.trim().toLowerCase() === id);
+  const id = normalizeSapId(approverId);
+  const hasDate = (a?: EnfaDocumentApprover) => (a?.actedDate?.replace(/[0.\-\/\s]/g, "") ?? "") !== "";
+  let index = id ? approvers.findIndex((a) => normalizeSapId(a.userId) === id) : -1;
+  if (index < 0 && typeof actingLevel === "number") {
+    index = approvers.findIndex((a, i) => (a.level ?? i + 1) === actingLevel);
+  }
+  if (index < 0) {
+    let lastDated = -1;
+    approvers.forEach((a, i) => { if (hasDate(a)) lastDated = i; });
+    index = approvers.findIndex((a, i) => i > lastDated && !hasDate(a) && !!(a.userId?.trim() || a.name?.trim()));
+  }
   if (index < 0) return approvers;
   const current = approvers[index];
   const existing = current?.actedDate?.replace(/[0.\-\/\s]/g, "") ?? "";
