@@ -1,14 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { filterCompaniesForUser } from "./company-groups";
+import { filterCompaniesByRange, pickSeriesRange } from "./company-groups";
 
-const all = ["1000", "1999", "2000", "4000", "4199", "4200", "9000", "9301", "9499", "9500", "9599"].map((code) => ({ code, name: code }));
-const codes = (u: string | null) => filterCompaniesForUser(u, all).map((c) => c.code);
+const all = ["1000", "1999", "2000", "4000", "9000", "9101", "9499", "9990", "9995"].map((code) => ({ code, name: code }));
+const ranges = [
+  { series: "9000", range_from: 1000, range_to: 9990 },
+  { series: "4000", range_from: 4000, range_to: 4199 },
+];
+const codes = (s: string | null, c: string | null, r = ranges) => filterCompaniesByRange(pickSeriesRange(s, c, r), all).map((x) => x.code);
 
-describe("company groups", () => {
-  it("9000-9499", () => expect(codes("9001")).toEqual(["9000", "9301", "9499"]));
-  it("9500-9599", () => expect(codes("9500")).toEqual(["9500", "9599"]));
-  it("1000-1999", () => expect(codes("1101")).toEqual(["1000", "1999"]));
-  it("4000-4199", () => expect(codes("4000")).toEqual(["4000", "4199"]));
-  it("no company", () => expect(codes(null)).toEqual([]));
-  it("outside ranges", () => expect(codes("2000")).toEqual([]));
+describe("company series ranges", () => {
+  it("1000-9990 includes 9101", () =>
+    expect(codes("9000", "9000")).toEqual(["1000", "1999", "2000", "4000", "9000", "9101", "9499", "9990"]));
+  it("saved series wins over company code", () => expect(codes("4000", "9000")).toEqual(["4000"]));
+  it("falls back to range containing company code", () => expect(codes(null, "4100")).toEqual(["1000", "1999", "2000", "4000", "9000", "9101", "9499", "9990"]));
+  it("respects edited range", () => expect(codes("9000", null, [{ series: "9000", range_from: 9000, range_to: 9499 }])).toEqual(["9000", "9101", "9499"]));
+  it("no match is empty", () => expect(codes(null, "9995")).toEqual([]));
 });

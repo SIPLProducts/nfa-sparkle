@@ -1,26 +1,32 @@
-export const COMPANY_GROUPS: ReadonlyArray<readonly [number, number]> = [
-  [9000, 9499],
-  [9500, 9599],
-  [1000, 1999],
-  [4000, 4199],
-];
+export type SeriesRange = { series: string; range_from: number; range_to: number };
 
-export function companyGroupFor(code: string | null | undefined): readonly [number, number] | null {
-  const t = (code ?? "").trim();
-  if (!/^\d+$/.test(t)) return null;
-  const n = Number(t);
-  return COMPANY_GROUPS.find(([lo, hi]) => n >= lo && n <= hi) ?? null;
+const num = (v: string | null | undefined) => {
+  const t = (v ?? "").trim();
+  return /^\d+$/.test(t) ? Number(t) : null;
+};
+
+/** Pick the user's configured Series range: saved series first, else the range containing their company code. */
+export function pickSeriesRange(
+  userSeries: string | null | undefined,
+  userCode: string | null | undefined,
+  ranges: SeriesRange[],
+): SeriesRange | null {
+  const s = (userSeries ?? "").trim();
+  if (s) {
+    const hit = ranges.find((r) => r.series.trim() === s);
+    if (hit) return hit;
+  }
+  const n = num(userCode) ?? num(userSeries);
+  if (n == null) return null;
+  return ranges.find((r) => n >= r.range_from && n <= r.range_to) ?? null;
 }
 
-export function filterCompaniesForUser<T extends { code: string }>(userCode: string | null | undefined, companies: T[]): T[] {
-  const g = companyGroupFor(userCode);
-  if (!g) return [];
+export function filterCompaniesByRange<T extends { code: string }>(range: SeriesRange | null, companies: T[]): T[] {
+  if (!range) return [];
   return companies
     .filter((c) => {
-      const t = c.code.trim();
-      if (!/^\d+$/.test(t)) return false;
-      const n = Number(t);
-      return n >= g[0] && n <= g[1];
+      const n = num(c.code);
+      return n != null && n >= range.range_from && n <= range.range_to;
     })
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
 }
