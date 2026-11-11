@@ -1,6 +1,7 @@
+import { parseSapApprovalFlow } from "@/lib/sap-approval-flow";
+import { formatApproverDate } from "@/components/document/EnfaDocument";
 import { describe, expect, it } from "vitest";
 import { buildApprovalFlowPayload } from "./sap-api-constants";
-import { parseSapApprovalFlow } from "./sap-approval-flow";
 
 const base = { plant: "9000", nfaType: "BUDGET DEVIATION", funct: "PROJECTS", enfaNo: "100221" };
 
@@ -19,8 +20,6 @@ describe("approval flow payload", () => {
   });
 });
 
-import { parseSapApprovalFlow } from "@/lib/sap-approval-flow";
-import { formatApproverDate } from "@/components/document/EnfaDocument";
 describe("approval chain date", () => {
   it("check X adds enfa_no when the NFA number is known, other fields kept", () => {
     const p = buildApprovalFlowPayload({}, { check: "X", plant: "9000", nfaType: "BUDGET DEVIATION", funct: "PROJECTS", enfaNo: "100226" });
