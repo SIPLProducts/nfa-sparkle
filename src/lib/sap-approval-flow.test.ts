@@ -54,3 +54,21 @@ describe("SAP approval flow", () => {
     }
   });
 });
+describe("dynamic records with blank NFA Type / Function", () => {
+  it("still asks SAP for the chain by plant and NFA number", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls: { url: string; body: unknown }[] = [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? "{}")) });
+      return Response.json({ ok: true, approvers: [{ level: 1, role: "site head", userId: "1001" }, { level: 2, role: "SCM HEAD", userId: "9002" }] });
+    }) as typeof fetch;
+    try {
+      const result = await fetchResolvedSapApprovalFlow({ plant: "9000", nfaType: "", functionName: "", enfaNo: "100269" }, "a.b.c");
+      expect(calls[0].url).toBe("/api/public/sap-approval-flow");
+      expect(calls[0].body).toEqual({ plant: "9000", nfaType: "", functionName: "", enfaNo: "100269" });
+      expect(result.approvers.map((a) => a.userId)).toEqual(["1001", "9002"]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
