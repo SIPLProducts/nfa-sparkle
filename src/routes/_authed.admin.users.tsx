@@ -174,10 +174,10 @@ function UserManagement() {
           <MasterListTab kind="designations" singular="Designation" nameLabel="Designation Name" showCode={false} showActive={false} />
         </TabsContent>
         <TabsContent value="companies">
-          <Tabs defaultValue="list" className="space-y-4">
+          <Tabs defaultValue="range" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="list">Companies</TabsTrigger>
               <TabsTrigger value="range">Range</TabsTrigger>
+              <TabsTrigger value="list">Companies</TabsTrigger>
             </TabsList>
             <TabsContent value="list">
               <MasterListTab kind="companies" singular="Company" nameLabel="Company Name" showCode={true} codeLabel="Company Code" descriptionLabel="Company Description" showActive={false} />
