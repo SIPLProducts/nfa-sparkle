@@ -1,14 +1,16 @@
 # Company Series (Range) in User Management
 
 ## What you'll see
-- **User Management > Companies** now has two sub-tabs:
-  - **Companies**: the current company list, exactly as it is today.
-  - **Range**: a table with **Series**, **From** and **To** (all required), with Create / Edit / Delete. It starts with 9000 (9000–9499), 9500 (9500–9980) and 1000 (1000–1500), as in your sheet.
-- **Create User / Edit User**: the Company field becomes **Company Series**, a dropdown of the Series from the Range tab. It is still required. When you edit a user, their saved series is already selected.
-- **Create NFA**: the Company list shows the companies whose code falls inside the signed-in user's series (for example, series 9500 shows companies 9500–9980). If no range matches, the current fixed groups still apply.
+- **User Management > Companies** gets two sub-tabs:
+  - **Companies**: the current company list, unchanged.
+  - **Range**: a table of **Series**, **From** and **To** (all required, and From must not be greater than To), with Create / View / Edit / Delete. It starts with 9000 (9000–9499), 9500 (9500–9980) and 1000 (1000–1500), as in your sheet.
+- **Create User / Edit User**: a new **Series** dropdown listing the Series from the Range tab. Edit User shows the user's saved series.
+- **Users list**: each user's series shows next to their company.
+- Everything else stays the same: the Company field, the details sent to SAP, other checks, and the Create NFA company list.
 
 ## Technical details
-- New `company_series` table (series text unique, range_from int, range_to int, From ≤ To checked by a trigger), with grants and RLS: signed-in users can read it, and only User Management can change it. Default rows go in through a data insert.
-- Add `company_series`, plus guarded CRUD, to `master-lists.functions.ts`. Add a small `RangeTab` component, and put nested Tabs inside the Companies tab content.
-- In Create/Edit User, the chosen series goes into the existing `COMPANY_CODE` field, so the SAP payload and the profile `company_code` stay the same.
-- `company-groups.ts` gets a `rangeFor(code, ranges)` helper. `listMyCompanies` loads the ranges and falls back to the hardcoded groups. Tests cover the 9000/9500/1000 ranges and the fallback.
+- New `company_series` table (series unique, range_from, range_to; a trigger checks From <= To). Grants and RLS: signed-in users can read it, and only User Management can write to it. Default rows go in through a data insert.
+- New nullable `profiles.company_series` column.
+- Add `company_series` to `master-lists.functions.ts` (guarded CRUD) and a small `RangeTab` component. Put nested Tabs inside the Companies tab.
+- Create/Edit User saves the series to the profile server-side, after the existing user create or update succeeds. The SAP payload is untouched.
+- Tests cover the From/To validation and that the series is saved on create and edit.
