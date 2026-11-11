@@ -135,9 +135,6 @@ function AuthPage() {
             </CardContent>
           </Card>
 
-          <p className="mt-6 text-center text-xs text-grey-text">
-            Need help? Contact <a className="text-brand-blue underline" href="mailto:it-support@company.com">IT Support</a>
-          </p>
         </div>
       </div>
     </div>
