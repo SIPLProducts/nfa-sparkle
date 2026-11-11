@@ -136,6 +136,7 @@ export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateMa
     username: data.USER_ID,
     employee_id: data.EMP_ID?.trim() || null,
     company_code: data.COMPANY_CODE?.trim() || null,
+    company_series: data.SERIES?.trim() || null,
     department: data.DEPT?.trim() || null,
     designation: data.DESIG?.trim() || null,
     contact: data.CONTACT || null,
