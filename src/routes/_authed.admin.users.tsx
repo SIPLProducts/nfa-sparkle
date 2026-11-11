@@ -307,13 +307,6 @@ function MasterSelect({
         )}
       </SelectContent>
     </Select>
-    {isError ? (
-      <p className="text-xs text-destructive">
-        Could not load series.{" "}
-        <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
-      </p>
-    ) : null}
-    </>
   );
 }
 
@@ -1545,6 +1538,13 @@ function SeriesSelect({ value, onChange }: { value: string; onChange: (v: string
         ))}
       </SelectContent>
     </Select>
+    {isError ? (
+      <p className="text-xs text-destructive">
+        Could not load series.{" "}
+        <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
+      </p>
+    ) : null}
+    </>
     {isError ? (
       <p className="text-xs text-destructive">
         Could not load series.{" "}
