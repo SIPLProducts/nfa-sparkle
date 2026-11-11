@@ -3,7 +3,7 @@
 ## What you'll see
 - **User Management > Companies** gets two sub-tabs:
   - **Companies**: the current company list, unchanged.
-  - **Range**: a table of **Series**, **From** and **To** (all required, and From must not be greater than To), with Create / View / Edit / Delete. It starts with 9000 (9000–9499), 9500 (9500–9980) and 1000 (1000–1500), as in your sheet.
+  - **Range**: a table of **Series**, **From** and **To** (all required, and From must not be greater than To), with Create / View / Edit / Delete. It starts with the four ranges from your screenshot: 9000 (9000–9499), 9500 (9500–9599), 1000 (1000–1999) and 4000 (4000–4199).
 - **Create User / Edit User**: a new **Series** dropdown listing the Series from the Range tab. Edit User shows the user's saved series.
 - **Users list**: each user's series shows next to their company.
 - Everything else stays the same: the Company field, the details sent to SAP, other checks, and the Create NFA company list.
