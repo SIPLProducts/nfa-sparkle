@@ -67,6 +67,14 @@ function FieldRow({ label, value }: { label: string; value?: string }) {
  * Description is rendered — with its tables, images and formatting — only
  * inside the content band.
  */
+/** SAP dates (YYYY-MM-DD / YYYYMMDD) shown as DD.MM.YYYY; other values pass through. */
+export function formatApproverDate(value?: string): string {
+  const v = String(value ?? "").trim();
+  if (!v || /^0+[-.]?0+[-.]?0+$/.test(v)) return "";
+  const m = v.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : v;
+}
+
 export function EnfaDocument({
   companyName,
   nfaNo,
@@ -187,7 +195,7 @@ export function EnfaDocument({
                         <div><span className="font-bold">Role:</span> {a.role || ""}</div>
                         <div><span className="font-bold">User id:</span> {a.userId || ""}</div>
                         <div className="enfa-approver-name">{a.name || ""}</div>
-                        <div>{a.actedDate || "."}</div>
+                        <div>{formatApproverDate(a.actedDate) || "."}</div>
                         <div className="font-bold">{a.actedTime || "0:00:00"}</div>
                       </>
                     ) : (

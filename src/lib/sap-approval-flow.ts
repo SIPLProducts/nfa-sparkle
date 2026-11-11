@@ -51,7 +51,7 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
       userId: text(record, [`USERID${level}`, `USER_ID${level}`, `USER${level}`, `USRID${level}`, `UID${level}`]),
       name: text(record, [`APPR${level}`, `APPROVER${level}`, `APPR_NAME${level}`, `USER_NAME${level}`]),
       status: text(record, [`STAT${level}`, `STATUS${level}`]),
-      actedDate: text(record, [`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`]),
+      actedDate: text(record, [`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`, `DATE_${level}`]),
       actedTime: text(record, [`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`]),
     };
   }).filter((approver) => [
