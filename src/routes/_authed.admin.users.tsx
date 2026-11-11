@@ -662,7 +662,7 @@ function CreateUserDialog({
       setConfirmPassword("");
       setShowPassword(false);
       setShowConfirmPassword(false);
-      setRole("");
+      setRole([]);
     }
   }, [open]);
 
