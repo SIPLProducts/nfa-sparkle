@@ -1674,7 +1674,7 @@ export async function callDynamicApprovers(input: { plants: string[] }): Promise
   }
   if (!ep) {
     ep = (await db.from("sap_endpoint").select("*").eq("active", true)
-      .ilike("request_body", '%"approvers"%').not("name", "ilike", "%dynamic approvers list%")
+      .or('request_body.ilike.%"approvers1"%,request_body.ilike.%"approvers"%').not("name", "ilike", "%dynamic approvers list%")
       .order("created_at", { ascending: true }).limit(1).maybeSingle()).data;
   }
   if (!ep) {
