@@ -5,6 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format, isValid, parse } from "date-fns";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { parseApprovalChains, type SapApprovalChain } from "@/lib/sap/master";
 import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
@@ -209,8 +214,8 @@ export function ApprovalChainTab() {
           <Field label="Project *" value={draft.pspnr} onChange={(value) => updateField("pspnr", value)} />
           <Field label="NFA Type *" value={draft.funct} onChange={(value) => updateField("funct", value)} />
           <Field label="Function *" value={draft.extraTxt} onChange={(value) => updateField("extraTxt", value)} />
-          <Field label="Valid From *" value={draft.begda} onChange={(value) => updateField("begda", value)} placeholder="YYYYMMDD" />
-          <Field label="Valid To *" value={draft.endda} onChange={(value) => updateField("endda", value)} placeholder="YYYYMMDD" />
+          <DateField label="Valid From *" value={draft.begda} onChange={(value) => updateField("begda", value)} />
+          <DateField label="Valid To *" value={draft.endda} onChange={(value) => updateField("endda", value)} />
           <Field label="Line Index" value={draft.lineIndex} onChange={(value) => updateField("lineIndex", value)} />
         </div>
 
@@ -357,6 +362,40 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoComplete="off" />
+    </div>
+  );
+}
+function sapToDate(value: string): Date | undefined {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length !== 8 || /^0+$/.test(digits)) return undefined;
+  const d = parse(digits, "yyyyMMdd", new Date());
+  return isValid(d) ? d : undefined;
+}
+
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = sapToDate(value);
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className={cn("w-full justify-start text-left font-normal", !selected && "text-muted-foreground")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {selected ? format(selected, "dd.MM.yyyy") : <span>Pick a date</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selected}
+            defaultMonth={selected}
+            onSelect={(d) => { onChange(d ? format(d, "yyyyMMdd") : ""); setOpen(false); }}
+            initialFocus
+            className={cn("p-3 pointer-events-auto")}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
