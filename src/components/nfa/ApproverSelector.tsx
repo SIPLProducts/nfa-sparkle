@@ -190,7 +190,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
       </div>
       {selected.length > 0 && (
         <div className="text-sm">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected sequence</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Selected approvers (level-wise)</p>
           <ol className="flex flex-wrap gap-2">
             {selected.map((a) => (
               <li key={`${a.userId}-${a.level}`} className="rounded-md border bg-muted/40 px-2 py-1">
