@@ -45,7 +45,7 @@ export const listApproverSeriesOptions = createServerFn({ method: "POST" })
       db.from("profiles").select("company_series").eq("id", (context as any).userId).maybeSingle(),
     ]);
     if (error) throw new Error(error.message);
-    const series = [...new Set((rows ?? []).map((r: any) => String(r.series ?? "").trim()).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const series: string[] = [...new Set<string>((rows ?? []).map((r: any) => String(r.series ?? "").trim()).filter(Boolean))]
+      .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
     return { series, mine: String((me as any)?.company_series ?? "").trim() || null };
   });
