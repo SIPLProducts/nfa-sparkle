@@ -16,4 +16,9 @@ describe("filterSeriesApprovers", () => {
     const out = filterSeriesApprovers("9000", [u("1", "9000"), u("2", "9000"), u("3", "9101")], new Set(["2"]));
     expect(out.map((x) => x.id)).toEqual(["1"]);
   });
+  it("excludes the signed-in user", () => {
+    const out = filterSeriesApprovers("9000", [u("1", "9000"), u("2", "9000")], new Set(), "1");
+    expect(out.map((x) => x.id)).toEqual(["2"]);
+  });
+  it("returns nothing when the user has no series", () => expect(filterSeriesApprovers(null, [u("1", "9000")], new Set())).toEqual([]));
 });

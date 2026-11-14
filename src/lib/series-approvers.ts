@@ -18,11 +18,11 @@ export function isAdminRole(role: string | null | undefined): boolean {
 export type SeriesUser = { id: string; username: string | null; full_name: string | null; designation: string | null; company_series: string | null; status?: string | null; is_active?: boolean | null };
 
 /** Users in the given series, excluding admins and inactive accounts. */
-export function filterSeriesApprovers(series: string | null, users: SeriesUser[], adminIds: Set<string>) {
+export function filterSeriesApprovers(series: string | null, users: SeriesUser[], adminIds: Set<string>, excludeId?: string) {
   if (!series) return [];
   return users.filter((u) =>
     String(u.company_series ?? "").trim() === series &&
-    !adminIds.has(u.id) && u.is_active !== false &&
+    !adminIds.has(u.id) && u.id !== excludeId && u.is_active !== false &&
     String(u.status ?? "active").toLowerCase() !== "inactive" &&
     String(u.username ?? "").trim());
 }

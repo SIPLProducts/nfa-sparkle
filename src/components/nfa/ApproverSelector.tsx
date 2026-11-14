@@ -44,17 +44,17 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (predefined ? !plant : !company) return;
+    if (predefined ? !plant : !(company && plant)) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
       try {
         if (!predefined) {
           // Budgeted: approvers come from User Management, filtered by the company's Series.
-          const r = await loadSeriesApprovers({ data: { company } });
+          const r = await loadSeriesApprovers({ data: { company, plant } });
           if (ctrl.signal.aborted) return;
           setChains(r.users.length ? [{ funct: r.series ?? "", extraTxt: "", levels: r.users.map((u, i) => ({ level: i + 1, designation: u.designation, userId: u.userId })) }] as any : []);
-          setSapMessage(r.series ? "No approvers are assigned to this Series." : "The selected Company is not in any configured Series.");
+          setSapMessage(r.series ? "No approvers are assigned to your Series." : "Your account has no Series assigned.");
           return;
         }
         const { data } = await supabase.auth.getSession();
@@ -105,8 +105,8 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
     setChecked((prev) => toggleOrdered(prev, i));
   }
 
-  if (predefined ? !plant : !company) {
-    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company to see its Series approvers."}</p>;
+  if (predefined ? !plant : !(company && plant)) {
+    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company and Plant to see your Series approvers."}</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return (
