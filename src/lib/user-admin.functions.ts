@@ -380,7 +380,7 @@ export const listRolePermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RolePermissionRow[]> => {
     await assertScreenAccess(context as any, "user_management");
-    const { data, error } = await context.supabase.from("role_permission").select("role_key, screen, allowed");
+    const { data, error } = await (await admin()).from("role_permission").select("role_key, screen, allowed");
     if (error) throw error;
     return ((data ?? []) as any[])
       .filter((r) => !!r.role_key)
