@@ -765,7 +765,7 @@ function NewNfaPage() {
             </div>
           </Section>
 
-          <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc="Choose which configured approvers should review this NFA. Order follows the Approval Chain.">
+          <Section icon={<Send className="h-4 w-4" />} title="Approvers" desc={approverMode === "dynamic" ? "Select approvers from your Series. Selection order sets the approval level." : "Choose which configured approvers should review this NFA. Order follows the Approval Chain."}>
             <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
               <div className="min-w-0">
                 <div className="text-sm font-medium">Approvers</div>
@@ -789,7 +789,7 @@ function NewNfaPage() {
               <div role="dialog" aria-modal="true" aria-labelledby="approvers-dialog-title" className="relative z-10 grid w-full max-w-3xl max-h-[92vh] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg">
                 <div className="flex flex-col space-y-1.5">
                   <h2 id="approvers-dialog-title" className="font-display text-base font-semibold">Approvers</h2>
-                  <p className="text-sm text-muted-foreground">Choose which configured approvers should review this NFA. Order follows the Approval Chain.</p>
+                  <p className="text-sm text-muted-foreground">{approverMode === "dynamic" ? "Select approvers from your Series. Selection order sets the approval level." : "Choose which configured approvers should review this NFA. Order follows the Approval Chain."}</p>
                 </div>
                 <ApproverSelector
                   plant={plant}
