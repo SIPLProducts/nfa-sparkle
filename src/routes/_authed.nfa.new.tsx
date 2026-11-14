@@ -145,7 +145,7 @@ function NewNfaPage() {
   const [company, setCompany] = useState("");
   const [plant, setPlant] = useState("");
   const [plantError, setPlantError] = useState("");
-  const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("predefined");
+  const [approverMode, setApproverMode] = useState<"predefined" | "dynamic">("dynamic");
   const [selectedApprovers, setSelectedApprovers] = useState<EnfaDocumentApprover[]>([]);
   const [approversOpen, setApproversOpen] = useState(false);
   useEffect(() => {
@@ -380,7 +380,7 @@ function NewNfaPage() {
       // Stay on Create NFA and clear the form for the next NFA.
       setCompany("");
       setPlant("");
-      setApproverMode("predefined");
+      setApproverMode("dynamic");
       setSelectedApprovers([]);
       setApproversOpen(false);
       setNfaType("");
