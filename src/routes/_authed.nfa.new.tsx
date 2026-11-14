@@ -797,6 +797,7 @@ function NewNfaPage() {
                   functionName={functions.find((f) => f.code === func)?.name ?? func}
                   check={approverModeCheck(approverMode)}
                   plants={plants.map((p) => p.code)}
+                  company={company}
                   onChange={setSelectedApprovers}
                 />
                 <div className="flex justify-end gap-2">
