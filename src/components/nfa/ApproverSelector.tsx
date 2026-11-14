@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchSapApproverChains, fetchSapDynamicApprovers, filterApproverChains } from "@/lib/sap-approval-flow";
+import { fetchSapApproverChains, filterApproverChains } from "@/lib/sap-approval-flow";
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails, resolveApprovalUserDetails } from "@/lib/approval-chain.functions";
 import { withApproverNames } from "@/lib/approver-names";
@@ -40,16 +40,15 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    if (predefined ? !plant : !plantsKey) return;
+    // Dynamic Approvers API is no longer used in Create; only Predefined fetches.
+    if (!predefined || !plant) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
-        const res = predefined
-          ? await fetchSapApproverChains({ plant, check: "X", nfaType, functionName }, token, ctrl.signal)
-          : await fetchSapDynamicApprovers(plantsKey.split(","), token, ctrl.signal);
+        const res = await fetchSapApproverChains({ plant, check: "X", nfaType, functionName }, token, ctrl.signal);
         if (ctrl.signal.aborted) return;
         setChains(res.chains ?? []); setSapMessage(res.message);
       } catch (e) {
@@ -95,7 +94,10 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
     setChecked((prev) => toggleOrdered(prev, i));
   }
 
-  if (predefined ? !plant : !plantsKey) {
+  if (!predefined) {
+    return <p className="text-sm text-muted-foreground">No approvers apply for this option.</p>;
+  }
+  if (!plant) {
     return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company to load its plants and approvers."}</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
