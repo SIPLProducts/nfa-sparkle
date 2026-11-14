@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { printFormStatusLabel } from "./print-form-pdf";
+import { printFormStatusLabel, PDF_WATERMARK } from "./print-form-pdf";
+
+describe("PDF watermark appearance", () => {
+  it("matches the web watermark grey and opacity", () => expect(PDF_WATERMARK).toEqual({ gray: 119, opacity: 0.19 }));
+});
 
 describe("Print Form PDF status", () => {
   it.each(["approved", "Approved", "completed", "closed", "final", "finally approved", "final-approved"])(
