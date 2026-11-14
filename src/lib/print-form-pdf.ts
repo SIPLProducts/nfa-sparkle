@@ -13,6 +13,9 @@ const PDF_PAGE = {
   draftCenterYmm: 157,
 } as const;
 
+/** Matches the web Print Form watermark (--print-watermark: oklch(0.55 0 0 / 0.19)). */
+export const PDF_WATERMARK = { gray: 119, opacity: 0.19 } as const;
+
 function tableWithRows(source: HTMLTableElement, rows: HTMLTableRowElement[]): HTMLTableElement {
   const table = source.cloneNode(false) as HTMLTableElement;
   const body = document.createElement("tbody");
@@ -165,8 +168,10 @@ export async function createPrintFormPdf(
         pageWidth - PDF_PAGE.frameInsetMm * 2, pageHeight - PDF_PAGE.frameInsetMm * 2, "S");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(PDF_PAGE.draftFontSizePt);
-      pdf.setTextColor(175, 175, 175);
+      pdf.setTextColor(PDF_WATERMARK.gray, PDF_WATERMARK.gray, PDF_WATERMARK.gray);
+      pdf.setGState(new (pdf as any).GState({ opacity: PDF_WATERMARK.opacity }));
       pdf.text(statusLabel, PDF_PAGE.widthMm / 2, PDF_PAGE.draftCenterYmm, { align: "center", angle: 45 });
+      pdf.setGState(new (pdf as any).GState({ opacity: 1 }));
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(0, 0, 0);
