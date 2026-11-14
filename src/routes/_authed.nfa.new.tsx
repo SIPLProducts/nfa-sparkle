@@ -545,7 +545,7 @@ function NewNfaPage() {
                     className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
                   >
                     <RadioGroupItem value="dynamic" id="approver-mode-dynamic" />
-                    <span>Dynamic Approvers</span>
+                    <span>Budgeted</span>
                     <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
                       Select approvers while creating
                     </span>
@@ -555,7 +555,7 @@ function NewNfaPage() {
                     className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/60 has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:text-primary"
                   >
                     <RadioGroupItem value="predefined" id="approver-mode-predefined" />
-                    <span>Predefined Approvers</span>
+                    <span>Non Budgeted (Deviation)</span>
                     <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:block">
                       From the configured Approval Chain
                     </span>
