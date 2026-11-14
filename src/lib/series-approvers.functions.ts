@@ -6,14 +6,14 @@ import { filterSeriesApprovers, isAdminRole } from "./series-approvers";
 /** Budgeted approvers: User Management users sharing the signed-in user's Series, Admins and the caller excluded. */
 export const listSeriesApprovers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { company: string; plant?: string }) => ({ company: String(input?.company ?? "").trim().slice(0, 20), plant: String(input?.plant ?? "").trim().slice(0, 20) }))
+  .inputValidator((input: { company: string; plant?: string; series?: string }) => ({ series: String(input?.series ?? "").trim().slice(0, 40), company: String(input?.company ?? "").trim().slice(0, 20), plant: String(input?.plant ?? "").trim().slice(0, 20) }))
   .handler(async ({ data, context }): Promise<{ series: string | null; users: { userId: string; name: string; designation: string }[] }> => {
     await assertScreenAccess(context as any, "nfa_new");
     const db = await admin();
     const callerId = (context as any).userId as string;
     const { data: me, error: mErr } = await db.from("profiles").select("company_series").eq("id", callerId).maybeSingle();
     if (mErr) throw new Error(mErr.message);
-    const series = String((me as any)?.company_series ?? "").trim() || null;
+    const series = data.series || String((me as any)?.company_series ?? "").trim() || null;
     if (!series) return { series: null, users: [] };
     const { data: profs, error } = await db.from("profiles")
       .select("id, username, full_name, designation, company_series, status, is_active").eq("company_series", series);
@@ -32,4 +32,20 @@ export const listSeriesApprovers = createServerFn({ method: "POST" })
       .sort((x, y) => String(x.username).localeCompare(String(y.username), undefined, { numeric: true }))
       .map((u) => ({ userId: String(u.username).trim(), name: u.full_name ?? "", designation: u.designation ?? "" }));
     return { series, users };
+  });
+
+/** Every configured Series (User Management > Company > Series) for the Budgeted filter, plus the caller's own. */
+export const listApproverSeriesOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ series: string[]; mine: string | null }> => {
+    await assertScreenAccess(context as any, "nfa_new");
+    const db = await admin();
+    const [{ data: rows, error }, { data: me }] = await Promise.all([
+      db.from("company_series").select("series"),
+      db.from("profiles").select("company_series").eq("id", (context as any).userId).maybeSingle(),
+    ]);
+    if (error) throw new Error(error.message);
+    const series: string[] = [...new Set<string>((rows ?? []).map((r: any) => String(r.series ?? "").trim()).filter(Boolean))]
+      .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
+    return { series, mine: String((me as any)?.company_series ?? "").trim() || null };
   });
