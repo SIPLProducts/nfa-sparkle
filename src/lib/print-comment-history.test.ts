@@ -130,3 +130,20 @@ describe("SAP NAMEn/APPRn comment mapping", () => {
     ]);
   });
 });
+
+import { parseSapPrintComments as parseVer0 } from "./print-comment-history";
+import { describe as d0, it as i0, expect as e0 } from "vitest";
+d0("SAP VER 0 history", () => {
+  i0("separates VER 0 from the current VER 1 round", () => {
+    const out = parseVer0([
+      { VER: 0, APPROVER1: "9001", NAME1: "thiru sharvi", COMMENT1: "approve by l1", APPROVER2: "9002", NAME2: "prasad sharvi", COMMENT2: "approve by l1", APPROVER3: "9003", NAME3: "yashaswini sharvi", COMMENT3: "back to initator" },
+      { VER: 1, APPROVER1: "9001", NAME1: "thiru sharvi", COMMENT1: "approve by level1" },
+    ]);
+    e0(out.filter((c) => c.version === undefined).map((c) => c.text)).toEqual(["approve by level1"]);
+    e0(out.filter((c) => c.version === 0)).toHaveLength(3);
+  });
+  i0("keeps a single VER 0 round as current", () => {
+    const out = parseVer0([{ VER: 0, APPROVER1: "9001", NAME1: "a", COMMENT1: "ok" }]);
+    e0(out[0]?.version).toBeUndefined();
+  });
+});

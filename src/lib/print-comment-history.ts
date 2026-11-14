@@ -36,7 +36,7 @@ function unwrapSapValue(value: unknown): unknown {
 function readVersion(record: SapCommentRecord): number | undefined {
   const key = Object.keys(record).find((candidate) => /^(VER|VERSION)$/i.test(candidate.trim()));
   const value = key ? Number(String(record[key] ?? "").trim()) : NaN;
-  return Number.isFinite(value) && value > 0 ? value : undefined;
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 function commentsFromRecord(record: SapCommentRecord, version: number | undefined): EnfaDocumentComment[] {
