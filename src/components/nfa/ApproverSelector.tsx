@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchSapApproverChains, filterApproverChains } from "@/lib/sap-approval-flow";
 import type { parseApprovalChains } from "@/lib/sap/master";
 import { resolveApprovalUserEmails, resolveApprovalUserDetails } from "@/lib/approval-chain.functions";
+import { listSeriesApprovers } from "@/lib/series-approvers.functions";
 import { withApproverNames } from "@/lib/approver-names";
 import type { EnfaDocumentApprover } from "@/components/document/EnfaDocument";
 import { MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
@@ -18,16 +19,19 @@ interface Props {
   check?: string;
   /** Every plant code from Plant F4; used only by Dynamic mode. */
   plants?: string[];
+  /** Selected company; Budgeted mode lists User Management approvers in its Series. */
+  company?: string;
   onChange?: (selected: EnfaDocumentApprover[]) => void;
 }
 
 /** Lists configured Approval Chain approvers and lets the initiator pick which ones apply. */
-export function ApproverSelector({ plant, nfaType, functionName, check = "", plants = [], onChange }: Props) {
+export function ApproverSelector({ plant, nfaType, functionName, check = "", plants = [], company = "", onChange }: Props) {
   const resolveEmails = useServerFn(resolveApprovalUserEmails);
   const [chains, setChains] = useState<ReturnType<typeof parseApprovalChains> | null>(null);
   const [fallback, setFallback] = useState<EnfaDocumentApprover[] | null>(null);
   const [emails, setEmails] = useState<Record<string, string>>({});
   const resolveDetails = useServerFn(resolveApprovalUserDetails);
+  const loadSeriesApprovers = useServerFn(listSeriesApprovers);
   const [details, setDetails] = useState<Record<string, { name: string; department: string }>>({});
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,12 +44,19 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   // Both modes call the Dynamic Approvals (get_detail) API with check, plant, NFA type and function.
   useEffect(() => {
     setChains(null); setFallback(null); setError(""); setSapMessage("");
-    // Dynamic Approvers API is no longer used in Create; only Predefined fetches.
-    if (!predefined || !plant) return;
+    if (predefined ? !plant : !company) return;
     const ctrl = new AbortController();
     setLoading(true);
     (async () => {
       try {
+        if (!predefined) {
+          // Budgeted: approvers come from User Management, filtered by the company's Series.
+          const r = await loadSeriesApprovers({ data: { company } });
+          if (ctrl.signal.aborted) return;
+          setChains(r.users.length ? [{ funct: r.series ?? "", extraTxt: "", levels: r.users.map((u, i) => ({ level: i + 1, designation: u.designation, userId: u.userId })) }] as any : []);
+          setSapMessage(r.series ? "No approvers are assigned to this Series." : "The selected Company is not in any configured Series.");
+          return;
+        }
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token ?? "";
         const res = await fetchSapApproverChains({ plant, check: "X", nfaType, functionName }, token, ctrl.signal);
@@ -61,14 +72,14 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
       }
     })();
     return () => ctrl.abort();
-  }, [plant, nfaType, functionName, predefined, plantsKey, attempt]);
+  }, [plant, nfaType, functionName, predefined, plantsKey, company, attempt]);
 
   // Predefined narrows to the chosen chain; Dynamic shows SAP's reply as-is.
   const visible = useMemo(
     () => (chains ? (predefined ? filterApproverChains(chains, { plant, nfaType, functionName }) : chains) : []),
     [chains, plant, nfaType, functionName, predefined],
   );
-  const showGroup = !predefined || visible.length > 1;
+  const showGroup = predefined && visible.length > 1;
   const levels = useMemo<EnfaDocumentApprover[]>(() => {
     return visible.flatMap((c) => c.levels.map((l) => ({
       level: l.level, role: l.designation, userId: l.userId, name: "", status: "", actedDate: "", actedTime: "",
@@ -94,11 +105,8 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
     setChecked((prev) => toggleOrdered(prev, i));
   }
 
-  if (!predefined) {
-    return <p className="text-sm text-muted-foreground">No approvers apply for this option.</p>;
-  }
-  if (!plant) {
-    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company to load its plants and approvers."}</p>;
+  if (predefined ? !plant : !company) {
+    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company to see its Series approvers."}</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return (
@@ -113,7 +121,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Dynamic Approvers"}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Series Approvers"}</p>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
