@@ -403,7 +403,7 @@ function UsersTab() {
                   <th className="px-4 py-2.5 text-left font-medium">Name</th>
                   <th className="px-4 py-2.5 text-left font-medium">User ID</th>
                   <th className="px-4 py-2.5 text-left font-medium">Email</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Company</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Range</th>
                   <th className="px-4 py-2.5 text-left font-medium">Department</th>
                   <th className="px-4 py-2.5 text-left font-medium">Designation</th>
                   <th className="px-4 py-2.5 text-left font-medium">Contact</th>
@@ -426,11 +426,12 @@ function UsersTab() {
                       <div className="break-all">{u.email || "—"}</div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {u.company_code || u.employee_id ? (
-                        <div className="space-y-0.5">
-                          <div className="font-medium text-foreground">{u.company_code || "—"}</div>
-                          <div className="break-words text-xs">{u.employee_id || "—"}</div>
-                          {u.company_series ? <div className="text-xs">Range: {rangeOf(u.company_series)}</div> : null}
+                      {(() => {
+                        const code = Number(u.company_code);
+                        const hit = (rangeRows ?? []).find((r) => r.series === u.company_series)
+                          ?? (Number.isFinite(code) && u.company_code ? (rangeRows ?? []).find((r) => code >= r.range_from && code <= r.range_to) : undefined);
+                        return hit ? <div className="whitespace-nowrap font-medium text-foreground">{hit.range_from}–{hit.range_to}</div> : "—";
+                      })()}</div> : null}
                         </div>
                       ) : (
                         "—"
