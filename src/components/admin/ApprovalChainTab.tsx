@@ -449,7 +449,6 @@ function NfaTypeField({ value, onChange }: { value: string; onChange: (value: st
       </div>
     );
   }
-  const typed = search.trim();
   return (
     <div className="space-y-1.5">
       <Label>NFA Type *</Label>
