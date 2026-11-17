@@ -1,35 +1,18 @@
-# Quality deployment: changes since last deployment (16 Nov 2026) to now
+# Make "Test connection" on SAP Systems show success
 
-## Database migrations
-None. No new migration files since the last deployment. (0011, 0012, 0013 were already in the previous package.)
+## Problem
+"Test connection" calls the SAP root path `/`, which SAP never serves, so it always shows 404 even when SAP is reachable.
 
-## Files to deploy (16)
-Screens
-- src/routes/_authed.admin.users.tsx (Range column, list refresh after Create User)
-- src/routes/_authed.nfa.new.tsx (Scope/Budget/Timeline labels)
-- src/routes/_authed.nfa.$id.tsx (labels)
-- src/routes/_authed.nfa.$id.change.tsx (labels)
+## Change
+In the SAP connection test only:
+1. If a path is given, keep using it (unchanged).
+2. Otherwise, test against an active configured endpoint for that SAP system (e.g. Plant F4) using its saved path, method and sample payload.
+3. If no endpoint is configured, fall back to SAP's standard `/sap/public/ping`.
+4. Treat any reply from SAP (including 401/403/404 from SAP itself) as "SAP reachable" and show the HTTP status plus which path was tested; only network/middleware failures show as failed.
 
-Components
-- src/components/admin/ApprovalChainTab.tsx (NFA Type F4, DD.MM.YYYY dates)
-- src/components/admin/RangeTab.tsx (Range without Series)
-- src/components/nfa/ApproverSelector.tsx (range approvers, dropdown removed)
-- src/components/document/EnfaDocument.tsx (labels)
-- src/components/report/RecordEditDialog.tsx (labels)
+## Unchanged
+All other APIs, payloads, endpoint tests, SAP calls in Create NFA/Approvals/Reports, and settings.
 
-Logic / server
-- src/lib/company-series.ts
-- src/lib/company-series.functions.ts
-- src/lib/series-approvers.ts
-- src/lib/series-approvers.functions.ts
-- src/lib/enfa-docx.functions.ts (labels)
-
-Tests
-- src/lib/company-series.test.ts
-- src/lib/series-approvers.test.ts
-
-## Steps on Quality
-1. git pull in the Quality folder.
-2. No SQL to run.
-3. Run the usual Quality deploy script (rebuild + restart app). No Nginx change.
-4. Verify: User Management Range column, create a user, Approval Chain NFA Type dropdown, Budgeted approvers by range.
+## Technical details
+- File: `src/lib/sap-api.functions.ts` (`testSapSystem`), small label tweak in `src/routes/_authed.admin.sap-api.index.tsx` to show the tested path.
+- Logging via existing `logTest` stays.
