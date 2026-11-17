@@ -50,3 +50,11 @@ describe("approval chain date", () => {
     expect(formatApproverDate("0000-00-00")).toBe("");
   });
 });
+
+describe("placeholder slots", () => {
+  it("drops slots with only a -- date", () => {
+    const a = parseSapApprovalFlow({ DESIG1: "HR", USERID1: "9007", DATE1: "2026-11-17", DESIG2: "HR", USERID2: "9005", DATE2: "--", DESIG3: "", USERID3: "", DATE3: "--", DATE15: "--" });
+    expect(a.map((x) => x.userId)).toEqual(["9007", "9005"]);
+    expect(formatApproverDate("--")).toBe("");
+  });
+});

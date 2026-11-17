@@ -54,14 +54,12 @@ export function parseSapApprovalFlow(value: unknown): EnfaDocumentApprover[] {
       actedDate: text(record, [`ACT_DATE${level}`, `APPR_DATE${level}`, `DATE${level}`, `DATE_${level}`]),
       actedTime: text(record, [`ACT_TIME${level}`, `APPR_TIME${level}`, `TIME${level}`]),
     };
-  }).filter((approver) => [
-    approver.role,
-    approver.userId,
-    approver.name,
-    approver.status,
-    approver.actedDate,
-    approver.actedTime,
-  ].some((value) => value?.trim()));
+  }).filter(isAssignedApprover);
+}
+
+/** A slot counts only when SAP assigned a person or role; placeholder dates like "--" never create a box. */
+export function isAssignedApprover(approver: EnfaDocumentApprover): boolean {
+  return Boolean(approver.userId?.trim() || approver.name?.trim() || approver.role?.trim());
 }
 
 /** Fills fields level-by-level without discarding richer saved record data. */
@@ -70,10 +68,7 @@ export function mergeApprovalFlow(
   flow: EnfaDocumentApprover[],
   preferExisting = true,
 ): EnfaDocumentApprover[] {
-  const saved = (existing ?? []).filter((approver) =>
-    [approver.role, approver.userId, approver.name, approver.status, approver.actedDate, approver.actedTime]
-      .some((value) => value?.trim()),
-  );
+  const saved = (existing ?? []).filter(isAssignedApprover);
   const levels = Array.from(new Set([
     ...saved.map((approver, index) => approver.level ?? index + 1),
     ...flow.map((approver, index) => approver.level ?? index + 1),
@@ -94,7 +89,7 @@ export function mergeApprovalFlow(
       actedDate: primary?.actedDate?.trim() || fallback?.actedDate?.trim() || "",
       actedTime: primary?.actedTime?.trim() || fallback?.actedTime?.trim() || "",
     };
-  }).filter((approver) => Object.values(approver).some((value) => typeof value === "string" && value.trim()));
+  }).filter(isAssignedApprover);
 }
 
 /** SAP's flow is authoritative: keep only its levels, filling blanks from the same User ID. */
