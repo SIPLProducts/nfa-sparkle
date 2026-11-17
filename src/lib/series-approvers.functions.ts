@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertScreenAccess, getAdminClient as admin } from "./user-admin.server";
-import { filterSeriesApprovers, isAdminRole } from "./series-approvers";
+import { filterRangeApprovers, isAdminRole, isApproverRole, rangesOverlap, type Range } from "./series-approvers";
 
 /** Budgeted approvers: User Management users sharing the signed-in user's Series, Admins and the caller excluded. */
 export const listSeriesApprovers = createServerFn({ method: "POST" })
@@ -15,20 +15,29 @@ export const listSeriesApprovers = createServerFn({ method: "POST" })
     if (mErr) throw new Error(mErr.message);
     const series = data.series || String((me as any)?.company_series ?? "").trim() || null;
     if (!series) return { series: null, users: [] };
+    const { data: ranges, error: rErr } = await db.from("company_series").select("series, range_from, range_to");
+    if (rErr) throw new Error(rErr.message);
+    const rangeOf = new Map<string, Range>();
+    for (const r of (ranges ?? []) as any[]) rangeOf.set(String(r.series ?? "").trim(), { from: Number(r.range_from), to: Number(r.range_to) });
+    const target = rangeOf.get(series) ?? null;
+    if (!target) return { series, users: [] };
+    const overlapping = [...rangeOf].filter(([, r]) => rangesOverlap(target, r)).map(([k]) => k);
+    if (!overlapping.length) return { series, users: [] };
     const { data: profs, error } = await db.from("profiles")
-      .select("id, username, full_name, designation, company_series, status, is_active").eq("company_series", series);
+      .select("id, username, full_name, designation, company_series, status, is_active").in("company_series", overlapping);
     if (error) throw new Error(error.message);
     const ids = (profs ?? []).map((p: any) => p.id);
     const adminIds = new Set<string>();
+    const approverIds = new Set<string>();
     if (ids.length) {
       const [{ data: a }, { data: b }] = await Promise.all([
         db.from("user_role_assignment").select("user_id, role_key").in("user_id", ids),
         db.from("user_roles").select("user_id, role").in("user_id", ids),
       ]);
-      (a ?? []).forEach((r: any) => isAdminRole(r.role_key) && adminIds.add(r.user_id));
-      (b ?? []).forEach((r: any) => isAdminRole(r.role) && adminIds.add(r.user_id));
+      (a ?? []).forEach((r: any) => { if (isAdminRole(r.role_key)) adminIds.add(r.user_id); if (isApproverRole(r.role_key)) approverIds.add(r.user_id); });
+      (b ?? []).forEach((r: any) => { if (isAdminRole(r.role)) adminIds.add(r.user_id); if (isApproverRole(r.role)) approverIds.add(r.user_id); });
     }
-    const users = filterSeriesApprovers(series, (profs ?? []) as any, adminIds, callerId)
+    const users = filterRangeApprovers(target, (profs ?? []) as any, rangeOf, approverIds, adminIds, callerId)
       .sort((x, y) => String(x.username).localeCompare(String(y.username), undefined, { numeric: true }))
       .map((u) => ({ userId: String(u.username).trim(), name: u.full_name ?? "", designation: u.designation ?? "" }));
     return { series, users };

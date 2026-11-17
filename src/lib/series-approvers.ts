@@ -26,3 +26,25 @@ export function filterSeriesApprovers(series: string | null, users: SeriesUser[]
     String(u.status ?? "active").toLowerCase() !== "inactive" &&
     String(u.username ?? "").trim());
 }
+
+export type Range = { from: number; to: number };
+/** True when two From–To ranges overlap or one contains the other. */
+export function rangesOverlap(a: Range | null, b: Range | null): boolean {
+  if (!a || !b) return false;
+  return a.from <= b.to && a.to >= b.from;
+}
+
+const APPROVER_KEYS = new Set(["approver", "custom_approver"]);
+export function isApproverRole(role: string | null | undefined): boolean {
+  return APPROVER_KEYS.has(String(role ?? "").trim().toLowerCase());
+}
+
+/** Approver-role users whose range overlaps the target range; admins, inactive users and the caller excluded. */
+export function filterRangeApprovers(target: Range | null, users: SeriesUser[], rangeOfSeries: Map<string, Range>, approverIds: Set<string>, adminIds: Set<string>, excludeId?: string) {
+  if (!target) return [];
+  return users.filter((u) =>
+    rangesOverlap(target, rangeOfSeries.get(String(u.company_series ?? "").trim()) ?? null) &&
+    approverIds.has(u.id) && !adminIds.has(u.id) && u.id !== excludeId && u.is_active !== false &&
+    String(u.status ?? "active").toLowerCase() !== "inactive" &&
+    String(u.username ?? "").trim());
+}
