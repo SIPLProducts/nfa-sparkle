@@ -11,6 +11,9 @@ import { CalendarIcon } from "lucide-react";
 import { format, isValid, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { parseEnfaTypeF4 } from "@/lib/sap/master";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { parseApprovalChains, type SapApprovalChain } from "@/lib/sap/master";
 import { resolveApprovalUserEmails } from "@/lib/approval-chain.functions";
 import {
@@ -212,7 +215,7 @@ export function ApprovalChainTab() {
 
         <div className="grid gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Project *" value={draft.pspnr} onChange={(value) => updateField("pspnr", value)} />
-          <Field label="NFA Type *" value={draft.funct} onChange={(value) => updateField("funct", value)} />
+          <NfaTypeField value={draft.funct} onChange={(value) => updateField("funct", value)} />
           <Field label="Function *" value={draft.extraTxt} onChange={(value) => updateField("extraTxt", value)} />
           <DateField label="Valid From *" value={draft.begda} onChange={(value) => updateField("begda", value)} />
           <DateField label="Valid To *" value={draft.endda} onChange={(value) => updateField("endda", value)} />
@@ -394,6 +397,91 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
             initialFocus
             className={cn("p-3 pointer-events-auto")}
           />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+type TypeOption = { code: string; name: string };
+let nfaTypeCache: TypeOption[] | null = null;
+
+function NfaTypeField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [options, setOptions] = useState<TypeOption[]>(nfaTypeCache ?? []);
+  const [loading, setLoading] = useState(!nfaTypeCache);
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    if (nfaTypeCache) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        const res = await fetch("/api/public/sap-enfa-type", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: "{}",
+        });
+        const text = await res.text();
+        let parsed: unknown = null;
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+        const list = res.ok ? parseEnfaTypeF4(parsed) : [];
+        if (cancelled) return;
+        if (list.length) { nfaTypeCache = list; setOptions(list); }
+        else setError("NFA types could not be loaded from SAP. Type the value manually.");
+      } catch {
+        if (!cancelled) setError("NFA types could not be loaded from SAP. Type the value manually.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const current = options.find((o) => o.code === value);
+  if (error && !options.length) {
+    return (
+      <div className="space-y-1.5">
+        <Label>NFA Type *</Label>
+        <Input value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" />
+        <p className="text-xs text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
+  const typed = search.trim();
+  return (
+    <div className="space-y-1.5">
+      <Label>NFA Type *</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
+            <span className={cn("truncate", !value && "text-muted-foreground")}>
+              {loading ? "Loading…" : value ? (current && current.name !== current.code ? `${current.code} – ${current.name}` : value) : "Select NFA Type"}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search NFA Type…" value={search} onValueChange={setSearch} />
+            <CommandList>
+              <CommandEmpty>No NFA Type found.</CommandEmpty>
+              <CommandGroup>
+                {options.map((o) => (
+                  <CommandItem key={o.code} value={`${o.code} ${o.name}`} onSelect={() => { onChange(o.code); setOpen(false); setSearch(""); }}>
+                    <Check className={cn("mr-2 h-4 w-4", value === o.code ? "opacity-100" : "opacity-0")} />
+                    {o.name && o.name !== o.code ? `${o.code} – ${o.name}` : o.code}
+                  </CommandItem>
+                ))}
+                {value && !current && !loading && (
+                  <CommandItem value={value} onSelect={() => setOpen(false)}>
+                    <Check className="mr-2 h-4 w-4" />{value}
+                  </CommandItem>
+                )}
+              </CommandGroup>
+            </CommandList>
+          </Command>
         </PopoverContent>
       </Popover>
     </div>
