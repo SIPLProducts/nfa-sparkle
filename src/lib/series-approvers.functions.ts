@@ -37,15 +37,18 @@ export const listSeriesApprovers = createServerFn({ method: "POST" })
 /** Every configured Series (User Management > Company > Series) for the Budgeted filter, plus the caller's own. */
 export const listApproverSeriesOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ series: string[]; mine: string | null }> => {
+  .handler(async ({ context }): Promise<{ series: string[]; labels: Record<string, string>; mine: string | null }> => {
     await assertScreenAccess(context as any, "nfa_new");
     const db = await admin();
     const [{ data: rows, error }, { data: me }] = await Promise.all([
-      db.from("company_series").select("series"),
+      db.from("company_series").select("series, range_from, range_to"),
       db.from("profiles").select("company_series").eq("id", (context as any).userId).maybeSingle(),
     ]);
     if (error) throw new Error(error.message);
     const series: string[] = [...new Set<string>((rows ?? []).map((r: any) => String(r.series ?? "").trim()).filter(Boolean))]
       .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
-    return { series, mine: String((me as any)?.company_series ?? "").trim() || null };
+    const labels: Record<string, string> = {};
+    for (const r of (rows ?? []) as any[]) labels[String(r.series ?? "").trim()] = `${r.range_from}–${r.range_to}`;
+    series.sort((a, b) => labels[a].localeCompare(labels[b], undefined, { numeric: true }));
+    return { series, labels, mine: String((me as any)?.company_series ?? "").trim() || null };
   });

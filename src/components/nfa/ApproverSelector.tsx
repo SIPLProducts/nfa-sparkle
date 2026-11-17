@@ -44,6 +44,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   const loadSeriesOptions = useServerFn(listApproverSeriesOptions);
   const [seriesOptions, setSeriesOptions] = useState<string[]>([]);
   const [seriesFilter, setSeriesFilter] = useState("");
+  const [seriesLabels, setSeriesLabels] = useState<Record<string, string>>({});
   // Budgeted: every user fetched so far, so ticks survive switching Series.
   const [pool, setPool] = useState<{ userId: string; designation: string; series: string }[]>([]);
 
@@ -51,6 +52,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
     if (predefined) return;
     loadSeriesOptions().then((r) => {
       setSeriesOptions(r.series);
+      setSeriesLabels(r.labels ?? {});
       setSeriesFilter((cur) => cur || r.mine || r.series[0] || "");
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +78,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
             const have = new Set(prev.map((u) => u.userId));
             return [...prev, ...r.users.filter((u) => !have.has(u.userId)).map((u) => ({ userId: u.userId, designation: u.designation, series: r.series ?? "" }))];
           });
-          setSapMessage("No approvers are assigned to this Series.");
+          setSapMessage("No approvers are assigned to this Range.");
           return;
         }
         const { data } = await supabase.auth.getSession();
@@ -129,7 +131,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   }
 
   if (predefined ? !plant : !(company && plant)) {
-    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company and Plant to see your Series approvers."}</p>;
+    return <p className="text-sm text-muted-foreground">{predefined ? "Select a Plant to see the approvers." : "Select a Company and Plant to see your Range approvers."}</p>;
   }
   if (loading) return <p className="text-sm text-muted-foreground">Loading approvers…</p>;
   if (error) return (
@@ -141,23 +143,23 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   const rows = levels.map((a, i) => ({ a, i })).filter(({ a }) => predefined || (a as any).group === seriesFilter);
   const seriesPicker = !predefined && (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Series</span>
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Range</span>
       <Select value={seriesFilter} onValueChange={setSeriesFilter}>
-        <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Select Series" /></SelectTrigger>
-        <SelectContent>{seriesOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+        <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Select Range" /></SelectTrigger>
+        <SelectContent>{seriesOptions.map((s) => <SelectItem key={s} value={s}>{seriesLabels[s] ?? s}</SelectItem>)}</SelectContent>
       </Select>
     </div>
   );
-  if (!predefined && !seriesFilter) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">Select a Series to see its approvers.</p></div>;
+  if (!predefined && !seriesFilter) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">Select a Range to see its approvers.</p></div>;
   if (!rows.length && !selected.length) {
-    if (!predefined) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">{sapMessage || "No approvers are assigned to this Series."}</p></div>;
+    if (!predefined) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">{sapMessage || "No approvers are assigned to this Range."}</p></div>;
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
 
   return (
     <div className="space-y-3">
       {seriesPicker}
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Series Approvers"}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Range Approvers"}</p>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -170,7 +172,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-3 text-muted-foreground">No approvers are assigned to this Series.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-3 text-muted-foreground">No approvers are assigned to this Range.</td></tr>}
             {rows.map(({ a, i }) => (
               <tr key={`${a.userId}-${i}`} className="border-t">
                 <td className="px-3 py-2">
