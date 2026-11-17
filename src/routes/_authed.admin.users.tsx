@@ -427,7 +427,7 @@ function UsersTab() {
                         <div className="space-y-0.5">
                           <div className="font-medium text-foreground">{u.company_code || "—"}</div>
                           <div className="break-words text-xs">{u.employee_id || "—"}</div>
-                          {u.company_series ? <div className="text-xs">Series: {u.company_series}</div> : null}
+                          {u.company_series ? <div className="text-xs">Range: {rangeOf(u.company_series)}</div> : null}
                         </div>
                       ) : (
                         "—"
@@ -738,7 +738,7 @@ function CreateUserDialog({
     }
     if (!companyCode) {
       setCompanyError(true);
-      toast.error("Company Series is required");
+      toast.error("Range is required");
       return;
     }
     if (!department.trim()) {
@@ -858,7 +858,7 @@ function CreateUserDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Company Series {req}</Label>
+              <Label>Range {req}</Label>
               <SeriesSelect
                 value={series}
                 required
@@ -869,7 +869,7 @@ function CreateUserDialog({
                   setCompanyCode(v);
                 }}
               />
-              {companyError && <p className="text-xs text-destructive">Company Series is required</p>}
+              {companyError && <p className="text-xs text-destructive">Range is required</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Department {req}</Label>
@@ -1092,7 +1092,7 @@ function EditUserDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Company Series</Label>
+              <Label>Range</Label>
               <SeriesSelect
                 value={series}
                 fallbackCode={companyCode}
@@ -1533,21 +1533,21 @@ function SeriesSelect({
     <>
       <Select value={value || (required ? undefined : NONE)} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
         <SelectTrigger aria-invalid={invalid}>
-          <SelectValue placeholder={isLoading ? "Loading series…" : "Select a series"} />
+          <SelectValue placeholder={isLoading ? "Loading ranges…" : "Select a range"} />
         </SelectTrigger>
         <SelectContent>
-          {!required && <SelectItem value={NONE}>No series</SelectItem>}
+          {!required && <SelectItem value={NONE}>No range</SelectItem>}
           {value && !rows.some((r) => r.series === value) ? <SelectItem value={value}>{value}</SelectItem> : null}
           {rows.map((r) => (
             <SelectItem key={r.id} value={r.series}>
-              {r.series} ({r.range_from}–{r.range_to})
+              {r.range_from}–{r.range_to}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
       {isError ? (
         <p className="text-xs text-destructive">
-          Could not load series.{" "}
+          Could not load ranges.{" "}
           <button type="button" className="underline" onClick={() => refetch()}>Retry</button>
         </p>
       ) : null}

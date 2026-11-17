@@ -31,26 +31,25 @@ export function RangeTab() {
 
   const del = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Series deleted"); qc.invalidateQueries({ queryKey: seriesQueryKey }); },
+    onSuccess: () => { toast.success("Range deleted"); qc.invalidateQueries({ queryKey: seriesQueryKey }); },
     onError: (e) => toast.error(errMsg(e)),
   });
 
-  const rows = (data ?? []).filter((r) => !term || `${r.series} ${r.range_from} ${r.range_to}`.includes(term.trim()));
+  const rows = (data ?? []).filter((r) => !term || `${r.range_from} ${r.range_to}`.includes(term.trim()));
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search series" value={term} onChange={(e) => setTerm(e.target.value)} />
+          <Input className="pl-9" placeholder="Search range" value={term} onChange={(e) => setTerm(e.target.value)} />
         </div>
-        <Button className="gap-2" onClick={() => setDialog({ mode: "create" })}><Plus className="h-4 w-4" /> Create series</Button>
+        <Button className="gap-2" onClick={() => setDialog({ mode: "create" })}><Plus className="h-4 w-4" /> Create range</Button>
       </div>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-2.5 text-left font-medium">Series</th>
               <th className="px-4 py-2.5 text-left font-medium">From</th>
               <th className="px-4 py-2.5 text-left font-medium">To</th>
               <th className="px-4 py-2.5 text-right font-medium">Actions</th>
@@ -58,12 +57,11 @@ export function RangeTab() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={4} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
+              <tr><td colSpan={3} className="p-4"><Skeleton className="h-8 w-full" /></td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No series yet</td></tr>
+              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">No ranges yet</td></tr>
             ) : rows.map((r) => (
               <tr key={r.id} className="border-t">
-                <td className="px-4 py-3 font-medium">{r.series}</td>
                 <td className="px-4 py-3 tabular-nums">{r.range_from}</td>
                 <td className="px-4 py-3 tabular-nums">{r.range_to}</td>
                 <td className="px-4 py-3">
@@ -71,7 +69,7 @@ export function RangeTab() {
                     <Button size="icon" variant="ghost" aria-label="View" onClick={() => setDialog({ mode: "view", row: r })}><Eye className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setDialog({ mode: "edit", row: r })}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" aria-label="Delete" className="text-destructive"
-                      onClick={async () => { if (await swalConfirm({ title: `Delete series ${r.series}?` } as any)) del.mutate(r.id); }}>
+                      onClick={async () => { if (await swalConfirm({ title: `Delete range ${r.range_from}–${r.range_to}?` } as any)) del.mutate(r.id); }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -90,7 +88,7 @@ export function RangeTab() {
           onSave={async (v) => {
             if (dialog.mode === "edit" && dialog.row) await updateFn({ data: { id: dialog.row.id, ...v } });
             else await createFn({ data: v });
-            toast.success(dialog.mode === "edit" ? "Series updated" : "Series created");
+            toast.success(dialog.mode === "edit" ? "Range updated" : "Range created");
             qc.invalidateQueries({ queryKey: seriesQueryKey });
             setDialog(null);
           }}
@@ -104,9 +102,8 @@ function SeriesDialog({ mode, row, onClose, onSave }: {
   mode: "create" | "edit" | "view";
   row?: CompanySeries;
   onClose: () => void;
-  onSave: (v: { series: string; range_from: string; range_to: string }) => Promise<void>;
+  onSave: (v: { range_from: string; range_to: string }) => Promise<void>;
 }) {
-  const [series, setSeries] = useState(row?.series ?? "");
   const [from, setFrom] = useState(row ? String(row.range_from) : "");
   const [to, setTo] = useState(row ? String(row.range_to) : "");
   const [busy, setBusy] = useState(false);
@@ -114,21 +111,19 @@ function SeriesDialog({ mode, row, onClose, onSave }: {
   const req = <span className="text-destructive">*</span>;
   const digits = (v: string) => v.replace(/\D/g, "");
   const submit = async () => {
-    if (!series.trim()) return toast.error("Series is required");
     if (!from) return toast.error("From is required");
     if (!to) return toast.error("To is required");
     if (Number(from) > Number(to)) return toast.error("From must not be greater than To");
     setBusy(true);
-    try { await onSave({ series, range_from: from, range_to: to }); }
+    try { await onSave({ range_from: from, range_to: to }); }
     catch (e) { toast.error(errMsg(e)); }
     finally { setBusy(false); }
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{mode === "create" ? "Create series" : mode === "edit" ? "Edit series" : "Series"}</DialogTitle></DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5"><Label>Series {req}</Label><Input value={series} readOnly={ro} onChange={(e) => setSeries(e.target.value)} /></div>
+        <DialogHeader><DialogTitle>{mode === "create" ? "Create range" : mode === "edit" ? "Edit range" : "Range"}</DialogTitle></DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><Label>From {req}</Label><Input inputMode="numeric" value={from} readOnly={ro} onChange={(e) => setFrom(digits(e.target.value))} /></div>
           <div className="space-y-1.5"><Label>To {req}</Label><Input inputMode="numeric" value={to} readOnly={ro} onChange={(e) => setTo(digits(e.target.value))} /></div>
         </div>
