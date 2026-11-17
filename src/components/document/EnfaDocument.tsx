@@ -166,9 +166,9 @@ export function EnfaDocument({
            <FieldRow label="NFA Type" value={normalized.nfaType} />
            <FieldRow label="Function" value={normalized.functionName} />
            <FieldRow label="Sub" value={normalized.subject} />
-           <FieldRow label="Scope Impact" value={normalized.scopeImpact} />
-           <FieldRow label="Timeline Impact" value={normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""} />
-           <FieldRow label="Budget Impact" value={normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : ""} />
+           <FieldRow label="Scope" value={normalized.scopeImpact} />
+           <FieldRow label="Timeline" value={normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""} />
+           <FieldRow label="Budget" value={normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : ""} />
 
           {/* Detailed Description — the only place the description is rendered. */}
           <tr>

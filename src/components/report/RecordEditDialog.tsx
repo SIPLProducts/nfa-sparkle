@@ -352,7 +352,7 @@ export function RecordEditDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Scope Impact</Label>
+                <Label className="text-xs">Scope</Label>
                 <Textarea
                   rows={3}
                   value={draft.scope_impact}
@@ -364,7 +364,7 @@ export function RecordEditDialog({
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Budget Impact (in Lakhs)</Label>
+                  <Label className="text-xs">Budget (in Lakhs)</Label>
                   <Input
                     type="number"
                     value={draft.budget_impact}
@@ -374,7 +374,7 @@ export function RecordEditDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Timeline Impact (days)</Label>
+                  <Label className="text-xs">Timeline (days)</Label>
                   <Input
                     type="number"
                     value={draft.timeline_days}

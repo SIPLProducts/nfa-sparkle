@@ -694,13 +694,13 @@ function NewNfaPage() {
               <Field label="Subject" required className="md:col-span-2">
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Concise one-line subject" />
               </Field>
-              <Field label="Scope Impact" className="md:col-span-2">
+              <Field label="Scope" className="md:col-span-2">
                 <Input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="What functional areas are impacted?" />
               </Field>
-              <Field label="Budget Impact (Lakhs)">
+              <Field label="Budget (Lakhs)">
                 <Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0.00" />
               </Field>
-              <Field label="Timeline Impact (Days)">
+              <Field label="Timeline (Days)">
                 <Input type="number" value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="0" />
               </Field>
 

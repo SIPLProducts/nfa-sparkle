@@ -220,7 +220,7 @@ export const generateEnfaDocx = createServerFn({ method: "POST" })
        oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: titleRuns })]),
       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("NOTE FOR APPROVAL", true)] })], true),
        oneRow([line("NFA No", [normalized.nfaNo, normalized.plantLabel].filter(Boolean).join(" / ")), line("Date", normalized.date)]),
-       oneRow([line("Initiator", normalized.initiator), line("NFA Type", normalized.nfaType), line("Function", normalized.functionName), line("Sub", normalized.subject), line("Scope Impact", normalized.scopeImpact), line("Timeline Impact", normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""), line("Budget Impact", normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : "")]),
+       oneRow([line("Initiator", normalized.initiator), line("NFA Type", normalized.nfaType), line("Function", normalized.functionName), line("Sub", normalized.subject), line("Scope", normalized.scopeImpact), line("Timeline", normalized.timelineDays ? `${normalized.timelineDays} (Days)` : ""), line("Budget", normalized.budgetImpact ? `Rs.${normalized.budgetImpact} (Lakhs)` : "")]),
       oneRow([new Paragraph({ alignment: AlignmentType.CENTER, children: [run("DETAILED DESCRIPTION", true)] })], true),
       oneRow(description),
     ];

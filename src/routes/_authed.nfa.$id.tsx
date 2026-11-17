@@ -209,7 +209,7 @@ function NfaDetail() {
           <ReadField label="NFA Type" value={type} />
           <ReadField label="Function" value={functionName} />
           <ReadField label="Subject" value={subject} className="md:col-span-2" />
-          <ReadField label="Scope Impact" value={scopeImpact} className="md:col-span-2" />
+          <ReadField label="Scope" value={scopeImpact} className="md:col-span-2" />
           <ReadField label="Budget (Lakhs)" value={budgetImpact} />
           <ReadField label="Timeline (Days)" value={timelineDays} />
           <ReadField label="Initiator" value={nameFor(profiles, nfa.initiator_id)} />
