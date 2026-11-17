@@ -330,7 +330,7 @@ export function ApprovalChainTab() {
                   <div>
                     <div className="text-sm font-semibold">{chain.funct || "—"}</div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
-                      {[chain.extraTxt, chain.pspnr ? `Project ${chain.pspnr}` : "", chain.begda || chain.endda ? `Valid ${chain.begda || "—"} → ${chain.endda || "—"}` : ""]
+                      {[chain.extraTxt, chain.pspnr ? `Project ${chain.pspnr}` : "", chain.begda || chain.endda ? `Valid ${formatSapDate(chain.begda)} → ${formatSapDate(chain.endda)}` : ""]
                         .filter(Boolean).join(" · ")}
                     </div>
                   </div>
@@ -485,4 +485,10 @@ function NfaTypeField({ value, onChange }: { value: string; onChange: (value: st
       </Popover>
     </div>
   );
+}
+
+function formatSapDate(v?: string): string {
+  if (!v || !/^\d{8}$/.test(v)) return "—";
+  const d = parse(v, "yyyyMMdd", new Date());
+  return isValid(d) ? format(d, "dd.MM.yyyy") : "—";
 }
