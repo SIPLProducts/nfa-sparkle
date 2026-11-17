@@ -289,15 +289,43 @@ export const testSapSystem = createServerFn({ method: "POST" })
     await assertScreenAccess(context as any, "sap_api");
     const sys = await loadSystem(data.id);
     if (!sys) throw new Error("System not found");
-    const r = await callSap({
-      system: sys,
-      path: data.path?.trim() || "/",
-      method: "GET",
-      username: sys.username || undefined,
-      password: (await getSecret(`system:${sys.id}`)) ?? undefined,
-    });
-    await logTest(null, `system:${sys.key}`, r, (context as any).userId);
-    return r;
+    const password = (await getSecret(`system:${sys.id}`)) ?? undefined;
+    let path = data.path?.trim() || "";
+    let method = "GET";
+    let headers: Record<string, string> | undefined;
+    let query: Record<string, string> | undefined;
+    let body: string | undefined;
+    if (!path) {
+      // SAP serves nothing at "/", so probe a real configured service instead.
+      const db = await admin();
+      const { data: eps } = await db
+        .from("sap_endpoint")
+        .select("*")
+        .eq("active", true)
+        .neq("path_or_url", "")
+        .order("name");
+      const list = (eps ?? []) as Record<string, any>[];
+      const ep =
+        list.find((e) => e.system_id === sys.id && /plant\s*f4/i.test(e.name)) ??
+        list.find((e) => e.system_id === sys.id) ??
+        list.find((e) => !e.system_id && /plant\s*f4/i.test(e.name)) ??
+        list.find((e) => !e.system_id && !/^https?:/i.test(e.path_or_url));
+      if (ep) {
+        path = ep.path_or_url;
+        method = String(ep.http_method || "POST").toUpperCase();
+        headers = { "Content-Type": "application/json", Accept: "application/json", ...(ep.request_headers ?? {}) };
+        query = (ep.request_query ?? {}) as Record<string, string>;
+        body = method === "GET" ? undefined : ep.request_body || undefined;
+      } else {
+        path = "/sap/public/ping";
+      }
+    }
+    const r = await callSap({ system: sys, path, method, headers, query, body, username: sys.username || undefined, password });
+    // Any HTTP reply means SAP itself was reached; only network/middleware failures are failures.
+    const reached = r.status !== null && r.status !== undefined && r.status < 500;
+    const out = { ...r, ok: r.ok || reached, testedPath: path, error: r.ok || !reached ? r.error : null };
+    await logTest(null, `system:${sys.key}`, out, (context as any).userId);
+    return out;
   });
 
 /* ------------------------------ settings ------------------------------ */
