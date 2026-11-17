@@ -34,8 +34,8 @@ type EditableKey = "subject" | "scope_impact" | "budget_impact" | "timeline_days
 
 const FIELD_LABEL: Record<EditableKey, string> = {
   subject: "Subject",
-  scope_impact: "Scope Impact",
-  budget_impact: "Budget Impact (Lakhs)",
+  scope_impact: "Scope",
+  budget_impact: "Budget (Lakhs)",
   timeline_days: "Timeline (Days)",
   nfa_type: "NFA Type",
   function: "Function",
@@ -265,10 +265,10 @@ function ChangeRequestPage() {
                 <SelectContent>{FUNCTIONS.map((f) => <SelectItem key={f.code} value={f.code}>{f.name}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Field label="Scope Impact" className="md:col-span-2">
+            <Field label="Scope" className="md:col-span-2">
               <Input value={scope} onChange={(e) => setScope(e.target.value)} disabled={!canEdit} />
             </Field>
-            <Field label="Budget Impact (Lakhs)">
+            <Field label="Budget (Lakhs)">
               <Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} disabled={!canEdit} />
             </Field>
             <Field label="Timeline (Days)">
