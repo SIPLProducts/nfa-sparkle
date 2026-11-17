@@ -323,7 +323,7 @@ export const testSapSystem = createServerFn({ method: "POST" })
     const r = await callSap({ system: sys, path, method, headers, query, body, username: sys.username || undefined, password });
     // Any HTTP reply means SAP itself was reached; only network/middleware failures are failures.
     const reached = r.status !== null && r.status !== undefined && r.status < 500;
-    const out = { ...r, ok: r.ok || reached, testedPath: path, error: r.ok || !reached ? r.error : undefined };
+    const out = { ...r, ok: r.ok || reached, testedPath: path, error: r.ok || !reached ? r.error : null };
     await logTest(null, `system:${sys.key}`, out, (context as any).userId);
     return out;
   });
