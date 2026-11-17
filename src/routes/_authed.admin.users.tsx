@@ -319,6 +319,9 @@ function UsersTab() {
   const resetFn = useServerFn(resetManagedUserPassword);
   const deleteUserFn = useServerFn(deleteManagedUser);
 
+  const listRangesFn = useServerFn(listCompanySeries);
+  const { data: rangeRows } = useQuery({ queryKey: seriesQueryKey, queryFn: () => listRangesFn(), staleTime: 60_000 });
+  const rangeOf = (key: string) => { const r = (rangeRows ?? []).find((x) => x.series === key); return r ? `${r.range_from}–${r.range_to}` : key; };
   const { data, isLoading } = useQuery({ queryKey: ["managed-users"], queryFn: () => fetchUsers(), staleTime: 60_000, refetchOnMount: "always" });
   const [q, setQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
