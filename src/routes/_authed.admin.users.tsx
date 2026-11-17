@@ -430,11 +430,7 @@ function UsersTab() {
                         const hit = (rangeRows ?? []).find((r) => r.series === u.company_series)
                           ?? (Number.isFinite(code) && u.company_code ? (rangeRows ?? []).find((r) => code >= r.range_from && code <= r.range_to) : undefined);
                         return hit ? <div className="whitespace-nowrap font-medium text-foreground">{hit.range_from}–{hit.range_to}</div> : "—";
-                      })()}</div> : null}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       <div className="break-words">{u.department || "—"}</div>
