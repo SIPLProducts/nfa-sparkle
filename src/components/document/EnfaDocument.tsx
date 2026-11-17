@@ -70,7 +70,7 @@ function FieldRow({ label, value }: { label: string; value?: string }) {
 /** SAP dates (YYYY-MM-DD / YYYYMMDD) shown as DD.MM.YYYY; other values pass through. */
 export function formatApproverDate(value?: string): string {
   const v = String(value ?? "").trim();
-  if (!v || /^0+[-.]?0+[-.]?0+$/.test(v)) return "";
+  if (!v || /^-+$/.test(v) || /^0+[-.]?0+[-.]?0+$/.test(v)) return "";
   const m = v.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
   return m ? `${m[3]}.${m[2]}.${m[1]}` : v;
 }

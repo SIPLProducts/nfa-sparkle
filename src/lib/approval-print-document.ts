@@ -161,14 +161,7 @@ export function resolveApprovalPrintDocument(input: {
     actedTime: merged(
       `ACT_TIME${level}`, `ACT_TIME_${level}`, `APPR_TIME${level}`, `APPROVAL_TIME${level}`, `TIME${level}`,
     ),
-  })).filter((approver) => [
-    approver.role,
-    approver.userId,
-    approver.name,
-    approver.status,
-    approver.actedDate,
-    approver.actedTime,
-  ].some((value) => nonBlank(value)));
+  })).filter((approver) => Boolean(nonBlank(approver.userId) || nonBlank(approver.name) || nonBlank(approver.role)));
 
   const document: ApprovalPrintDocument = {
     companyCode: merged("CC_CODE", "COMPANY_CODE", "BUKRS", "COMP_CODE") || savedCompany?.code || "",
