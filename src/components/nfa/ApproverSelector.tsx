@@ -150,15 +150,15 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
       </Select>
     </div>
   );
-  if (!predefined && !seriesFilter) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">Select a Range to see its approvers.</p></div>;
+  if (!predefined && !seriesFilter) return <div className="space-y-3"><p className="text-sm text-muted-foreground">Select a Range to see its approvers.</p></div>;
   if (!rows.length && !selected.length) {
-    if (!predefined) return <div className="space-y-3">{seriesPicker}<p className="text-sm text-muted-foreground">{sapMessage || "No approvers are assigned to this Range."}</p></div>;
+    if (!predefined) return <div className="space-y-3"><p className="text-sm text-muted-foreground">{sapMessage || "No approvers are assigned to this Range."}</p></div>;
     return <p className="text-sm text-muted-foreground">{sapMessage || "No approvers returned by SAP."}</p>;
   }
 
   return (
     <div className="space-y-3">
-      {seriesPicker}
+      {null}
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Range Approvers"}</p>
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
