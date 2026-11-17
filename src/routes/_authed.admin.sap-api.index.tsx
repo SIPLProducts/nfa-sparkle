@@ -585,8 +585,7 @@ function SystemsTab() {
   async function runTest(id: string, label: string) {
     setTesting(true);
     try {
-      const res = (await test({ data: { id } })) as TestResult & { testedPath?: string };
-      resultToast(res, res.testedPath ? `${label} (${res.testedPath})` : label);
+      resultToast(await test({ data: { id } }), label);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test failed");
     } finally {

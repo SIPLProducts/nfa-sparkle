@@ -304,12 +304,22 @@ export const testSapSystem = createServerFn({ method: "POST" })
         .eq("active", true)
         .neq("path_or_url", "")
         .order("name");
-      const list = (eps ?? []) as Record<string, any>[];
-      const ep =
-        list.find((e) => e.system_id === sys.id && /plant\s*f4/i.test(e.name)) ??
-        list.find((e) => e.system_id === sys.id) ??
-        list.find((e) => !e.system_id && /plant\s*f4/i.test(e.name)) ??
-        list.find((e) => !e.system_id && !/^https?:/i.test(e.path_or_url));
+      const unsafe = /create|approv|reject|edit|change|delete|upload|save|submit|update|post/i;
+      const list = ((eps ?? []) as Record<string, any>[]).filter(
+        (e) => !unsafe.test(`${e.name} ${e.path_or_url}`) && (!e.system_id || e.system_id === sys.id),
+      );
+      const own = (e: Record<string, any>) => (e.system_id === sys.id ? 0 : 1);
+      const rank = (e: Record<string, any>) => {
+        const n = String(e.name);
+        if (/plant\s*f4/i.test(n)) return 0;
+        if (/company\s*f4/i.test(n)) return 1;
+        if (/type\s*f4/i.test(n)) return 2;
+        if (/f4/i.test(n)) return 3;
+        return 9;
+      };
+      const ep = list
+        .filter((e) => rank(e) < 9)
+        .sort((a, b) => rank(a) - rank(b) || own(a) - own(b))[0];
       if (ep) {
         path = ep.path_or_url;
         method = String(ep.http_method || "POST").toUpperCase();
