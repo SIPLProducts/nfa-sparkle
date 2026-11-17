@@ -520,7 +520,8 @@ function UsersTab() {
             throw new Error(result.error ?? "Create user failed");
           }
           toast.success(result.message ?? "User created successfully");
-          invalidate();
+          setCreateOpen(false);
+          await invalidate();
         }}
       />
       <EditUserDialog
