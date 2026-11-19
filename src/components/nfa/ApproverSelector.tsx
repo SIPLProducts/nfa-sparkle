@@ -11,6 +11,9 @@ import { MIN_CREATE_APPROVERS } from "@/lib/sap-api-constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { orderSelected, toggleOrdered } from "@/lib/approver-order";
+import { matchesApproverSearch } from "@/lib/approver-search";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface Props {
   plant: string;
@@ -40,10 +43,12 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
   const [sapMessage, setSapMessage] = useState("");
   const predefined = check === "X";
   const [attempt, setAttempt] = useState(0);
+  const [search, setSearch] = useState("");
   const plantsKey = plants.join(",");
   const loadSeriesOptions = useServerFn(listApproverSeriesOptions);
   const [seriesOptions, setSeriesOptions] = useState<string[]>([]);
   const [seriesFilter, setSeriesFilter] = useState("");
+  useEffect(() => { setSearch(""); }, [company, plant, seriesFilter]);
   const [seriesLabels, setSeriesLabels] = useState<Record<string, string>>({});
   // Budgeted: every user fetched so far, so ticks survive switching Series.
   const [pool, setPool] = useState<{ userId: string; designation: string; series: string }[]>([]);
@@ -140,7 +145,8 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
       <button type="button" className="font-medium text-primary underline" onClick={() => setAttempt((n) => n + 1)}>Retry</button>
     </p>
   );
-  const rows = levels.map((a, i) => ({ a, i })).filter(({ a }) => predefined || (a as any).group === seriesFilter);
+  const rows = levels.map((a, i) => ({ a, i })).filter(({ a }) => predefined || (a as any).group === seriesFilter)
+    .filter(({ a }) => predefined || matchesApproverSearch(search, { userId: a.userId, name: details[a.userId]?.name, department: details[a.userId]?.department, designation: a.role }));
   const seriesPicker = !predefined && (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Range</span>
@@ -160,6 +166,12 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
     <div className="space-y-3">
       {null}
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{predefined ? "Predefined Approvers" : "Range Approvers"}</p>
+      {!predefined && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by User ID, Name, Department or Designation" className="h-9 pl-8" aria-label="Search approvers" />
+        </div>
+      )}
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -172,7 +184,7 @@ export function ApproverSelector({ plant, nfaType, functionName, check = "", pla
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-3 text-muted-foreground">No approvers are assigned to this Range.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-3 text-muted-foreground">{search.trim() ? "No approvers match your search." : "No approvers are assigned to this Range."}</td></tr>}
             {rows.map(({ a, i }) => (
               <tr key={`${a.userId}-${i}`} className="border-t">
                 <td className="px-3 py-2">
