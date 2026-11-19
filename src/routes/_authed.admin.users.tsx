@@ -515,11 +515,12 @@ function UsersTab() {
             },
             body: JSON.stringify(v),
           });
-          const result = (await response.json().catch(() => ({}))) as { ok?: boolean; id?: string; message?: string; error?: string };
+          const result = (await response.json().catch(() => ({}))) as { ok?: boolean; id?: string; message?: string; error?: string; welcomeEmail?: string };
           if (!response.ok || result.ok === false) {
             throw new Error(result.error ?? "Create user failed");
           }
-          toast.success(result.message ?? "User created successfully");
+          if (result.welcomeEmail && result.welcomeEmail !== "sent") toast.warning(result.message ?? "User created, but the welcome email could not be sent.");
+          else toast.success(result.message ?? "User created successfully");
           setCreateOpen(false);
           await invalidate();
         }}

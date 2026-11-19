@@ -9,6 +9,6 @@ export function portalBaseUrl(h: { forwardedProto?: string | null; forwardedHost
   try { return new URL(first(h.origin)).origin; } catch { return ""; }
 }
 
-export function resetPasswordLink(base: string, tokenHash: string): string {
-  return `${base.replace(/\/+$/, "")}/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+export function resetPasswordLink(base: string, tokenHash: string, opts?: { welcome?: boolean }): string {
+  return `${base.replace(/\/+$/, "")}/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery${opts?.welcome ? "&welcome=1" : ""}`;
 }

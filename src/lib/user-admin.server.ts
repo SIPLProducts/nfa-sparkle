@@ -148,5 +148,30 @@ export async function createManagedUserForAdmin(ctx: AdminContext, raw: CreateMa
     await db.auth.admin.updateUserById(id, { ban_duration: "876000h" });
   }
   await applyRoles(db, id, parseRoleKeys(data.ROLE));
-  return { id };
+  const welcomeEmail = await sendWelcomeEmailSafely(db, email, fullName, data.USER_ID);
+  return { id, welcomeEmail };
+}
+
+/** Sends the welcome / set-password email; never fails user creation. */
+async function sendWelcomeEmailSafely(db: any, email: string, name: string, userId: string): Promise<"sent" | "skipped" | "failed"> {
+  try {
+    const { portalBaseUrl, resetPasswordLink } = await import("./reset-link");
+    const base = portalBaseUrl({
+      forwardedProto: getRequestHeader("x-forwarded-proto"),
+      forwardedHost: getRequestHeader("x-forwarded-host"),
+      host: getRequestHeader("host"),
+      origin: getRequestHeader("origin"),
+    });
+    if (!base) return "failed";
+    const { data: link, error } = await db.auth.admin.generateLink({ type: "recovery", email });
+    const hashed = link?.properties?.hashed_token;
+    if (error || !hashed) return "failed";
+    const { sendUserWelcomeMail } = await import("./workflow-mail.server");
+    await sendUserWelcomeMail(email, resetPasswordLink(base, hashed, { welcome: true }), { name, userId, portalUrl: base });
+    return "sent";
+  } catch (e: any) {
+    if (e?.message === "NOT_CONFIGURED") return "skipped";
+    console.warn("[user-welcome] send failed:", e?.message);
+    return "failed";
+  }
 }

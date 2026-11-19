@@ -83,7 +83,10 @@ export const Route = createFileRoute("/api/public/create-user")({
             body as CreateManagedUserInput,
           );
 
-          return json({ ok: true, id: result.id, message: "User created successfully" });
+          const message = result.welcomeEmail === "sent"
+            ? "User created successfully. A welcome email with a Set Password link has been sent."
+            : "User created successfully, but the welcome email could not be sent.";
+          return json({ ok: true, id: result.id, welcomeEmail: result.welcomeEmail, message });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Create user failed";
           return json({ ok: false, error: message }, errorStatus(message));

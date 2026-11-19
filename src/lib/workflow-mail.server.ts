@@ -588,3 +588,25 @@ export async function sendPasswordResetMail(to: string, link: string, name: stri
     throw new Error(msg);
   }
 }
+
+export async function sendUserWelcomeMail(to: string, link: string, info: { name: string; userId: string; portalUrl: string }) {
+  const { config } = await loadEmailConfig();
+  const log = async (status: string, error?: string) => {
+    try {
+      const db = await admin();
+      await db.from("email_log").insert({ enfa_no: "-", action: "user_welcome", status, people: [info.userId], recipients: [to], error: error ?? null, level: null, source: "user_management" });
+    } catch { /* logging never blocks */ }
+  };
+  if (!config.enabled || !config.host || !config.fromEmail) { await log("skipped", "Sending is switched off in Email Configuration"); throw new Error("NOT_CONFIGURED"); }
+  const { buildWelcomeEmailHtml, buildWelcomeEmailText, welcomeEmailSubject } = await import("./welcome-email-template");
+  const tpl = { name: info.name, userId: info.userId, email: to, link, portalUrl: info.portalUrl, sender: senderLabel(config.fromName) };
+  try {
+    const { transporter, from } = await transport();
+    await transporter.sendMail({ from, to, subject: welcomeEmailSubject(), text: buildWelcomeEmailText(tpl), html: buildWelcomeEmailHtml(tpl) });
+    await log("sent");
+  } catch (e) {
+    const msg = friendlyMailError(e);
+    await log("failed", msg);
+    throw new Error(msg);
+  }
+}

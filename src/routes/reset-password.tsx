@@ -26,10 +26,12 @@ function ResetPasswordPage() {
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [welcome, setWelcome] = useState(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const token_hash = p.get("token_hash");
+    setWelcome(p.get("welcome") === "1");
     if (!token_hash || p.get("type") !== "recovery") { setState("invalid"); return; }
     supabase.auth.verifyOtp({ token_hash, type: "recovery" }).then(({ error }) => {
       setState(error ? "invalid" : "ready");
@@ -45,7 +47,7 @@ function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password: pwd });
       if (error) return toast.error(error.message);
       await supabase.auth.signOut();
-      toast.success("Password updated. Please sign in with your new password.");
+      toast.success(welcome ? "Password set successfully. Please sign in with your User ID or email." : "Password updated. Please sign in with your new password.");
       nav({ to: "/auth", replace: true });
     } finally { setBusy(false); }
   }
@@ -55,7 +57,7 @@ function ResetPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="flex justify-center"><AnumatiWordmark /></div>
         <Card className="border-field-border shadow-sm">
-          <CardHeader><CardTitle className="font-display text-2xl">Reset password</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-display text-2xl">{welcome ? "Set your password" : "Reset password"}</CardTitle></CardHeader>
           <CardContent>
             {state === "checking" && <p className="text-sm text-muted-foreground">Checking your reset link…</p>}
             {state === "invalid" && (
@@ -75,7 +77,7 @@ function ResetPasswordPage() {
                   <Input id="confirm-pwd" type="password" className="h-11 border-field-border" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
                 </div>
                 <Button onClick={save} disabled={busy} className="h-11 w-full bg-brand-blue text-sm font-semibold text-primary-foreground hover:bg-brand-blue/90">
-                  {busy ? "Saving…" : "Set new password"}
+                  {busy ? "Saving…" : welcome ? "Submit" : "Set new password"}
                 </Button>
               </div>
             )}
