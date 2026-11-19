@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { SCREENS } from "@/lib/screens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/lib/swal";
@@ -142,7 +143,7 @@ function AuthPage() {
                     <Label htmlFor="signin-pwd" className="text-[13px] font-semibold">Password</Label>
                     <button type="button" onClick={() => { setForgotLogin(email); setForgotMsg(null); setForgotOpen(true); }} className="text-xs text-brand-blue underline">Forgot password?</button>
                   </div>
-                  <Input id="signin-pwd" className="h-11 border-field-border" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" autoComplete="current-password" />
+                  <PasswordInput id="signin-pwd" className="h-11 border-field-border" placeholder="••••••••" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" />
                 </div>
                 <Button onClick={signIn} disabled={busy} className="h-11 w-full bg-brand-blue text-sm font-semibold text-primary-foreground hover:bg-brand-blue/90">
                   {busy ? "Signing in…" : "Sign in"}

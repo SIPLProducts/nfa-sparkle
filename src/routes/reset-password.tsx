@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/lib/swal";
@@ -70,11 +70,11 @@ function ResetPasswordPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-pwd" className="text-[13px] font-semibold">New password</Label>
-                  <Input id="new-pwd" type="password" className="h-11 border-field-border" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="new-password" />
+                  <PasswordInput id="new-pwd" className="h-11 border-field-border" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="new-password" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-pwd" className="text-[13px] font-semibold">Confirm password</Label>
-                  <Input id="confirm-pwd" type="password" className="h-11 border-field-border" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+                  <PasswordInput id="confirm-pwd" className="h-11 border-field-border" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
                 </div>
                 <Button onClick={save} disabled={busy} className="h-11 w-full bg-brand-blue text-sm font-semibold text-primary-foreground hover:bg-brand-blue/90">
                   {busy ? "Saving…" : welcome ? "Submit" : "Set new password"}
