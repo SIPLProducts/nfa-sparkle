@@ -1,7 +1,7 @@
 # Approvers popup: add search
 
 ## What changes
-- A search box appears above the approver table in Create NFA → Approvers popup (both Predefined and Budgeted/Range lists).
+- A search box appears above the approver table in Create NFA → Approvers popup (Budgeted / Dynamic users list — where many users appear — and also the Predefined list).
 - Typing filters rows by **User ID, Name, Department or Designation** (case-insensitive, partial match).
 - If nothing matches, the table shows "No approvers match your search."
 - Search only hides rows from view: already-selected approvers stay selected, keep their level numbers (#1, #2…), and still appear in "Selected approvers (level-wise)".
